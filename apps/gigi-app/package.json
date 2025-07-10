@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "lint": "eslint .",
-    "format": "prettier --write .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,19 +14,19 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.30.1",
+    "@ameinhardt/unocss-preset-daisy": "^1.1.8",
+    "@eslint/js": "^9.29.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.6.0",
-    "eslint": "^9.30.1",
-    "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-prettier": "^5.5.1",
+    "@vitejs/plugin-react": "^4.5.2",
+    "daisyui": "^5.0.46",
+    "eslint": "^9.29.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.3.0",
-    "prettier": "^3.6.2",
+    "globals": "^16.2.0",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.35.1",
-    "vite": "^7.0.3"
+    "typescript-eslint": "^8.34.1",
+    "unocss": "^66.3.3",
+    "vite": "^7.0.0"
   }
 }
