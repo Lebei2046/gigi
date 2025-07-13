@@ -5,30 +5,34 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
+    "@scure/bip32": "^1.7.0",
+    "@scure/bip39": "^1.6.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-redux": "^9.2.0"
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@ameinhardt/unocss-preset-daisy": "^1.1.8",
-    "@eslint/js": "^9.29.0",
+    "@babel/preset-react": "^7.27.1",
+    "@eslint/js": "^9.30.1",
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/node": "^24.0.12",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.5.2",
+    "@vitejs/plugin-react": "^4.6.0",
     "daisyui": "^5.0.46",
-    "eslint": "^9.29.0",
+    "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.2.0",
+    "globals": "^16.3.0",
+    "tailwindcss": "^4.1.11",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.34.1",
-    "unocss": "^66.3.3",
-    "vite": "^7.0.0"
+    "typescript-eslint": "^8.35.1",
+    "vite": "^7.0.3",
+    "vite-plugin-markdown": "^2.2.0"
   }
 }
