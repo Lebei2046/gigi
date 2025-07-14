@@ -1,9 +1,9 @@
-import MnemonicInput from './features/signup/pages/MnemonicInput';
-
+import Home from './features/home/Home';
 export default function App() {
   return (
     <div className="min-h-screen bg-base-100 p-8">
-      <MnemonicInput />
+      <Home />
     </div>
   );
 }
+
