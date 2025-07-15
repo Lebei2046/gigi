@@ -27,13 +27,6 @@ export default function MnemonicConfirm() {
             );
           })}
         </div>
-
-      </div>
-
-
-      <div className="flex justify-between">
-        <button className="btn btn-outline w-40">Back</button>
-        <button className="btn btn-primary w-40">Continue</button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { ReactComponent as Terms } from '/public/TermsOfUse.md';
+
 export default function TermsOfUse() {
   return (
     <div className="p-8">
@@ -12,10 +13,6 @@ export default function TermsOfUse() {
           <input type="checkbox" className="checkbox" />
           <span>I agree to the Terms of Use Agreement</span>
         </label>
-      </div>
-      <div className="mt-6 flex justify-between">
-        <button className="btn btn-outline w-40">Back</button>
-        <button className="btn btn-primary w-40">Next: Seed Phrase</button>
       </div>
     </div>
   );

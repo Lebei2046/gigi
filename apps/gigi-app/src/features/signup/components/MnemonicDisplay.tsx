@@ -1,22 +1,30 @@
-export default function MnemonicInput() {
+export default function MnemonicDisplay() {
   return (
     <div className="p-8">
       <div>
-        <h1 className="text-2xl font-bold mb-4">Recover Account</h1>
+        <h1 className="text-2xl font-bold mb-4">Seed Phrase</h1>
         <p className="mb-4 text-gray-600">
-          Enter your existing seed phrase to restore your wallet.
+          Please write down your seed phrase in the correct order and keep it in a safe place.
         </p>
       </div>
       <div className="mb-6">
         <div className="grid grid-cols-3 gap-4">
           {Array.from({ length: 12 }).map((_, index) => (
-            <div key={index} className="flex items-end p-2">
-              <span className="text-gray-500 flex items-end justify-end w-8">{index + 1}.</span>
-              <input type="text" className="ml-2 font-medium border-b w-full" placeholder="word" />
+            <div key={index} className="border rounded-lg p-2 text-center">
+              <span className="text-gray-500">{index + 1}.</span>
+              <span className="ml-2 font-medium">word</span>
             </div>
           ))}
         </div>
-        
+        <div className="flex justify-center mt-4">
+          <button className="btn btn-outline flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+              <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+            </svg>
+            Copy
+          </button>
+        </div>
       </div>
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
         <div className="flex">
@@ -35,10 +43,6 @@ export default function MnemonicInput() {
       <div className="flex items-center mb-6">
         <input type="checkbox" id="seedPhraseConfirmation" className="mr-2" />
         <label htmlFor="seedPhraseConfirmation">I have written down my seed phrase on paper and stored it securely</label>
-      </div>
-      <div className="flex justify-between">
-        <button className="btn btn-outline w-40">Back</button>
-        <button className="btn btn-primary w-40">Continue</button>
       </div>
     </div>
   );
