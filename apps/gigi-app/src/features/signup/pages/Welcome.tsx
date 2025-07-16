@@ -1,7 +1,7 @@
 import { useSignupContext } from "../context/SignupContext";
 
 export default function Welcome() {
-  const { setSignupType } = useSignupContext();
+  const { setSignupType, setIsNextDisabled } = useSignupContext();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-8">
@@ -14,6 +14,7 @@ export default function Welcome() {
           className="card w-96 bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
           onClick={() => {
             setSignupType("create");
+            setIsNextDisabled(true);
           }}
         >
           <figure className="px-10 pt-10">
@@ -28,6 +29,7 @@ export default function Welcome() {
           className="card w-96 bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
           onClick={() => {
             setSignupType("import");
+            setIsNextDisabled(true);
           }}
         >
           <figure className="px-10 pt-10">

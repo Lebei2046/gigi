@@ -20,7 +20,7 @@ const SignupContext = createContext<SignupContextType | undefined>(undefined);
 
 export const SignupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [isNextDisabled, setIsNextDisabled] = useState(false);
+  const [isNextDisabled, setIsNextDisabled] = useState(true);
   const [signupType, setSignupType] = useState<SignupType>(null);
   const [mnemonic, setMnemonic] = useState<string[]>(Array(12).fill(""));
   const [password, setPassword] = useState("");
@@ -29,6 +29,7 @@ export const SignupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!isNextDisabled) {
       setCurrentStep((prev) => prev + 1);
     }
+    setIsNextDisabled(true);
   };
 
   const goToPrevStep = () => {

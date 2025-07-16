@@ -1,4 +1,5 @@
 import { ReactComponent as Terms } from '/public/TermsOfUse.md';
+import AgreeToContinue from './AgreeToContinue';
 
 export default function TermsOfUse() {
   return (
@@ -8,12 +9,10 @@ export default function TermsOfUse() {
       <div className="overflow-y-auto overflow-x-hidden max-h-92 border rounded-lg p-4">
         <Terms />
       </div>
-      <div className="mt-4">
-        <label className="flex items-center space-x-2">
-          <input type="checkbox" className="checkbox" />
-          <span>I agree to the Terms of Use Agreement</span>
-        </label>
-      </div>
+      <AgreeToContinue
+        id="termsOfUseAgreement"
+        label="I agree to the Terms of Use Agreement"
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useSignupContext } from "../context/SignupContext";
 import { CryptoService } from "../services/crypto";
+import AgreeToContinue from "./AgreeToContinue";
 
 export default function MnemonicDisplay() {
   const { mnemonic, setMnemonic } = useSignupContext();
@@ -51,10 +52,10 @@ export default function MnemonicDisplay() {
           </div>
         </div>
       </div>
-      <div className="flex items-center mb-6">
-        <input type="checkbox" id="seedPhraseConfirmation" className="mr-2" />
-        <label htmlFor="seedPhraseConfirmation">I have written down my seed phrase on paper and stored it securely</label>
-      </div>
+      <AgreeToContinue
+        id="seedPhraseConfirmation"
+        label="I have written down my seed phrase on paper and stored it securely"
+      />
     </div>
   );
 }

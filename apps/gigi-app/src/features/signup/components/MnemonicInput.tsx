@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSignupContext } from "../context/SignupContext";
+import AgreeToContinue from "./AgreeToContinue";
 
 export default function MnemonicInput() {
   const { mnemonic, setMnemonic } = useSignupContext();
@@ -54,10 +55,11 @@ export default function MnemonicInput() {
           </div>
         </div>
       </div>
-      <div className="flex items-center mb-6">
-        <input type="checkbox" id="seedPhraseConfirmation" className="mr-2" disabled={isCheckboxDisabled} />
-        <label htmlFor="seedPhraseConfirmation">I have written down my seed phrase on paper and stored it securely</label>
-      </div>
+      <AgreeToContinue
+        id="seedPhraseConfirmation"
+        label="I have written down my seed phrase on paper and stored it securely"
+        disabled={isCheckboxDisabled}
+      />
     </div>
   );
 }
