@@ -10,6 +10,10 @@ type SignupContextType = {
   setIsNextDisabled: (disabled: boolean) => void;
   signupType: SignupType;
   setSignupType: (type: SignupType) => void;
+  mnemonic: string[];
+  setMnemonic: (mnemonic: string[]) => void;
+  password: string;
+  setPassword: (password: string) => void;
 };
 
 const SignupContext = createContext<SignupContextType | undefined>(undefined);
@@ -18,6 +22,8 @@ export const SignupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentStep, setCurrentStep] = useState(0);
   const [isNextDisabled, setIsNextDisabled] = useState(false);
   const [signupType, setSignupType] = useState<SignupType>(null);
+  const [mnemonic, setMnemonic] = useState<string[]>(Array(12).fill(""));
+  const [password, setPassword] = useState("");
 
   const goToNextStep = () => {
     if (!isNextDisabled) {
@@ -43,6 +49,10 @@ export const SignupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setIsNextDisabled,
         signupType,
         setSignupType,
+        mnemonic,
+        setMnemonic,
+        password,
+        setPassword,
       }}
     >
       {children}

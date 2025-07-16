@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useSignupContext } from "../context/SignupContext";
 
 export default function MnemonicInput() {
-  const [mnemonic, setMnemonic] = useState<string[]>(Array(12).fill(""));
+  const { mnemonic, setMnemonic } = useSignupContext();
   const [isCheckboxDisabled, setIsCheckboxDisabled] = useState<boolean>(true);
 
   const handleChange = (index: number, value: string) => {
@@ -31,6 +32,7 @@ export default function MnemonicInput() {
               <input
                 type="text"
                 className="ml-2 font-medium border-b w-full"
+                placeholder="word"
                 value={mnemonic[index]}
                 onChange={(e) => handleChange(index, e.target.value)}
               />

@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useSignupContext } from "../context/SignupContext";
 import { CryptoService } from "../services/crypto";
 
 export default function MnemonicDisplay() {
-  const [mnemonic, setMnemonic] = useState<string[]>([]);
+  const { mnemonic, setMnemonic } = useSignupContext();
 
   useEffect(() => {
     const generatedMnemonic = CryptoService.generateMnemonic();
     setMnemonic(generatedMnemonic);
-  }, []);
+  }, [setMnemonic]);
 
   return (
     <div className="p-8">
@@ -27,7 +28,7 @@ export default function MnemonicDisplay() {
           ))}
         </div>
         <div className="flex justify-center mt-4">
-          <button className="btn btn-outline flex items-center gap-2" onClick={() => navigator.clipboard.writeText(mnemonic.join(' '))}>
+          <button className="btn btn-outline flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
               <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />

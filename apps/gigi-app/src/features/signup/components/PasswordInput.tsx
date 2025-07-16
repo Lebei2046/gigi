@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useSignupContext } from '../context/SignupContext';
 
 export default function PasswordInput() {
-  const [password, setPassword] = useState('');
+  const { password, setPassword } = useSignupContext();
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
@@ -50,7 +51,7 @@ export default function PasswordInput() {
             ></div>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Password strength: {passwordStrength}% ({passwordStrength < 30 ? 'Weak' : passwordStrength < 70 ? 'Medium' : 'Strong'})
+            Password strength: {passwordStrength}%
           </p>
         </div>
 
