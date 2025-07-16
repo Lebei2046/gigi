@@ -1,4 +1,20 @@
+import { useState, useEffect } from "react";
+
 export default function MnemonicInput() {
+  const [mnemonic, setMnemonic] = useState<string[]>(Array(12).fill(""));
+  const [isCheckboxDisabled, setIsCheckboxDisabled] = useState<boolean>(true);
+
+  const handleChange = (index: number, value: string) => {
+    const newMnemonic = [...mnemonic];
+    newMnemonic[index] = value;
+    setMnemonic(newMnemonic);
+  };
+
+  useEffect(() => {
+    const isAllFilled = mnemonic.every(word => word.trim() !== "");
+    setIsCheckboxDisabled(!isAllFilled);
+  }, [mnemonic]);
+
   return (
     <div className="p-8">
       <div>
@@ -12,11 +28,15 @@ export default function MnemonicInput() {
           {Array.from({ length: 12 }).map((_, index) => (
             <div key={index} className="flex items-end p-2">
               <span className="text-gray-500 flex items-end justify-end w-8">{index + 1}.</span>
-              <input type="text" className="ml-2 font-medium border-b w-full" placeholder="word" />
+              <input
+                type="text"
+                className="ml-2 font-medium border-b w-full"
+                value={mnemonic[index]}
+                onChange={(e) => handleChange(index, e.target.value)}
+              />
             </div>
           ))}
         </div>
-
       </div>
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
         <div className="flex">
@@ -33,7 +53,7 @@ export default function MnemonicInput() {
         </div>
       </div>
       <div className="flex items-center mb-6">
-        <input type="checkbox" id="seedPhraseConfirmation" className="mr-2" />
+        <input type="checkbox" id="seedPhraseConfirmation" className="mr-2" disabled={isCheckboxDisabled} />
         <label htmlFor="seedPhraseConfirmation">I have written down my seed phrase on paper and stored it securely</label>
       </div>
     </div>

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function PasswordInput() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [showWarning, setShowWarning] = useState(false);
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -14,8 +15,14 @@ export default function PasswordInput() {
   };
 
   const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setConfirmPassword(e.target.value);
+    const value = e.target.value;
+    setConfirmPassword(value);
+    setShowWarning(value !== '' && value !== password);
   };
+
+  useEffect(() => {
+    setShowWarning(confirmPassword !== '' && confirmPassword !== password);
+  }, [password, confirmPassword]);
 
   return (
     <div className="p-8 bg-white">
@@ -43,7 +50,7 @@ export default function PasswordInput() {
             ></div>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Password strength: {passwordStrength}%
+            Password strength: {passwordStrength}% ({passwordStrength < 30 ? 'Weak' : passwordStrength < 70 ? 'Medium' : 'Strong'})
           </p>
         </div>
 
@@ -56,6 +63,11 @@ export default function PasswordInput() {
             value={confirmPassword}
             onChange={handleConfirmPasswordChange}
           />
+          {showWarning && (
+            <p className="text-xs text-red-500 mt-1">
+              Passwords do not match!
+            </p>
+          )}
         </div>
       </div>
     </div>
