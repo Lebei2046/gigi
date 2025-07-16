@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSignupContext } from "../context/SignupContext";
 
 export default function MnemonicConfirm() {
-  const { mnemonic } = useSignupContext();
+  const { mnemonic, setIsNextDisabled } = useSignupContext();
   const [randomIndices, setRandomIndices] = useState<number[]>([]);
   const [userInputs, setUserInputs] = useState<Record<number, string>>({});
 
   // Initialize random indices on first render
-  useState(() => {
+  useEffect(() => {
     const indices = Array.from({ length: 12 }, (_, i) => i);
     const shuffled = [...indices].sort(() => 0.5 - Math.random());
     setRandomIndices(shuffled.slice(0, 3));
-  });
+  }, []);
+
+  useEffect(() => {
+    const allCorrect = randomIndices.every(idx => {
+      return userInputs[idx]?.toLowerCase() === mnemonic[idx]?.toLowerCase();
+    });
+    setIsNextDisabled(!allCorrect);
+  }, [userInputs, randomIndices, mnemonic, setIsNextDisabled]);
 
   const handleInputChange = (index: number, value: string) => {
-    setUserInputs(prev => ({ ...prev, [index]: value }));
+    const updatedInputs = { ...userInputs, [index]: value };
+    setUserInputs(updatedInputs);
   };
 
   const isInputCorrect = (index: number) => {

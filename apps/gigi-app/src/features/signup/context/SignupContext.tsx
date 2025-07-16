@@ -13,7 +13,6 @@ type SignupContextType = {
   initSignup: (type: SignupType) => void;
   mnemonic: string[];
   setMnemonic: (mnemonic: string[]) => void;
-  clearMnemonic: () => void;
   password: string;
   setPassword: (password: string) => void;
 };
@@ -27,14 +26,10 @@ export const SignupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [mnemonic, setMnemonic] = useState<string[]>(Array(12).fill(""));
   const [password, setPassword] = useState("");
 
-  const clearMnemonic = () => {
-    setMnemonic(Array(12).fill(""));
-  };
-
   const initSignup = (type: SignupType) => {
     setSignupType(type);
     setIsNextDisabled(true);
-    clearMnemonic();
+    setMnemonic(Array(12).fill(""));
   };
 
   const goToNextStep = () => {
@@ -65,7 +60,6 @@ export const SignupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         initSignup,
         mnemonic,
         setMnemonic,
-        clearMnemonic,
         password,
         setPassword,
       }}

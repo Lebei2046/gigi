@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSignupContext } from '../context/SignupContext';
 
 export default function PasswordInput() {
-  const { password, setPassword } = useSignupContext();
+  const { password, setPassword, setIsNextDisabled } = useSignupContext();
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
@@ -18,12 +18,13 @@ export default function PasswordInput() {
   const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setConfirmPassword(value);
-    setShowWarning(value !== '' && value !== password);
   };
 
   useEffect(() => {
-    setShowWarning(confirmPassword !== '' && confirmPassword !== password);
-  }, [password, confirmPassword]);
+    const isMatch = confirmPassword === password;
+    setShowWarning(confirmPassword !== '' && !isMatch);
+    setIsNextDisabled(!isMatch || password === '' || confirmPassword === '');
+  }, [password, confirmPassword, setIsNextDisabled]);
 
   return (
     <div className="p-8 bg-white">
