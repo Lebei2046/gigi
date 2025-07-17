@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useSignupContext } from "../context/SignupContext";
-import { CryptoService } from "../services/crypto";
+import { generateMnemonics } from "../../../utils/crypto";
 import AgreeToContinue from "./AgreeToContinue";
 
 export default function MnemonicDisplay() {
   const { mnemonic, setMnemonic } = useSignupContext();
 
   useEffect(() => {
-    const generatedMnemonic = CryptoService.generateMnemonic();
+    const generatedMnemonic = generateMnemonics();
     setMnemonic(generatedMnemonic);
   }, [setMnemonic]);
 
