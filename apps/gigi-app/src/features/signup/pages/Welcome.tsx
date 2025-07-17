@@ -1,7 +1,7 @@
 import { useSignupContext } from "../context/SignupContext";
 
 export default function Welcome() {
-  const { initSignup } = useSignupContext();
+  const { dispatch } = useSignupContext();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-8">
@@ -12,7 +12,7 @@ export default function Welcome() {
       <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl">
         <div
           className="card w-96 bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
-          onClick={() => initSignup("create")}
+          onClick={() => dispatch({ type: "SET_SIGNUP_TYPE", payload: "create" })}
         >
           <figure className="px-10 pt-10">
             <img src="https://picsum.photos/200/300?random=1" alt="pic" className="w-full h-24 object-cover" />
@@ -24,7 +24,7 @@ export default function Welcome() {
         </div>
         <div
           className="card w-96 bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
-          onClick={() => initSignup("import")}
+          onClick={() => dispatch({ type: "SET_SIGNUP_TYPE", payload: "import" })}
         >
           <figure className="px-10 pt-10">
             <img src="https://picsum.photos/200/300?random=2" alt="pic" className="w-full h-24 object-cover" />

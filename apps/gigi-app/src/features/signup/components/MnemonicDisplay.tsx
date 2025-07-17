@@ -4,12 +4,12 @@ import { generateMnemonics } from "../../../utils/crypto";
 import AgreeToContinue from "./AgreeToContinue";
 
 export default function MnemonicDisplay() {
-  const { mnemonic, setMnemonic } = useSignupContext();
+  const { state: { mnemonic }, dispatch } = useSignupContext();
 
   useEffect(() => {
     const generatedMnemonic = generateMnemonics();
-    setMnemonic(generatedMnemonic);
-  }, [setMnemonic]);
+    dispatch({ type: "SET_MNEMONIC", payload: generatedMnemonic });
+  }, [dispatch]);
 
   return (
     <div className="p-8">
@@ -21,7 +21,7 @@ export default function MnemonicDisplay() {
       </div>
       <div className="mb-6">
         <div className="grid grid-cols-3 gap-4">
-          {mnemonic.map((word, index) => (
+          {mnemonic.map((word: string, index: number) => (
             <div key={index} className="border rounded-lg p-2 text-center">
               <span className="text-gray-500">{index + 1}.</span>
               <span className="ml-2 font-medium">{word}</span>

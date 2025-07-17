@@ -11,10 +11,10 @@ export default function AgreeToContinue({
   label,
   disabled = false,
 }: AgreetoContinueProps) {
-  const { setIsNextDisabled } = useSignupContext();
+  const { dispatch } = useSignupContext();
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setIsNextDisabled(!e.target.checked);
+    dispatch({ type: "SET_IS_NEXT_DISABLED", payload: !e.target.checked });
   };
 
   return (

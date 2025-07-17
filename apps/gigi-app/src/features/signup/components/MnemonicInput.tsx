@@ -3,13 +3,13 @@ import { useSignupContext } from "../context/SignupContext";
 import AgreeToContinue from "./AgreeToContinue";
 
 export default function MnemonicInput() {
-  const { mnemonic, setMnemonic } = useSignupContext();
+  const { state: { mnemonic }, dispatch } = useSignupContext();
   const [isCheckboxDisabled, setIsCheckboxDisabled] = useState<boolean>(true);
 
   const handleChange = (index: number, value: string) => {
     const newMnemonic = [...mnemonic];
     newMnemonic[index] = value;
-    setMnemonic(newMnemonic);
+    dispatch({ type: "SET_MNEMONIC", payload: newMnemonic });
   };
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSignupContext } from "../context/SignupContext";
 
 export default function MnemonicConfirm() {
-  const { mnemonic, setIsNextDisabled } = useSignupContext();
+  const { state: { mnemonic }, dispatch } = useSignupContext();
   const [randomIndices, setRandomIndices] = useState<number[]>([]);
   const [userInputs, setUserInputs] = useState<Record<number, string>>({});
 
@@ -17,8 +17,8 @@ export default function MnemonicConfirm() {
     const allCorrect = randomIndices.every(idx => {
       return userInputs[idx]?.toLowerCase() === mnemonic[idx]?.toLowerCase();
     });
-    setIsNextDisabled(!allCorrect);
-  }, [userInputs, randomIndices, mnemonic, setIsNextDisabled]);
+    dispatch({ type: "SET_IS_NEXT_DISABLED", payload: !allCorrect });
+  }, [userInputs, randomIndices, mnemonic, dispatch]);
 
   const handleInputChange = (index: number, value: string) => {
     const updatedInputs = { ...userInputs, [index]: value };

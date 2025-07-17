@@ -1,25 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useSignupContext } from "../context/SignupContext";
-import { encryptMnemonics, generateAddress } from "../../../utils/crypto";
-import { setStorageItem } from "../../../utils/storage";
 
-const SignupFinish = () => {
-  const { mnemonic, password } = useSignupContext();
-  const [address, setAddress] = useState("");
+export default function SignupFinish() {
+  const { state: { address }, dispatch } = useSignupContext();
 
   useEffect(() => {
-    // 生成钱包地址
-    const walletAddress = generateAddress(mnemonic);
-    setAddress(walletAddress);
-
-    // 加密助记词并保存
-    const { mnemonic: cryptedMnemonic, nonce } = encryptMnemonics(mnemonic, password);
-    setStorageItem("gigi", {
-      nonce,
-      mnemonic: cryptedMnemonic,
-      address: walletAddress,
-    });
-  }, [mnemonic, password]);
+    dispatch({ type: "GEN_ADDRESS_AND_ENC_SAVE_MNEMONIC" });
+  }, [dispatch]);
 
   return (
     <div className="min-h-screen bg-base-100 p-8">
@@ -34,6 +21,4 @@ const SignupFinish = () => {
       <button className="btn btn-primary w-full">Go to login</button>
     </div>
   );
-};
-
-export default SignupFinish;
+}

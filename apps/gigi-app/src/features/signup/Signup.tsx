@@ -20,7 +20,7 @@ export default function Signup() {
 }
 
 function SignupContent() {
-  const { signupType, currentStep } = useSignupContext();
+  const { state: { signupType, currentStep } } = useSignupContext();
 
   if (signupType === null) {
     return <Welcome />;
