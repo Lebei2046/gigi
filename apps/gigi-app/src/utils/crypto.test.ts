@@ -63,7 +63,7 @@ describe('crypto utils', () => {
       const mnemonic = ['abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'about'];
       const address = generateAddress(mnemonic);
       expect(address).toBeDefined();
-      expect(address.length).toBe(40); // 20 bytes in hex
+      expect(address.length).toBe(42); // 20 bytes in hex + `0x` prefix
     });
   });
 });

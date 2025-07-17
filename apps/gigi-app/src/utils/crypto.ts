@@ -3,6 +3,7 @@ import { wordlist } from '@scure/bip39/wordlists/english';
 import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
 import { hkdf } from '@noble/hashes/hkdf';
 import { keccak_256 } from '@noble/hashes/sha3';
+import { getPublicKey } from '@noble/secp256k1';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { randomBytes, hexToBytes, bytesToHex } from '@noble/hashes/utils';
 
@@ -60,9 +61,20 @@ export function decryptMnemonics(ciphertext: string, key: string, nonce: string)
 
 
 export function generateAddress(mnemonic: string[]): string {
-  const { publicKey } = deriveKeys(mnemonic);
-  const hash = keccak_256(publicKey.slice(1));
-  return bytesToHex(hash.slice(-20));
+  const { privateKey } = deriveKeys(mnemonic);
+  
+  // 5. 从私钥计算公钥 (非压缩格式，带04前缀)
+  const publicKey = getPublicKey(privateKey, false); // false表示非压缩
+
+  // 6. 去掉04前缀，得到XY坐标 (各32字节)
+  // 7. 计算Keccak-256哈希
+  // 8. 取最后20字节作为地址
+  const hash_20 = keccak_256(publicKey.slice(1)).slice(-20);
+
+  // 9. 转换为小写十六进制
+  const address = `0x${bytesToHex(hash_20)}`.toLowerCase();
+
+  return address;
 }
 
 function stringToUint8Array(str: string): Uint8Array {
