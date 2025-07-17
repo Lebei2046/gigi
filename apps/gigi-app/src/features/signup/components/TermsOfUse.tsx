@@ -1,4 +1,4 @@
-import { ReactComponent as Terms } from '/public/TermsOfUse.md';
+import { ReactComponent as Terms } from '@/assets/TermsOfUse.md';
 import AgreeToContinue from './AgreeToContinue';
 
 export default function TermsOfUse() {

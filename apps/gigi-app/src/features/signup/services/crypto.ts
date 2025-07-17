@@ -1,18 +1,30 @@
-import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
 import { HDKey } from '@scure/bip32';
 import { wordlist } from '@scure/bip39/wordlists/english';
+import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
+import { hkdf } from '@noble/hashes/hkdf';
+import { keccak_256 } from '@noble/hashes/sha3';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha';
+import { randomBytes, hexToBytes, bytesToHex } from '@noble/hashes/utils';
 
+/**
+ * CryptoService provides methods for generating mnemonics, deriving keys,
+ * encrypting and decrypting mnemonics, and generating addresses.
+ */
 export class CryptoService {
   static generateMnemonic(): string[] {
     const mnemonic = generateMnemonic(wordlist);
     return mnemonic.split(' ');
   }
 
-  static deriveKeys(mnemonic: string[], password?: string): {
+  static deriveKeys(mnemonic: string[]): {
     publicKey: Uint8Array;
     privateKey: Uint8Array;
   } {
-    const seed = mnemonicToSeedSync(mnemonic.join(' '), password);
+    if (mnemonic.length !== 12 && mnemonic.length !== 24) {
+      throw new Error('Mnemonic must be 12 or 24 words long');
+    }
+
+    const seed = mnemonicToSeedSync(mnemonic.join(' '));
     const hdKey = HDKey.fromMasterSeed(seed);
     const childKey = hdKey.derive("m/44'/60'/0'/0/0");
 
@@ -25,4 +37,41 @@ export class CryptoService {
       privateKey: childKey.privateKey,
     };
   }
+
+  static encryptMnemonic(mnemonic: string[], password: string): {
+    mnemonic: string,
+    nonce: string,
+  } {
+    const nonce = randomBytes(24); // XChaCha20需要24字节nonce
+    const cipher = xchacha20poly1305(this.expandTo32Bytes(this.stringToUint8Array(password)), nonce);
+    const ciphertext = cipher.encrypt(this.stringToUint8Array(mnemonic.join(' ')));
+
+    return {
+      mnemonic: bytesToHex(ciphertext),
+      nonce: bytesToHex(nonce),
+    };
+  }
+
+  static decryptMnemonic(ciphertext: string, key: string, nonce: string): string[] {
+    const cipher = xchacha20poly1305(this.expandTo32Bytes(this.stringToUint8Array(key)), hexToBytes(nonce));
+    const decrypted = cipher.decrypt(hexToBytes(ciphertext));
+    return new TextDecoder().decode(decrypted).split(' ');
+  }
+
+
+  static generateAddress(mnemonic: string[]): string {
+    const { publicKey } = CryptoService.deriveKeys(mnemonic);
+    const hash = keccak_256(publicKey.slice(1));
+    return bytesToHex(hash.slice(-20));
+  }
+
+  private static stringToUint8Array(str: string): Uint8Array {
+    const encoder = new TextEncoder();
+    return encoder.encode(str);
+  }
+
+  private static expandTo32Bytes(input: Uint8Array): Uint8Array {
+    return hkdf(keccak_256, input, undefined, undefined, 32);
+  }
 }
+
