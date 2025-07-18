@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer } from "react";
-import { initialState, signupReducer } from "./signupReducer";
+import { initialState, signupReducer, type SignupAction } from "./signupReducer";
 
 type SignupContextType = {
   state: {
@@ -9,8 +9,9 @@ type SignupContextType = {
     mnemonic: string[];
     password: string;
     address: string;
+    name: string;
   };
-  dispatch: React.Dispatch<{ type: string; payload?: unknown }>;
+  dispatch: React.Dispatch<SignupAction>;
 };
 
 const SignupContext = createContext<SignupContextType | undefined>(undefined);

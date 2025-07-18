@@ -7,6 +7,7 @@ type AuthState = {
   mnemonic: string | null;
   nonce: string | null;
   address: string | null;
+  name: string | null;
   error: string | null;
 };
 
@@ -15,6 +16,7 @@ const initialState: AuthState = {
   mnemonic: null,
   nonce: null,
   address: null,
+  name: null,
   error: null,
 };
 
@@ -29,13 +31,14 @@ const authSlice = createSlice({
       state.status = 'unregistered';
     },
     initAuth: (state) => {
-      const gigiData = getStorageItem<{ mnemonic?: string; nonce?: string; address?: string }>('gigi');
+      const gigiData = getStorageItem<{ mnemonic?: string; nonce?: string; address?: string; name?: string }>('gigi');
       if (!gigiData) {
         state.status = 'unregistered';
       } else {
         state.mnemonic = gigiData.mnemonic || null;
         state.nonce = gigiData.nonce || null;
         state.address = gigiData.address || null;
+        state.name = gigiData.name || null;
         state.status = 'unauthenticated';
       }
     },

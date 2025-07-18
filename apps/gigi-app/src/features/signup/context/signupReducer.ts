@@ -11,16 +11,18 @@ type SignupState = {
   mnemonic: string[];
   password: string;
   address: string;
+  name: string;
 };
 
-type SignupAction =
+export type SignupAction =
   | { type: "GO_TO_NEXT_STEP" }
   | { type: "GO_TO_PREV_STEP" }
-  | { type: "GEN_ADDRESS_AND_ENC_SAVE_MNEMONIC" }
+  | { type: "SAVE_ACCOUNT_INFO" }
   | { type: "SET_IS_NEXT_DISABLED"; payload: boolean }
   | { type: "SET_SIGNUP_TYPE"; payload: SignupType }
   | { type: "SET_MNEMONIC"; payload: string[] }
   | { type: "SET_PASSWORD"; payload: string }
+  | { type: "SET_NAME"; payload: string }
   | { type: "INIT_SIGNUP"; payload: SignupType };
 
 export const initialState: SignupState = {
@@ -30,6 +32,7 @@ export const initialState: SignupState = {
   mnemonic: Array(12).fill(""),
   password: "",
   address: "",
+  name: "",
 };
 
 export const signupReducer: Reducer<SignupState, SignupAction> = (
@@ -57,6 +60,8 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
       return { ...state, mnemonic: action.payload };
     case "SET_PASSWORD":
       return { ...state, password: action.payload };
+    case "SET_NAME":
+      return { ...state, name: action.payload };
     case "INIT_SIGNUP":
       return {
         ...state,
@@ -64,7 +69,7 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
         isNextDisabled: true,
         mnemonic: Array(12).fill(""),
       };
-    case "GEN_ADDRESS_AND_ENC_SAVE_MNEMONIC":
+    case "SAVE_ACCOUNT_INFO":
       {
         const walletAddress = generateAddress(state.mnemonic);
         const { mnemonic: cryptedMnemonic, nonce } = encryptMnemonics(
@@ -75,6 +80,7 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
           nonce,
           mnemonic: cryptedMnemonic,
           address: walletAddress,
+          name: state.name,
         });
         return {
           ...state,

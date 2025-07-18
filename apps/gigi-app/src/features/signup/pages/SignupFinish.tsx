@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { useSignupContext } from "../context/SignupContext";
 
 export default function SignupFinish() {
-  const { state: { address }, dispatch } = useSignupContext();
+  const { state: { address, name }, dispatch } = useSignupContext();
 
   useEffect(() => {
-    dispatch({ type: "GEN_ADDRESS_AND_ENC_SAVE_MNEMONIC" });
+    dispatch({ type: "SAVE_ACCOUNT_INFO" });
   }, [dispatch]);
 
   return (
@@ -15,6 +15,7 @@ export default function SignupFinish() {
 
       <div className="bg-white p-6 rounded-lg shadow-md mb-8">
         <h2 className="text-lg font-semibold mb-2">Account Details</h2>
+        <p className="text-gray-700">Account Name: {name}</p>
         <p className="text-gray-700">Wallet Address: {address}</p>
       </div>
 

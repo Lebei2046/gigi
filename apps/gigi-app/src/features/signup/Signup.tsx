@@ -7,7 +7,7 @@ import TermsOfUse from "./components/TermsOfUse";
 import MnemonicDisplay from "./components/MnemonicDisplay";
 import MnemonicInput from "./components/MnemonicInput";
 import MnemonicConfirm from "./components/MnemonicConfirm";
-import PasswordInput from "./components/PasswordInput";
+import SignupInfoInput from "./components/SignupInfoInput";
 import Welcome from "./pages/Welcome";
 import SignupFinish from "./pages/SignupFinish";
 
@@ -27,7 +27,7 @@ function SignupContent() {
   } else if (currentStep === 4) {
     return <SignupFinish />;
   } else {
-    return <Stepper signupType={signupType} step={currentStep} />
+    return <Stepper signupType={signupType} step={currentStep} />;
   }
 }
 
@@ -41,13 +41,13 @@ function Stepper({ signupType, step }: StepperProps) {
     { component: <TermsOfUse />, label: "Terms of Use" },
     { component: signupType === "create" ? <MnemonicDisplay /> : <MnemonicInput />, label: "Mnemonic" },
     { component: <MnemonicConfirm />, label: "Confirm Mnemonic" },
-    { component: <PasswordInput />, label: "Password" },
+    { component: <SignupInfoInput />, label: "Password" },
   ];
 
   return (
     <>
       {steps[step].component}
-      <div className="dock-bottom">
+      <div className="dock">
         <StepNavigation />
       </div>
     </>
