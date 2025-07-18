@@ -17,14 +17,12 @@ export function getStorageItem<T>(key: string): T | null {
     const parsed = JSON.parse(item) as StorageData
     if (parsed.version !== STORAGE_VERSION) {
       console.warn(`Storage version mismatch for ${key}, clearing...`)
-      localStorage.removeItem(key)
       return null
     }
 
     return parsed.data as T
   } catch (error) {
     console.error(`Failed to parse ${key} from localStorage:`, error)
-    localStorage.removeItem(key)
     return null
   }
 }

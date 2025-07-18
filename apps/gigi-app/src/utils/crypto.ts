@@ -54,9 +54,14 @@ export function encryptMnemonics(mnemonic: string[], password: string): {
 }
 
 export function decryptMnemonics(ciphertext: string, key: string, nonce: string): string[] {
-  const cipher = xchacha20poly1305(expandTo32Bytes(stringToUint8Array(key)), hexToBytes(nonce));
-  const decrypted = cipher.decrypt(hexToBytes(ciphertext));
-  return new TextDecoder().decode(decrypted).split(' ');
+  try {
+    const cipher = xchacha20poly1305(expandTo32Bytes(stringToUint8Array(key)), hexToBytes(nonce));
+    const decrypted = cipher.decrypt(hexToBytes(ciphertext));
+    return new TextDecoder().decode(decrypted).split(' ');
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    throw new Error('解密失败，请检查密码是否正确或数据是否损坏');
+  }
 }
 
 
