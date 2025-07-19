@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageActionCard from './MessageActionCard';
 import type { Message, User } from '../../types';
-import { contacts } from '../../data/contacts';
+import { contacts } from '../../../../data/contacts';
 
 interface MessagePanelProps {
   messages: Message[];

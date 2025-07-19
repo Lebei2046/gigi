@@ -1,24 +1,30 @@
 import React from "react";
 import Avatar from "./Avatar";
 
-interface ChatItemProps {
+interface ChatListItemProps {
   id: string;
   name: string;
   lastMessage: string;
   time: string;
   unreadCount?: number;
   isGroup: boolean;
+  onClick?: (id: string) => void;
 }
 
-const ChatItem: React.FC<ChatItemProps> = ({
+const ChatListItem: React.FC<ChatListItemProps> = ({
+  id,
   name,
   lastMessage,
   time,
   unreadCount,
   isGroup,
+  onClick,
 }) => {
   return (
-    <div className="flex items-center py-3 px-4 hover:bg-gray-50 active:bg-gray-100">
+    <div
+      className="flex items-center py-3 px-4 hover:bg-gray-50 active:bg-gray-100"
+      onClick={() => onClick?.(id)}
+    >
       <div className="flex-shrink-0 mr-3">
         <Avatar name={name} isGroup={isGroup} />
       </div>
@@ -44,4 +50,4 @@ const ChatItem: React.FC<ChatItemProps> = ({
   );
 };
 
-export default ChatItem;
+export default ChatListItem;

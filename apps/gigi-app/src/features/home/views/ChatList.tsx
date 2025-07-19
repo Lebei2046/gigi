@@ -1,9 +1,13 @@
 import React from "react";
 import { HiOutlineSearch, HiPlusCircle } from "react-icons/hi";
-import ChatItem from "../components/ChatItem";
-import { allChats } from "../data/users";
+import ChatListItem from "../components/ChatListItem";
+import { allChats } from "../../../data/users";
 
-const ChatList: React.FC = () => {
+interface ChatListProps {
+  onChatSelect: (id: string) => void;
+}
+
+const ChatList: React.FC<ChatListProps> = ({ onChatSelect }) => {
   return (
     <div className="flex flex-col h-full">
       {/* 顶部导航栏 - 已修复标题居中问题 */}
@@ -26,7 +30,7 @@ const ChatList: React.FC = () => {
       {/* 聊天列表 */}
       <div className="flex-1 overflow-y-auto">
         {allChats.map((chat) => (
-          <ChatItem
+          <ChatListItem
             key={chat.id}
             id={chat.id}
             name={chat.name}
@@ -34,6 +38,7 @@ const ChatList: React.FC = () => {
             time={chat.lastMessageTime || ""}
             unreadCount={chat.unreadCount}
             isGroup={chat.isGroup || false}
+            onClick={() => onChatSelect(chat.id)}
           />
         ))}
       </div>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { HiOutlineSearch } from "react-icons/hi";
 import ContactListItem from "../components/ContactListItem";
-import { contacts } from "../data/users";
+import { contacts } from "../../../data/users";
 
 const ContactList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");

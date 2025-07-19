@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FaComment as Chat,
   FaAddressBook as Contact,
@@ -14,14 +15,14 @@ import DiscoverPage from "./views/DiscoverPage";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('chat');
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex flex-col bg-base-200">
-      {/* 使用 Dock 组件包裹所有内容 */}
       <Dock value={activeTab} onValueChange={setActiveTab}>
         {/* 首页内容 */}
         <Dock.Content value="chat" className="mb-6">
-          <ChatList />
+          <ChatList onChatSelect={(chatId) => navigate(`/chat/${chatId}`)} />
         </Dock.Content>
 
         {/* 搜索内容 */}
