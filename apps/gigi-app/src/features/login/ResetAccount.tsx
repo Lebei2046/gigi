@@ -1,5 +1,6 @@
 import { useState } from 'react';
 // import { useNavigate } from 'react-router-dom';
+import { FaTimes } from 'react-icons/fa';
 
 export default function ResetAccount() {
   const [checked, setChecked] = useState(false);
@@ -14,9 +15,7 @@ export default function ResetAccount() {
           // onClick={() => navigate(-1)}
           className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <FaTimes className="h-4 w-4" />
         </button>
       </div>
 
