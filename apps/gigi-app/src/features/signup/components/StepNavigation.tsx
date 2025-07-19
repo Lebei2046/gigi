@@ -1,7 +1,7 @@
 import { useSignupContext } from '../context/SignupContext';
 
 export default function StepNavigation() {
-  const { state: { isNextDisabled }, dispatch } = useSignupContext();
+  const { state: { nextEnabled }, dispatch } = useSignupContext();
 
   return (
     <div className="flex justify-between mt-6">
@@ -14,7 +14,7 @@ export default function StepNavigation() {
       <button
         className="btn btn-primary w-40"
         onClick={() => dispatch({ type: "GO_TO_NEXT_STEP" })}
-        disabled={isNextDisabled}
+        disabled={!nextEnabled}
       >
         Next
       </button>

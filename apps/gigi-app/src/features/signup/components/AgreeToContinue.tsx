@@ -14,7 +14,7 @@ export default function AgreeToContinue({
   const { dispatch } = useSignupContext();
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch({ type: "SET_IS_NEXT_DISABLED", payload: !e.target.checked });
+    dispatch({ type: "SET_NEXT_ENABLED", payload: e.target.checked });
   };
 
   return (

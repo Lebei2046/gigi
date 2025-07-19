@@ -27,8 +27,10 @@ export default function SignupInfoInput() {
 
   useEffect(() => {
     const isMatch = confirmPassword === password;
-    setShowWarning(confirmPassword !== '' && !isMatch);
-    dispatch({ type: "SET_IS_NEXT_DISABLED", payload: !isMatch || password === '' || confirmPassword === '' || name === '' });
+    const isWarning = confirmPassword !== '' && !isMatch;
+    const nextEnabled = password !== '' && confirmPassword !== '' && name !== '' && isMatch;
+    setShowWarning(isWarning);
+    dispatch({ type: "SET_NEXT_ENABLED", payload: nextEnabled });
   }, [password, confirmPassword, name, dispatch]);
 
   return (

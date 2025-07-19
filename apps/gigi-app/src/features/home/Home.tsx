@@ -43,8 +43,10 @@ export default function Home() {
         <Dock.List className="dock-bottom p-2 bg-base-100 bg-opacity-90 backdrop-blur-sm shadow-lg z-50">
           <Dock.Trigger value="chat" className="dock-item">
             <div className="dock-label">
-              <Chat className="dock-icon text-xl" />
-              <span className="dock-text text-lg">聊天</span>
+              <div className="flex flex-col items-center">
+                <Chat className="dock-icon text-xl" />
+                <span className="dock-text text-lg">聊天</span>
+              </div>
             </div>
           </Dock.Trigger>
 

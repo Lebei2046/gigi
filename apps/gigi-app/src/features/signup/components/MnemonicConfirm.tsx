@@ -17,7 +17,7 @@ export default function MnemonicConfirm() {
     const allCorrect = randomIndices.every(idx => {
       return userInputs[idx]?.toLowerCase() === mnemonic[idx]?.toLowerCase();
     });
-    dispatch({ type: "SET_IS_NEXT_DISABLED", payload: !allCorrect });
+    dispatch({ type: "SET_NEXT_ENABLED", payload: allCorrect });
   }, [userInputs, randomIndices, mnemonic, dispatch]);
 
   const handleInputChange = (index: number, value: string) => {
