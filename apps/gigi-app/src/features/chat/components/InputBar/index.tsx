@@ -29,7 +29,7 @@ const InputBar = ({
       const height = barRef.current.clientHeight;
       onInputHeightChange(height);
     }
-  }, [isRecording, activeCard]);
+  }, [isRecording, activeCard, onInputHeightChange]);
 
   // 更新卡片高度
   useEffect(() => {
@@ -51,7 +51,7 @@ const InputBar = ({
     };
 
     updateCardHeight();
-  }, [activeCard]);
+  }, [activeCard, onCardHeightChange]);
 
   // 关闭所有卡片
   const closeAllCards = () => {
@@ -195,9 +195,8 @@ const InputBar = ({
       {/* 卡片区域 - 从下方弹出 */}
       <div
         ref={cardContainerRef}
-        className={`absolute top-full left-0 right-0 overflow-hidden transition-all duration-300 bg-gray-100 ${
-          activeCard ? 'translate-y-0' : 'translate-y-full'
-        }`}
+        className={`absolute top-full left-0 right-0 overflow-hidden transition-all duration-300 bg-gray-100 ${activeCard ? 'translate-y-0' : 'translate-y-full'
+          }`}
       >
         {activeCard === 'emoji' && (
           <div className="bg-white px-2 pb-2 pt-1 shadow-lg">

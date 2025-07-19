@@ -21,4 +21,4 @@ export interface Emoji {
   category: string;
 }
 
-export interface Contact extends User {}
+export type Contact = User
