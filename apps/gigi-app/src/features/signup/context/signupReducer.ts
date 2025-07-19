@@ -4,9 +4,11 @@ import { setStorageItem } from "../../../utils/storage";
 
 type SignupType = "create" | "import" | null;
 
+type StepType = { index: number; checked: boolean };
+
 type SignupState = {
   currentStep: number;
-  nextEnabled: boolean;
+  steps: boolean[];
   signupType: SignupType;
   mnemonic: string[];
   password: string;
@@ -18,16 +20,15 @@ export type SignupAction =
   | { type: "GO_TO_NEXT_STEP" }
   | { type: "GO_TO_PREV_STEP" }
   | { type: "SAVE_ACCOUNT_INFO" }
-  | { type: "SET_NEXT_ENABLED"; payload: boolean }
-  | { type: "SET_SIGNUP_TYPE"; payload: SignupType }
   | { type: "SET_MNEMONIC"; payload: string[] }
   | { type: "SET_PASSWORD"; payload: string }
   | { type: "SET_NAME"; payload: string }
+  | { type: "SET_STEP_CHECKED"; payload: StepType }
   | { type: "INIT_SIGNUP"; payload: SignupType };
 
 export const initialState: SignupState = {
   currentStep: 0,
-  nextEnabled: false,
+  steps: Array(4).fill(false),
   signupType: null,
   mnemonic: Array(12).fill(""),
   password: "",
@@ -44,7 +45,6 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
       return {
         ...state,
         currentStep: state.currentStep + 1,
-        nextEnabled: false,
       };
     case "GO_TO_PREV_STEP":
       return {
@@ -52,10 +52,6 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
         currentStep: Math.max(0, state.currentStep - 1),
         signupType: state.currentStep === 0 ? null : state.signupType,
       };
-    case "SET_NEXT_ENABLED":
-      return { ...state, nextEnabled: action.payload };
-    case "SET_SIGNUP_TYPE":
-      return { ...state, signupType: action.payload };
     case "SET_MNEMONIC":
       return { ...state, mnemonic: action.payload };
     case "SET_PASSWORD":
@@ -66,8 +62,16 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
       return {
         ...state,
         signupType: action.payload,
-        nextEnabled: false,
+        steps: Array(4).fill(false),
         mnemonic: Array(12).fill(""),
+        password: "",
+      };
+    case "SET_STEP_CHECKED":
+      return {
+        ...state,
+        steps: state.steps.map((step, index) =>
+          index === action.payload.index ? action.payload.checked : step
+        ),
       };
     case "SAVE_ACCOUNT_INFO":
       {
@@ -85,7 +89,6 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
         return {
           ...state,
           address: walletAddress,
-          nextEnabled: false,
         };
       }
     default:

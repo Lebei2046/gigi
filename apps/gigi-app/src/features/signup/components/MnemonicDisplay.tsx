@@ -4,6 +4,8 @@ import { generateMnemonics } from "../../../utils/crypto";
 import AgreeToContinue from "./AgreeToContinue";
 
 export default function MnemonicDisplay() {
+  const STEP: number = 1;
+
   const { state: { mnemonic }, dispatch } = useSignupContext();
 
   useEffect(() => {
@@ -65,6 +67,7 @@ export default function MnemonicDisplay() {
       <AgreeToContinue
         id="seedPhraseConfirmation"
         label="I have written down my seed phrase on paper and stored it securely"
+        step={STEP}
       />
     </div>
   );

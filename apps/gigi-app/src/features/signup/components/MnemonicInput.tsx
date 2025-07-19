@@ -3,6 +3,8 @@ import { useSignupContext } from "../context/SignupContext";
 import AgreeToContinue from "./AgreeToContinue";
 
 export default function MnemonicInput() {
+  const STEP: number = 1;
+
   const { state: { mnemonic }, dispatch } = useSignupContext();
   const [isCheckboxDisabled, setIsCheckboxDisabled] = useState<boolean>(true);
 
@@ -58,6 +60,7 @@ export default function MnemonicInput() {
       <AgreeToContinue
         id="seedPhraseConfirmation"
         label="I have written down my seed phrase on paper and stored it securely"
+        step={STEP}
         disabled={isCheckboxDisabled}
       />
     </div>

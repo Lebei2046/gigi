@@ -23,7 +23,7 @@ const MePage: React.FC = () => {
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">乐呗</h2>
           </div>
-          <p className="text-gray-500 mt-1">微信号: lebay999</p>
+          <p className="text-gray-500 mt-1">唧唧号: lebay999</p>
         </div>
       </div>
 

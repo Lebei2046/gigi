@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSignupContext } from '../context/SignupContext';
 
 export default function SignupInfoInput() {
+  const STEP: number = 3;
+
   const { state: { name, password }, dispatch } = useSignupContext();
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -30,7 +32,7 @@ export default function SignupInfoInput() {
     const isWarning = confirmPassword !== '' && !isMatch;
     const nextEnabled = password !== '' && confirmPassword !== '' && name !== '' && isMatch;
     setShowWarning(isWarning);
-    dispatch({ type: "SET_NEXT_ENABLED", payload: nextEnabled });
+    dispatch({ type: "SET_STEP_CHECKED", payload: { index: STEP, checked: nextEnabled } });
   }, [password, confirmPassword, name, dispatch]);
 
   return (

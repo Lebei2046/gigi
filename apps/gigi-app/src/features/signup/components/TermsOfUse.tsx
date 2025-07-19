@@ -2,6 +2,8 @@ import { ReactComponent as Terms } from '@/assets/TermsOfUse.md';
 import AgreeToContinue from './AgreeToContinue';
 
 export default function TermsOfUse() {
+  const STEP: number = 0;
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Terms of Use Agreement</h1>
@@ -12,6 +14,7 @@ export default function TermsOfUse() {
       <AgreeToContinue
         id="termsOfUseAgreement"
         label="I agree to the Terms of Use Agreement"
+        step={STEP}
       />
     </div>
   );

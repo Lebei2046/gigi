@@ -4,7 +4,7 @@ import { initialState, signupReducer, type SignupAction } from "./signupReducer"
 type SignupContextType = {
   state: {
     currentStep: number;
-    nextEnabled: boolean;
+    steps: boolean[];
     signupType: "create" | "import" | null;
     mnemonic: string[];
     password: string;

@@ -3,18 +3,20 @@ import { useSignupContext } from '../context/SignupContext';
 interface AgreetoContinueProps {
   id: string;
   label: string;
+  step: number;
   disabled?: boolean;
 }
 
 export default function AgreeToContinue({
   id,
   label,
+  step,
   disabled = false,
 }: AgreetoContinueProps) {
-  const { dispatch } = useSignupContext();
+  const { dispatch, state: { steps } } = useSignupContext();
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch({ type: "SET_NEXT_ENABLED", payload: e.target.checked });
+    dispatch({ type: "SET_STEP_CHECKED", payload: { index: step, checked: e.target.checked } });
   };
 
   return (
@@ -23,6 +25,7 @@ export default function AgreeToContinue({
         type="checkbox"
         id={id}
         className="mr-2"
+        checked={steps[step]}
         disabled={disabled}
         onChange={handleOnChange}
       />

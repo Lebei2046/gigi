@@ -47,9 +47,7 @@ function Stepper({ signupType, step }: StepperProps) {
   return (
     <>
       {steps[step].component}
-      <div className="dock">
-        <StepNavigation />
-      </div>
+      <StepNavigation />
     </>
   )
 }

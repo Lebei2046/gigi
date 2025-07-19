@@ -13,7 +13,7 @@ const ChatList: React.FC = () => {
 
         {/* 居中标题 */}
         <div className="flex-1 flex justify-center">
-          <span className="text-xl font-semibold">微信</span>
+          <span className="text-xl font-semibold">唧唧</span>
         </div>
 
         {/* 右侧图标 */}
