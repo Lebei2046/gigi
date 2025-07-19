@@ -1,11 +1,20 @@
-import React, { createContext, useContext, useReducer } from "react";
-import { initialState, signupReducer, type SignupAction } from "./signupReducer";
+import React, {
+  createContext,
+  useContext,
+  useReducer
+} from "react";
+import {
+  initialState,
+  signupReducer,
+  type SignupAction,
+  type SignupType
+} from "./signupReducer";
 
 type SignupContextType = {
   state: {
     currentStep: number;
     steps: boolean[];
-    signupType: "create" | "import" | null;
+    signupType: SignupType;
     mnemonic: string[];
     password: string;
     address: string;

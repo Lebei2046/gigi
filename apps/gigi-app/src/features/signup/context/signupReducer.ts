@@ -2,7 +2,7 @@ import type { Reducer } from "react";
 import { encryptMnemonics, generateAddress } from "../../../utils/crypto";
 import { setStorageItem } from "../../../utils/storage";
 
-type SignupType = "create" | "import" | null;
+export type SignupType = "create" | "import" | null;
 
 type StepType = { index: number; checked: boolean };
 

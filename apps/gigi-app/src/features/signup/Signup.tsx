@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import {
   SignupProvider,
   useSignupContext
@@ -22,28 +23,29 @@ export default function Signup() {
 function SignupContent() {
   const { state: { signupType, currentStep } } = useSignupContext();
 
+  const FINISH_STEP: number = 4;
+  const STEPS: Array<{ component: JSX.Element; label: string }> = [
+    { component: <TermsOfUse />, label: "Terms of Use" },
+    { component: signupType === "create" ? <MnemonicDisplay /> : <MnemonicInput />, label: "Mnemonic Input/Display" },
+    { component: <MnemonicConfirm />, label: "Confirm Mnemonic" },
+    { component: <SignupInfoInput />, label: "Signup Info" },
+  ];
+
   if (signupType === null) {
     return <Welcome />;
-  } else if (currentStep === 4) {
+  } else if (currentStep === FINISH_STEP) {
     return <SignupFinish />;
   } else {
-    return <Stepper signupType={signupType} step={currentStep} />;
+    return <Stepper steps={STEPS} step={currentStep} />;
   }
 }
 
 interface StepperProps {
-  signupType: "create" | "import";
+  steps: Array<{ component: JSX.Element; label: string }>;
   step: number;
 }
 
-function Stepper({ signupType, step }: StepperProps) {
-  const steps = [
-    { component: <TermsOfUse />, label: "Terms of Use" },
-    { component: signupType === "create" ? <MnemonicDisplay /> : <MnemonicInput />, label: "Mnemonic" },
-    { component: <MnemonicConfirm />, label: "Confirm Mnemonic" },
-    { component: <SignupInfoInput />, label: "Password" },
-  ];
-
+function Stepper({ steps, step }: StepperProps) {
   return (
     <>
       {steps[step].component}
