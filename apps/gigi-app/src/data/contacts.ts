@@ -1,5 +1,5 @@
 // src/data/contacts.ts
-import type { Contact } from '../types';
+import type { Contact } from '../features/chat/types';
 
 import {
   FaUserAlt,

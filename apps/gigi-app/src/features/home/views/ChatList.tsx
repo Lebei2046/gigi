@@ -36,8 +36,8 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect }) => {
             name={chat.name}
             lastMessage={chat.lastMessage || "暂无消息"}
             time={chat.lastMessageTime || ""}
-            unreadCount={chat.unreadCount}
-            isGroup={chat.isGroup || false}
+            unreadCount={/*chat.unreadCount || */ 0}
+            isGroup={/*chat.isGroup || */ false}
             onClick={() => onChatSelect(chat.id)}
           />
         ))}

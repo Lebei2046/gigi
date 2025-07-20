@@ -24,7 +24,7 @@ const DiscoverPage: React.FC = () => (
   <div className="py-2">
     <h2 className="text-center text-lg font-bold mb-4">发现</h2>
     <div className="space-y-2">
-      {discoverItems.map((item, idx) => (
+      {discoverItems.map((item, /*idx*/) => (
         <div
           key={item.label}
           className="flex items-center bg-white px-4 py-3 rounded-lg shadow-sm"

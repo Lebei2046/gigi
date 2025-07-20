@@ -1,6 +1,6 @@
 // src/data/messages.ts
 
-import type { Message } from '../types';
+import type { Message } from '../features/chat/types';
 
 export const initialMessages: Message[] = [
   {

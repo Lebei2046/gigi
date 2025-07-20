@@ -19,7 +19,7 @@ interface MessageActionCardProps {
 }
 
 const MessageActionCard: React.FC<MessageActionCardProps> = ({
-  messageId,
+  // messageId,
   position,
   onAction,
   onClose,
