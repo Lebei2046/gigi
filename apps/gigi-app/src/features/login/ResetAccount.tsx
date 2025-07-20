@@ -1,18 +1,21 @@
 import { useState } from 'react';
-// import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { FaTimes } from 'react-icons/fa';
+import { reset } from '../../store/authSlice';
 
 export default function ResetAccount() {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [checked, setChecked] = useState(false);
-  // const navigate = useNavigate();
 
   return (
     <div className="flex flex-col min-h-screen p-4">
       {/* Navigation Bar */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">Forgot Password</h1>
-        <button 
-          // onClick={() => navigate(-1)}
+        <button
+          onClick={() => navigate(-1)}
           className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
         >
           <FaTimes className="h-4 w-4" />
@@ -38,9 +41,9 @@ export default function ResetAccount() {
 
       {/* Checkbox */}
       <div className="flex items-center mb-6">
-        <input 
-          type="checkbox" 
-          id="accept-risk" 
+        <input
+          type="checkbox"
+          id="accept-risk"
           checked={checked}
           onChange={() => setChecked(!checked)}
           className="mr-2"
@@ -49,9 +52,13 @@ export default function ResetAccount() {
       </div>
 
       {/* Reset Button */}
-      <button 
+      <button
         disabled={!checked}
         className={`px-4 py-2 rounded-md ${checked ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-gray-300 cursor-not-allowed'}`}
+        onClick={() => {
+          dispatch(reset());
+          navigate('/signup');
+        }}
       >
         Reset Account
       </button>

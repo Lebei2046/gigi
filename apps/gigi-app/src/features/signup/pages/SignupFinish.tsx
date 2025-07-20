@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSignupContext } from "../context/SignupContext";
 
 export default function SignupFinish() {
+  const navigate = useNavigate();
   const { state: { address, name }, dispatch } = useSignupContext();
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export default function SignupFinish() {
         <p className="text-gray-700">Wallet Address: {address}</p>
       </div>
 
-      <button className="btn btn-primary w-full">Go to login</button>
+      <button className="btn btn-primary w-full" onClick={() => navigate('/login')}>Go to login</button>
     </div>
   );
 }

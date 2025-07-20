@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { getStorageItem } from '../utils/storage';
+import { getStorageItem, clearStorageItem } from '../utils/storage';
 import { decryptMnemonics, generateAddress } from '../utils/crypto';
 
 type AuthState = {
@@ -60,8 +60,17 @@ const authSlice = createSlice({
         state.error = error instanceof Error ? error.message : '解密失败，请检查数据或密码是否正确';
       }
     },
+    reset: (state) => {
+      state.status = 'unregistered';
+      state.mnemonic = null;
+      state.nonce = null;
+      state.address = null;
+      state.name = null;
+      state.error = null;
+      clearStorageItem('gigi');
+    },
   },
 });
 
-export const { clearAuth, setUnregistered, initAuth, login } = authSlice.actions;
+export const { clearAuth, setUnregistered, initAuth, login, reset } = authSlice.actions;
 export default authSlice.reducer;

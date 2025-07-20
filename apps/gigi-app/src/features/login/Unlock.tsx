@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { FaLock } from 'react-icons/fa';
 import { login } from '../../store/authSlice';
 import type { RootState } from '../../store';
 
 export default function Unlock() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const { error } = useSelector((state: RootState) => state.auth);
-
-  const handleLogin = () => {
-    dispatch(login({ password }));
-  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
@@ -38,19 +36,25 @@ export default function Unlock() {
         </div>
 
         <div className="flex justify-end mb-6">
-          <a href="#" className="text-sm text-blue-500 hover:underline">
+          <button
+            onClick={() => navigate('/reset')}
+            className="text-sm text-blue-500 hover:underline bg-transparent border-none p-0 cursor-pointer"
+          >
             Forgot password?
-          </a>
+          </button>
         </div>
 
         <button
           type="button"
           className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          onClick={handleLogin}
+          onClick={() => {
+            dispatch(login({ password }));
+            navigate('/');
+          }}
         >
           Unlock
         </button>
       </div>
-    </div>
+    </div >
   );
 }

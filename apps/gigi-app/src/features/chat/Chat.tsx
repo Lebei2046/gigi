@@ -3,11 +3,11 @@ import ChatPanel from './components/ChatPanel';
 import { initialMessages } from '../../data/messages';
 
 export default function Chat() {
-  const { chatId } = useParams<{ chatId: string }>();
+  const { id } = useParams<{ id: string }>();
 
   return (
     <div className="h-screen max-w-md mx-auto bg-gray-50 relative">
-      <ChatPanel groupName={`聊天 ${chatId || ''}`} initialMessages={initialMessages} />
+      <ChatPanel groupName={`聊天 ${id || ''}`} initialMessages={initialMessages} />
     </div>
   );
 }
