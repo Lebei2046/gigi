@@ -1,8 +1,7 @@
 import { useEffect, type JSX } from "react";
-import { useSelector, useDispatch } from "react-redux";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import type { RootState } from "./store";
 import { initAuth } from "./store/authSlice";
+import { useAppDispatch, useAppSelector } from "./store";
 import Signup from "./features/signup/Signup";
 import Unlock from "./features/login/Unlock";
 import ResetAccount from "./features/login/ResetAccount";
@@ -10,7 +9,7 @@ import Home from "./features/home/Home";
 import ChatPage from "./features/chat/Chat";
 
 const ProtectedRoute = ({ children, requiredStatus }: { children: JSX.Element; requiredStatus: string[] }) => {
-  const { status } = useSelector((state: RootState) => state.auth);
+  const { status } = useAppSelector((state) => state.auth);
 
   if (!requiredStatus.includes(status)) {
     const url = status === 'unregistered' ? '/signup' : status === 'unauthenticated' ? '/login' : '/';
@@ -21,7 +20,7 @@ const ProtectedRoute = ({ children, requiredStatus }: { children: JSX.Element; r
 }
 
 export default function App() {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   useEffect(() => {
     dispatch(initAuth());
   }, [dispatch]);

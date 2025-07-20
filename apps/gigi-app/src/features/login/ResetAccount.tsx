@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaTimes } from 'react-icons/fa';
+import { useAppDispatch } from '../../store';
 import { reset } from '../../store/authSlice';
 
 export default function ResetAccount() {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const [checked, setChecked] = useState(false);
 
   return (

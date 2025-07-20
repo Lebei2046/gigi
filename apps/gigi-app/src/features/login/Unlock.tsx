@@ -1,15 +1,14 @@
 import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaLock } from 'react-icons/fa';
 import { login } from '../../store/authSlice';
-import type { RootState } from '../../store';
+import { useAppDispatch, useAppSelector } from '../../store';
 
 export default function Unlock() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { error } = useAppSelector((state) => state.auth);
   const [password, setPassword] = useState('');
-  const { error } = useSelector((state: RootState) => state.auth);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">

@@ -1,5 +1,6 @@
 import React from "react";
 import Avatar from "../components/Avatar";
+import { useAppSelector } from "../../../store";
 
 const MePage: React.FC = () => {
   const menus = [
@@ -10,6 +11,7 @@ const MePage: React.FC = () => {
     { icon: "😊", name: "表情", label: "" },
     { icon: "⚙️", name: "设置", label: "" },
   ];
+  const { name, address } = useAppSelector((state) => state.auth);
 
   return (
     <div className="flex flex-col h-full bg-gray-100">
@@ -21,9 +23,9 @@ const MePage: React.FC = () => {
 
         <div className="flex-1">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">乐呗</h2>
+            <h2 className="text-xl font-semibold">{name}</h2>
           </div>
-          <p className="text-gray-500 mt-1">唧唧号: lebay999</p>
+          <p className="text-gray-500 mt-1">唧唧号: {address}</p>
         </div>
       </div>
 
@@ -32,9 +34,8 @@ const MePage: React.FC = () => {
         {menus.map((menu, index) => (
           <div
             key={menu.name}
-            className={`flex items-center py-4 px-4 hover:bg-gray-50 ${
-              index < menus.length - 1 ? "border-b border-gray-100" : ""
-            }`}
+            className={`flex items-center py-4 px-4 hover:bg-gray-50 ${index < menus.length - 1 ? "border-b border-gray-100" : ""
+              }`}
           >
             <div className="w-8 text-lg">{menu.icon}</div>
             <span className="flex-1">{menu.name}</span>

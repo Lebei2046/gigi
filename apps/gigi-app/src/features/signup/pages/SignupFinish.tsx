@@ -1,17 +1,17 @@
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { useAppDispatch } from "../../../store";
 import { initAuth } from "../../../store/authSlice";
 import { useSignupContext } from "../context/SignupContext";
 
 export default function SignupFinish() {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { state: { address, name }, dispatch: signupDispatch } = useSignupContext();
+  const appDispatch = useAppDispatch();
+  const { state: { address, name }, dispatch } = useSignupContext();
 
   useEffect(() => {
-    signupDispatch({ type: "SAVE_ACCOUNT_INFO" });
-  }, [signupDispatch]);
+    dispatch({ type: "SAVE_ACCOUNT_INFO" });
+  }, [dispatch]);
 
   return (
     <div className="min-h-screen bg-base-100 p-8">
@@ -25,7 +25,7 @@ export default function SignupFinish() {
       </div>
 
       <button className="btn btn-primary w-full" onClick={() => {
-        dispatch(initAuth());
+        appDispatch(initAuth());
         navigate('/login');
       }}>Go to login</button>
     </div>
