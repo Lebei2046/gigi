@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { HiOutlineSearch, HiPlusCircle, HiUserGroup, HiUserAdd } from "react-icons/hi";
 import { FaQrcode } from "react-icons/fa";
 import QrScanner from "./QrScanner";
+import { addContact } from "../../../models/contact";
 
 interface TopBarProps {
   title: string;
@@ -24,6 +25,21 @@ const TopBar: React.FC<TopBarProps> = ({ title }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const handleOnClose = (result: string | null) => {
+    if (result) {
+      const value = decodeURI(result);
+      try {
+        const obj = JSON.parse(value);
+        if (obj.name && obj.address) {
+          addContact(obj.name, obj.address);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    }
+    setShowQrScanner(false);
+  }
 
   return (
     <div className="sticky top-0 z-10 bg-gray-100 px-4 py-3 flex items-center">
@@ -67,11 +83,7 @@ const TopBar: React.FC<TopBarProps> = ({ title }) => {
       </div>
       {showQrScanner && (
         <QrScanner
-          onClose={(value: string | null) => {
-            console.log(value);
-            setShowQrScanner(false);
-          }}
-        />
+          onClose={handleOnClose} />
       )}
     </div>
   );

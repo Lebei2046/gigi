@@ -1,33 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { HiOutlineSearch } from "react-icons/hi";
 import TopBar from "../components/TopBar";
 import ContactListItem from "../components/ContactListItem";
-import { contacts } from "../../../data/users";
+import { type Contact } from "../../../models/db";
+import { useAllContacts } from "../../../models/contact";
+
+// 工具函数：分组和排序联系人
+const groupAndSortContacts = (contacts: Contact[], searchTerm: string) => {
+  const filtered = contacts.filter((contact) =>
+    contact.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const grouped = filtered.reduce((acc, contact) => {
+    const firstLetter = contact.name.charAt(0).toUpperCase();
+    if (!acc[firstLetter]) {
+      acc[firstLetter] = [];
+    }
+    acc[firstLetter].push(contact);
+    return acc;
+  }, {} as Record<string, Contact[]>);
+
+  return Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
+};
 
 const ContactList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const contacts = useAllContacts();
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // 按字母分组联系人 (排除搜索不匹配的)
-  const groupedContacts = contacts
-    .filter((contact) =>
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .reduce((acc, contact) => {
-      const firstLetter = contact.name.charAt(0).toUpperCase();
-      if (!acc[firstLetter]) {
-        acc[firstLetter] = [];
-      }
-      acc[firstLetter].push(contact);
-      return acc;
-    }, {} as Record<string, typeof contacts>);
-
-  // 按字母顺序排序分组
-  const filteredGroups = Object.entries(groupedContacts).sort((a, b) =>
-    a[0].localeCompare(b[0])
-  );
+  // 缓存分组和排序结果
+  const filteredGroups = useMemo(() => {
+    if (!contacts || contacts.length === 0) return [];
+    return groupAndSortContacts(contacts, searchTerm);
+  }, [contacts, searchTerm]);
 
   // 字母索引
-  const letters = filteredGroups.map(([letter]) => letter);
+  const letters = useMemo(() => {
+    return filteredGroups.map(([letter]) => letter);
+  }, [filteredGroups]);
 
   return (
     <div className="flex flex-col h-full">
@@ -50,7 +60,11 @@ const ContactList: React.FC = () => {
       <div className="flex-1 overflow-y-auto">
         {filteredGroups.length > 0 ? (
           filteredGroups.map(([letter, group]) => (
-            <div key={letter} id={`group-${letter}`} className="py-2">
+            <div
+              key={letter}
+              ref={(el) => (groupRefs.current[letter] = el)}
+              className="py-2"
+            >
               <div className="bg-gray-100 px-4 py-1 text-sm text-gray-500 sticky top-12">
                 {letter}
               </div>
@@ -80,7 +94,7 @@ const ContactList: React.FC = () => {
               key={letter}
               className="text-xs px-1 py-0.5"
               onClick={() => {
-                const element = document.getElementById(`group-${letter}`);
+                const element = groupRefs.current[letter];
                 if (element) {
                   element.scrollIntoView({
                     behavior: "smooth",

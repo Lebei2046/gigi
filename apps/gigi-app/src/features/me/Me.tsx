@@ -7,7 +7,7 @@ import { useAppSelector } from "../../store";
 const Me: React.FC = () => {
   const navigate = useNavigate();
   const { name, address } = useAppSelector((state) => state.auth);
-  const qrData = JSON.stringify({ name, address });
+  const qrData = encodeURI(JSON.stringify({ name, address }));
 
   return (
     <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md">
