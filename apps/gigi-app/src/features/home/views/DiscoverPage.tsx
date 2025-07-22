@@ -1,5 +1,6 @@
 import React from "react";
 import { FaCompass, FaCamera, FaStar, FaSmile } from "react-icons/fa";
+import TopBar from "../components/TopBar";
 
 const discoverItems = [
   {
@@ -22,7 +23,7 @@ const discoverItems = [
 
 const DiscoverPage: React.FC = () => (
   <div className="py-2">
-    <h2 className="text-center text-lg font-bold mb-4">发现</h2>
+    <TopBar title="发现" />
     <div className="space-y-2">
       {discoverItems.map((item, /*idx*/) => (
         <div

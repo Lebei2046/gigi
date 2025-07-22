@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { HiOutlineSearch } from "react-icons/hi";
+import TopBar from "../components/TopBar";
 import ContactListItem from "../components/ContactListItem";
 import { contacts } from "../../../data/users";
 
@@ -30,6 +31,7 @@ const ContactList: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
+      <TopBar title="联系人" />
       {/* 搜索框 */}
       <div className="sticky top-0 z-10 bg-gray-100 p-2">
         <div className="flex items-center bg-white rounded-lg px-3 py-2">
