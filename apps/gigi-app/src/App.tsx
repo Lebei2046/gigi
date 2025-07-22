@@ -7,6 +7,7 @@ import Unlock from "./features/login/Unlock";
 import ResetAccount from "./features/login/ResetAccount";
 import Home from "./features/home/Home";
 import ChatPage from "./features/chat/Chat";
+import Me from "./features/me/Me";
 
 const ProtectedRoute = ({ children, requiredStatus }: { children: JSX.Element; requiredStatus: string[] }) => {
   const { status } = useAppSelector((state) => state.auth);
@@ -50,6 +51,11 @@ export default function App() {
           <Route path="/chat/:id" element={
             <ProtectedRoute requiredStatus={['authenticated']}>
               <ChatPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/me/contact" element={
+            <ProtectedRoute requiredStatus={['authenticated']}>
+              <Me />
             </ProtectedRoute>
           } />
         </Routes>
