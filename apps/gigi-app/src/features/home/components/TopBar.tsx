@@ -67,7 +67,10 @@ const TopBar: React.FC<TopBarProps> = ({ title }) => {
       </div>
       {showQrScanner && (
         <QrScanner
-          onClose={() => setShowQrScanner(false)}
+          onClose={(value: string | null) => {
+            console.log(value);
+            setShowQrScanner(false);
+          }}
         />
       )}
     </div>
