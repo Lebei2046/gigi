@@ -27,9 +27,9 @@ const MePage: React.FC = () => {
         <div className="flex-1">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">{name}</h2>
-            <FaQrcode 
-              className="text-gray-500 cursor-pointer hover:text-gray-700" 
-              onClick={() => navigate('/me/contact')}
+            <FaQrcode
+              className="text-gray-500 cursor-pointer hover:text-gray-700"
+              onClick={() => navigate('/me')}
             />
           </div>
           <p className="text-gray-500 mt-1">唧唧号: {address}</p>
