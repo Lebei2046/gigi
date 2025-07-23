@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FaComment as Chat,
   FaAddressBook as Contact,
@@ -16,6 +16,13 @@ import DiscoverPage from "./views/DiscoverPage";
 export default function Home() {
   const [activeTab, setActiveTab] = useState('chat');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state && location.state.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state]);
 
   return (
     <div className="min-h-screen flex flex-col bg-base-200">

@@ -42,7 +42,7 @@ const TopBar: React.FC<TopBarProps> = ({ title }) => {
   }
 
   return (
-    <div className="sticky top-0 z-10 bg-gray-100 px-4 py-3 flex items-center">
+    <div className="sticky top-0 z-50 bg-gray-100 px-4 py-3 flex items-center">
       {/* 左侧占位元素 */}
       <div className="flex-1"></div>
 

@@ -12,7 +12,7 @@ const Me: React.FC = () => {
   return (
     <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md">
       <div className="flex items-center w-full mb-6">
-        <button className="mr-4" onClick={() => navigate(-1)}>
+        <button className="mr-4" onClick={() => navigate("/", { state: { tab: 'me' } })}>
           <FiArrowLeft className="h-6 w-6" />
         </button>
         <h2 className="text-xl font-semibold">个人中心</h2>
