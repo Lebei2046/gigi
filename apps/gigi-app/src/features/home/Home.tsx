@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FaComment as Chat,
@@ -21,30 +21,49 @@ export default function Home() {
   useEffect(() => {
     if (location.state && location.state.tab) {
       setActiveTab(location.state.tab);
+      // 清除状态以避免在后续导航中重复使用
+      window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+  // 使用 useMemo 优化各页面组件的渲染
+  const chatContent = useMemo(() => (
+    <ChatList onChatSelect={(chatId) => navigate(`/chat/${chatId}`)} />
+  ), [navigate]);
+
+  const contactContent = useMemo(() => (
+    <ContactList />
+  ), []);
+
+  const discoverContent = useMemo(() => (
+    <DiscoverPage />
+  ), []);
+
+  const meContent = useMemo(() => (
+    <MePage />
+  ), []);
 
   return (
     <div className="min-h-screen flex flex-col bg-base-200">
       <Dock value={activeTab} onValueChange={setActiveTab}>
         {/* 首页内容 */}
         <Dock.Content value="chat" className="mb-6">
-          <ChatList onChatSelect={(chatId) => navigate(`/chat/${chatId}`)} />
+          {chatContent}
         </Dock.Content>
 
         {/* 搜索内容 */}
         <Dock.Content value="contact" className="mb-6">
-          <ContactList />
+          {contactContent}
         </Dock.Content>
 
         {/* 音乐内容 */}
         <Dock.Content value="discover" className="mb-6">
-          <DiscoverPage />
+          {discoverContent}
         </Dock.Content>
 
         {/* 个人资料内容 */}
         <Dock.Content value="me" className="mb-6">
-          <MePage />
+          {meContent}
         </Dock.Content>
 
         {/* 固定在底部的 Dock 导航栏 */}

@@ -41,7 +41,9 @@ const ContactList: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <TopBar title="联系人" />
+      <TopBar title="联系人" menuOpen={false} setMenuOpen={function (open: boolean): void {
+        console.log(open);
+      }} />
       {/* 搜索框 */}
       <div className="sticky top-0 z-10 bg-gray-100 p-2">
         <div className="flex items-center bg-white rounded-lg px-3 py-2">

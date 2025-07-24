@@ -22,8 +22,10 @@ const discoverItems = [
 ];
 
 const DiscoverPage: React.FC = () => (
-  <div className="py-2">
-    <TopBar title="发现" />
+  <div className="flex flex-col h-full">
+    <TopBar title="发现" menuOpen={false} setMenuOpen={function (open: boolean): void {
+      console.log(open);
+    } } />
     <div className="space-y-2">
       {discoverItems.map((item, /*idx*/) => (
         <div

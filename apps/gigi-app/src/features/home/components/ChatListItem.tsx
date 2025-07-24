@@ -9,6 +9,7 @@ interface ChatListItemProps {
   unreadCount?: number;
   isGroup: boolean;
   onClick?: (id: string) => void;
+  menuOpen?: boolean;
 }
 
 const ChatListItem: React.FC<ChatListItemProps> = ({
@@ -19,11 +20,19 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
   unreadCount,
   isGroup,
   onClick,
+  menuOpen = false,
 }) => {
+  const handleClick = () => {
+    // 如果菜单是打开的，不触发点击事件
+    if (!menuOpen && onClick) {
+      onClick(id);
+    }
+  };
+
   return (
     <div
       className="flex items-center py-3 px-4 hover:bg-gray-50 active:bg-gray-100"
-      onClick={() => onClick?.(id)}
+      onClick={handleClick}
     >
       <div className="flex-shrink-0 mr-3">
         <Avatar name={name} isGroup={isGroup} />

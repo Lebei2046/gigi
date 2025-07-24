@@ -8,7 +8,7 @@ const TopBar = ({
   groupName: string;
   onBack: () => void;
 }) => (
-  <div className="flex items-center justify-between p-3 bg-gray-100">
+  <div className="flex items-center justify-between p-3 bg-gray-100 w-full">
     <button type="button" onClick={onBack} className="p-2">
       <FiArrowLeft size={24} />
     </button>

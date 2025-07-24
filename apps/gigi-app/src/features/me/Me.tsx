@@ -9,10 +9,15 @@ const Me: React.FC = () => {
   const { name, address } = useAppSelector((state) => state.auth);
   const qrData = encodeURI(JSON.stringify({ name, address }));
 
+  const handleBack = () => {
+    // 使用 replace 而不是 push 来避免在浏览器历史记录中留下额外条目
+    navigate("/", { replace: true, state: { tab: 'me' } });
+  };
+
   return (
     <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md">
       <div className="flex items-center w-full mb-6">
-        <button className="mr-4" onClick={() => navigate("/", { state: { tab: 'me' } })}>
+        <button className="mr-4" onClick={handleBack}>
           <FiArrowLeft className="h-6 w-6" />
         </button>
         <h2 className="text-xl font-semibold">个人中心</h2>

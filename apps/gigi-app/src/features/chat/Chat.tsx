@@ -6,7 +6,7 @@ export default function Chat() {
   const { id } = useParams<{ id: string }>();
 
   return (
-    <div className="h-screen max-w-md mx-auto bg-gray-50 relative">
+    <div className="h-screen w-full bg-gray-50 relative">
       <ChatPanel groupName={`聊天 ${id || ''}`} initialMessages={initialMessages} />
     </div>
   );
