@@ -74,8 +74,10 @@ const ContactList: React.FC = () => {
                 {group.map((contact) => (
                   <ContactListItem
                     key={contact.id}
-                    id={contact.id}
-                    name={contact.name}
+                    contact={contact}
+                    onClick={function (): void {
+                      console.log("TODO: Go to chat");
+                    }}
                   />
                 ))}
               </div>

@@ -93,3 +93,61 @@ export async function getAllImageInfo(): Promise<Omit<Image, 'data'>[]> {
     throw error;
   }
 }
+
+// 存储用户头像
+export async function storeAvatar(address: string, imageFile: File): Promise<string> {
+  try {
+    // 生成唯一的图片ID
+    const imageId = `avatar_${address}_${Date.now()}`;
+
+    // 存储图片
+    await storeImage(imageId, imageFile);
+
+    // 保存或更新用户头像关联记录
+    const now = new Date();
+    await db.avatars.put({
+      id: address, // 使用address作为唯一标识
+      imageId,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    return imageId;
+  } catch (error) {
+    console.error('Error storing avatar:', error);
+    throw error;
+  }
+}
+
+// 获取用户头像URL
+export async function getAvatarUrl(address: string): Promise<string | null> {
+  try {
+    // 查找用户头像记录
+    const avatarRecord = await db.avatars.get(address);
+    if (avatarRecord) {
+      // 获取图片URL
+      return await getImageUrl(avatarRecord.imageId);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error retrieving avatar:', error);
+    return null;
+  }
+}
+
+// 删除用户头像
+export async function deleteAvatar(address: string): Promise<void> {
+  try {
+    // 查找用户头像记录
+    const avatarRecord = await db.avatars.get(address);
+    if (avatarRecord) {
+      // 删除关联的图片
+      await deleteImage(avatarRecord.imageId);
+      // 删除头像记录
+      await db.avatars.delete(address);
+    }
+  } catch (error) {
+    console.error('Error deleting avatar:', error);
+    throw error;
+  }
+}

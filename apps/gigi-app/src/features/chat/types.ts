@@ -3,7 +3,8 @@ import type { IconType } from 'react-icons';
 export interface User {
   id: string;
   name: string;
-  avatar: IconType;
+  avatar?: IconType;
+  address?: string;
 }
 
 export interface Message {
@@ -21,4 +22,4 @@ export interface Emoji {
   category: string;
 }
 
-export type Contact = User
+export type Contact = User;

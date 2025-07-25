@@ -1,20 +1,29 @@
-import React from "react";
-import Avatar from "./Avatar";
+import React from 'react';
+import Avatar from './Avatar';
+import type { Contact } from '../../../models/db';
 
 interface ContactListItemProps {
-  id: string;
-  name: string;
+  contact?: Contact;
+  onClick: () => void;
 }
 
-const ContactListItem: React.FC<ContactListItemProps> = ({ name }) => {
-  return (
-    <div className="flex items-center py-3 px-4 hover:bg-gray-50">
-      <div className="flex-shrink-0 mr-3">
-        <Avatar name={name} />
-      </div>
+const ContactListItem: React.FC<ContactListItemProps> = ({ contact, onClick }) => {
+  if (!contact) {
+    return null;
+  }
 
-      <div className="flex-1 min-w-0 border-b border-gray-100 pb-3">
-        <h3 className="font-medium text-gray-900">{name}</h3>
+  return (
+    <div
+      className="flex items-center p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
+      onClick={onClick}
+    >
+      <Avatar
+        name={contact.name || 'Unknown'}
+        size={50}
+        address={contact.address}
+      />
+      <div className="ml-3">
+        <div className="font-medium">{contact.name || 'Unknown'}</div>
       </div>
     </div>
   );

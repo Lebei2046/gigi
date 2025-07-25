@@ -21,7 +21,7 @@ const MePage: React.FC = () => {
       {/* 个人信息区域 */}
       <div className="bg-white py-6 px-4 flex items-center">
         <div className="flex-shrink-0 mr-4">
-          <Avatar name="乐呗" size="lg" />
+          <Avatar address={address || ""} size={60} />
         </div>
 
         <div className="flex-1">

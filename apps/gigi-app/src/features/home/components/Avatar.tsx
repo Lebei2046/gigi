@@ -1,35 +1,74 @@
-import React from "react";
+import React, { useState, useEffect } from 'react';
+import { getAvatarUrl } from '../../../utils/imageStorage';
 
 interface AvatarProps {
-  name: string;
-  size?: "sm" | "md" | "lg";
-  isGroup?: boolean;
+  name?: string;
+  size?: number;
+  address?: string;
 }
 
 const Avatar: React.FC<AvatarProps> = ({
-  name,
-  size = "md",
-  isGroup = false,
+  name = 'U',
+  size = 40,
+  address
 }) => {
-  const sizeClasses = {
-    sm: "w-8 h-8 text-sm",
-    md: "w-10 h-10 text-base",
-    lg: "w-14 h-14 text-lg",
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAvatar();
+  }, [address]);
+
+  const loadAvatar = async () => {
+    if (address) {
+      try {
+        const url = await getAvatarUrl(address);
+        setAvatarUrl(url);
+      } catch (error) {
+        console.error('Failed to load avatar:', error);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
   };
 
+  // 从用户名获取首字母
+  const getInitials = (name: string) => {
+    if (!name || typeof name !== 'string') return 'U';
+    return name.charAt(0).toUpperCase();
+  };
+
+  if (loading) {
+    return (
+      <div
+        className="rounded-full bg-gray-300 flex items-center justify-center"
+        style={{ width: size, height: size }}
+      >
+        <div className="w-1/2 h-1/2 bg-gray-400 rounded-full"></div>
+      </div>
+    );
+  }
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className="rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
+  // 如果没有上传头像，则显示默认头像
   return (
     <div
-      className={`avatar placeholder ${isGroup ? "mask mask-squircle" : ""}`}
+      className="rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-medium"
+      style={{ width: size, height: size }}
     >
-      <div
-        className={`${sizeClasses[size]} bg-green-500 text-white rounded-full flex items-center justify-center`}
-      >
-        {isGroup ? (
-          <span className="font-bold">群</span>
-        ) : (
-          <span>{name.charAt(0)}</span>
-        )}
-      </div>
+      {getInitials(name)}
     </div>
   );
 };
