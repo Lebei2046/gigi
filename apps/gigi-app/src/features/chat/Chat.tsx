@@ -1,13 +1,17 @@
 import { useParams } from 'react-router-dom';
 import ChatPanel from './components/ChatPanel';
-import { initialMessages } from '../../data/messages';
+import { useMessagesByChatId } from '../../models/message';
+import { useChat } from '../../models/chat';
 
 export default function Chat() {
   const { id } = useParams<{ id: string }>();
+  const chatId = id ? parseInt(id) : 0;
+  const messages = useMessagesByChatId(chatId);
+  const chat = useChat(chatId);
 
   return (
     <div className="h-screen w-full bg-gray-50 relative">
-      <ChatPanel groupName={`聊天 ${id || ''}`} initialMessages={initialMessages} />
+      <ChatPanel chatId={chatId} groupName={`${chat?.name}`} initialMessages={messages || []} />
     </div>
   );
 }

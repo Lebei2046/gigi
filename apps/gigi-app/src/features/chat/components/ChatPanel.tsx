@@ -2,15 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import TopBar from './TopBar';
 import MessagePanel from './MessagePanel';
 import InputBar from './InputBar';
-import type { Message } from '../types';
+import type { Message } from '../../../models/db';
+import { addMessage as addMessageToDb } from '../../../models/message';
 
 interface ChatPanelProps {
+  chatId: number;
   groupName: string;
   initialMessages: Message[];
 }
 
-const ChatPanel = ({ groupName, initialMessages }: ChatPanelProps) => {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+const ChatPanel = ({ chatId, groupName, initialMessages }: ChatPanelProps) => {
+  const [messages, setMessages] = useState<Message[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [inputHeight, setInputHeight] = useState(64); // 初始输入区高度估算值
@@ -18,8 +20,13 @@ const ChatPanel = ({ groupName, initialMessages }: ChatPanelProps) => {
   // 卡片高度状态
   const [cardHeight, setCardHeight] = useState(0);
 
+  // 当 initialMessages 变化时，更新 messages 状态
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
+
   // 提供消息管理方法给子组件
-  const handleMessageAction = (action: string, messageId: string) => {
+  const handleMessageAction = (action: string, messageId: number) => {
     if (action === '删除') {
       setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
     }
@@ -37,15 +44,17 @@ const ChatPanel = ({ groupName, initialMessages }: ChatPanelProps) => {
   }, [messages]);
 
   // 添加新消息
-  const addMessage = (content: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      senderId: 'lebei',
+  const addMessage = async (content: string) => {
+    const newMessage: Omit<Message, 'id'> = {
+      chatId,
+      sender: 'lebei',
       content,
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    const id = await addMessageToDb(newMessage);
+
+    setMessages((prev) => [...prev, { ...newMessage, id }]);
     setCardHeight(0); // 发送消息后关闭卡片
 
     // 延迟滚动到底部

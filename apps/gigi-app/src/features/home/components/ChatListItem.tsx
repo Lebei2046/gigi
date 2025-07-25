@@ -2,13 +2,13 @@ import React from "react";
 import Avatar from "./Avatar";
 
 interface ChatListItemProps {
-  id: string;
+  id: number;
   name: string;
   lastMessage: string;
   time: string;
   unreadCount?: number;
   isGroup: boolean;
-  onClick?: (id: string) => void;
+  onClick?: (id: number) => void;
   menuOpen?: boolean;
 }
 

@@ -1,4 +1,5 @@
-import type { Message, User } from '../../types';
+import type { User } from '../../types';
+import type { Message } from '../../../../models/db';
 
 const MessageBubble = ({
   message,
@@ -22,11 +23,10 @@ const MessageBubble = ({
       <div
         className={`
         max-w-xs md:max-w-md px-4 py-2 rounded-2xl
-        ${
-          isCurrentUser
+        ${isCurrentUser
             ? 'bg-blue-500 text-white rounded-tr-none'
             : 'bg-gray-200 rounded-tl-none'
-        }
+          }
       `}
       >
         {message.content}

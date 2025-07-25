@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fi';
 
 interface MessageActionCardProps {
-  messageId: string;
+  messageId: number;
   position: { top: number; left: number };
   onAction: (action: string) => void;
   onClose: () => void;

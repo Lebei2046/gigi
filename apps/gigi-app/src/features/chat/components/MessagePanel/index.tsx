@@ -2,13 +2,14 @@
 import { useState, useRef, useEffect } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageActionCard from './MessageActionCard';
-import type { Message, User } from '../../types';
+import type { User } from '../../types';
 import { contacts } from '../../../../data/contacts';
+import type { Message } from '../../../../models/db';
 
 interface MessagePanelProps {
   messages: Message[];
   currentUserId: string;
-  onMessageAction: (action: string, messageId: string) => void;
+  onMessageAction: (action: string, messageId: number) => void;
 }
 
 const MessagePanel = ({
@@ -16,11 +17,11 @@ const MessagePanel = ({
   currentUserId,
   onMessageAction,
 }: MessagePanelProps) => {
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(
     null,
   );
   const [isMultiSelect, setIsMultiSelect] = useState(false);
-  const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
+  const [selectedMessages, setSelectedMessages] = useState<number[]>([]);
   const [actionCardPosition, setActionCardPosition] = useState({
     top: 0,
     left: 0,
@@ -33,7 +34,18 @@ const MessagePanel = ({
 
   // 获取用户信息
   const getUserById = (id: string): User | undefined => {
-    return contacts.find((user) => user.id === id);
+    // First check in contacts data
+    const contact = contacts.find((user) => user.id === id);
+    if (contact) {
+      return contact;
+    }
+
+    // If not found, return a default user object
+    return {
+      id: id,
+      name: id,
+      avatar: () => null
+    };
   };
 
   // 滚动到底部
@@ -48,7 +60,7 @@ const MessagePanel = ({
   }, [messages]);
 
   // 修复长按功能 - 不再使用 contextmenu 和直接 preventDefault
-  const startPressTimer = (messageId: string) => {
+  const startPressTimer = (messageId: number) => {
     isLongPress.current = false;
 
     // 设置1秒后触发长按事件
@@ -65,7 +77,7 @@ const MessagePanel = ({
     }
   };
 
-  const handleLongPress = (messageId: string) => {
+  const handleLongPress = (messageId: number) => {
     setSelectedMessageId(messageId);
 
     if (panelRef.current) {
@@ -80,7 +92,7 @@ const MessagePanel = ({
   };
 
   // 点击消息处理
-  const handleMessageClick = (messageId: string) => {
+  const handleMessageClick = (messageId: number) => {
     // 取消可能的定时器
     cancelPressTimer();
 
@@ -97,7 +109,7 @@ const MessagePanel = ({
   };
 
   // 多选处理
-  const handleMultiSelect = (messageId: string) => {
+  const handleMultiSelect = (messageId: number) => {
     if (selectedMessages.includes(messageId)) {
       setSelectedMessages((prev) => prev.filter((id) => id !== messageId));
     } else {
@@ -106,7 +118,7 @@ const MessagePanel = ({
   };
 
   // 动作卡片操作处理
-  const handleAction = (action: string, messageId: string) => {
+  const handleAction = (action: string, messageId: number) => {
     onMessageAction(action, messageId);
     setSelectedMessageId(null);
 
@@ -168,34 +180,34 @@ const MessagePanel = ({
       className="overflow-y-auto flex-grow p-4 pb-0"
       style={{ scrollBehavior: 'smooth' }}
     >
-      {messages.map((message) => {
-        const sender = getUserById(message.senderId);
-        if (!sender) return null;
+      {messages.length === 0
+        ? <p>暂无数据</p>
+        : messages.map((message) => {
+          const sender = getUserById(message.sender);
+          // Even if sender is not found, we still render the message
+          const isCurrentUser = message.sender === currentUserId;
+          const isSelected = selectedMessages.includes(message.id || 0);
 
-        const isCurrentUser = message.senderId === currentUserId;
-        const isSelected = selectedMessages.includes(message.id);
-
-        return (
-          // biome-ignore lint/a11y/noStaticElementInteractions: <explanation>
-          <div
-            key={message.id}
-            className={`mb-6 relative ${isSelected ? 'bg-blue-50 rounded-xl -m-2 p-2' : ''}`}
-            onClick={() => handleMessageClick(message.id)}
-            onMouseDown={() => startPressTimer(message.id)}
-            onMouseUp={cancelPressTimer}
-            onMouseLeave={cancelPressTimer}
-            onTouchStart={() => startPressTimer(message.id)}
-            onTouchEnd={cancelPressTimer}
-            onTouchCancel={cancelPressTimer}
-          >
-            <MessageBubble
-              message={message}
-              sender={sender}
-              isCurrentUser={isCurrentUser}
-            />
-          </div>
-        );
-      })}
+          return (
+            <div
+              key={message.id}
+              className={`mb-6 relative ${isSelected ? 'bg-blue-50 rounded-xl -m-2 p-2' : ''}`}
+              onClick={() => handleMessageClick(message.id || 0)}
+              onMouseDown={() => startPressTimer(message.id || 0)}
+              onMouseUp={cancelPressTimer}
+              onMouseLeave={cancelPressTimer}
+              onTouchStart={() => startPressTimer(message.id || 0)}
+              onTouchEnd={cancelPressTimer}
+              onTouchCancel={cancelPressTimer}
+            >
+              <MessageBubble
+                message={message}
+                sender={sender || { id: message.sender, name: message.sender, avatar: () => null }}
+                isCurrentUser={isCurrentUser}
+              />
+            </div>
+          );
+        })}
 
       {/* 动作卡片渲染 */}
       {selectedMessageId && (

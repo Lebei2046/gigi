@@ -1,16 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ChatListItem from "../components/ChatListItem";
-import { allChats } from "../../../data/users";
 import TopBar from "../components/TopBar";
+import { useAllChats } from "../../../models/chat";
 
 interface ChatListProps {
-  onChatSelect: (id: string) => void;
+  onChatSelect: (id: number) => void;
 }
 
 const ChatList: React.FC<ChatListProps> = ({ onChatSelect }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMenuClosing, setIsMenuClosing] = useState(false);
   const closingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const chats = useAllChats();
 
   const setMenuOpenWithDelay = (open: boolean) => {
     // 清除之前的定时器
@@ -36,7 +37,7 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect }) => {
   };
 
   // 清理定时器
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (closingTimeoutRef.current) {
         clearTimeout(closingTimeoutRef.current);
@@ -50,19 +51,24 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect }) => {
 
       {/* 聊天列表 */}
       <div className="flex-1 overflow-y-auto">
-        {allChats.map((chat) => (
-          <ChatListItem
-            key={chat.id}
-            id={chat.id}
-            name={chat.name}
-            lastMessage={chat.lastMessage || "暂无消息"}
-            time={chat.lastMessageTime || ""}
-            unreadCount={/*chat.unreadCount || */ 0}
-            isGroup={/*chat.isGroup || */ false}
-            onClick={() => onChatSelect(chat.id)}
-            menuOpen={menuOpen || isMenuClosing}
-          />
-        ))}
+        {chats && chats.length > 0 ?
+          (
+            chats.map((chat) => (
+              <ChatListItem
+                key={chat.id}
+                id={chat.id || 0}
+                name={chat.name}
+                lastMessage={chat.lastMessage || "暂无消息"}
+                time={chat.lastMessageTime || ""}
+                unreadCount={chat.unreadCount || 0}
+                isGroup={chat.isGroup || false}
+                onClick={() => onChatSelect(chat.id || 0)}
+                menuOpen={menuOpen || isMenuClosing}
+              />
+            ))
+          )
+          : (<div className="text-center text-gray-500 py-4">暂无数据</div>)
+        }
       </div>
     </div>
   );
