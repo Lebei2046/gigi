@@ -3,25 +3,30 @@ import { FiMic, FiSmile, FiPlusCircle } from 'react-icons/fi';
 import { MdKeyboard } from 'react-icons/md';
 import EmojiCard from './EmojiCard';
 import PlusCard from './PlusCard';
+import { storeImage } from '../../../../utils/imageStorage'; // 新增导入
 
 interface InputBarProps {
   onSend: (content: string) => void;
   onCardHeightChange: (height: number) => void;
   onInputHeightChange: (height: number) => void;
+  onImageSend?: (imageId: string) => void; // 新增属性用于发送图片
 }
 
 const InputBar = ({
   onSend,
   onCardHeightChange,
   onInputHeightChange,
+  onImageSend, // 新增属性
 }: InputBarProps) => {
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [activeCard, setActiveCard] = useState<'emoji' | 'plus' | null>(null);
+  const [isImageUploading, setIsImageUploading] = useState(false); // 新增状态
   const inputRef = useRef<HTMLInputElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const cardContainerRef = useRef<HTMLDivElement>(null);
   const ignoreFocus = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null); // 新增引用用于文件输入
 
   // 更新输入区高度
   useEffect(() => {
@@ -92,6 +97,37 @@ const InputBar = ({
     }
   };
 
+  // 处理图片上传
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      try {
+        setIsImageUploading(true);
+        // 生成唯一 ID
+        const imageId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        // 存储图片
+        await storeImage(imageId, file);
+
+        // 通知父组件发送图片消息
+        if (onImageSend) {
+          onImageSend(imageId);
+        }
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('图片上传失败');
+      } finally {
+        setIsImageUploading(false);
+        // 重置文件输入
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        // 关闭卡片
+        closeAllCards();
+      }
+    }
+  };
+
   // 处理表情选择
   const handleSelectEmoji = (emoji: string) => {
     setInputText((prev) => prev + emoji);
@@ -140,6 +176,16 @@ const InputBar = ({
 
   return (
     <div ref={barRef} className="bg-gray-100 h-full">
+      {/* 隐藏的文件输入元素 */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handleImageUpload}
+        style={{ display: 'none' }}
+        id="image-upload-input"
+      />
+
       {/* 输入工具栏 */}
       <div className="p-3 h-full">
         <div className="flex items-center h-full">
@@ -186,8 +232,13 @@ const InputBar = ({
             type="button"
             onClick={togglePlusCard}
             className={`p-2 transition-colors rounded-full ${activeCard === 'plus' ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+            disabled={isImageUploading} // 禁用按钮当图片正在上传时
           >
-            <FiPlusCircle size={24} />
+            {isImageUploading ? (
+              <div className="w-6 h-6 border-t-2 border-blue-500 rounded-full animate-spin"></div>
+            ) : (
+              <FiPlusCircle size={24} />
+            )}
           </button>
         </div>
       </div>
@@ -203,11 +254,9 @@ const InputBar = ({
             {/* 修复2: 确保表情卡片事件正确处理 */}
             <EmojiCard
               onSelect={(emoji) => {
-                console.log('选择表情:', emoji); // 添加调试日志
                 handleSelectEmoji(emoji);
               }}
               onSend={() => {
-                console.log('点击发送按钮'); // 添加调试日志
                 handleSubmit();
                 closeAllCards();
               }}
@@ -219,9 +268,16 @@ const InputBar = ({
             {/* 修复3: 确保加号卡片事件正确处理 */}
             <PlusCard
               onSelect={(action) => {
-                console.log('选择加号功能:', action); // 确保日志打印
-                // 保留原有的回调关闭逻辑
-                closeAllCards();
+                // 根据选择的操作执行不同的功能
+                switch (action) {
+                  case '图片':
+                    // 触发文件选择
+                    document.getElementById('image-upload-input')?.click();
+                    break;
+                  default:
+                    // 其他操作保持原有的回调关闭逻辑
+                    closeAllCards();
+                }
               }}
             />
           </div>

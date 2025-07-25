@@ -36,7 +36,6 @@ const PlusCard: React.FC<PlusCardProps> = ({ onSelect }) => {
             type="button"
             // 添加详细事件处理
             onClick={() => {
-              console.log(`点击加号功能: ${action.name}`);
               onSelect(action.name);
             }}
             className="flex flex-col items-center p-2 hover:bg-gray-100 rounded-lg transition-colors"

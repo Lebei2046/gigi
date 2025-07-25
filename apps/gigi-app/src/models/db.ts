@@ -24,10 +24,19 @@ interface Message {
   timestamp: Date;
 }
 
+// 添加图片存储接口
+interface Image {
+  id: string;
+  data: Blob;
+  type: string;
+  createdAt: Date;
+}
+
 const db = new Dexie('GigiDatabase') as Dexie & {
   contacts: EntityTable<Contact, 'id'>;
   chats: EntityTable<Chat, 'id'>;
   messages: EntityTable<Message, 'id'>;
+  images: EntityTable<Image, 'id'>;
 };
 
 // 版本1：只包含contacts表
@@ -47,5 +56,13 @@ db.version(3).stores({
   messages: '++id, chatId, timestamp'
 });
 
-export type { Contact, Chat, Message };
+// 版本4：添加images表
+db.version(4).stores({
+  contacts: '++id, name, &address',
+  chats: '++id',
+  messages: '++id, chatId, timestamp',
+  images: 'id, createdAt'
+});
+
+export type { Contact, Chat, Message, Image };
 export { db };

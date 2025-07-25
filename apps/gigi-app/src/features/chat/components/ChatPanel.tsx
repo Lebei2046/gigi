@@ -43,8 +43,8 @@ const ChatPanel = ({ chatId, groupName, initialMessages }: ChatPanelProps) => {
     scrollToBottom();
   }, [messages]);
 
-  // 添加新消息
-  const addMessage = async (content: string) => {
+  // 添加文本消息
+  const addTextMessage = async (content: string) => {
     const newMessage: Omit<Message, 'id'> = {
       chatId,
       sender: 'lebei',
@@ -52,9 +52,41 @@ const ChatPanel = ({ chatId, groupName, initialMessages }: ChatPanelProps) => {
       timestamp: new Date(),
     };
 
-    const id = await addMessageToDb(newMessage);
+    try {
+      const id = await addMessageToDb(newMessage);
+      setMessages((prev) => [...prev, { ...newMessage, id }]);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // 即使数据库存储失败，也在UI上显示消息
+      setMessages((prev) => [...prev, { ...newMessage, id: Date.now() }]);
+    }
 
-    setMessages((prev) => [...prev, { ...newMessage, id }]);
+    setCardHeight(0); // 发送消息后关闭卡片
+
+    // 延迟滚动到底部
+    setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+  };
+
+  // 添加图片消息
+  const addImageMessage = async (imageId: string) => {
+    const newMessage: Omit<Message, 'id'> = {
+      chatId,
+      sender: 'lebei',
+      content: `[image:${imageId}]`, // 使用特殊格式标识图片消息
+      timestamp: new Date(),
+    };
+
+    try {
+      const id = await addMessageToDb(newMessage);
+      setMessages((prev) => [...prev, { ...newMessage, id }]);
+    } catch (error) {
+      console.error('Failed to send image message:', error);
+      // 即使数据库存储失败，也在UI上显示消息
+      setMessages((prev) => [...prev, { ...newMessage, id: Date.now() }]);
+    }
+
     setCardHeight(0); // 发送消息后关闭卡片
 
     // 延迟滚动到底部
@@ -111,7 +143,8 @@ const ChatPanel = ({ chatId, groupName, initialMessages }: ChatPanelProps) => {
         }}
       >
         <InputBar
-          onSend={addMessage}
+          onSend={addTextMessage}
+          onImageSend={addImageMessage}
           onCardHeightChange={handleCardHeightChange}
           onInputHeightChange={handleInputHeightChange}
         />

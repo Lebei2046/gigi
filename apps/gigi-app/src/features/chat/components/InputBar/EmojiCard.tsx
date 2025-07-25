@@ -53,7 +53,6 @@ const EmojiCard: React.FC<EmojiCardProps> = ({ onSelect, onSend }) => {
                 type="button"
                 // 添加详细事件处理
                 onClick={() => {
-                  console.log(`点击表情: ${emoji}`);
                   onSelect(emoji);
                 }}
                 className="text-2xl p-1 hover:bg-gray-200 rounded transition-colors"
@@ -70,7 +69,6 @@ const EmojiCard: React.FC<EmojiCardProps> = ({ onSelect, onSend }) => {
           type="button"
           // 添加详细事件处理
           onClick={() => {
-            console.log('点击发送按钮');
             onSend();
           }}
           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full transition-colors"

@@ -1,10 +1,82 @@
-/** biome-ignore-all lint/a11y/useKeyWithClickEvents: <explanation> */
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageActionCard from './MessageActionCard';
-import type { User } from '../../types';
 import { contacts } from '../../../../data/contacts';
 import type { Message } from '../../../../models/db';
+import ImageMessageBubble from '../ImageMessageBubble'; // 导入图片消息组件
+
+// 使用 memo 包装消息项以避免不必要的重新渲染
+const MessageItem = memo(({
+  message,
+  currentUserId,
+  selectedMessages,
+  startPressTimer,
+  cancelPressTimer,
+  handleLongPress,
+  handleMessageClick
+}: {
+  message: Message;
+  currentUserId: string;
+  selectedMessages: number[];
+  startPressTimer: (messageId: number) => void;
+  cancelPressTimer: () => void;
+  handleLongPress: (messageId: number) => void;
+  handleMessageClick: (messageId: number) => void;
+}) => {
+  const sender = contacts.find((user) => user.id === message.sender) || {
+    id: message.sender,
+    name: message.sender,
+    avatar: () => null
+  };
+
+  const isCurrentUser = message.sender === currentUserId;
+  const isSelected = selectedMessages.includes(message.id || 0);
+
+  // 检查是否为图片消息
+  const isImageMessage = message.content.startsWith('[image:');
+  const imageId = isImageMessage ? message.content.slice(7, -1) : null;
+
+  return (
+    <div
+      key={message.id}
+      className={`mb-6 relative ${isSelected ? 'bg-blue-50 rounded-xl -m-2 p-2' : ''} ${isCurrentUser ? 'flex justify-end' : 'flex'}`}
+      onClick={() => handleMessageClick(message.id || 0)}
+      onMouseDown={() => startPressTimer(message.id || 0)}
+      onMouseUp={cancelPressTimer}
+      onMouseLeave={cancelPressTimer}
+      onTouchStart={() => startPressTimer(message.id || 0)}
+      onTouchEnd={cancelPressTimer}
+      onTouchCancel={cancelPressTimer}
+    >
+      {isImageMessage && imageId ? (
+        // 渲染图片消息
+        <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+          {!isCurrentUser && (
+            <div className="text-sm mb-1">
+              {sender.name}
+            </div>
+          )}
+          <ImageMessageBubble imageId={imageId} />
+          <div className={`text-xs opacity-50 mt-1 ${isCurrentUser ? 'text-right' : ''}`}>
+            {new Date(message.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </div>
+        </div>
+      ) : (
+        // 渲染普通文本消息
+        <MessageBubble
+          message={message}
+          sender={sender}
+          isCurrentUser={isCurrentUser}
+        />
+      )}
+    </div>
+  );
+});
+
+MessageItem.displayName = 'MessageItem';
 
 interface MessagePanelProps {
   messages: Message[];
@@ -31,22 +103,6 @@ const MessagePanel = ({
   // 修复长按问题
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPress = useRef(false);
-
-  // 获取用户信息
-  const getUserById = (id: string): User | undefined => {
-    // First check in contacts data
-    const contact = contacts.find((user) => user.id === id);
-    if (contact) {
-      return contact;
-    }
-
-    // If not found, return a default user object
-    return {
-      id: id,
-      name: id,
-      avatar: () => null
-    };
-  };
 
   // 滚动到底部
   const scrollToBottom = () => {
@@ -180,34 +236,18 @@ const MessagePanel = ({
       className="overflow-y-auto flex-grow p-4 pb-0"
       style={{ scrollBehavior: 'smooth' }}
     >
-      {messages.length === 0
-        ? <p>暂无数据</p>
-        : messages.map((message) => {
-          const sender = getUserById(message.sender);
-          // Even if sender is not found, we still render the message
-          const isCurrentUser = message.sender === currentUserId;
-          const isSelected = selectedMessages.includes(message.id || 0);
-
-          return (
-            <div
-              key={message.id}
-              className={`mb-6 relative ${isSelected ? 'bg-blue-50 rounded-xl -m-2 p-2' : ''}`}
-              onClick={() => handleMessageClick(message.id || 0)}
-              onMouseDown={() => startPressTimer(message.id || 0)}
-              onMouseUp={cancelPressTimer}
-              onMouseLeave={cancelPressTimer}
-              onTouchStart={() => startPressTimer(message.id || 0)}
-              onTouchEnd={cancelPressTimer}
-              onTouchCancel={cancelPressTimer}
-            >
-              <MessageBubble
-                message={message}
-                sender={sender || { id: message.sender, name: message.sender, avatar: () => null }}
-                isCurrentUser={isCurrentUser}
-              />
-            </div>
-          );
-        })}
+      {messages.map((message) => (
+        <MessageItem
+          key={message.id}
+          message={message}
+          currentUserId={currentUserId}
+          selectedMessages={selectedMessages}
+          startPressTimer={startPressTimer}
+          cancelPressTimer={cancelPressTimer}
+          handleLongPress={handleLongPress}
+          handleMessageClick={handleMessageClick}
+        />
+      ))}
 
       {/* 动作卡片渲染 */}
       {selectedMessageId && (
