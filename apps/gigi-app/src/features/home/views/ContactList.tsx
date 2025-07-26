@@ -67,7 +67,7 @@ const ContactList: React.FC = () => {
               ref={(el) => (groupRefs.current[letter] = el)}
               className="py-2"
             >
-              <div className="bg-gray-100 px-4 py-1 text-sm text-gray-500 sticky top-12">
+              <div className="bg-gray-100 px-4 py-1 text-sm text-gray-500 sticky top-0">
                 {letter}
               </div>
               <div className="bg-white">
