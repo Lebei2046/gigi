@@ -129,7 +129,7 @@ const ChatPanel = ({ chatId, groupName, initialMessages }: ChatPanelProps) => {
       <div ref={panelRef} className="flex-1 overflow-auto bg-white p-4 w-full">
         <MessagePanel
           messages={messages}
-          currentUserId="lebei"
+          me="lebei"
           onMessageAction={handleMessageAction}
         />
       </div>

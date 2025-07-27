@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect, memo } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageActionCard from './MessageActionCard';
-import { contacts } from '../../../../data/contacts';
+import { senders } from '../../../../data/senders';
 import type { Message } from '../../../../models/db';
 import ImageMessageBubble from '../ImageMessageBubble'; // 导入图片消息组件
 
 // 使用 memo 包装消息项以避免不必要的重新渲染
 const MessageItem = memo(({
   message,
-  currentUserId,
+  me,
   selectedMessages,
   startPressTimer,
   cancelPressTimer,
@@ -16,20 +16,20 @@ const MessageItem = memo(({
   handleMessageClick
 }: {
   message: Message;
-  currentUserId: string;
+  me: string;
   selectedMessages: number[];
   startPressTimer: (messageId: number) => void;
   cancelPressTimer: () => void;
   handleLongPress: (messageId: number) => void;
   handleMessageClick: (messageId: number) => void;
 }) => {
-  const sender = contacts.find((user) => user.id === message.sender) || {
+  const sender = senders.find((user) => user.id === message.sender) || {
     id: message.sender,
     name: message.sender,
     avatar: () => null
   };
 
-  const isCurrentUser = message.sender === currentUserId;
+  const isMe = message.sender === me;
   const isSelected = selectedMessages.includes(message.id || 0);
 
   // 检查是否为图片消息
@@ -39,7 +39,7 @@ const MessageItem = memo(({
   return (
     <div
       key={message.id}
-      className={`mb-6 relative ${isSelected ? 'bg-blue-50 rounded-xl -m-2 p-2' : ''} ${isCurrentUser ? 'flex justify-end' : 'flex'}`}
+      className={`mb-6 relative ${isSelected ? 'bg-blue-50 rounded-xl -m-2 p-2' : ''} ${isMe ? 'flex justify-end' : 'flex'}`}
       onClick={() => handleMessageClick(message.id || 0)}
       onMouseDown={() => startPressTimer(message.id || 0)}
       onMouseUp={cancelPressTimer}
@@ -50,14 +50,14 @@ const MessageItem = memo(({
     >
       {isImageMessage && imageId ? (
         // 渲染图片消息
-        <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
-          {!isCurrentUser && (
+        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+          {!isMe && (
             <div className="text-sm mb-1">
               {sender.name}
             </div>
           )}
           <ImageMessageBubble imageId={imageId} />
-          <div className={`text-xs opacity-50 mt-1 ${isCurrentUser ? 'text-right' : ''}`}>
+          <div className={`text-xs opacity-50 mt-1 ${isMe ? 'text-right' : ''}`}>
             {new Date(message.timestamp).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -69,7 +69,7 @@ const MessageItem = memo(({
         <MessageBubble
           message={message}
           sender={sender}
-          isCurrentUser={isCurrentUser}
+          isMe={isMe}
         />
       )}
     </div>
@@ -80,13 +80,13 @@ MessageItem.displayName = 'MessageItem';
 
 interface MessagePanelProps {
   messages: Message[];
-  currentUserId: string;
+  me: string;
   onMessageAction: (action: string, messageId: number) => void;
 }
 
 const MessagePanel = ({
   messages,
-  currentUserId,
+  me,
   onMessageAction,
 }: MessagePanelProps) => {
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(
@@ -240,7 +240,7 @@ const MessagePanel = ({
         <MessageItem
           key={message.id}
           message={message}
-          currentUserId={currentUserId}
+          me={me}
           selectedMessages={selectedMessages}
           startPressTimer={startPressTimer}
           cancelPressTimer={cancelPressTimer}

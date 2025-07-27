@@ -1,6 +1,4 @@
-// src/data/contacts.ts
-import type { Contact } from '../features/chat/types';
-
+import type { IconType } from 'react-icons';
 import {
   FaUserAlt,
   FaUserTie,
@@ -13,7 +11,13 @@ import {
   FaUser,
 } from 'react-icons/fa';
 
-export const contacts: Contact[] = [
+export interface Sender {
+  id: string;
+  name: string;
+  avatar?: IconType;
+}
+
+export const senders: Sender[] = [
   { id: 'user1', name: '松哥', avatar: FaUserTie },
   { id: 'user2', name: 'Kelvin', avatar: FaUserGraduate },
   { id: 'user3', name: '袁枚', avatar: FaUserCircle },
@@ -24,13 +28,3 @@ export const contacts: Contact[] = [
   { id: 'user8', name: '落落', avatar: FaUserCheck },
   { id: 'lebei', name: '乐呗', avatar: FaUser },
 ];
-
-export const groups = {
-  乒羽网约球: ['lebei', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8'],
-  一家子: ['lebei', 'user2', 'user5'],
-};
-
-export const groupMembers = {
-  乒羽网约球: contacts.filter((c) => groups['乒羽网约球'].includes(c.id)),
-  // ...其他群
-};
