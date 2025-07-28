@@ -1,6 +1,4 @@
 import type { Reducer } from "react";
-import { encryptMnemonics, generateAddress } from "../../../utils/crypto";
-import { setStorageItem } from "../../../utils/storage";
 
 export type SignupType = "create" | "import" | null;
 
@@ -19,12 +17,12 @@ type SignupState = {
 export type SignupAction =
   | { type: "GO_TO_NEXT_STEP" }
   | { type: "GO_TO_PREV_STEP" }
-  | { type: "SAVE_ACCOUNT_INFO" }
   | { type: "SET_MNEMONIC"; payload: string[] }
   | { type: "SET_PASSWORD"; payload: string }
   | { type: "SET_NAME"; payload: string }
   | { type: "SET_STEP_CHECKED"; payload: StepType }
-  | { type: "INIT_SIGNUP"; payload: SignupType };
+  | { type: "INIT_SIGNUP"; payload: SignupType }
+  | { type: "ACCOUNT_INFO_SAVED"; payload: { address: string } };
 
 export const initialState: SignupState = {
   currentStep: 0,
@@ -73,24 +71,11 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
           index === action.payload.index ? action.payload.checked : step
         ),
       };
-    case "SAVE_ACCOUNT_INFO":
-      {
-        const walletAddress = generateAddress(state.mnemonic);
-        const { mnemonic: cryptedMnemonic, nonce } = encryptMnemonics(
-          state.mnemonic,
-          state.password
-        );
-        setStorageItem("gigi", {
-          nonce,
-          mnemonic: cryptedMnemonic,
-          address: walletAddress,
-          name: state.name,
-        });
-        return {
-          ...state,
-          address: walletAddress,
-        };
-      }
+    case "ACCOUNT_INFO_SAVED":
+      return {
+        ...state,
+        address: action.payload.address,
+      };
     default:
       return state;
   }

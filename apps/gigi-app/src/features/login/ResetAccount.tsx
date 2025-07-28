@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaTimes } from 'react-icons/fa';
 import { useAppDispatch } from '../../store';
-import { reset } from '../../store/authSlice';
+import { resetAuth } from '../../store/authSlice';
 
 export default function ResetAccount() {
   const navigate = useNavigate();
@@ -56,7 +56,7 @@ export default function ResetAccount() {
         disabled={!checked}
         className={`px-4 py-2 rounded-md ${checked ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-gray-300 cursor-not-allowed'}`}
         onClick={() => {
-          dispatch(reset());
+          dispatch(resetAuth());
           navigate('/signup');
         }}
       >

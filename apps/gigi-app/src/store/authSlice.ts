@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { getStorageItem, clearStorageItem } from '../utils/storage';
+import { getStorageItem, clearStorageItem } from '../utils/settingStorage';
 import { decryptMnemonics, generateAddress } from '../utils/crypto';
 
 type AuthState = {
@@ -30,18 +30,6 @@ const authSlice = createSlice({
     setUnregistered: (state) => {
       state.status = 'unregistered';
     },
-    initAuth: (state) => {
-      const gigiData = getStorageItem<{ mnemonic?: string; nonce?: string; address?: string; name?: string }>('gigi');
-      if (!gigiData) {
-        state.status = 'unregistered';
-      } else {
-        state.mnemonic = gigiData.mnemonic || null;
-        state.nonce = gigiData.nonce || null;
-        state.address = gigiData.address || null;
-        state.name = gigiData.name || null;
-        state.status = 'unauthenticated';
-      }
-    },
     login: (state, action: PayloadAction<{ password: string }>) => {
       if (!state.mnemonic || !state.nonce || !state.address) {
         return;
@@ -60,17 +48,61 @@ const authSlice = createSlice({
         state.error = error instanceof Error ? error.message : '解密失败，请检查数据或密码是否正确';
       }
     },
-    reset: (state) => {
+    resetState: (state) => {
       state.status = 'unregistered';
       state.mnemonic = null;
       state.nonce = null;
       state.address = null;
       state.name = null;
       state.error = null;
-      clearStorageItem('gigi');
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase('auth/initAuth/fulfilled' as any, (state, action: PayloadAction<any>) => {
+      const gigiData = action.payload;
+      state.mnemonic = gigiData.mnemonic || null;
+      state.nonce = gigiData.nonce || null;
+      state.address = gigiData.address || null;
+      state.name = gigiData.name || null;
+      state.status = 'unauthenticated';
+    });
+  }
 });
 
-export const { clearAuth, setUnregistered, initAuth, login, reset } = authSlice.actions;
+// Async action to load auth data from IndexedDB
+export const loadAuthData = () => async (dispatch: any) => {
+  try {
+    const gigiData = await getStorageItem<{
+      mnemonic?: string;
+      nonce?: string;
+      address?: string;
+      name?: string
+    }>('gigi');
+
+    if (!gigiData) {
+      dispatch(setUnregistered());
+    } else {
+      dispatch({
+        type: 'auth/initAuth/fulfilled',
+        payload: gigiData
+      });
+    }
+  } catch (error) {
+    console.error('Failed to load auth data:', error);
+    dispatch(setUnregistered());
+  }
+};
+
+// Async action to reset auth data
+export const resetAuth = () => async (dispatch: any) => {
+  try {
+    await clearStorageItem('gigi');
+    dispatch(resetState());
+  } catch (error) {
+    console.error('Failed to reset auth data:', error);
+    dispatch(resetState()); // Still reset state even if storage clear fails
+  }
+};
+
+export const { clearAuth, setUnregistered, login, resetState } = authSlice.actions;
 export default authSlice.reducer;

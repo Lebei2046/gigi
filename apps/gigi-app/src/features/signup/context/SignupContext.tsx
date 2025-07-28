@@ -9,6 +9,8 @@ import {
   type SignupAction,
   type SignupType
 } from "./signupReducer";
+import { encryptMnemonics, generateAddress } from "../../../utils/crypto";
+import { setStorageItem } from "../../../utils/settingStorage";
 
 type SignupContextType = {
   state: {
@@ -21,6 +23,7 @@ type SignupContextType = {
     name: string;
   };
   dispatch: React.Dispatch<SignupAction>;
+  saveAccountInfo: () => Promise<void>;
 };
 
 const SignupContext = createContext<SignupContextType | undefined>(undefined);
@@ -28,8 +31,27 @@ const SignupContext = createContext<SignupContextType | undefined>(undefined);
 export function SignupProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(signupReducer, initialState);
 
+  const saveAccountInfo = async () => {
+    const walletAddress = generateAddress(state.mnemonic);
+    const { mnemonic: cryptedMnemonic, nonce } = encryptMnemonics(
+      state.mnemonic,
+      state.password
+    );
+
+    // Save to IndexedDB
+    await setStorageItem("gigi", {
+      nonce,
+      mnemonic: cryptedMnemonic,
+      address: walletAddress,
+      name: state.name,
+    });
+
+    // Update state after successful save
+    dispatch({ type: "ACCOUNT_INFO_SAVED", payload: { address: walletAddress } });
+  };
+
   return (
-    <SignupContext.Provider value={{ state, dispatch }}>
+    <SignupContext.Provider value={{ state, dispatch, saveAccountInfo }}>
       {children}
     </SignupContext.Provider>
   );

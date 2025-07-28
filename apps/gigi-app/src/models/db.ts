@@ -38,12 +38,20 @@ interface Avatar {
   updatedAt: Date;
 }
 
+// 添加设置接口
+interface Settings {
+  key: string;
+  value: string;
+  updatedAt: Date;
+}
+
 const db = new Dexie('GigiDatabase') as Dexie & {
   contacts: EntityTable<Contact, 'id'>;
   chats: EntityTable<Chat, 'id'>;
   messages: EntityTable<Message, 'id'>;
   images: EntityTable<Image, 'id'>;
   avatars: EntityTable<Avatar, 'id'>;
+  settings: EntityTable<Settings, 'key'>;
 };
 
 db.version(1).stores({
@@ -51,8 +59,9 @@ db.version(1).stores({
   chats: 'id, name',
   messages: '++id, chatId, timestamp',
   images: 'id, createdAt',
-  avatars: 'id, imageId, createdAt, updatedAt'
+  avatars: 'id, imageId, createdAt, updatedAt',
+  settings: 'key, updatedAt'
 });
 
-export type { Contact, Chat, Message, Image, Avatar };
+export type { Contact, Chat, Message, Image, Avatar, Settings };
 export { db };

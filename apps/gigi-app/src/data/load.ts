@@ -2,9 +2,13 @@ import { initialMessages } from "./messages";
 import { allChats } from "./users";
 import { senders } from "./senders";
 import { db, type Contact, type Chat, type Message } from '../models/db';
+import { migrateLocalStorageToIndexedDB } from '../utils/settingStorage';
 
 
 export async function loadData() {
+  // First, migrate data from localStorage to IndexedDB
+  await migrateLocalStorageToIndexedDB();
+
   const contacts: Contact[] = [];
   senders.forEach((sender) => {
     contacts.push({
