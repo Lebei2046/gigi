@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { getStorageItem, clearStorageItem } from '../utils/settingStorage';
 import { decryptMnemonics, generateAddress } from '../utils/crypto';

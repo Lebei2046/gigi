@@ -200,12 +200,13 @@ const MessagePanel = ({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (selectedMessageId && !target.closest('.message-action-card')) {
+        e.preventDefault(); // Prevent default only when needed
         closeActionCard();
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [selectedMessageId]);
 
   // 按ESC键关闭动作卡片

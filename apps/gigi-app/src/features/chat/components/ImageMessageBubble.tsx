@@ -45,7 +45,7 @@ const ImageMessageBubble = ({ imageId }: ImageMessageBubbleProps) => {
         revokeImageUrl(imageUrl);
       }
     };
-  }, [imageId]); // 依赖数组只包含 imageId
+  }, [imageId, imageUrl]); // 依赖数组只包含 imageId
 
   // 固定容器高度以减少布局跳动
   if (loading) {
