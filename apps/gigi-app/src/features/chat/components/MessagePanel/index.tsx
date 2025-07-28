@@ -12,6 +12,7 @@ const MessageItem = memo(({
   selectedMessages,
   startPressTimer,
   cancelPressTimer,
+  handleLongPress,
   handleMessageClick
 }: {
   message: Message;
@@ -43,6 +44,10 @@ const MessageItem = memo(({
       onMouseDown={() => startPressTimer(message.id || 0)}
       onMouseUp={cancelPressTimer}
       onMouseLeave={cancelPressTimer}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        handleLongPress(message.id || 0);
+      }}
       onTouchStart={() => startPressTimer(message.id || 0)}
       onTouchEnd={cancelPressTimer}
       onTouchCancel={cancelPressTimer}
@@ -133,6 +138,9 @@ const MessagePanel = ({
   };
 
   const handleLongPress = (messageId: number) => {
+    // 取消可能的定时器
+    cancelPressTimer();
+
     setSelectedMessageId(messageId);
 
     if (panelRef.current) {
@@ -198,15 +206,27 @@ const MessagePanel = ({
   // 点击其他地方关闭动作卡片
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (selectedMessageId && !target.closest('.message-action-card')) {
-        e.preventDefault(); // Prevent default only when needed
+      const target = e.target as Element;
+      if (selectedMessageId && (!target.closest || !target.closest('.message-action-card'))) {
         closeActionCard();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleContextMenu = (e: MouseEvent) => {
+      if (selectedMessageId) {
+        e.preventDefault();
+      }
+    };
+
+    if (selectedMessageId) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('contextmenu', handleContextMenu);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
   }, [selectedMessageId]);
 
   // 按ESC键关闭动作卡片
@@ -217,8 +237,13 @@ const MessagePanel = ({
       }
     };
 
-    document.addEventListener('keydown', handleEscapeKey);
-    return () => document.removeEventListener('keydown', handleEscapeKey);
+    if (selectedMessageId) {
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
   }, [selectedMessageId]);
 
   // 清除所有定时器
@@ -233,8 +258,14 @@ const MessagePanel = ({
   return (
     <div
       ref={panelRef}
-      className="overflow-y-auto flex-grow p-4 pb-0"
-      style={{ scrollBehavior: 'smooth' }}
+      className="h-full p-4 pb-0"
+      onContextMenu={(e) => {
+        // 防止在面板上出现浏览器上下文菜单
+        const target = e.target as Element;
+        if (!target.closest || !target.closest('.message-action-card')) {
+          e.preventDefault();
+        }
+      }}
     >
       {messages.map((message) => (
         <MessageItem

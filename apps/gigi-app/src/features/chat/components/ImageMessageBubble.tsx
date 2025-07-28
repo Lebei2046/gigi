@@ -12,6 +12,7 @@ const ImageMessageBubble = ({ imageId }: ImageMessageBubbleProps) => {
 
   useEffect(() => {
     let isMounted = true;
+    let currentImageUrl: string | null = null;
 
     const loadImage = async () => {
       try {
@@ -22,6 +23,7 @@ const ImageMessageBubble = ({ imageId }: ImageMessageBubbleProps) => {
 
         // 只有在组件仍然挂载时才更新状态
         if (isMounted) {
+          currentImageUrl = url;
           setImageUrl(url);
         }
       } catch (err) {
@@ -41,11 +43,12 @@ const ImageMessageBubble = ({ imageId }: ImageMessageBubbleProps) => {
     // 清理函数
     return () => {
       isMounted = false;
-      if (imageUrl) {
-        revokeImageUrl(imageUrl);
+      // 只在组件卸载时撤销当前的图片URL
+      if (currentImageUrl) {
+        revokeImageUrl(currentImageUrl);
       }
     };
-  }, [imageId, imageUrl]); // 依赖数组只包含 imageId
+  }, [imageId]); // 移除 imageUrl 依赖，只依赖 imageId
 
   // 固定容器高度以减少布局跳动
   if (loading) {
