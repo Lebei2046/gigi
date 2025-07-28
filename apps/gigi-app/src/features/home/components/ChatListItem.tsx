@@ -1,5 +1,5 @@
 import React from "react";
-import Avatar from "./Avatar";
+import Avatar from "../../../components/Avatar";
 
 interface ChatListItemProps {
   id: string;
@@ -33,7 +33,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
       onClick={handleClick}
     >
       <div className="flex-shrink-0 mr-3">
-        <Avatar name={name} address={id} size={36} />
+        <Avatar name={name} address={id} size={40} />
       </div>
 
       <div className="flex-1 min-w-0">

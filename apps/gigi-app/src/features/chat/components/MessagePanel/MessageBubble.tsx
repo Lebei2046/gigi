@@ -1,6 +1,6 @@
 import type { Sender } from '../../../../data/senders';
 import type { Message } from '../../../../models/db';
-
+import Avatar from '../../../../components/Avatar';
 const MessageBubble = ({
   message,
   sender,
@@ -13,7 +13,11 @@ const MessageBubble = ({
   <div className={`flex mb-4 ${isMe ? 'justify-end' : ''}`}>
     {!isMe && (
       <span className="w-10 h-10 rounded-full mr-2 flex items-center justify-center bg-gray-200">
-        {sender.avatar && <sender.avatar size={40} />}
+        <Avatar
+          name={sender.name}
+          size={40}
+          address={sender.id}
+        />
       </span>
     )}
 

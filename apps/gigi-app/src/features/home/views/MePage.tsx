@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import Avatar from "../components/Avatar";
+import Avatar from "../../../components/Avatar";
 import { useAppSelector } from "../../../store";
 import { FaQrcode } from "react-icons/fa";
 
@@ -21,7 +21,7 @@ const MePage: React.FC = () => {
       {/* 个人信息区域 */}
       <div className="bg-white py-6 px-4 flex items-center">
         <div className="flex-shrink-0 mr-4">
-          <Avatar address={address || ""} size={60} />
+          <Avatar name={name || ''} address={address || ''} size={60} />
         </div>
 
         <div className="flex-1">

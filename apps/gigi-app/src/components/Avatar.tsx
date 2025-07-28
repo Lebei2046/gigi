@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAvatarUrl } from '../../../utils/imageStorage';
+import { getAvatarUrl } from '../utils/imageStorage';
+import type { IconType } from 'react-icons';
+import { senders } from '../data/senders';
 
 interface AvatarProps {
   name?: string;
@@ -14,6 +16,17 @@ const Avatar: React.FC<AvatarProps> = ({
 }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [senderInfo, setSenderInfo] = useState<{ name: string; avatar?: IconType } | null>(null);
+
+  // Look up sender information if address is provided
+  useEffect(() => {
+    if (address) {
+      const sender = senders.find(s => s.id === address);
+      if (sender) {
+        setSenderInfo(sender);
+      }
+    }
+  }, [address]);
 
   const loadAvatar = useCallback(async () => {
     if (address) {
@@ -63,13 +76,26 @@ const Avatar: React.FC<AvatarProps> = ({
     );
   }
 
+  // If there's a sender with an avatar, use it
+  if (senderInfo?.avatar) {
+    const SenderIcon = senderInfo.avatar;
+    return (
+      <div
+        className="rounded-full bg-gray-300 flex items-center justify-center text-gray-700"
+        style={{ width: size, height: size }}
+      >
+        <SenderIcon size={size * 0.6} />
+      </div>
+    );
+  }
+
   // 如果没有上传头像，则显示默认头像
   return (
     <div
       className="rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-medium"
       style={{ width: size, height: size }}
     >
-      {getInitials(name)}
+      {getInitials(name || senderInfo?.name || 'U')}
     </div>
   );
 };

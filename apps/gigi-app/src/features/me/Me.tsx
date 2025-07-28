@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "react-qr-code";
 import { FiArrowLeft, FiCamera } from "react-icons/fi";
@@ -13,16 +13,17 @@ const Me: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const qrData = encodeURI(JSON.stringify({ name, address }));
 
-  useEffect(() => {
-    loadAvatar();
-  }, [address]);
-
-  const loadAvatar = async () => {
+  const loadAvatar = useCallback(async () => {
     if (address) {
       const url = await getAvatarUrl(address);
       setAvatarUrl(url);
     }
-  };
+  }, [address]);
+
+
+  useEffect(() => {
+    loadAvatar();
+  }, [loadAvatar]);
 
   const handleBack = () => {
     // 使用 replace 而不是 push 来避免在浏览器历史记录中留下额外条目

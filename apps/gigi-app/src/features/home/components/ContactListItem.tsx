@@ -1,5 +1,5 @@
 import React from 'react';
-import Avatar from './Avatar';
+import Avatar from '../../../components/Avatar';
 import type { Contact } from '../../../models/db';
 
 interface ContactListItemProps {
@@ -19,8 +19,8 @@ const ContactListItem: React.FC<ContactListItemProps> = ({ contact, onClick }) =
     >
       <Avatar
         name={contact.name || 'Unknown'}
-        size={50}
-        address={contact.address}
+        size={40}
+        address={contact.id}
       />
       <div className="ml-3">
         <div className="font-medium">{contact.name || 'Unknown'}</div>
