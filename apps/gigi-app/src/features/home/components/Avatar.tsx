@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getAvatarUrl } from '../../../utils/imageStorage';
 
 interface AvatarProps {
@@ -15,11 +15,7 @@ const Avatar: React.FC<AvatarProps> = ({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAvatar();
-  }, [address]);
-
-  const loadAvatar = async () => {
+  const loadAvatar = useCallback(async () => {
     if (address) {
       try {
         const url = await getAvatarUrl(address);
@@ -32,13 +28,18 @@ const Avatar: React.FC<AvatarProps> = ({
     } else {
       setLoading(false);
     }
-  };
+  }, [address]);
 
   // 从用户名获取首字母
   const getInitials = (name: string) => {
     if (!name || typeof name !== 'string') return 'U';
     return name.charAt(0).toUpperCase();
   };
+
+  useEffect(() => {
+    loadAvatar();
+  }, [loadAvatar]);
+
 
   if (loading) {
     return (

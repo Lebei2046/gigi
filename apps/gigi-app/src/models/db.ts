@@ -1,24 +1,22 @@
 import Dexie, { type EntityTable } from 'dexie';
 
 interface Contact {
-  id?: number;
+  id: string; // address作为唯一标识
   name: string;
-  address: string;
 }
 
 interface Chat {
-  id?: number;
+  id: string; // address作为唯一标识
   name: string;
   isGroup?: boolean;
   lastMessage?: string;
   lastMessageTime?: string;
   unreadCount?: number;
-  originalId?: string; // 用于存储原始字符串ID
 }
 
 interface Message {
   id?: number;
-  chatId: number;
+  chatId: string;
   sender: string;
   content: string;
   timestamp: Date;
@@ -45,41 +43,15 @@ const db = new Dexie('GigiDatabase') as Dexie & {
   chats: EntityTable<Chat, 'id'>;
   messages: EntityTable<Message, 'id'>;
   images: EntityTable<Image, 'id'>;
-  avatars: EntityTable<Avatar, 'id'>; // 添加avatars表
+  avatars: EntityTable<Avatar, 'id'>;
 };
 
-// 版本1：只包含contacts表
 db.version(1).stores({
-  contacts: '++id, name, &address'
-});
-
-// 版本2：保留contacts表并添加chats表，chats表只将id作为自增主键
-db.version(2).stores({
-  contacts: '++id, name, &address',
-  chats: '++id' // 只将id作为自增主键，移除其他索引字段
-});
-
-db.version(3).stores({
-  contacts: '++id, name, &address',
-  chats: '++id', // 只将id作为自增主键，移除其他索引字段
-  messages: '++id, chatId, timestamp'
-});
-
-// 版本4：添加images表
-db.version(4).stores({
-  contacts: '++id, name, &address',
-  chats: '++id',
-  messages: '++id, chatId, timestamp',
-  images: 'id, createdAt'
-});
-
-// 版本5：添加avatars表
-db.version(5).stores({
-  contacts: '++id, name, &address',
-  chats: '++id',
+  contacts: 'id, name',
+  chats: 'id, name',
   messages: '++id, chatId, timestamp',
   images: 'id, createdAt',
-  avatars: 'id, imageId, createdAt, updatedAt' // id对应用户address
+  avatars: 'id, imageId, createdAt, updatedAt'
 });
 
 export type { Contact, Chat, Message, Image, Avatar };

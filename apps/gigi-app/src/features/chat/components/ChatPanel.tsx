@@ -6,7 +6,7 @@ import type { Message } from '../../../models/db';
 import { addMessage as addMessageToDb } from '../../../models/message';
 
 interface ChatPanelProps {
-  chatId: number;
+  chatId: string;
   groupName: string;
   initialMessages: Message[];
 }

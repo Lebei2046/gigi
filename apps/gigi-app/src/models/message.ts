@@ -10,6 +10,6 @@ export async function deleteMessage(id: number) {
 }
 
 // Read all messages from a specific chat
-export function useMessagesByChatId(chatId: number) {
+export function useMessagesByChatId(chatId: string) {
   return useLiveQuery(() => db.messages.where('chatId').equals(chatId).toArray(), [chatId]);
 }

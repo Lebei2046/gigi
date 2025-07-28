@@ -12,7 +12,6 @@ const MessageItem = memo(({
   selectedMessages,
   startPressTimer,
   cancelPressTimer,
-  handleLongPress,
   handleMessageClick
 }: {
   message: Message;

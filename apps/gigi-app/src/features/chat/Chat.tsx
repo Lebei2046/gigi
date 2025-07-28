@@ -5,7 +5,7 @@ import { useChat } from '../../models/chat';
 
 export default function Chat() {
   const { id } = useParams<{ id: string }>();
-  const chatId = id ? parseInt(id) : 0;
+  const chatId = id || '';
   const messages = useMessagesByChatId(chatId);
   const chat = useChat(chatId);
 

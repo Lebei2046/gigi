@@ -4,7 +4,7 @@ import TopBar from "../components/TopBar";
 import { useAllChats } from "../../../models/chat";
 
 interface ChatListProps {
-  onChatSelect: (id: number) => void;
+  onChatSelect: (id: string) => void;
 }
 
 const ChatList: React.FC<ChatListProps> = ({ onChatSelect }) => {
@@ -56,13 +56,12 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect }) => {
             chats.map((chat) => (
               <ChatListItem
                 key={chat.id}
-                id={chat.id || 0}
+                id={chat.id}
                 name={chat.name}
                 lastMessage={chat.lastMessage || "暂无消息"}
                 time={chat.lastMessageTime || ""}
                 unreadCount={chat.unreadCount || 0}
-                isGroup={chat.isGroup || false}
-                onClick={() => onChatSelect(chat.id || 0)}
+                onClick={() => onChatSelect(chat.id)}
                 menuOpen={menuOpen || isMenuClosing}
               />
             ))

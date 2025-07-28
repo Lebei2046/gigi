@@ -2,13 +2,12 @@ import React from "react";
 import Avatar from "./Avatar";
 
 interface ChatListItemProps {
-  id: number;
+  id: string;
   name: string;
   lastMessage: string;
   time: string;
   unreadCount?: number;
-  isGroup: boolean;
-  onClick?: (id: number) => void;
+  onClick?: (id: string) => void;
   menuOpen?: boolean;
 }
 
@@ -18,7 +17,6 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
   lastMessage,
   time,
   unreadCount,
-  isGroup,
   onClick,
   menuOpen = false,
 }) => {
@@ -35,7 +33,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
       onClick={handleClick}
     >
       <div className="flex-shrink-0 mr-3">
-        <Avatar name={name} isGroup={isGroup} />
+        <Avatar name={name} address={id} size={36} />
       </div>
 
       <div className="flex-1 min-w-0">
