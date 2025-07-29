@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import useInitAuth from "./hooks/useInitAuth";
+import useInitAuth from "./hooks/useInitAuth.ts";
 import { unregisteredRoutes, unauthenticatedRoutes, authenticatedRoutes } from "./routes.tsx";
 
 export default function App() {
