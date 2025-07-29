@@ -1,7 +1,7 @@
 {
-  "name": "tauri-app",
+  "name": "tauri-plugin-test-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
-    "tauri-plugin-libp2p-messaging-api": "file:../../"
+    "tauri-plugin-libp2p-messaging-api": "file:../tauri-plugin-libp2p-messaging"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
