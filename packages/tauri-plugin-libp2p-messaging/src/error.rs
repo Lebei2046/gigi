@@ -1,18 +1,27 @@
-use serde::{ser::Serializer, Serialize};
-
-pub type Result<T> = std::result::Result<T, Error>;
+use serde::{Serialize, Serializer};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   #[error(transparent)]
   Io(#[from] std::io::Error),
-  #[cfg(mobile)]
-  #[error(transparent)]
-  PluginInvoke(#[from] tauri::plugin::mobile::PluginInvokeError),
+  #[error("Gossipsub config error: {0}")]
+  GossipsubConfigError(String),
+  #[error("Gossipsub error: {0}")]
+  GossipsubError(String),
+  #[error("mDNS error: {0}")]
+  MdnsError(String),
+  #[error("Swarm error: {0}")]
+  SwarmError(String),
+  #[error("Behaviour error: {0}")]
+  BehaviourError(String),
+  #[error("Subscription error: {0}")]
+  SubscriptionError(String),
+  #[error("Publish error: {0}")]
+  PublishError(String),
 }
 
 impl Serialize for Error {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: Serializer,
   {

@@ -1,9 +1,74 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 
-export async function ping(value: string): Promise<string | null> {
-  return await invoke<{value?: string}>('plugin:libp2p-messaging|ping', {
-    payload: {
-      value,
-    },
-  }).then((r) => (r.value ? r.value : null));
+/**
+ * 订阅指定主题
+ * @param topic 主题名称
+ */
+export async function subscribeTopic(topic: string): Promise<void> {
+  await invoke('plugin:libp2p-messaging|subscribe_topic', { topic });
+}
+
+/**
+ * 取消订阅指定主题
+ * @param topic 主题名称
+ */
+export async function unsubscribeTopic(topic: string): Promise<void> {
+  await invoke('plugin:libp2p-messaging|unsubscribe_topic', { topic });
+}
+
+/**
+ * 发送消息到指定主题
+ * @param topic 主题名称
+ * @param message 消息内容
+ */
+export async function sendMessage(topic: string, message: string): Promise<void> {
+  await invoke('plugin:libp2p-messaging|send_message', { topic, message });
+}
+
+/**
+ * 获取当前发现的节点列表
+ * @returns 节点列表，格式为 { id: string, addresses: string[] }[]
+ */
+export async function getPeers(): Promise<{ id: string; addresses: string[] }[]> {
+  return await invoke('plugin:libp2p-messaging|get_peers');
+}
+
+export interface MessageReceivedEvent {
+  topic: string;
+  data: string;
+  sender: string;
+}
+export type MessageReceivedCallback = (event: MessageReceivedEvent) => void;
+
+/**
+ * 监听消息接收事件
+ * @param callback 回调函数，参数为 { topic: string, data: string, sender: string }
+ * @returns 取消监听的函数
+ */
+export async function onMessageReceived(
+  callback: MessageReceivedCallback,
+): Promise<UnlistenFn> {
+  return await listen('message-received', (event) => {
+    callback(event.payload as MessageReceivedEvent);
+  });
+}
+
+export interface PeerDiscoveredEvent {
+  id: string;
+  addresses: string[];
+}
+export type PeerDiscoveredCallback = (event: PeerDiscoveredEvent) => void;
+
+/**
+ * 监听节点发现事件
+ * @param callback 回调函数，参数为 { id: string, addresses: string[] }
+ * @returns 取消监听的函数
+ */
+export async function onPeerDiscovered(
+  callback: PeerDiscoveredCallback,
+): Promise<UnlistenFn> {
+  return await listen('peer-discovered', (event) => {
+    callback(event.payload as PeerDiscoveredEvent);
+  });
 }

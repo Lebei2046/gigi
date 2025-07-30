@@ -1,13 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PingRequest {
-  pub value: Option<String>,
+#[derive(Clone, Serialize, Deserialize)]
+pub struct MessageReceivedEvent {
+  pub(crate) topic: String,
+  pub(crate) data: String,
+  pub(crate) sender: String,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PingResponse {
-  pub value: Option<String>,
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PeerDiscoveredEvent {
+  pub(crate) id: String,
+  pub(crate) addresses: Vec<String>,
 }

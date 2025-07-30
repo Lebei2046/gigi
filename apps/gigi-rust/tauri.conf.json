@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "GiGi",
   "version": "0.0.0",
-  "identifier": "gigi.dev",
+  "identifier": "gigi.app",
   "build": {
     "frontendDist": "../gigi-ts/dist",
     "beforeBuildCommand": "cd gigi-ts && bun run build",
@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; media-src 'self' blob:;"
     }
   },
   "bundle": {

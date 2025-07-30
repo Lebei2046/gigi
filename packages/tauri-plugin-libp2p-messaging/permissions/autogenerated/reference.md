@@ -4,7 +4,10 @@ Default permissions for the plugin
 
 #### This default permission set includes the following:
 
-- `allow-ping`
+- `allow-subscribe-topic`
+- `allow-unsubscribe-topic`
+- `allow-send-message`
+- `allow-get-peers`
 
 ## Permission Table
 
@@ -18,12 +21,12 @@ Default permissions for the plugin
 <tr>
 <td>
 
-`libp2p-messaging:allow-ping`
+`libp2p-messaging:allow-get-peers`
 
 </td>
 <td>
 
-Enables the ping command without any pre-configured scope.
+Enables the get_peers command without any pre-configured scope.
 
 </td>
 </tr>
@@ -31,12 +34,90 @@ Enables the ping command without any pre-configured scope.
 <tr>
 <td>
 
-`libp2p-messaging:deny-ping`
+`libp2p-messaging:deny-get-peers`
 
 </td>
 <td>
 
-Denies the ping command without any pre-configured scope.
+Denies the get_peers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`libp2p-messaging:allow-send-message`
+
+</td>
+<td>
+
+Enables the send_message command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`libp2p-messaging:deny-send-message`
+
+</td>
+<td>
+
+Denies the send_message command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`libp2p-messaging:allow-subscribe-topic`
+
+</td>
+<td>
+
+Enables the subscribe_topic command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`libp2p-messaging:deny-subscribe-topic`
+
+</td>
+<td>
+
+Denies the subscribe_topic command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`libp2p-messaging:allow-unsubscribe-topic`
+
+</td>
+<td>
+
+Enables the unsubscribe_topic command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`libp2p-messaging:deny-unsubscribe-topic`
+
+</td>
+<td>
+
+Denies the unsubscribe_topic command without any pre-configured scope.
 
 </td>
 </tr>
