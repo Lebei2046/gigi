@@ -1,0 +1,8 @@
+[default]
+description = "Default permissions for the plugin"
+permissions = [
+    "allow-subscribe-topic",
+    "allow-unsubscribe-topic",
+    "allow-send-message",
+    "allow-get-peers",
+]

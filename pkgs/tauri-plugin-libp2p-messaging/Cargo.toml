@@ -1,0 +1,27 @@
+[package]
+name = "tauri-plugin-libp2p-messaging"
+version = "0.0.0"
+authors = ["Lebei2046 <lebei2046@gmail.com>"]
+description = "Tauri plugin for messaging over libp2p network"
+edition = "2021"
+rust-version = "1.77.2"
+exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
+links = "tauri-plugin-libp2p-messaging"
+
+[dependencies]
+tauri = { version = "2.6.2" }
+serde = "1.0"
+thiserror = "2"
+tokio = { version = "1.0", features = ["full"] }
+libp2p = { version = "0.54.1", features = [
+    "macros",
+    "gossipsub",
+    "mdns",
+    "tokio",
+    "noise",
+    "yamux",
+    "tcp",
+] }
+
+[build-dependencies]
+tauri-plugin = { version = "2.3.0", features = ["build"] }

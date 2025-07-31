@@ -2,7 +2,7 @@
   "name": "gigi",
   "version": "0.0.1",
   "workspaces": [
-    "packages/*",
+    "pkgs/*",
     "apps/*"
   ],
   "private": true
