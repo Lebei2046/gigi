@@ -5054,6 +5054,7 @@ version = "0.0.0"
 dependencies = [
  "libp2p",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",

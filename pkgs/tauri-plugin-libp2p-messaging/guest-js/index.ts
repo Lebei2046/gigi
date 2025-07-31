@@ -6,7 +6,9 @@ import { listen, UnlistenFn } from '@tauri-apps/api/event';
  * @param topic 主题名称
  */
 export async function subscribeTopic(topic: string): Promise<void> {
+  console.log('subscribeTopic from guest-js, start: ', topic);
   await invoke('plugin:libp2p-messaging|subscribe_topic', { topic });
+  console.log('subscribeTopic from guest-js, end: ', topic);
 }
 
 /**
@@ -28,9 +30,9 @@ export async function sendMessage(topic: string, message: string): Promise<void>
 
 /**
  * 获取当前发现的节点列表
- * @returns 节点列表，格式为 { id: string, addresses: string[] }[]
+ * @returns 节点列表
  */
-export async function getPeers(): Promise<{ id: string; addresses: string[] }[]> {
+export async function getPeers(): Promise<Array<[string, string[]]>> {
   return await invoke('plugin:libp2p-messaging|get_peers');
 }
 

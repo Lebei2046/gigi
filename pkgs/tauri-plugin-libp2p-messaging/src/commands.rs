@@ -1,38 +1,73 @@
-use crate::{Error, Libp2pMessaging};
-use tauri::{command, State, Wry};
+use crate::{AppState, Error, Libp2pCommand};
+use tauri::{command, AppHandle, Runtime, State, Window};
 
 #[command]
-pub async fn subscribe_topic(
+pub async fn subscribe_topic<R: Runtime>(
+  _app: AppHandle<R>,
+  _window: Window<R>,
+  state: State<'_, AppState>,
   topic: String,
-  state: State<'_, tokio::sync::Mutex<Libp2pMessaging<Wry>>>,
 ) -> Result<(), Error> {
-  let mut messaging = state.inner().lock().await;
-  messaging.subscribe(&topic)
+  // Check if sender is closed
+  if state.command_sender.is_closed() {
+    return Err(Error::ChannelClosed);
+  }
+
+  state
+    .command_sender
+    .send(Libp2pCommand::Subscribe(topic))
+    .await
+    .map_err(|e| Error::ChannelSend(e.to_string()))?;
+  Ok(())
 }
 
 #[command]
-pub async fn unsubscribe_topic(
+pub async fn unsubscribe_topic<R: Runtime>(
+  _app: AppHandle<R>,
+  _window: Window<R>,
+  state: State<'_, AppState>,
   topic: String,
-  state: State<'_, tokio::sync::Mutex<Libp2pMessaging<Wry>>>,
 ) -> Result<(), Error> {
-  let mut messaging = state.inner().lock().await;
-  messaging.unsubscribe(&topic)
+  state
+    .command_sender
+    .send(Libp2pCommand::Unsubscribe(topic))
+    .await?;
+  Ok(())
 }
 
 #[command]
-pub async fn send_message(
+pub async fn send_message<R: Runtime>(
+  _app: AppHandle<R>,
+  _window: Window<R>,
+  state: State<'_, AppState>,
   topic: String,
   message: String,
-  state: State<'_, tokio::sync::Mutex<Libp2pMessaging<Wry>>>,
 ) -> Result<(), Error> {
-  let mut messaging = state.inner().lock().await;
-  messaging.publish(&topic, message.as_bytes())
+  state
+    .command_sender
+    .send(Libp2pCommand::SendMessage(topic, message.into_bytes()))
+    .await?;
+  Ok(())
 }
 
 #[command]
-pub async fn get_peers(
-  state: State<'_, tokio::sync::Mutex<Libp2pMessaging<Wry>>>,
+pub async fn get_peers<R: Runtime>(
+  _app: AppHandle<R>,
+  _window: Window<R>,
+  state: State<'_, AppState>,
 ) -> Result<Vec<(String, Vec<String>)>, Error> {
-  let messaging = state.inner().lock().await;
-  Ok(messaging.get_peers())
+  // 创建一个 oneshot 通道
+  let (sender, receiver) = tokio::sync::oneshot::channel();
+
+  // 发送 GetPeers 命令，携带 sender
+  state
+    .command_sender
+    .send(Libp2pCommand::GetPeers(sender))
+    .await
+    .map_err(|e| Error::ChannelSend(e.to_string()))?;
+
+  // 等待后台线程返回结果
+  receiver
+    .await
+    .map_err(|e| Error::ChannelReceive(e.to_string()))
 }

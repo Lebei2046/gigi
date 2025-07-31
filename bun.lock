@@ -46,7 +46,7 @@
         "vitest": "^3.2.4",
       },
     },
-    "packages/tauri-plugin-libp2p-messaging": {
+    "pkgs/tauri-plugin-libp2p-messaging": {
       "name": "tauri-plugin-libp2p-messaging-api",
       "version": "0.0.0",
       "dependencies": {
@@ -59,7 +59,7 @@
         "typescript": "^5.3.3",
       },
     },
-    "packages/tauri-plugin-test-app": {
+    "pkgs/tauri-plugin-test-app": {
       "name": "tauri-plugin-test-app",
       "version": "0.0.1",
       "dependencies": {
@@ -915,9 +915,9 @@
 
     "tar": ["tar@7.4.3", "", { "dependencies": { "@isaacs/fs-minipass": "^4.0.0", "chownr": "^3.0.0", "minipass": "^7.1.2", "minizlib": "^3.0.1", "mkdirp": "^3.0.1", "yallist": "^5.0.0" } }, "sha512-5S7Va8hKfV7W5U6g3aYxXmlPoZVAwUMy9AOKyF2fVuZa2UD3qZjg578OrLRt8PcNN1PleVaL/5/yYATNL0ICUw=="],
 
-    "tauri-plugin-libp2p-messaging-api": ["tauri-plugin-libp2p-messaging-api@workspace:packages/tauri-plugin-libp2p-messaging"],
+    "tauri-plugin-libp2p-messaging-api": ["tauri-plugin-libp2p-messaging-api@workspace:pkgs/tauri-plugin-libp2p-messaging"],
 
-    "tauri-plugin-test-app": ["tauri-plugin-test-app@workspace:packages/tauri-plugin-test-app"],
+    "tauri-plugin-test-app": ["tauri-plugin-test-app@workspace:pkgs/tauri-plugin-test-app"],
 
     "tinybench": ["tinybench@2.9.0", "", {}, "sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg=="],
 
@@ -1045,7 +1045,7 @@
 
     "svelte-eslint-parser/postcss-selector-parser": ["postcss-selector-parser@7.1.0", "", { "dependencies": { "cssesc": "^3.0.0", "util-deprecate": "^1.0.2" } }, "sha512-8sLjZwK0R+JlxlYcTuVnyT2v+htpdrjDOKuMcOVdYjt52Lh8hWRYpxBPoKx/Zg+bcjc3wx6fmQevMmUztS/ccA=="],
 
-    "tauri-plugin-test-app/tauri-plugin-libp2p-messaging-api": ["tauri-plugin-libp2p-messaging-api@file:packages/tauri-plugin-libp2p-messaging", { "dependencies": { "@tauri-apps/api": "^2.7.0" }, "devDependencies": { "@rollup/plugin-typescript": "^12.0.0", "rollup": "^4.9.6", "tslib": "^2.6.2", "typescript": "^5.3.3" } }],
+    "tauri-plugin-test-app/tauri-plugin-libp2p-messaging-api": ["tauri-plugin-libp2p-messaging-api@file:pkgs/tauri-plugin-libp2p-messaging", { "dependencies": { "@tauri-apps/api": "^2.7.0" }, "devDependencies": { "@rollup/plugin-typescript": "^12.0.0", "rollup": "^4.9.6", "tslib": "^2.6.2", "typescript": "^5.3.3" } }],
 
     "tauri-plugin-test-app/vite": ["vite@7.0.6", "", { "dependencies": { "esbuild": "^0.25.0", "fdir": "^6.4.6", "picomatch": "^4.0.3", "postcss": "^8.5.6", "rollup": "^4.40.0", "tinyglobby": "^0.2.14" }, "optionalDependencies": { "fsevents": "~2.3.3" }, "peerDependencies": { "@types/node": "^20.19.0 || >=22.12.0", "jiti": ">=1.21.0", "less": "^4.0.0", "lightningcss": "^1.21.0", "sass": "^1.70.0", "sass-embedded": "^1.70.0", "stylus": ">=0.54.8", "sugarss": "^5.0.0", "terser": "^5.16.0", "tsx": "^4.8.1", "yaml": "^2.4.2" }, "optionalPeers": ["@types/node", "jiti", "less", "lightningcss", "sass", "sass-embedded", "stylus", "sugarss", "terser", "tsx", "yaml"], "bin": { "vite": "bin/vite.js" } }, "sha512-MHFiOENNBd+Bd9uvc8GEsIzdkn1JxMmEeYX35tI3fv0sJBUTfW5tQsoaOwuY4KhBI09A3dUJ/DXf2yxPVPUceg=="],
 

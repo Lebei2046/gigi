@@ -1,4 +1,5 @@
 use serde::{Serialize, Serializer};
+use tokio::sync::{mpsc::error::SendError, oneshot};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -18,6 +19,14 @@ pub enum Error {
   SubscriptionError(String),
   #[error("Publish error: {0}")]
   PublishError(String),
+  #[error("Lock timeout: {0}")]
+  LockTimeout(String),
+  #[error("Channel send error: {0}")]
+  ChannelSend(String),
+  #[error("Channel receive error: {0}")]
+  ChannelReceive(String),
+  #[error("Channel closed")]
+  ChannelClosed,
 }
 
 impl Serialize for Error {
@@ -26,5 +35,17 @@ impl Serialize for Error {
     S: Serializer,
   {
     serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<T> From<SendError<T>> for Error {
+  fn from(err: SendError<T>) -> Self {
+    Error::ChannelSend(format!("Failed to send command: {}", err))
+  }
+}
+
+impl From<oneshot::error::RecvError> for Error {
+  fn from(err: oneshot::error::RecvError) -> Self {
+    Error::ChannelReceive(format!("Failed to receive response: {}", err))
   }
 }

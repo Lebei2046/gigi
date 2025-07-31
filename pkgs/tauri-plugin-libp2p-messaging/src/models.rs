@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct MessageReceivedEvent {
-  pub(crate) topic: String,
-  pub(crate) data: String,
-  pub(crate) sender: String,
+  pub topic: String,
+  pub data: String,
+  pub sender: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PeerDiscoveredEvent {
-  pub(crate) id: String,
-  pub(crate) addresses: Vec<String>,
+  pub id: String,
+  pub addresses: Vec<String>,
 }
