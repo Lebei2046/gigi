@@ -8,7 +8,7 @@
 		onPeerDiscovered
 	} from 'tauri-plugin-libp2p-messaging-api';
 
-	let topic = 'test';
+	let topic = 'test-net';
 	let name = '';
 	let greetMsg = '';
 	let msgHandle: any = undefined;

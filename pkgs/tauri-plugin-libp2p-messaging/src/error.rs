@@ -1,9 +1,11 @@
+use libp2p::BehaviourBuilderError;
+use serde::{Serialize, Serializer};
+use tokio::sync::mpsc::error::SendError;
+
 /// 定义 libp2p 消息传递插件中的错误类型。
 ///
 /// 该枚举涵盖了插件中可能出现的各种错误，包括 I/O 错误、配置错误、网络错误等。
 /// 每个错误变体都提供了详细的错误信息，便于调试和处理。
-use serde::{Serialize, Serializer};
-use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -83,5 +85,11 @@ impl<T> From<SendError<T>> for Error {
 impl From<libp2p::noise::Error> for Error {
   fn from(err: libp2p::noise::Error) -> Self {
     Error::NoiseError(err.to_string())
+  }
+}
+
+impl From<BehaviourBuilderError> for Error {
+  fn from(err: BehaviourBuilderError) -> Self {
+    Error::BehaviourError(err.to_string())
   }
 }

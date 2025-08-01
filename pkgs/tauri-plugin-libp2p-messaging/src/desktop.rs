@@ -1,11 +1,16 @@
 use libp2p::{
   futures::StreamExt as _,
-  gossipsub::{self, IdentTopic, MessageAuthenticity},
-  mdns,
+  gossipsub::{self, IdentTopic},
+  mdns, noise,
   swarm::{NetworkBehaviour, SwarmEvent},
-  PeerId, Swarm,
+  tcp, yamux, Swarm,
 };
-use std::collections::HashSet;
+use std::{
+  collections::HashSet,
+  hash::{DefaultHasher, Hash, Hasher},
+  io,
+  time::Duration,
+};
 use tauri::{async_runtime::Receiver, Emitter as _, Runtime};
 
 use crate::{
@@ -45,34 +50,40 @@ impl<R: Runtime> Libp2pMessaging<R> {
     app_handle: tauri::AppHandle<R>,
     receiver: Receiver<Libp2pCommand>,
   ) -> Result<Self, Error> {
-    let gossipsub_config = gossipsub::ConfigBuilder::default()
-      .max_transmit_size(262144)
-      .build()
-      .map_err(|e| Error::GossipsubConfigError(e.to_string()))?;
-
-    let gossipsub = gossipsub::Behaviour::new(
-      MessageAuthenticity::Signed(libp2p::identity::Keypair::generate_ed25519()),
-      gossipsub_config,
-    )
-    .map_err(|e| Error::GossipsubError(e.to_string()))?;
-
-    let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), PeerId::random())
-      .map_err(|e| Error::MdnsError(e.to_string()))?;
-
-    let behaviour = Libp2pMessagingBehaviour { gossipsub, mdns };
-
     let swarm = libp2p::SwarmBuilder::with_new_identity()
       .with_tokio()
       .with_tcp(
-        libp2p::tcp::Config::default(),
-        libp2p::noise::Config::new,
-        libp2p::yamux::Config::default,
-      )
-      .map_err(|e| Error::SwarmError(e.to_string()))?
+        tcp::Config::default(),
+        noise::Config::new,
+        yamux::Config::default,
+      )?
       .with_quic()
-      .with_behaviour(|_key| behaviour)
-      .map_err(|e| Error::BehaviourError(e.to_string()))?
-      .with_swarm_config(|c| c.with_idle_connection_timeout(std::time::Duration::from_secs(60)))
+      .with_behaviour(|key| {
+        // To content-address message, we can take the hash of message and use it as an ID.
+        let message_id_fn = |message: &gossipsub::Message| {
+          let mut s = DefaultHasher::new();
+          message.data.hash(&mut s);
+          gossipsub::MessageId::from(s.finish().to_string())
+        };
+
+        // Set a custom gossipsub configuration
+        let gossipsub_config = gossipsub::ConfigBuilder::default()
+          .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
+          .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message
+          // signing)
+          .message_id_fn(message_id_fn) // content-address messages. No two messages of the same content will be propagated.
+          .build()
+          .map_err(io::Error::other)?; // Temporary hack because `build` does not return a proper `std::error::Error`.
+
+        // build a gossipsub network behaviour
+        let gossipsub = gossipsub::Behaviour::new(
+          gossipsub::MessageAuthenticity::Signed(key.clone()),
+          gossipsub_config,
+        )?;
+
+        let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
+        Ok(Libp2pMessagingBehaviour { gossipsub, mdns })
+      })?
       .build();
 
     Ok(Self {
@@ -112,12 +123,7 @@ impl<R: Runtime> Libp2pMessaging<R> {
   /// - `Result<(), Error>`: 成功时返回 `Ok(())`，失败时返回错误。
   pub fn unsubscribe(&mut self, topic: &str) -> Result<(), Error> {
     let topic = IdentTopic::new(topic);
-    self
-      .swarm
-      .behaviour_mut()
-      .gossipsub
-      .unsubscribe(&topic)
-      .map_err(|e| Error::SubscriptionError(e.to_string()))?;
+    self.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
     self.subscribed_topics.remove(topic.to_string().as_str());
     Ok(())
   }
@@ -203,10 +209,14 @@ impl<R: Runtime> Libp2pMessaging<R> {
           SwarmEvent::Behaviour(Libp2pMessagingBehaviourEvent::Gossipsub(
             gossipsub::Event::Message {
               propagation_source: peer_id,
-              message_id: _,
+              message_id: id,
               message,
             }
           )) => {
+            println!("Got message: '{}' with id: {id} from peer: {peer_id}",
+              String::from_utf8_lossy(&message.data),
+            );
+
             let _ = self.app_handle.emit("plugin:libp2p-messageing:message-received", MessageReceivedEvent {
               topic: message.topic.into_string(),
               data: String::from_utf8_lossy(&message.data).to_string(),
