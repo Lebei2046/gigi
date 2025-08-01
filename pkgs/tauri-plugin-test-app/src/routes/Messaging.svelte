@@ -4,28 +4,36 @@
 		subscribeTopic,
 		unsubscribeTopic,
 		sendMessage,
-		onMessageReceived
+		onMessageReceived,
+		onPeerDiscovered
 	} from 'tauri-plugin-libp2p-messaging-api';
 
 	let topic = 'test';
 	let name = '';
 	let greetMsg = '';
-	let handle: any = undefined;
+	let msgHandle: any = undefined;
+	let peerHandle: any = undefined;
 
 	onMount(async () => {
 		console.log(`Subscribing to topic: ${topic}`);
 		await subscribeTopic(topic);
 		console.log(`Subscribed to topic: ${topic}`);
-		handle = onMessageReceived((message) => {
+		msgHandle = onMessageReceived((message) => {
 			console.log(message);
 			greetMsg = JSON.stringify(message, null, 2);
+		});
+		peerHandle = onPeerDiscovered(async (peer) => {
+			console.log(peer);
 		});
 	});
 
 	onDestroy(() => {
 		// unsubscribeTopic(topic);
-		if (handle) {
-			handle();
+		if (msgHandle) {
+			msgHandle();
+		}
+		if (peerHandle) {
+			peerHandle();
 		}
 	});
 

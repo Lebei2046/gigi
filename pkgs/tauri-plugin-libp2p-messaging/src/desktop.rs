@@ -69,6 +69,7 @@ impl<R: Runtime> Libp2pMessaging<R> {
         libp2p::yamux::Config::default,
       )
       .map_err(|e| Error::SwarmError(e.to_string()))?
+      .with_quic()
       .with_behaviour(|_key| behaviour)
       .map_err(|e| Error::BehaviourError(e.to_string()))?
       .with_swarm_config(|c| c.with_idle_connection_timeout(std::time::Duration::from_secs(60)))
@@ -164,8 +165,13 @@ impl<R: Runtime> Libp2pMessaging<R> {
   pub async fn run(&mut self) {
     self
       .swarm
+      .listen_on("/ip4/0.0.0.0/udp/0/quic-v1".parse().unwrap())
+      .unwrap();
+    self
+      .swarm
       .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
       .unwrap();
+
     println!("Libp2p messaging started, waiting for events...");
 
     loop {
@@ -211,10 +217,21 @@ impl<R: Runtime> Libp2pMessaging<R> {
             mdns::Event::Discovered(peers)
           )) => {
             for (peer_id, addr) in peers {
+              println!("mDNS discovered a new peer: {peer_id}");
+              self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+
               let _ = self.app_handle.emit("plugin:libp2p-messageing:peer-discovered", PeerDiscoveredEvent {
                 id: peer_id.to_string(),
                 addresses: vec![addr.to_string()],
               });
+            }
+          }
+          SwarmEvent::Behaviour(Libp2pMessagingBehaviourEvent::Mdns(
+            mdns::Event::Expired(list)
+          )) => {
+            for (peer_id, _multiaddr) in list {
+              println!("mDNS discover peer has expired: {peer_id}");
+              self.swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
             }
           }
           SwarmEvent::NewListenAddr { address, .. } => {

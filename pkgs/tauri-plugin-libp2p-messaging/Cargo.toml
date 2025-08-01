@@ -21,6 +21,7 @@ libp2p = { version = "0.54.1", features = [
     "noise",
     "yamux",
     "tcp",
+    "quic",
 ] }
 serde_json = "1.0"
 

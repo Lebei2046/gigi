@@ -31,6 +31,9 @@ pub enum Error {
   #[error("Behaviour error: {0}")]
   BehaviourError(String),
 
+  #[error("Noise protocol error: {0}")]
+  NoiseError(String),
+
   /// 订阅错误。
   #[error("Subscription error: {0}")]
   SubscriptionError(String),
@@ -74,5 +77,11 @@ impl Serialize for Error {
 impl<T> From<SendError<T>> for Error {
   fn from(err: SendError<T>) -> Self {
     Error::ChannelSend(format!("Failed to send command: {}", err))
+  }
+}
+
+impl From<libp2p::noise::Error> for Error {
+  fn from(err: libp2p::noise::Error) -> Self {
+    Error::NoiseError(err.to_string())
   }
 }
