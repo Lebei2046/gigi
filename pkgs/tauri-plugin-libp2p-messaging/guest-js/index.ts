@@ -51,7 +51,7 @@ export type MessageReceivedCallback = (event: MessageReceivedEvent) => void;
 export async function onMessageReceived(
   callback: MessageReceivedCallback,
 ): Promise<UnlistenFn> {
-  return await listen('message-received', (event) => {
+  return await listen('plugin:libp2p-messageing:message-received', (event) => {
     callback(event.payload as MessageReceivedEvent);
   });
 }
@@ -70,7 +70,7 @@ export type PeerDiscoveredCallback = (event: PeerDiscoveredEvent) => void;
 export async function onPeerDiscovered(
   callback: PeerDiscoveredCallback,
 ): Promise<UnlistenFn> {
-  return await listen('peer-discovered', (event) => {
+  return await listen('plugin:libp2p-messageing:peer-discovered', (event) => {
     callback(event.payload as PeerDiscoveredEvent);
   });
 }

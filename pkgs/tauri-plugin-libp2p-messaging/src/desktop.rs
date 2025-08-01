@@ -6,8 +6,7 @@ use libp2p::{
   PeerId, Swarm,
 };
 use std::collections::HashSet;
-use tauri::{Emitter as _, Runtime};
-use tokio::sync::mpsc;
+use tauri::{async_runtime::Receiver, Emitter as _, Runtime};
 
 use crate::{
   error::Error,
@@ -15,23 +14,36 @@ use crate::{
   Libp2pCommand,
 };
 
+/// 定义 Libp2p 消息传递的行为，包括 Gossipsub 和 mDNS 功能。
 #[derive(NetworkBehaviour)]
 struct Libp2pMessagingBehaviour {
   gossipsub: gossipsub::Behaviour,
   mdns: mdns::tokio::Behaviour,
 }
 
+/// 提供 Libp2p 消息传递功能的主结构体。
+///
+/// # 泛型参数
+/// - `R`: 运行时类型，必须实现 `tauri::Runtime` trait。
 pub struct Libp2pMessaging<R: Runtime> {
   swarm: Swarm<Libp2pMessagingBehaviour>,
   app_handle: tauri::AppHandle<R>,
   subscribed_topics: HashSet<String>,
-  command_receiver: mpsc::Receiver<Libp2pCommand>,
+  command_receiver: Receiver<Libp2pCommand>,
 }
 
 impl<R: Runtime> Libp2pMessaging<R> {
+  /// 创建一个新的 `Libp2pMessaging` 实例。
+  ///
+  /// # 参数
+  /// - `app_handle`: Tauri 应用句柄。
+  /// - `receiver`: 用于接收 Libp2p 命令的通道接收端。
+  ///
+  /// # 返回
+  /// - `Result<Self, Error>`: 成功时返回实例，失败时返回错误。
   pub fn new(
     app_handle: tauri::AppHandle<R>,
-    receiver: mpsc::Receiver<Libp2pCommand>,
+    receiver: Receiver<Libp2pCommand>,
   ) -> Result<Self, Error> {
     let gossipsub_config = gossipsub::ConfigBuilder::default()
       .max_transmit_size(262144)
@@ -70,6 +82,13 @@ impl<R: Runtime> Libp2pMessaging<R> {
     })
   }
 
+  /// 订阅指定主题。
+  ///
+  /// # 参数
+  /// - `topic`: 要订阅的主题名称。
+  ///
+  /// # 返回
+  /// - `Result<(), Error>`: 成功时返回 `Ok(())`，失败时返回错误。
   pub fn subscribe(&mut self, topic: &str) -> Result<(), Error> {
     let topic = IdentTopic::new(topic);
     self
@@ -83,6 +102,13 @@ impl<R: Runtime> Libp2pMessaging<R> {
     Ok(())
   }
 
+  /// 取消订阅指定主题。
+  ///
+  /// # 参数
+  /// - `topic`: 要取消订阅的主题名称。
+  ///
+  /// # 返回
+  /// - `Result<(), Error>`: 成功时返回 `Ok(())`，失败时返回错误。
   pub fn unsubscribe(&mut self, topic: &str) -> Result<(), Error> {
     let topic = IdentTopic::new(topic);
     self
@@ -95,6 +121,14 @@ impl<R: Runtime> Libp2pMessaging<R> {
     Ok(())
   }
 
+  /// 向指定主题发布消息。
+  ///
+  /// # 参数
+  /// - `topic`: 目标主题名称。
+  /// - `message`: 要发布的消息内容。
+  ///
+  /// # 返回
+  /// - `Result<(), Error>`: 成功时返回 `Ok(())`，失败时返回错误。
   pub fn publish(&mut self, topic: &str, message: &[u8]) -> Result<(), Error> {
     let topic = IdentTopic::new(topic);
     self
@@ -106,6 +140,10 @@ impl<R: Runtime> Libp2pMessaging<R> {
     Ok(())
   }
 
+  /// 获取当前发现的节点列表。
+  ///
+  /// # 返回
+  /// - `Vec<(String, Vec<String>)>`: 节点 ID 及其地址列表。
   pub fn get_peers(&self) -> Vec<(String, Vec<String>)> {
     self
       .swarm
@@ -120,6 +158,9 @@ impl<R: Runtime> Libp2pMessaging<R> {
       .collect()
   }
 
+  /// 启动 Libp2p 消息传递服务的主循环。
+  ///
+  /// 该方法会持续监听事件并处理命令。
   pub async fn run(&mut self) {
     self
       .swarm
@@ -160,7 +201,7 @@ impl<R: Runtime> Libp2pMessaging<R> {
               message,
             }
           )) => {
-            let _ = self.app_handle.emit("message-received", MessageReceivedEvent {
+            let _ = self.app_handle.emit("plugin:libp2p-messageing:message-received", MessageReceivedEvent {
               topic: message.topic.into_string(),
               data: String::from_utf8_lossy(&message.data).to_string(),
               sender: peer_id.to_string(),
@@ -170,7 +211,7 @@ impl<R: Runtime> Libp2pMessaging<R> {
             mdns::Event::Discovered(peers)
           )) => {
             for (peer_id, addr) in peers {
-              let _ = self.app_handle.emit("peer-discovered", PeerDiscoveredEvent {
+              let _ = self.app_handle.emit("plugin:libp2p-messageing:peer-discovered", PeerDiscoveredEvent {
                 id: peer_id.to_string(),
                 addresses: vec![addr.to_string()],
               });

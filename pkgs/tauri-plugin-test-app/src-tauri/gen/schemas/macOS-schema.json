@@ -2095,60 +2095,6 @@
           "type": "string",
           "const": "core:window:deny-unminimize",
           "markdownDescription": "Denies the unminimize command without any pre-configured scope."
-        },
-        {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-subscribe-topic`\n- `allow-unsubscribe-topic`\n- `allow-send-message`\n- `allow-get-peers`",
-          "type": "string",
-          "const": "libp2p-messaging:default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-subscribe-topic`\n- `allow-unsubscribe-topic`\n- `allow-send-message`\n- `allow-get-peers`"
-        },
-        {
-          "description": "Enables the get_peers command without any pre-configured scope.",
-          "type": "string",
-          "const": "libp2p-messaging:allow-get-peers",
-          "markdownDescription": "Enables the get_peers command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the send_message command without any pre-configured scope.",
-          "type": "string",
-          "const": "libp2p-messaging:allow-send-message",
-          "markdownDescription": "Enables the send_message command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the subscribe_topic command without any pre-configured scope.",
-          "type": "string",
-          "const": "libp2p-messaging:allow-subscribe-topic",
-          "markdownDescription": "Enables the subscribe_topic command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the unsubscribe_topic command without any pre-configured scope.",
-          "type": "string",
-          "const": "libp2p-messaging:allow-unsubscribe-topic",
-          "markdownDescription": "Enables the unsubscribe_topic command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_peers command without any pre-configured scope.",
-          "type": "string",
-          "const": "libp2p-messaging:deny-get-peers",
-          "markdownDescription": "Denies the get_peers command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the send_message command without any pre-configured scope.",
-          "type": "string",
-          "const": "libp2p-messaging:deny-send-message",
-          "markdownDescription": "Denies the send_message command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the subscribe_topic command without any pre-configured scope.",
-          "type": "string",
-          "const": "libp2p-messaging:deny-subscribe-topic",
-          "markdownDescription": "Denies the subscribe_topic command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the unsubscribe_topic command without any pre-configured scope.",
-          "type": "string",
-          "const": "libp2p-messaging:deny-unsubscribe-topic",
-          "markdownDescription": "Denies the unsubscribe_topic command without any pre-configured scope."
         }
       ]
     },
