@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "GiGi",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "identifier": "gigi.app",
   "build": {
     "frontendDist": "../gigi-ts/dist",
     "beforeBuildCommand": "cd gigi-ts && bun run build",
     "beforeDevCommand": "cd gigi-ts && bun run dev",
-    "devUrl": "http://localhost:5173"
+    "devUrl": "http://localhost:1420"
   },
   "app": {
     "windows": [
