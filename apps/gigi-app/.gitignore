@@ -22,13 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Rust projects
-target
-
-# AI prompts
-notes
-
-# Added by cargo
-
-/target

@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["apps/gigi-app/src-tauri"]
+
+[workspace.package]
+version = "0.0.1"
+
+[workspace.dependencies]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+panic = "abort"
+strip = true
