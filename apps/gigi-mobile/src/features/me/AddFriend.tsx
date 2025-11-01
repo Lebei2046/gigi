@@ -45,7 +45,7 @@ export default function AddFriend({ name, address }: AddFriendProps) {
     <div className="items-center p-2 bg-gray-50 rounded">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Add a friend by 2d-code</CardTitle>
+          <CardTitle>Add a friend by scanning 2d-code</CardTitle>
           <CardDescription>
             Show your 2d-code to your friends, and they can add you as a friend.
           </CardDescription>

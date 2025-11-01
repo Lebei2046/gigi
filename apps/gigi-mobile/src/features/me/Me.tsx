@@ -1,4 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import ContactList from "./ContactList";
 import ChangeAvatar from "./ChangeAvatar";
 import AddFriend from "./AddFriend";
 import { useAppSelector } from "@/store";
@@ -37,7 +38,7 @@ export default function Me() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="contacts" className="flex-grow w-full">
-            Contacts
+            <ContactList />
           </TabsContent>
           <TabsContent value="2d-code" className="flex-grow w-full">
             <AddFriend name={name || ''} address={address || ''} />
