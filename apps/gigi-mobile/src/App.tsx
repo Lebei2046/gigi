@@ -12,17 +12,19 @@ export default function App() {
       : authenticatedRoutes;
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {routes.map(({ path, element, caseSensitive }) => (
-          <Route
-            key={path}
-            path={path}
-            element={element}
-            caseSensitive={caseSensitive}
-          />
-        ))}
-      </Routes>
-    </BrowserRouter>
+    <div className="min-h-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+      <BrowserRouter>
+        <Routes>
+          {routes.map(({ path, element, caseSensitive }) => (
+            <Route
+              key={path}
+              path={path}
+              element={element}
+              caseSensitive={caseSensitive}
+            />
+          ))}
+        </Routes>
+      </BrowserRouter>
+    </div>
   );
 }

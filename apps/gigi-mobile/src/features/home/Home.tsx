@@ -19,7 +19,7 @@ export default function Home() {
   ), []);
 
   return (
-    <div className="flex w-full h-screen flex-col gap-6">
+    <div className="flex flex-col w-full gap-6 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <Tabs defaultValue="chat" className="w-full">
         <TabsContent value="chat" className="flex-grow w-full">
           Chat
@@ -33,32 +33,36 @@ export default function Home() {
         <TabsContent value="me" className="flex-grow w-full">
           {mePage}
         </TabsContent>
-        <TabsList className="flex w-full fixed bottom-0">
-          <TabsTrigger value="chat">
-            <div className="flex flex-col items-center text-sm">
-              <ChatIcon />
-              <span >Chat</span>
-            </div>
-          </TabsTrigger>
-          <TabsTrigger value="archive">
-            <div className="flex flex-col items-center text-sm">
-              <ArchiveIcon />
-              <span >Files</span>
-            </div>
-          </TabsTrigger>
-          <TabsTrigger value="notes">
-            <div className="flex flex-col items-center text-sm">
-              <NotesIcon />
-              <span >Notes</span>
-            </div>
-          </TabsTrigger>
-          <TabsTrigger value="me">
-            <div className="flex flex-col items-center text-sm">
-              <MeIcon />
-              <span >Me</span>
-            </div>
-          </TabsTrigger>
-        </TabsList>
+        <div className="fixed inset-x-0 bottom-0 h-[calc(4rem+env(safe-area-inset-bottom))] bg-background">
+          <div className="h-full flex items-end pb-[env(safe-area-inset-bottom)]">
+            <TabsList className="flex w-full">
+              <TabsTrigger value="chat" className="flex-1">
+                <div className="flex flex-col items-center text-sm">
+                  <ChatIcon />
+                  <span>Chat</span>
+                </div>
+              </TabsTrigger>
+              <TabsTrigger value="archive" className="flex-1">
+                <div className="flex flex-col items-center text-sm">
+                  <ArchiveIcon />
+                  <span>Files</span>
+                </div>
+              </TabsTrigger>
+              <TabsTrigger value="notes" className="flex-1">
+                <div className="flex flex-col items-center text-sm">
+                  <NotesIcon />
+                  <span>Notes</span>
+                </div>
+              </TabsTrigger>
+              <TabsTrigger value="me" className="flex-1">
+                <div className="flex flex-col items-center text-sm">
+                  <MeIcon />
+                  <span>Me</span>
+                </div>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
       </Tabs>
     </div>
   )

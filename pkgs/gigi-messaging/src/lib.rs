@@ -12,19 +12,19 @@
 ///
 /// 使用 `init` 函数初始化插件并将其集成到 Tauri 应用中。
 use tauri::{
-  async_runtime::{channel, spawn, Sender},
-  plugin::{Builder, TauriPlugin},
-  Manager, Runtime,
+    Manager, Runtime,
+    async_runtime::{Sender, channel, spawn},
+    plugin::{Builder, TauriPlugin},
 };
 
-mod commands;
-mod desktop;
 mod error;
 mod models;
+mod network;
 
-pub use desktop::Libp2pMessaging;
 pub use error::Error;
 pub use models::{MessageReceivedEvent, PeerDiscoveredEvent};
+pub use network::Libp2pMessaging;
+pub mod commands;
 
 /// 表示 libp2p 命令的枚举类型。
 ///
@@ -34,17 +34,17 @@ pub use models::{MessageReceivedEvent, PeerDiscoveredEvent};
 /// - `SendMessage`: 发送消息到指定主题。
 /// - `GetPeers`: 获取当前连接的对等节点列表。
 pub enum Libp2pCommand {
-  Subscribe(String),
-  Unsubscribe(String),
-  SendMessage(String, Vec<u8>),
-  GetPeers(Sender<Vec<(String, Vec<String>)>>),
+    Subscribe(String),
+    Unsubscribe(String),
+    SendMessage(String, Vec<u8>),
+    GetPeers(Sender<Vec<(String, Vec<String>)>>),
 }
 
 /// 应用状态管理结构体。
 ///
 /// 包含一个命令发送器 (`command_sender`)，用于向 libp2p 任务发送命令。
 pub struct AppState {
-  command_sender: Sender<Libp2pCommand>,
+    pub command_sender: Sender<Libp2pCommand>,
 }
 
 // 初始化 libp2p 消息传递插件。
@@ -56,31 +56,31 @@ pub struct AppState {
 ///
 /// 返回一个配置好的 `TauriPlugin` 实例，可以集成到 Tauri 应用中。
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  Builder::new("libp2p-messaging")
-    .setup(|app, _api| {
-      let (command_sender, command_receiver) = channel(100);
-      app.manage(AppState { command_sender });
+    Builder::new("libp2p-messaging")
+        .setup(|app, _api| {
+            let (command_sender, command_receiver) = channel(100);
+            app.manage(AppState { command_sender });
 
-      let app_handle = app.clone();
-      // Spawn the libp2p task
-      spawn(async move {
-        match Libp2pMessaging::new(app_handle, command_receiver) {
-          Ok(mut messaging) => {
-            messaging.run().await;
-          }
-          Err(e) => {
-            eprintln!("Failed to initialize Libp2pMessaging: {:?}", e);
-          }
-        }
-      });
+            let app_handle = app.clone();
+            // Spawn the libp2p task
+            spawn(async move {
+                match Libp2pMessaging::new(app_handle, command_receiver) {
+                    Ok(mut messaging) => {
+                        messaging.run().await;
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to initialize Libp2pMessaging: {:?}", e);
+                    }
+                }
+            });
 
-      Ok(())
-    })
-    .invoke_handler(tauri::generate_handler![
-      commands::subscribe_topic,
-      commands::unsubscribe_topic,
-      commands::send_message,
-      commands::get_peers
-    ])
-    .build()
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::subscribe_topic,
+            commands::unsubscribe_topic,
+            commands::send_message,
+            commands::get_peers
+        ])
+        .build()
 }

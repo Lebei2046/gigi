@@ -217,7 +217,7 @@ impl<R: Runtime> Libp2pMessaging<R> {
               String::from_utf8_lossy(&message.data),
             );
 
-            let _ = self.app_handle.emit("plugin:libp2p-messageing:message-received", MessageReceivedEvent {
+            let _ = self.app_handle.emit("gigi-messaging:message-received", MessageReceivedEvent {
               topic: message.topic.into_string(),
               data: String::from_utf8_lossy(&message.data).to_string(),
               sender: peer_id.to_string(),
@@ -230,7 +230,7 @@ impl<R: Runtime> Libp2pMessaging<R> {
               println!("mDNS discovered a new peer: {peer_id}");
               self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
 
-              let _ = self.app_handle.emit("plugin:libp2p-messageing:peer-discovered", PeerDiscoveredEvent {
+              let _ = self.app_handle.emit("gigi-messaging:peer-discovered", PeerDiscoveredEvent {
                 id: peer_id.to_string(),
                 addresses: vec![addr.to_string()],
               });
