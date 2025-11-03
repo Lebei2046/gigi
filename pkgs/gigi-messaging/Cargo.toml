@@ -4,6 +4,7 @@ edition = "2024"
 version.workspace = true
 
 [dependencies]
+hex = "0.4.3"
 libp2p.workspace = true
 serde.workspace = true
 serde_json.workspace = true

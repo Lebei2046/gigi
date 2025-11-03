@@ -1661,6 +1661,7 @@ dependencies = [
 name = "gigi-messaging"
 version = "0.0.1"
 dependencies = [
+ "hex",
  "libp2p",
  "serde",
  "serde_json",

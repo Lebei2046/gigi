@@ -11,7 +11,7 @@ import {
   FaStickyNote as NotesIcon,
   FaUser as MeIcon
 } from 'react-icons/fa';
-import Me from "../me/Me"
+import Me from "../me/Me";
 
 export default function Home() {
   const mePage = useMemo(() => (

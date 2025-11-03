@@ -64,7 +64,6 @@ export function decryptMnemonics(ciphertext: string, key: string, nonce: string)
   }
 }
 
-
 export function generateAddress(mnemonic: string[]): string {
   const { privateKey } = deriveKeys(mnemonic);
   

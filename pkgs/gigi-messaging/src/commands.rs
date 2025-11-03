@@ -1,5 +1,22 @@
+use hex::decode;
+use libp2p::identity;
+use tauri::{AppHandle, Runtime, State, Window, async_runtime::channel, command};
+
 use crate::{AppState, Error, Libp2pCommand};
-use tauri::{async_runtime::channel, command, AppHandle, Runtime, State, Window};
+
+#[command]
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[command]
+pub fn get_peer_id(priv_key: &str) -> String {
+    let bytes = decode(priv_key).unwrap().to_vec();
+    let id_keys = identity::Keypair::ed25519_from_bytes(bytes).unwrap();
+    let peer_id = id_keys.public().to_peer_id();
+
+    peer_id.to_string()
+}
 
 // 订阅指定主题。
 ///
@@ -11,22 +28,22 @@ use tauri::{async_runtime::channel, command, AppHandle, Runtime, State, Window};
 /// - `Err(Error)`: 订阅失败，返回错误信息。
 #[command]
 pub async fn subscribe_topic<R: Runtime>(
-  _app: AppHandle<R>,
-  _window: Window<R>,
-  state: State<'_, AppState>,
-  topic: String,
+    _app: AppHandle<R>,
+    _window: Window<R>,
+    state: State<'_, AppState>,
+    topic: String,
 ) -> Result<(), Error> {
-  // Check if sender is closed
-  if state.command_sender.is_closed() {
-    return Err(Error::ChannelClosed);
-  }
+    // Check if sender is closed
+    if state.command_sender.is_closed() {
+        return Err(Error::ChannelClosed);
+    }
 
-  state
-    .command_sender
-    .send(Libp2pCommand::Subscribe(topic))
-    .await
-    .map_err(|e| Error::ChannelSend(e.to_string()))?;
-  Ok(())
+    state
+        .command_sender
+        .send(Libp2pCommand::Subscribe(topic))
+        .await
+        .map_err(|e| Error::ChannelSend(e.to_string()))?;
+    Ok(())
 }
 
 /// 取消订阅指定主题。
@@ -39,16 +56,16 @@ pub async fn subscribe_topic<R: Runtime>(
 /// - `Err(Error)`: 取消订阅失败，返回错误信息。
 #[command]
 pub async fn unsubscribe_topic<R: Runtime>(
-  _app: AppHandle<R>,
-  _window: Window<R>,
-  state: State<'_, AppState>,
-  topic: String,
+    _app: AppHandle<R>,
+    _window: Window<R>,
+    state: State<'_, AppState>,
+    topic: String,
 ) -> Result<(), Error> {
-  state
-    .command_sender
-    .send(Libp2pCommand::Unsubscribe(topic))
-    .await?;
-  Ok(())
+    state
+        .command_sender
+        .send(Libp2pCommand::Unsubscribe(topic))
+        .await?;
+    Ok(())
 }
 
 /// 向指定主题发送消息。
@@ -62,17 +79,17 @@ pub async fn unsubscribe_topic<R: Runtime>(
 /// - `Err(Error)`: 消息发送失败，返回错误信息。
 #[command]
 pub async fn send_message<R: Runtime>(
-  _app: AppHandle<R>,
-  _window: Window<R>,
-  state: State<'_, AppState>,
-  topic: String,
-  message: String,
+    _app: AppHandle<R>,
+    _window: Window<R>,
+    state: State<'_, AppState>,
+    topic: String,
+    message: String,
 ) -> Result<(), Error> {
-  state
-    .command_sender
-    .send(Libp2pCommand::SendMessage(topic, message.into_bytes()))
-    .await?;
-  Ok(())
+    state
+        .command_sender
+        .send(Libp2pCommand::SendMessage(topic, message.into_bytes()))
+        .await?;
+    Ok(())
 }
 
 /// 获取当前连接的节点及其支持的主题列表。
@@ -82,23 +99,23 @@ pub async fn send_message<R: Runtime>(
 /// - `Err(Error)`: 获取失败，返回错误信息。
 #[command]
 pub async fn get_peers<R: Runtime>(
-  _app: AppHandle<R>,
-  _window: Window<R>,
-  state: State<'_, AppState>,
+    _app: AppHandle<R>,
+    _window: Window<R>,
+    state: State<'_, AppState>,
 ) -> Result<Vec<(String, Vec<String>)>, Error> {
-  // 创建一个 oneshot 通道
-  let (sender, mut receiver) = channel(1);
+    // 创建一个 oneshot 通道
+    let (sender, mut receiver) = channel(1);
 
-  // 发送 GetPeers 命令，携带 sender
-  state
-    .command_sender
-    .send(Libp2pCommand::GetPeers(sender))
-    .await
-    .map_err(|e| Error::ChannelSend(e.to_string()))?;
+    // 发送 GetPeers 命令，携带 sender
+    state
+        .command_sender
+        .send(Libp2pCommand::GetPeers(sender))
+        .await
+        .map_err(|e| Error::ChannelSend(e.to_string()))?;
 
-  // 等待后台线程返回结果
-  receiver
-    .recv()
-    .await
-    .ok_or_else(|| Error::ChannelReceive("Channel closed".to_string()))
+    // 等待后台线程返回结果
+    receiver
+        .recv()
+        .await
+        .ok_or_else(|| Error::ChannelReceive("Channel closed".to_string()))
 }
