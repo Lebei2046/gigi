@@ -1,4 +1,4 @@
-import { generateMnemonics, deriveKeys, encryptMnemonics, decryptMnemonics, generateAddress } from './crypto';
+import { generateMnemonics, deriveKeys, encryptMnemonics, decryptMnemonics, getAddress } from './crypto';
 import { describe, expect, it } from 'vitest';
 
 describe('crypto utils', () => {
@@ -58,10 +58,10 @@ describe('crypto utils', () => {
     });
   });
 
-  describe('generateAddress', () => {
-    it('should generate an address from a mnemonic', () => {
+  describe('getAddress', () => {
+    it('should get an address from a mnemonic', () => {
       const mnemonic = ['abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'about'];
-      const address = generateAddress(mnemonic);
+      const address = getAddress(mnemonic);
       expect(address).toBeDefined();
       expect(address.length).toBe(42); // 20 bytes in hex + `0x` prefix
     });

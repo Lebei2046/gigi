@@ -1,16 +1,17 @@
 import type { Reducer } from "react";
+import type { AddressInfo } from "@/utils/crypto";
 
 export type SignupType = "create" | "import" | null;
+export type StepType = { index: number; checked: boolean };
 
-type StepType = { index: number; checked: boolean };
-
-type SignupState = {
+export type SignupState = {
   currentStep: number;
   steps: boolean[];
   signupType: SignupType;
   mnemonic: string[];
   password: string;
   address: string;
+  peerId: string;
   name: string;
 };
 
@@ -22,7 +23,7 @@ export type SignupAction =
   | { type: "SET_NAME"; payload: string }
   | { type: "SET_STEP_CHECKED"; payload: StepType }
   | { type: "INIT_SIGNUP"; payload: SignupType }
-  | { type: "ACCOUNT_INFO_SAVED"; payload: { address: string } };
+  | { type: "ACCOUNT_INFO_SAVED"; payload: AddressInfo };
 
 export const initialState: SignupState = {
   currentStep: 0,
@@ -31,6 +32,7 @@ export const initialState: SignupState = {
   mnemonic: Array(12).fill(""),
   password: "",
   address: "",
+  peerId: "",
   name: "",
 };
 
@@ -75,6 +77,7 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
       return {
         ...state,
         address: action.payload.address,
+        peerId: action.payload.peerId,
       };
     default:
       return state;

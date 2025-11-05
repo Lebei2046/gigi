@@ -73,7 +73,7 @@ const ContactList: React.FC = () => {
                   <ContactListItem
                     key={contact.id}
                     name={contact.name}
-                    address={contact.id}
+                    peerId={contact.id}
                     onClick={function (): void {
                       console.log("TODO: Go to chat");
                     }}

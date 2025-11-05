@@ -7,21 +7,13 @@ import {
   initialState,
   signupReducer,
   type SignupAction,
-  type SignupType
+  type SignupState
 } from "./signupReducer";
 import { encryptMnemonics, generateAddress } from "@/utils/crypto";
 import { setStorageItem } from "@/utils/settingStorage";
 
 type SignupContextType = {
-  state: {
-    currentStep: number;
-    steps: boolean[];
-    signupType: SignupType;
-    mnemonic: string[];
-    password: string;
-    address: string;
-    name: string;
-  };
+  state: SignupState;
   dispatch: React.Dispatch<SignupAction>;
   saveAccountInfo: () => Promise<void>;
 };
@@ -32,7 +24,7 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(signupReducer, initialState);
 
   const saveAccountInfo = async () => {
-    const walletAddress = generateAddress(state.mnemonic);
+    const { address, peerId } = await generateAddress(state.mnemonic);
     const { mnemonic: cryptedMnemonic, nonce } = encryptMnemonics(
       state.mnemonic,
       state.password
@@ -42,12 +34,13 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
     await setStorageItem("gigi", {
       nonce,
       mnemonic: cryptedMnemonic,
-      address: walletAddress,
+      address,
+      peerId,
       name: state.name,
     });
 
     // Update state after successful save
-    dispatch({ type: "ACCOUNT_INFO_SAVED", payload: { address: walletAddress } });
+    dispatch({ type: "ACCOUNT_INFO_SAVED", payload: { address, peerId } });
   };
 
   return (

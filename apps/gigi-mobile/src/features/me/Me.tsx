@@ -5,21 +5,21 @@ import AddFriend from "./AddFriend";
 import { useAppSelector } from "@/store";
 
 export default function Me() {
-  const { name, address } = useAppSelector((state) => state.auth);
+  const { name, peerId } = useAppSelector((state) => state.auth);
 
   return (
     <div className="flex flex-col bg-gray-100">
       {/* Personal Information */}
       <div className="bg-white py-6 px-4 flex items-center">
         <div className="flex-shrink-0 mr-0">
-          <ChangeAvatar address={address || ''} />
+          <ChangeAvatar peerId={peerId || ''} />
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold truncate">{name}</h2>
           </div>
-          <p className="text-gray-500 mt-1 truncate">Gigi: {address}</p>
+          <p className="text-gray-500 mt-1 truncate">Gigi: {peerId}</p>
         </div>
       </div>
 
@@ -41,7 +41,7 @@ export default function Me() {
             <ContactList />
           </TabsContent>
           <TabsContent value="2d-code" className="flex-grow w-full">
-            <AddFriend name={name || ''} address={address || ''} />
+            <AddFriend name={name || ''} peerId={peerId || ''} />
           </TabsContent>
           <TabsContent value="settings" className="flex-grow w-full">
             Settings

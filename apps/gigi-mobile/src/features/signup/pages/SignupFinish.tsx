@@ -16,7 +16,7 @@ import { useSignupContext } from "../context/SignupContext";
 export default function SignupFinish() {
   const navigate = useNavigate();
   const appDispatch = useAppDispatch();
-  const { state: { address, name }, saveAccountInfo } = useSignupContext();
+  const { state: { address, peerId, name }, saveAccountInfo } = useSignupContext();
 
   useEffect(() => {
     const saveInfo = async () => {
@@ -42,6 +42,7 @@ export default function SignupFinish() {
         <h2>Account Details</h2>
         <p>Account Name: {name}</p>
         <p>Wallet Address: {address}</p>
+        <p>Peer Id: {peerId}</p>
       </CardContent>
       <CardFooter>
         <Button color="primary" onClick={handleLogin}>

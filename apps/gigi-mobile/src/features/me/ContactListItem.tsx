@@ -4,19 +4,19 @@ import { getAvatarUrl } from "@/utils/imageStorage";
 
 interface ContactListItemProps {
   name: string;
-  address: string
+  peerId: string
   onClick: () => void;
 }
 
-const ContactListItem: React.FC<ContactListItemProps> = ({ name, address, onClick }) => {
+const ContactListItem: React.FC<ContactListItemProps> = ({ name, peerId, onClick }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const loadAvatar = useCallback(async () => {
-    if (address) {
-      const url = await getAvatarUrl(address);
+    if (peerId) {
+      const url = await getAvatarUrl(peerId);
       setAvatarUrl(url);
     }
-  }, [address]);
+  }, [peerId]);
 
   useEffect(() => {
     loadAvatar();
@@ -35,7 +35,7 @@ const ContactListItem: React.FC<ContactListItemProps> = ({ name, address, onClic
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold truncate">{name}</h2>
         </div>
-        <p className="text-gray-500 mt-1 truncate">{address}</p>
+        <p className="text-gray-500 mt-1 truncate">{peerId}</p>
       </div>
     </div>
   );

@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { getStorageItem, clearStorageItem } from '../utils/settingStorage';
-import { decryptMnemonics, generateAddress } from '../utils/crypto';
+import { decryptMnemonics, getAddress } from '../utils/crypto';
 
 type AuthState = {
   status: 'unregistered' | 'unauthenticated' | 'authenticated';
   mnemonic: string | null;
   nonce: string | null;
   address: string | null;
+  peerId: string | null;
   name: string | null;
   error: string | null;
 };
@@ -17,6 +18,7 @@ const initialState: AuthState = {
   mnemonic: null,
   nonce: null,
   address: null,
+  peerId: null,
   name: null,
   error: null,
 };
@@ -38,7 +40,7 @@ const authSlice = createSlice({
       const { password } = action.payload;
       try {
         const decryptedMnemonics = decryptMnemonics(state.mnemonic, password, state.nonce);
-        const generatedAddress = generateAddress(decryptedMnemonics);
+        const generatedAddress = getAddress(decryptedMnemonics);
         if (generatedAddress === state.address) {
           state.status = 'authenticated';
           state.error = null;
@@ -54,6 +56,7 @@ const authSlice = createSlice({
       state.mnemonic = null;
       state.nonce = null;
       state.address = null;
+      state.peerId = null;
       state.name = null;
       state.error = null;
     },
@@ -64,6 +67,7 @@ const authSlice = createSlice({
       state.mnemonic = gigiData.mnemonic || null;
       state.nonce = gigiData.nonce || null;
       state.address = gigiData.address || null;
+      state.peerId = gigiData.peerId || null;
       state.name = gigiData.name || null;
       state.status = 'unauthenticated';
     });
@@ -77,6 +81,7 @@ export const loadAuthData = () => async (dispatch: any) => {
       mnemonic?: string;
       nonce?: string;
       address?: string;
+      peerId?: string;
       name?: string
     }>('gigi');
 

@@ -14,20 +14,20 @@ import { addContact } from "@/models/contact";
 
 interface AddFriendProps {
   name: string;
-  address: string;
+  peerId: string;
 }
 
-export default function AddFriend({ name, address }: AddFriendProps) {
+export default function AddFriend({ name, peerId }: AddFriendProps) {
   const [showQrScanner, setShowQrScanner] = useState(false);
-  const qrData = encodeURI(JSON.stringify({ name, address }));
+  const qrData = encodeURI(JSON.stringify({ name, peerId }));
 
   const handleOnClose = (result: string | null) => {
     if (result) {
       const value = decodeURI(result);
       try {
         const obj = JSON.parse(value);
-        if (obj.name && obj.address) {
-          addContact(obj.name, obj.address);
+        if (obj.name && obj.peerId) {
+          addContact(obj.name, obj.peerId);
         }
       } catch (error) {
         console.log(error);

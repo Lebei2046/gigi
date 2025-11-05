@@ -1,12 +1,12 @@
 import Dexie, { type EntityTable } from 'dexie';
 
 interface Contact {
-  id: string; // address作为唯一标识
+  id: string; // peer-id作为唯一标识
   name: string;
 }
 
 interface Chat {
-  id: string; // address作为唯一标识
+  id: string; // peer-id作为唯一标识
   name: string;
   isGroup?: boolean;
   lastMessage?: string;
@@ -32,7 +32,7 @@ interface Image {
 
 // 添加头像接口
 interface Avatar {
-  id: string; // address作为唯一标识
+  id: string; // peer-id作为唯一标识
   imageId: string; // 对应images表中的imageId
   createdAt: Date;
   updatedAt: Date;

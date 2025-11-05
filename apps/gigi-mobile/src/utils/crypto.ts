@@ -6,6 +6,7 @@ import { keccak_256 } from '@noble/hashes/sha3';
 import { getPublicKey } from '@noble/secp256k1';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { randomBytes, hexToBytes, bytesToHex } from '@noble/hashes/utils';
+import { getPeerId } from './messaging';
 
 /**
  * Functions for generating mnemonics, deriving keys, encrypting and decrypting
@@ -64,18 +65,34 @@ export function decryptMnemonics(ciphertext: string, key: string, nonce: string)
   }
 }
 
-export function generateAddress(mnemonic: string[]): string {
+export interface AddressInfo {
+  address: string;
+  peerId: string;
+}
+export async function generateAddress(mnemonic: string[]): Promise<AddressInfo> {
   const { privateKey } = deriveKeys(mnemonic);
-  
-  // 5. 从私钥计算公钥 (非压缩格式，带04前缀)
-  const publicKey = getPublicKey(privateKey, false); // false表示非压缩
 
-  // 6. 去掉04前缀，得到XY坐标 (各32字节)
-  // 7. 计算Keccak-256哈希
-  // 8. 取最后20字节作为地址
+  const address = getAddressByPrivateKey(privateKey);
+  const peerId = await getPeerId(privateKey);
+
+  return { address, peerId };
+}
+
+export function getAddress(mnemonic: string[]): string {
+  const { privateKey } = deriveKeys(mnemonic);
+  return getAddressByPrivateKey(privateKey);
+}
+
+function getAddressByPrivateKey(privKey: Uint8Array): string {
+  // 1. 从私钥计算公钥 (非压缩格式，带04前缀)
+  const publicKey = getPublicKey(privKey, false); // false表示非压缩
+
+  // 2. 去掉04前缀，得到XY坐标 (各32字节)
+  // 3. 计算Keccak-256哈希
+  // 4. 取最后20字节作为地址
   const hash_20 = keccak_256(publicKey.slice(1)).slice(-20);
 
-  // 9. 转换为小写十六进制
+  // 5. 转换为小写十六进制
   const address = `0x${bytesToHex(hash_20)}`.toLowerCase();
 
   return address;

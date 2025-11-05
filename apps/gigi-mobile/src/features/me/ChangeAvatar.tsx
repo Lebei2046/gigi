@@ -4,20 +4,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl, storeAvatar } from "@/utils/imageStorage";
 
 interface ChangeAvatarProps {
-  address: string;
+  peerId: string;
 }
 
-export default function ChangeAvatar({ address }: ChangeAvatarProps) {
+export default function ChangeAvatar({ peerId }: ChangeAvatarProps) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadAvatar = useCallback(async () => {
-    if (address) {
-      const url = await getAvatarUrl(address);
+    if (peerId) {
+      const url = await getAvatarUrl(peerId);
       setAvatarUrl(url);
     }
-  }, [address]);
+  }, [peerId]);
 
   useEffect(() => {
     loadAvatar();
@@ -30,10 +30,10 @@ export default function ChangeAvatar({ address }: ChangeAvatarProps) {
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/') && address) {
+    if (file && file.type.startsWith('image/') && peerId) {
       try {
         setIsUploading(true);
-        await storeAvatar(address, file);
+        await storeAvatar(peerId, file);
         await loadAvatar();
       } catch (error) {
         console.error('Failed to upload avatar:', error);
