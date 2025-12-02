@@ -4,6 +4,7 @@ members = [
   "apps/gigi-app/src-tauri",
   "apps/gigi-mobile/src-tauri",
   "pkgs/gigi-messaging",
+  "pkgs/mdns-nickname",
 ]
 
 [workspace.package]
@@ -23,9 +24,11 @@ libp2p = { version = "0.56.0", features = [
   "yamux",
   "tcp",
   "quic",
+  "request-response",
 ] }
 serde_json = "1.0"
 gigi-messaging = { version = "0.0.1", path = "./pkgs/gigi-messaging" }
+mdns-nickname = { version = "0.0.1", path = "./pkgs/mdns-nickname" }
 
 
 [profile.release]
