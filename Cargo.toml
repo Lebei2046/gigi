@@ -26,11 +26,33 @@ libp2p = { version = "0.56.0", features = [
   "tcp",
   "quic",
   "request-response",
+  "kad",
+  "autonat",
+  "identify",
+  "cbor",
 ] }
 serde_json = "1.0"
+futures = "0.3"
+anyhow = "1.0"
+sha2 = "0.10"
+bytes = "1.5"
+uuid = { version = "1.6", features = ["v4"] }
+crossterm = "0.27"
+indicatif = "0.17"
+console = "0.15"
+tokio-util = { version = "0.7", features = ["codec"] }
+bincode = "1.3"
+blake3 = "1.5"
+parking_lot = "0.12"
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4.0", features = ["derive"] }
 gigi-messaging = { version = "0.0.1", path = "./pkgs/gigi-messaging" }
 mdns-nickname = { version = "0.0.1", path = "./pkgs/mdns-nickname" }
 gigi-downloading = { version = "0.0.1", path = "./pkgs/gigi-downloading" }
+libp2p-identity = "0.2"
 
 
 [profile.release]

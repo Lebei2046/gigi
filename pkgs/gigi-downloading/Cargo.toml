@@ -1,16 +1,29 @@
 [package]
 name = "gigi-downloading"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [dependencies]
-libp2p = { version = "0.56.0", features = ["request-response", "tokio", "noise", "yamux", "tcp"] }
-tokio = { version = "1.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-thiserror = "1.0"
-futures = "0.3"
+libp2p = { workspace = true, features = ["plaintext"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+futures = { workspace = true }
+anyhow = { workspace = true }
+sha2 = { workspace = true }
+bytes = { workspace = true }
+uuid = { workspace = true }
+crossterm = { workspace = true }
+indicatif = { workspace = true }
+console = { workspace = true }
+tokio-util = { workspace = true }
+bincode = { workspace = true }
+blake3 = { workspace = true }
+parking_lot = { workspace = true }
+chrono = { workspace = true }
+rand = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+thiserror = { workspace = true }
 async-trait = "0.1"
-sha2 = "0.10"
-bytes = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
