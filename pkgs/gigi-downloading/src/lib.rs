@@ -23,7 +23,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tracing::warn;
 use uuid::Uuid;
 
-pub const CHUNK_SIZE: usize = 64 * 1024; // 64KB chunks
+pub const CHUNK_SIZE: usize = 256 * 1024; // 256KB chunks for better performance
 pub const PROTOCOL_NAME: &str = "/gigi/file-transfer/1.0.0";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +73,8 @@ pub struct DownloadingFile {
     pub temp_path: PathBuf,
     pub downloaded_chunks: HashMap<usize, bool>,
     pub started_at: u64,
+    pub next_chunk_to_request: usize,
+    pub max_concurrent_requests: usize,
 }
 
 #[derive(NetworkBehaviour)]
@@ -232,7 +234,8 @@ impl FileTransferServer {
         let behaviour = FileTransferBehaviour {
             request_response: request_response::Behaviour::new(
                 [(StreamProtocol::new(PROTOCOL_NAME), ProtocolSupport::Full)],
-                request_response::Config::default(),
+                request_response::Config::default()
+                    .with_request_timeout(std::time::Duration::from_secs(60)), // 1 minute per chunk
             ),
         };
 
@@ -245,7 +248,8 @@ impl FileTransferServer {
             )?
             .with_behaviour(|_| behaviour)?
             .with_swarm_config(|c| {
-                c.with_idle_connection_timeout(std::time::Duration::from_secs(30))
+                c.with_idle_connection_timeout(std::time::Duration::from_secs(300))
+                // 5 minutes for large files
             })
             .build();
 
@@ -456,8 +460,14 @@ impl FileTransferServer {
             request_response::Event::ResponseSent { .. } => {
                 // Handle response sent if needed
             }
-            request_response::Event::OutboundFailure { error, .. } => {
-                warn!("Outbound failure: {:?}", error);
+            request_response::Event::OutboundFailure {
+                request_id, error, ..
+            } => {
+                warn!(
+                    "Server outbound failure for request {:?}: {:?}",
+                    request_id, error
+                );
+                // Server doesn't retry failed responses
             }
             request_response::Event::InboundFailure { error, .. } => {
                 warn!("Inbound failure: {:?}", error);
@@ -537,7 +547,8 @@ impl FileTransferClient {
         let behaviour = FileTransferBehaviour {
             request_response: request_response::Behaviour::new(
                 [(StreamProtocol::new(PROTOCOL_NAME), ProtocolSupport::Full)],
-                request_response::Config::default(),
+                request_response::Config::default()
+                    .with_request_timeout(std::time::Duration::from_secs(60)), // 1 minute per chunk
             ),
         };
 
@@ -550,7 +561,8 @@ impl FileTransferClient {
             )?
             .with_behaviour(|_| behaviour)?
             .with_swarm_config(|c| {
-                c.with_idle_connection_timeout(std::time::Duration::from_secs(30))
+                c.with_idle_connection_timeout(std::time::Duration::from_secs(300))
+                // 5 minutes for large files
             })
             .build();
 
@@ -601,6 +613,8 @@ impl FileTransferClient {
             temp_path: temp_path.clone(),
             downloaded_chunks,
             started_at: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+            next_chunk_to_request: 0,
+            max_concurrent_requests: 10,
         };
 
         self.downloading_files
@@ -615,17 +629,29 @@ impl FileTransferClient {
             temp_file.set_len(file_info.size).await?;
         }
 
-        // Start requesting chunks
-        for chunk_index in 0..file_info.chunk_count {
+        // Start requesting chunks with a sliding window approach
+        let max_concurrent_requests = 10; // Limit concurrent requests
+        let mut next_chunk_to_request = 0;
+
+        // Request first batch of chunks
+        while next_chunk_to_request < file_info.chunk_count
+            && next_chunk_to_request < max_concurrent_requests
+        {
             if let Some(peer) = self.get_connected_peer() {
-                let request_id = self
-                    .swarm
-                    .behaviour_mut()
-                    .request_response
-                    .send_request(&peer, Request::GetChunk(file_info.id.clone(), chunk_index));
+                let request_id = self.swarm.behaviour_mut().request_response.send_request(
+                    &peer,
+                    Request::GetChunk(file_info.id.clone(), next_chunk_to_request),
+                );
                 self.pending_requests
-                    .insert(request_id, (file_info.id.clone(), chunk_index));
+                    .insert(request_id, (file_info.id.clone(), next_chunk_to_request));
             }
+            next_chunk_to_request += 1;
+        }
+
+        // Store the next chunk index to request when chunks complete
+        if let Some(downloading_file) = self.downloading_files.get_mut(&file_info.id) {
+            downloading_file.next_chunk_to_request = next_chunk_to_request;
+            downloading_file.max_concurrent_requests = max_concurrent_requests;
         }
 
         Ok(())
@@ -713,8 +739,14 @@ impl FileTransferClient {
             request_response::Event::ResponseSent { .. } => {
                 // Handle response sent if needed
             }
-            request_response::Event::OutboundFailure { error, .. } => {
-                warn!("Outbound failure: {:?}", error);
+            request_response::Event::OutboundFailure {
+                request_id, error, ..
+            } => {
+                warn!(
+                    "Server outbound failure for request {:?}: {:?}",
+                    request_id, error
+                );
+                // Server doesn't retry failed responses
             }
             request_response::Event::InboundFailure { error, .. } => {
                 warn!("Inbound failure: {:?}", error);
@@ -729,6 +761,10 @@ impl FileTransferClient {
         chunk_index: usize,
         chunk: ChunkInfo,
     ) -> Result<()> {
+        let mut should_request_next = false;
+        let mut next_chunk_to_request = 0;
+        let mut download_complete = false;
+
         if let Some(downloading_file) = self.downloading_files.get_mut(&file_id) {
             // Verify chunk hash
             let calculated_hash = blake3::hash(&chunk.data).to_hex().to_string();
@@ -756,6 +792,7 @@ impl FileTransferClient {
                 .values()
                 .filter(|&&v| v)
                 .count();
+
             let total_chunks = downloading_file.info.chunk_count;
 
             let _ = self
@@ -766,10 +803,33 @@ impl FileTransferClient {
                     total_chunks,
                 });
 
+            // Request next chunk if available (sliding window)
+            should_request_next = downloading_file.next_chunk_to_request < total_chunks;
+            next_chunk_to_request = downloading_file.next_chunk_to_request;
+
             // Check if download is complete
-            if downloaded_count == total_chunks {
-                self.complete_download(&file_id).await?;
+            download_complete = downloaded_count == total_chunks;
+        }
+
+        if should_request_next {
+            if let Some(peer) = self.get_connected_peer() {
+                let request_id = self.swarm.behaviour_mut().request_response.send_request(
+                    &peer,
+                    Request::GetChunk(file_id.clone(), next_chunk_to_request),
+                );
+                self.pending_requests
+                    .insert(request_id, (file_id.clone(), next_chunk_to_request));
+
+                // Update the next chunk index
+                if let Some(df) = self.downloading_files.get_mut(&file_id) {
+                    df.next_chunk_to_request += 1;
+                }
             }
+        }
+
+        // Check if download is complete
+        if download_complete {
+            self.complete_download(&file_id).await?;
         }
 
         Ok(())

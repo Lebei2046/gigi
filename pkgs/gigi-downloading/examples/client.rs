@@ -67,8 +67,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     _ => {}
                 }
             }
-            _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
-                println!("DEBUG: 5 second timeout - still waiting for events...");
+            _ = tokio::time::sleep(std::time::Duration::from_secs(30)) => {
+                // Only show debug if no progress for 30 seconds
+                println!("DEBUG: No events for 30 seconds, checking connection...");
                 // Check if we have any connected peers
                 println!("DEBUG: Connected peers: {:?}", client.swarm.connected_peers().collect::<Vec<_>>());
             }
