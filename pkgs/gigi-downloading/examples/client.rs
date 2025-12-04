@@ -1,5 +1,5 @@
 use clap::Parser;
-use gigi_downloading::{FileTransferClient, ClientConfig, FileTransferEvent, ComposedEvent};
+use gigi_downloading::{ClientConfig, ComposedEvent, FileTransferClient, FileTransferEvent};
 use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
 
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _download_started = false;
 
     use futures::StreamExt;
-    
+
     loop {
         tokio::select! {
             // Poll swarm events - this will block until an event is available

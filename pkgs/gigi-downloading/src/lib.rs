@@ -11,9 +11,7 @@ use async_trait::async_trait;
 use futures::{channel::mpsc, StreamExt};
 use libp2p::{
     core::Multiaddr,
-    identity,
-    kad,
-    noise,
+    identity, noise,
     request_response::{self, OutboundRequestId, ProtocolSupport, ResponseChannel},
     swarm::{NetworkBehaviour, Swarm},
     tcp, yamux, PeerId, StreamProtocol,
@@ -81,24 +79,16 @@ pub struct DownloadingFile {
 #[behaviour(out_event = "ComposedEvent")]
 pub struct FileTransferBehaviour {
     request_response: request_response::Behaviour<FileTransferCodec>,
-    kad: kad::Behaviour<kad::store::MemoryStore>,
 }
 
 #[derive(Debug)]
 pub enum ComposedEvent {
     RequestResponse(request_response::Event<Request, Response>),
-    Kademlia(kad::Event),
 }
 
 impl From<request_response::Event<Request, Response>> for ComposedEvent {
     fn from(event: request_response::Event<Request, Response>) -> Self {
         ComposedEvent::RequestResponse(event)
-    }
-}
-
-impl From<kad::Event> for ComposedEvent {
-    fn from(event: kad::Event) -> Self {
-        ComposedEvent::Kademlia(event)
     }
 }
 
@@ -111,39 +101,61 @@ impl request_response::Codec for FileTransferCodec {
     type Request = Request;
     type Response = Response;
 
-    async fn read_request<T>(&mut self, _: &Self::Protocol, io: &mut T) -> std::io::Result<Self::Request>
+    async fn read_request<T>(
+        &mut self,
+        _: &Self::Protocol,
+        io: &mut T,
+    ) -> std::io::Result<Self::Request>
     where
         T: futures::AsyncRead + Unpin + Send,
     {
         let mut buf = vec![];
         futures::io::AsyncReadExt::read_to_end(io, &mut buf).await?;
-        serde_json::from_slice(&buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        serde_json::from_slice(&buf)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 
-    async fn read_response<T>(&mut self, _: &Self::Protocol, io: &mut T) -> std::io::Result<Self::Response>
+    async fn read_response<T>(
+        &mut self,
+        _: &Self::Protocol,
+        io: &mut T,
+    ) -> std::io::Result<Self::Response>
     where
         T: futures::AsyncRead + Unpin + Send,
     {
         let mut buf = vec![];
         futures::io::AsyncReadExt::read_to_end(io, &mut buf).await?;
-        serde_json::from_slice(&buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        serde_json::from_slice(&buf)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 
-    async fn write_request<T>(&mut self, _: &Self::Protocol, io: &mut T, req: Self::Request) -> std::io::Result<()>
+    async fn write_request<T>(
+        &mut self,
+        _: &Self::Protocol,
+        io: &mut T,
+        req: Self::Request,
+    ) -> std::io::Result<()>
     where
         T: futures::AsyncWrite + Unpin + Send,
     {
-        let data = serde_json::to_vec(&req).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        let data = serde_json::to_vec(&req)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         futures::io::AsyncWriteExt::write_all(io, &data).await?;
         futures::io::AsyncWriteExt::close(io).await?;
         Ok(())
     }
 
-    async fn write_response<T>(&mut self, _: &Self::Protocol, io: &mut T, res: Self::Response) -> std::io::Result<()>
+    async fn write_response<T>(
+        &mut self,
+        _: &Self::Protocol,
+        io: &mut T,
+        res: Self::Response,
+    ) -> std::io::Result<()>
     where
         T: futures::AsyncWrite + Unpin + Send,
     {
-        let data = serde_json::to_vec(&res).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        let data = serde_json::to_vec(&res)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         futures::io::AsyncWriteExt::write_all(io, &data).await?;
         futures::io::AsyncWriteExt::close(io).await?;
         Ok(())
@@ -187,8 +199,6 @@ pub enum FileTransferEvent {
     Error(String),
 }
 
-
-
 pub struct FileTransferServer {
     swarm: Swarm<FileTransferBehaviour>,
     shared_files: HashMap<String, SharedFile>,
@@ -214,18 +224,15 @@ pub struct ClientConfig {
 }
 
 impl FileTransferServer {
-    pub async fn new(config: ServerConfig) -> Result<(Self, mpsc::UnboundedReceiver<FileTransferEvent>)> {
+    pub async fn new(
+        config: ServerConfig,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<FileTransferEvent>)> {
         let id_keys = identity::Keypair::generate_ed25519();
-        let peer_id = id_keys.public().to_peer_id();
 
         let behaviour = FileTransferBehaviour {
             request_response: request_response::Behaviour::new(
                 [(StreamProtocol::new(PROTOCOL_NAME), ProtocolSupport::Full)],
                 request_response::Config::default(),
-            ),
-            kad: kad::Behaviour::new(
-                peer_id,
-                kad::store::MemoryStore::new(peer_id),
             ),
         };
 
@@ -237,7 +244,9 @@ impl FileTransferServer {
                 yamux::Config::default,
             )?
             .with_behaviour(|_| behaviour)?
-            .with_swarm_config(|c| c.with_idle_connection_timeout(std::time::Duration::from_secs(30)))
+            .with_swarm_config(|c| {
+                c.with_idle_connection_timeout(std::time::Duration::from_secs(30))
+            })
             .build();
 
         let listen_addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.listen_port).parse()?;
@@ -260,7 +269,8 @@ impl FileTransferServer {
     pub fn share_file(&mut self, file_path: &Path) -> Result<String> {
         let metadata = fs::metadata(file_path)?;
         let size = metadata.len();
-        let name = file_path.file_name()
+        let name = file_path
+            .file_name()
             .ok_or_else(|| anyhow!("Invalid file name"))?
             .to_string_lossy()
             .to_string();
@@ -269,7 +279,9 @@ impl FileTransferServer {
         let hash = self.calculate_file_hash(file_path)?;
 
         // Check if file with same name already exists
-        let existing_entry = self.shared_files.values()
+        let existing_entry = self
+            .shared_files
+            .values()
             .find(|shared_file| shared_file.info.name == name && !shared_file.revoked);
 
         let file_id = if let Some(existing) = existing_entry {
@@ -290,7 +302,8 @@ impl FileTransferServer {
                 revoked: false,
             };
 
-            self.shared_files.insert(existing_id.clone(), updated_shared_file);
+            self.shared_files
+                .insert(existing_id.clone(), updated_shared_file);
             existing_id
         } else {
             // Create new file entry
@@ -317,10 +330,12 @@ impl FileTransferServer {
         self.save_shared_files()?;
 
         let file_info = self.shared_files.get(&file_id).unwrap().info.clone();
-        let _ = self.event_sender.unbounded_send(FileTransferEvent::FileShared {
-            file_id: file_id.clone(),
-            info: file_info,
-        });
+        let _ = self
+            .event_sender
+            .unbounded_send(FileTransferEvent::FileShared {
+                file_id: file_id.clone(),
+                info: file_info,
+            });
 
         Ok(file_id)
     }
@@ -330,9 +345,11 @@ impl FileTransferServer {
             shared_file.revoked = true;
             self.save_shared_files()?;
 
-            let _ = self.event_sender.unbounded_send(FileTransferEvent::FileRevoked {
-                file_id: file_id.to_string(),
-            });
+            let _ = self
+                .event_sender
+                .unbounded_send(FileTransferEvent::FileRevoked {
+                    file_id: file_id.to_string(),
+                });
             Ok(())
         } else {
             Err(anyhow!("File not found"))
@@ -353,17 +370,27 @@ impl FileTransferServer {
                 libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::RequestResponse(event)) => {
                     self.handle_request_response_event(event).await?
                 }
-                libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::Kademlia(_event)) => {
-                    // Handle Kademlia events if needed
-                }
                 libp2p::swarm::SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                     println!("SERVER DEBUG: Connection established with {}", peer_id);
                 }
-                libp2p::swarm::SwarmEvent::IncomingConnectionError { local_addr, send_back_addr, error, .. } => {
-                    println!("SERVER DEBUG: Incoming connection error from {} to {}: {}", send_back_addr, local_addr, error);
+                libp2p::swarm::SwarmEvent::IncomingConnectionError {
+                    local_addr,
+                    send_back_addr,
+                    error,
+                    ..
+                } => {
+                    println!(
+                        "SERVER DEBUG: Incoming connection error from {} to {}: {}",
+                        send_back_addr, local_addr, error
+                    );
                 }
-                libp2p::swarm::SwarmEvent::ListenerClosed { addresses, reason, .. } => {
-                    println!("SERVER DEBUG: Listener closed on {:?}: {:?}", addresses, reason);
+                libp2p::swarm::SwarmEvent::ListenerClosed {
+                    addresses, reason, ..
+                } => {
+                    println!(
+                        "SERVER DEBUG: Listener closed on {:?}: {:?}",
+                        addresses, reason
+                    );
                 }
                 libp2p::swarm::SwarmEvent::ListenerError { error, .. } => {
                     println!("SERVER DEBUG: Listener error: {}", error);
@@ -373,49 +400,62 @@ impl FileTransferServer {
         }
     }
 
-    pub async fn handle_request_response_event(&mut self, event: request_response::Event<Request, Response>) -> Result<()> {
+    pub async fn handle_request_response_event(
+        &mut self,
+        event: request_response::Event<Request, Response>,
+    ) -> Result<()> {
         match event {
-                request_response::Event::Message { message, .. } => {
-                    match message {
-                        request_response::Message::Request { request, channel, .. } => {
-                            let response = match request {
-                                Request::GetFileInfo(file_id) => {
-                                    let info = self.shared_files.get(&file_id)
-                                        .filter(|f| !f.revoked)
-                                        .map(|f| f.info.clone());
-                                    Response::FileInfo(info)
-                                }
-                                Request::GetChunk(file_id, chunk_index) => {
-                                    if let Some(shared_file) = self.shared_files.get(&file_id) {
-                                        if !shared_file.revoked {
-                                            if let Ok(chunk) = self.read_chunk(&shared_file.path, chunk_index) {
-                                                Response::Chunk(Some(chunk))
-                                            } else {
-                                                Response::Error("Failed to read chunk".to_string())
-                                            }
+            request_response::Event::Message { message, .. } => {
+                match message {
+                    request_response::Message::Request {
+                        request, channel, ..
+                    } => {
+                        let response = match request {
+                            Request::GetFileInfo(file_id) => {
+                                let info = self
+                                    .shared_files
+                                    .get(&file_id)
+                                    .filter(|f| !f.revoked)
+                                    .map(|f| f.info.clone());
+                                Response::FileInfo(info)
+                            }
+                            Request::GetChunk(file_id, chunk_index) => {
+                                if let Some(shared_file) = self.shared_files.get(&file_id) {
+                                    if !shared_file.revoked {
+                                        if let Ok(chunk) =
+                                            self.read_chunk(&shared_file.path, chunk_index)
+                                        {
+                                            Response::Chunk(Some(chunk))
                                         } else {
-                                            Response::Error("File has been revoked".to_string())
+                                            Response::Error("Failed to read chunk".to_string())
                                         }
                                     } else {
-                                        Response::Chunk(None)
+                                        Response::Error("File has been revoked".to_string())
                                     }
+                                } else {
+                                    Response::Chunk(None)
                                 }
-                                Request::ListFiles => {
-                                    let files = self.list_files();
-                                    Response::FileList(files)
-                                }
-                            };
+                            }
+                            Request::ListFiles => {
+                                let files = self.list_files();
+                                Response::FileList(files)
+                            }
+                        };
 
-                            let _ = self.swarm.behaviour_mut().request_response.send_response(channel, response);
-                        }
-                        request_response::Message::Response { .. } => {
-                            // Server typically doesn't send requests, so ignore responses
-                        }
+                        let _ = self
+                            .swarm
+                            .behaviour_mut()
+                            .request_response
+                            .send_response(channel, response);
+                    }
+                    request_response::Message::Response { .. } => {
+                        // Server typically doesn't send requests, so ignore responses
                     }
                 }
-                request_response::Event::ResponseSent { .. } => {
-                    // Handle response sent if needed
-                }
+            }
+            request_response::Event::ResponseSent { .. } => {
+                // Handle response sent if needed
+            }
             request_response::Event::OutboundFailure { error, .. } => {
                 warn!("Outbound failure: {:?}", error);
             }
@@ -437,7 +477,8 @@ impl FileTransferServer {
 
         let hash = blake3::hash(&buffer).to_hex().to_string();
 
-        let file_id = self.shared_files
+        let file_id = self
+            .shared_files
             .iter()
             .find(|(_, f)| f.path == file_path)
             .map(|(id, _)| id.clone())
@@ -476,7 +517,11 @@ impl FileTransferServer {
     }
 
     fn save_shared_files(&self) -> Result<()> {
-        fs::create_dir_all(self.info_path.parent().ok_or_else(|| anyhow!("Invalid info path"))?)?;
+        fs::create_dir_all(
+            self.info_path
+                .parent()
+                .ok_or_else(|| anyhow!("Invalid info path"))?,
+        )?;
         let content = serde_json::to_string_pretty(&self.shared_files)?;
         fs::write(&self.info_path, content)?;
         Ok(())
@@ -484,18 +529,15 @@ impl FileTransferServer {
 }
 
 impl FileTransferClient {
-    pub async fn new(config: ClientConfig) -> Result<(Self, mpsc::UnboundedReceiver<FileTransferEvent>)> {
+    pub async fn new(
+        config: ClientConfig,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<FileTransferEvent>)> {
         let id_keys = identity::Keypair::generate_ed25519();
-        let peer_id = id_keys.public().to_peer_id();
 
         let behaviour = FileTransferBehaviour {
             request_response: request_response::Behaviour::new(
                 [(StreamProtocol::new(PROTOCOL_NAME), ProtocolSupport::Full)],
                 request_response::Config::default(),
-            ),
-            kad: kad::Behaviour::new(
-                peer_id,
-                kad::store::MemoryStore::new(peer_id),
             ),
         };
 
@@ -507,7 +549,9 @@ impl FileTransferClient {
                 yamux::Config::default,
             )?
             .with_behaviour(|_| behaviour)?
-            .with_swarm_config(|c| c.with_idle_connection_timeout(std::time::Duration::from_secs(30)))
+            .with_swarm_config(|c| {
+                c.with_idle_connection_timeout(std::time::Duration::from_secs(30))
+            })
             .build();
 
         println!("DEBUG: Attempting to dial {}", config.server_addr);
@@ -529,8 +573,13 @@ impl FileTransferClient {
 
     pub async fn get_file_info(&mut self, file_id: &str) -> Result<()> {
         if let Some(peer) = self.get_connected_peer() {
-            let request_id = self.swarm.behaviour_mut().request_response.send_request(&peer, Request::GetFileInfo(file_id.to_string()));
-            self.pending_requests.insert(request_id, (file_id.to_string(), usize::MAX));
+            let request_id = self
+                .swarm
+                .behaviour_mut()
+                .request_response
+                .send_request(&peer, Request::GetFileInfo(file_id.to_string()));
+            self.pending_requests
+                .insert(request_id, (file_id.to_string(), usize::MAX));
         } else {
             return Err(anyhow!("No connected peers"));
         }
@@ -554,7 +603,8 @@ impl FileTransferClient {
             started_at: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         };
 
-        self.downloading_files.insert(file_info.id.clone(), downloading_file);
+        self.downloading_files
+            .insert(file_info.id.clone(), downloading_file);
 
         // Create output directory if it doesn't exist
         tokio_fs::create_dir_all(output_dir).await?;
@@ -568,11 +618,13 @@ impl FileTransferClient {
         // Start requesting chunks
         for chunk_index in 0..file_info.chunk_count {
             if let Some(peer) = self.get_connected_peer() {
-                let request_id = self.swarm.behaviour_mut().request_response.send_request(
-                    &peer,
-                    Request::GetChunk(file_info.id.clone(), chunk_index),
-                );
-                self.pending_requests.insert(request_id, (file_info.id.clone(), chunk_index));
+                let request_id = self
+                    .swarm
+                    .behaviour_mut()
+                    .request_response
+                    .send_request(&peer, Request::GetChunk(file_info.id.clone(), chunk_index));
+                self.pending_requests
+                    .insert(request_id, (file_info.id.clone(), chunk_index));
             }
         }
 
@@ -585,17 +637,27 @@ impl FileTransferClient {
                 libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::RequestResponse(event)) => {
                     self.handle_request_response_event(event).await?
                 }
-                libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::Kademlia(_event)) => {
-                    // Handle Kademlia events if needed
-                }
                 libp2p::swarm::SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                     println!("SERVER DEBUG: Connection established with {}", peer_id);
                 }
-                libp2p::swarm::SwarmEvent::IncomingConnectionError { local_addr, send_back_addr, error, .. } => {
-                    println!("SERVER DEBUG: Incoming connection error from {} to {}: {}", send_back_addr, local_addr, error);
+                libp2p::swarm::SwarmEvent::IncomingConnectionError {
+                    local_addr,
+                    send_back_addr,
+                    error,
+                    ..
+                } => {
+                    println!(
+                        "SERVER DEBUG: Incoming connection error from {} to {}: {}",
+                        send_back_addr, local_addr, error
+                    );
                 }
-                libp2p::swarm::SwarmEvent::ListenerClosed { addresses, reason, .. } => {
-                    println!("SERVER DEBUG: Listener closed on {:?}: {:?}", addresses, reason);
+                libp2p::swarm::SwarmEvent::ListenerClosed {
+                    addresses, reason, ..
+                } => {
+                    println!(
+                        "SERVER DEBUG: Listener closed on {:?}: {:?}",
+                        addresses, reason
+                    );
                 }
                 libp2p::swarm::SwarmEvent::ListenerError { error, .. } => {
                     println!("SERVER DEBUG: Listener error: {}", error);
@@ -605,25 +667,39 @@ impl FileTransferClient {
         }
     }
 
-    pub async fn handle_request_response_event(&mut self, event: request_response::Event<Request, Response>) -> Result<()> {
+    pub async fn handle_request_response_event(
+        &mut self,
+        event: request_response::Event<Request, Response>,
+    ) -> Result<()> {
         match event {
             request_response::Event::Message { peer, message, .. } => {
                 match message {
-                    request_response::Message::Response { request_id, response, .. } => {
-                        if let Some((file_id, chunk_index)) = self.pending_requests.remove(&request_id) {
+                    request_response::Message::Response {
+                        request_id,
+                        response,
+                        ..
+                    } => {
+                        if let Some((file_id, chunk_index)) =
+                            self.pending_requests.remove(&request_id)
+                        {
                             match response {
                                 Response::FileInfo(Some(info)) => {
-                                    let _ = self.event_sender.unbounded_send(FileTransferEvent::ResponseReceived {
-                                        peer,
-                                        request_id,
-                                        response: Response::FileInfo(Some(info)),
-                                    });
+                                    let _ = self.event_sender.unbounded_send(
+                                        FileTransferEvent::ResponseReceived {
+                                            peer,
+                                            request_id,
+                                            response: Response::FileInfo(Some(info)),
+                                        },
+                                    );
                                 }
                                 Response::Chunk(Some(chunk)) => {
-                                    self.handle_chunk_received(file_id, chunk_index, chunk).await?;
+                                    self.handle_chunk_received(file_id, chunk_index, chunk)
+                                        .await?;
                                 }
                                 Response::Error(error) => {
-                                    let _ = self.event_sender.unbounded_send(FileTransferEvent::Error(error));
+                                    let _ = self
+                                        .event_sender
+                                        .unbounded_send(FileTransferEvent::Error(error));
                                 }
                                 _ => {}
                             }
@@ -647,7 +723,12 @@ impl FileTransferClient {
         Ok(())
     }
 
-    async fn handle_chunk_received(&mut self, file_id: String, chunk_index: usize, chunk: ChunkInfo) -> Result<()> {
+    async fn handle_chunk_received(
+        &mut self,
+        file_id: String,
+        chunk_index: usize,
+        chunk: ChunkInfo,
+    ) -> Result<()> {
         if let Some(downloading_file) = self.downloading_files.get_mut(&file_id) {
             // Verify chunk hash
             let calculated_hash = blake3::hash(&chunk.data).to_hex().to_string();
@@ -657,22 +738,33 @@ impl FileTransferClient {
 
             // Write chunk to temp file
             let offset = chunk_index * CHUNK_SIZE;
-            let mut temp_file = tokio_fs::OpenOptions::new().write(true).open(&downloading_file.temp_path).await?;
-            temp_file.seek(std::io::SeekFrom::Start(offset as u64)).await?;
+            let mut temp_file = tokio_fs::OpenOptions::new()
+                .write(true)
+                .open(&downloading_file.temp_path)
+                .await?;
+            temp_file
+                .seek(std::io::SeekFrom::Start(offset as u64))
+                .await?;
             temp_file.write_all(&chunk.data).await?;
             temp_file.flush().await?;
 
             // Mark chunk as downloaded
             downloading_file.downloaded_chunks.insert(chunk_index, true);
 
-            let downloaded_count = downloading_file.downloaded_chunks.values().filter(|&&v| v).count();
+            let downloaded_count = downloading_file
+                .downloaded_chunks
+                .values()
+                .filter(|&&v| v)
+                .count();
             let total_chunks = downloading_file.info.chunk_count;
 
-            let _ = self.event_sender.unbounded_send(FileTransferEvent::DownloadProgress {
-                file_id: file_id.clone(),
-                downloaded_chunks: downloaded_count,
-                total_chunks,
-            });
+            let _ = self
+                .event_sender
+                .unbounded_send(FileTransferEvent::DownloadProgress {
+                    file_id: file_id.clone(),
+                    downloaded_chunks: downloaded_count,
+                    total_chunks,
+                });
 
             // Check if download is complete
             if downloaded_count == total_chunks {
@@ -686,7 +778,9 @@ impl FileTransferClient {
     async fn complete_download(&mut self, file_id: &str) -> Result<()> {
         if let Some(downloading_file) = self.downloading_files.remove(file_id) {
             // Verify file hash
-            let file_hash = self.calculate_file_hash(&downloading_file.temp_path).await?;
+            let file_hash = self
+                .calculate_file_hash(&downloading_file.temp_path)
+                .await?;
             if file_hash != downloading_file.info.hash {
                 return Err(anyhow!("File hash verification failed"));
             }
@@ -694,10 +788,12 @@ impl FileTransferClient {
             // Rename temp file to final name
             tokio_fs::rename(&downloading_file.temp_path, &downloading_file.output_path).await?;
 
-            let _ = self.event_sender.unbounded_send(FileTransferEvent::DownloadCompleted {
-                file_id: file_id.to_string(),
-                path: downloading_file.output_path,
-            });
+            let _ = self
+                .event_sender
+                .unbounded_send(FileTransferEvent::DownloadCompleted {
+                    file_id: file_id.to_string(),
+                    path: downloading_file.output_path,
+                });
         }
 
         Ok(())
@@ -720,41 +816,58 @@ impl FileTransferClient {
     }
 
     fn get_connected_peer(&self) -> Option<PeerId> {
-        self.server_peer_id.or_else(|| self.swarm.connected_peers().next().copied())
+        self.server_peer_id
+            .or_else(|| self.swarm.connected_peers().next().copied())
     }
 
     pub async fn poll_events(&mut self) -> Result<()> {
         use futures::StreamExt;
-        
+
         // Use select_next_some with timeout to avoid blocking indefinitely
         match tokio::time::timeout(std::time::Duration::from_millis(10), async {
             self.swarm.select_next_some().await
-        }).await {
+        })
+        .await
+        {
             Ok(event) => {
                 match event {
                     libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::RequestResponse(event)) => {
                         self.handle_request_response_event(event).await?
                     }
-                    libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::Kademlia(_event)) => {
-                        // Handle Kademlia events if needed
-                    }
                     libp2p::swarm::SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                         println!("DEBUG: Connection established with {}", peer_id);
                         self.server_peer_id = Some(peer_id);
-                        let _ = self.event_sender.unbounded_send(FileTransferEvent::Connected { peer_id });
+                        let _ = self
+                            .event_sender
+                            .unbounded_send(FileTransferEvent::Connected { peer_id });
                     }
                     libp2p::swarm::SwarmEvent::ConnectionClosed { peer_id, .. } => {
                         println!("DEBUG: Connection closed with {}", peer_id);
                         if self.server_peer_id == Some(peer_id) {
                             self.server_peer_id = None;
                         }
-                        let _ = self.event_sender.unbounded_send(FileTransferEvent::Disconnected { peer_id });
+                        let _ = self
+                            .event_sender
+                            .unbounded_send(FileTransferEvent::Disconnected { peer_id });
                     }
-                    libp2p::swarm::SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                        println!("DEBUG: Outbound connection error to {:?}: {}", peer_id, error);
+                    libp2p::swarm::SwarmEvent::OutgoingConnectionError {
+                        peer_id, error, ..
+                    } => {
+                        println!(
+                            "DEBUG: Outbound connection error to {:?}: {}",
+                            peer_id, error
+                        );
                     }
-                    libp2p::swarm::SwarmEvent::IncomingConnectionError { local_addr, send_back_addr, error, .. } => {
-                        println!("DEBUG: Incoming connection error from {} to {}: {}", send_back_addr, local_addr, error);
+                    libp2p::swarm::SwarmEvent::IncomingConnectionError {
+                        local_addr,
+                        send_back_addr,
+                        error,
+                        ..
+                    } => {
+                        println!(
+                            "DEBUG: Incoming connection error from {} to {}: {}",
+                            send_back_addr, local_addr, error
+                        );
                     }
                     libp2p::swarm::SwarmEvent::Dialing { peer_id, .. } => {
                         println!("DEBUG: Dialing {:?}", peer_id);
