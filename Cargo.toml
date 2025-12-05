@@ -6,6 +6,7 @@ members = [
   "pkgs/gigi-messaging",
   "pkgs/mdns-nickname",
   "pkgs/gigi-downloading",
+  "pkgs/direct-messaging",
 ]
 
 [workspace.package]
@@ -30,6 +31,7 @@ libp2p = { version = "0.56.0", features = [
   "autonat",
   "identify",
   "cbor",
+  "json",
 ] }
 serde_json = "1.0"
 futures = "0.3"
@@ -52,6 +54,7 @@ clap = { version = "4.0", features = ["derive"] }
 gigi-messaging = { version = "0.0.1", path = "./pkgs/gigi-messaging" }
 mdns-nickname = { version = "0.0.1", path = "./pkgs/mdns-nickname" }
 gigi-downloading = { version = "0.0.1", path = "./pkgs/gigi-downloading" }
+direct-messaging = { version = "0.0.1", path = "./pkgs/direct-messaging" }
 libp2p-identity = "0.2"
 
 
