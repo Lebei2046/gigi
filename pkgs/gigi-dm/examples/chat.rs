@@ -1,7 +1,7 @@
 use clap::Parser;
-use gigi_dm::{DirectMessaging, Message, Response};
 use futures::StreamExt;
-use libp2p::swarm::SwarmEvent;
+use gigi_dm::{save_received_image, DirectMessaging, Message, MessagingEvent};
+use libp2p::{identity, noise, swarm::SwarmEvent, tcp, yamux, PeerId};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -27,8 +27,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Args::parse();
 
-    let (mut messaging, _event_receiver) = DirectMessaging::new().await?;
-    let local_peer_id = messaging.local_peer_id();
+    // Create swarm in chat.rs (moved from lib.rs)
+    let id_keys = identity::Keypair::generate_ed25519();
+    let local_peer_id = PeerId::from(id_keys.public());
+
+    let behaviour = DirectMessaging::create_behaviour(
+        libp2p::request_response::Config::default()
+            .with_request_timeout(std::time::Duration::from_secs(30)),
+    )?;
+
+    let swarm = libp2p::SwarmBuilder::with_existing_identity(id_keys)
+        .with_tokio()
+        .with_tcp(
+            tcp::Config::default(),
+            noise::Config::new,
+            yamux::Config::default,
+        )?
+        .with_behaviour(|_| behaviour)?
+        .with_swarm_config(|c| {
+            c.with_idle_connection_timeout(std::time::Duration::from_secs(120))
+                .with_max_negotiating_inbound_streams(100)
+        })
+        .build();
+
+    let mut messaging = DirectMessaging::with_swarm(swarm)?;
     println!("Local peer ID: {}", local_peer_id);
 
     // Start listening
@@ -39,10 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(addr_str) = args.addr {
         // Small delay to ensure the first peer is ready
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-        
+
         let addr: libp2p::Multiaddr = addr_str.parse()?;
         println!("Attempting to connect to: {}", addr);
-        
+
         match messaging.dial_peer(&addr) {
             Ok(()) => {
                 println!("✓ Connection attempt initiated to: {}", addr);
@@ -58,14 +80,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Main event loop that handles both swarm events and user input
     let mut stdin = BufReader::new(tokio::io::stdin());
     let mut line = String::new();
-    
+
     loop {
         tokio::select! {
             // Handle swarm events
             event = messaging.swarm.select_next_some() => {
                 match event {
                     SwarmEvent::Behaviour(req_resp_event) => {
-                        handle_request_response_event(req_resp_event, &mut messaging).await;
+                        if let Ok(Some(messaging_event)) = messaging.handle_request_response_event(req_resp_event).await {
+                            handle_messaging_event(messaging_event).await;
+                        }
                     }
                     SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                         println!("\n✓ Connected to: {}", peer_id);
@@ -86,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     _ => {}
                 }
             }
-            
+
             // Handle user input
             _ = stdin.read_line(&mut line) => {
                 let input = line.trim();
@@ -115,70 +139,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-async fn handle_request_response_event(
-    event: libp2p::request_response::Event<Message, Response>,
-    messaging: &mut DirectMessaging,
-) {
+async fn handle_messaging_event(event: MessagingEvent) {
     match event {
-        libp2p::request_response::Event::Message { message, peer, .. } => {
+        MessagingEvent::MessageReceived { peer, message } => {
             match message {
-                libp2p::request_response::Message::Request { 
-                    request, 
-                    channel,
-                    ..
-                } => {
-                    // Send acknowledgment
-                    let _ = messaging.swarm.behaviour_mut().send_response(channel, Response::Ack);
-
-                    // Handle the received message
-                    match request {
-                        Message::Text(text) => {
-                            println!("\n[{}] {}", peer, text);
-                        }
-                        Message::Image { name, mime_type, data } => {
-                            println!("\n[{}] Image: {} ({} bytes, {})", peer, name, data.len(), mime_type);
-                            // Save the image to a file
-                            if let Err(e) = save_received_image(&name, &data).await {
-                                eprintln!("Failed to save image: {}", e);
-                            } else {
-                                println!("Image saved as: received_{}", name);
-                            }
-                        }
-                    }
-                    print!("> ");
-                    io::stdout().flush().unwrap();
+                Message::Text(text) => {
+                    println!("\n[{}] {}", peer, text);
                 }
-                libp2p::request_response::Message::Response { 
-                    response,
-                    ..
+                Message::Image {
+                    name,
+                    mime_type,
+                    data,
                 } => {
-                    match response {
-                        Response::Ack => {
-                            // Message was acknowledged, no need to print
-                        }
-                        Response::Error(error) => {
-                            println!("\nPeer responded with error: {}", error);
-                            print!("> ");
-                            io::stdout().flush().unwrap();
-                        }
+                    println!(
+                        "\n[{}] Image: {} ({} bytes, {})",
+                        peer,
+                        name,
+                        data.len(),
+                        mime_type
+                    );
+                    // Save the image to a file (moved to lib.rs)
+                    if let Err(e) = save_received_image(&name, &data).await {
+                        eprintln!("Failed to save image: {}", e);
+                    } else {
+                        println!("Image saved as: received_{}", name);
                     }
                 }
             }
+            print!("> ");
+            io::stdout().flush().unwrap();
         }
-        libp2p::request_response::Event::OutboundFailure { 
-            peer, 
-            error, 
-            ..
-        } => {
-            eprintln!("Outbound request failure to {}: {:?}", peer, error);
+        MessagingEvent::MessageAcknowledged { .. } => {
+            // Message was acknowledged, no need to print
         }
-        libp2p::request_response::Event::InboundFailure { 
-            error, 
-            ..
-        } => {
-            eprintln!("Inbound request failure: {:?}", error);
+        MessagingEvent::PeerError { error, .. } => {
+            println!("\nPeer responded with error: {}", error);
+            print!("> ");
+            io::stdout().flush().unwrap();
         }
-        libp2p::request_response::Event::ResponseSent { .. } => {
+        MessagingEvent::OutboundFailure { peer, error } => {
+            eprintln!("Outbound request failure to {}: {}", peer, error);
+        }
+        MessagingEvent::InboundFailure { error } => {
+            eprintln!("Inbound request failure: {}", error);
+        }
+        MessagingEvent::ResponseSent => {
             // Response sent successfully
         }
     }
@@ -187,14 +192,14 @@ async fn handle_request_response_event(
 async fn handle_command(command: &str, messaging: &mut DirectMessaging) {
     let parts: Vec<&str> = command.split_whitespace().collect();
     let peers = messaging.get_connected_peers();
-    
+
     match parts.get(0) {
         Some(&"connect") => {
             if parts.len() != 2 {
                 println!("Usage: /connect <multiaddr>");
                 return;
             }
-            
+
             let addr: libp2p::Multiaddr = match parts[1].parse() {
                 Ok(addr) => addr,
                 Err(e) => {
@@ -202,7 +207,7 @@ async fn handle_command(command: &str, messaging: &mut DirectMessaging) {
                     return;
                 }
             };
-            
+
             match messaging.dial_peer(&addr) {
                 Ok(()) => {
                     println!("Connection attempt initiated to: {}", addr);
@@ -218,15 +223,18 @@ async fn handle_command(command: &str, messaging: &mut DirectMessaging) {
                 println!("Usage: /text <message>");
                 return;
             }
-            
+
             if peers.is_empty() {
                 println!("No connected peers to send message to");
                 return;
             }
-            
+
             let message_text = parts[1..].join(" ");
             for peer_id in &peers {
-                if let Err(e) = messaging.send_message(*peer_id, Message::text(&message_text)).await {
+                if let Err(e) = messaging
+                    .send_message(*peer_id, Message::text(&message_text))
+                    .await
+                {
                     eprintln!("Failed to send text message to {}: {}", peer_id, e);
                 }
             }
@@ -237,18 +245,19 @@ async fn handle_command(command: &str, messaging: &mut DirectMessaging) {
                 println!("Usage: /image <path_to_image>");
                 return;
             }
-            
+
             if peers.is_empty() {
                 println!("No connected peers to send image to");
                 return;
             }
-            
+
             let path = PathBuf::from(parts[1]);
-            let image_name = path.file_name()
+            let image_name = path
+                .file_name()
                 .and_then(|name| name.to_str())
                 .unwrap_or("unknown");
-            
-            match send_image_to_all(messaging, &peers, &path).await {
+
+            match messaging.send_image_to_all(&peers, &path).await {
                 Ok(()) => {
                     println!("Image '{}' sent to {} peers", image_name, peers.len());
                 }
@@ -282,32 +291,4 @@ async fn handle_command(command: &str, messaging: &mut DirectMessaging) {
     }
 }
 
-async fn send_image_to_all(messaging: &mut DirectMessaging, peers: &[libp2p::PeerId], image_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    // Read image file
-    let image_data = tokio::fs::read(image_path).await?;
-    
-    // Determine MIME type
-    let mime_type = mime_guess::from_path(image_path)
-        .first_or_octet_stream()
-        .to_string();
-    
-    let image_name = image_path.file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("unknown");
-    
-    // Send image message to all peers
-    let message = Message::image(image_name, mime_type, image_data)?;
-    for peer_id in peers {
-        if let Err(e) = messaging.send_message(*peer_id, message.clone()).await {
-            eprintln!("Failed to send image to {}: {}", peer_id, e);
-        }
-    }
-    
-    Ok(())
-}
-
-async fn save_received_image(name: &str, data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
-    let filename = format!("received_{}", name);
-    tokio::fs::write(&filename, data).await?;
-    Ok(())
-}
+// Functions send_image_to_all and save_received_image moved to lib.rs
