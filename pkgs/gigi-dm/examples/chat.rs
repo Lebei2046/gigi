@@ -1,5 +1,5 @@
 use clap::Parser;
-use direct_messaging::{DirectMessaging, Message, Response};
+use gigi_dm::{DirectMessaging, Message, Response};
 use futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
 use std::io::{self, Write};

@@ -19,17 +19,17 @@ use crate::{
   Libp2pCommand,
 };
 
-/// 定义 Libp2p 消息传递的行为，包括 Gossipsub 和 mDNS 功能。
+/// Defines the behavior of Libp2p messaging, including Gossipsub and mDNS functionality.
 #[derive(NetworkBehaviour)]
 struct Libp2pMessagingBehaviour {
   gossipsub: gossipsub::Behaviour,
   mdns: mdns::tokio::Behaviour,
 }
 
-/// 提供 Libp2p 消息传递功能的主结构体。
+/// Main structure providing Libp2p messaging functionality.
 ///
-/// # 泛型参数
-/// - `R`: 运行时类型，必须实现 `tauri::Runtime` trait。
+/// # Generic parameters
+/// - `R`: Runtime type, must implement `tauri::Runtime` trait.
 pub struct Libp2pMessaging<R: Runtime> {
   swarm: Swarm<Libp2pMessagingBehaviour>,
   app_handle: tauri::AppHandle<R>,
@@ -38,14 +38,14 @@ pub struct Libp2pMessaging<R: Runtime> {
 }
 
 impl<R: Runtime> Libp2pMessaging<R> {
-  /// 创建一个新的 `Libp2pMessaging` 实例。
+  /// Create a new `Libp2pMessaging` instance.
   ///
-  /// # 参数
-  /// - `app_handle`: Tauri 应用句柄。
-  /// - `receiver`: 用于接收 Libp2p 命令的通道接收端。
+  /// # Parameters
+  /// - `app_handle`: Tauri application handle.
+  /// - `receiver`: Channel receiver end for receiving Libp2p commands.
   ///
-  /// # 返回
-  /// - `Result<Self, Error>`: 成功时返回实例，失败时返回错误。
+  /// # Returns
+  /// - `Result<Self, Error>`: Returns instance on success, returns error on failure.
   pub fn new(
     app_handle: tauri::AppHandle<R>,
     receiver: Receiver<Libp2pCommand>,
@@ -94,13 +94,13 @@ impl<R: Runtime> Libp2pMessaging<R> {
     })
   }
 
-  /// 订阅指定主题。
+  /// Subscribe to a specified topic.
   ///
-  /// # 参数
-  /// - `topic`: 要订阅的主题名称。
+  /// # Parameters
+  /// - `topic`: The name of the topic to subscribe to.
   ///
-  /// # 返回
-  /// - `Result<(), Error>`: 成功时返回 `Ok(())`，失败时返回错误。
+  /// # Returns
+  /// - `Result<(), Error>`: Returns `Ok(())` on success, returns error on failure.
   pub fn subscribe(&mut self, topic: &str) -> Result<(), Error> {
     let topic = IdentTopic::new(topic);
     self
@@ -114,13 +114,13 @@ impl<R: Runtime> Libp2pMessaging<R> {
     Ok(())
   }
 
-  /// 取消订阅指定主题。
+  /// Unsubscribe from a specified topic.
   ///
-  /// # 参数
-  /// - `topic`: 要取消订阅的主题名称。
+  /// # Parameters
+  /// - `topic`: The name of the topic to unsubscribe from.
   ///
-  /// # 返回
-  /// - `Result<(), Error>`: 成功时返回 `Ok(())`，失败时返回错误。
+  /// # Returns
+  /// - `Result<(), Error>`: Returns `Ok(())` on success, returns error on failure.
   pub fn unsubscribe(&mut self, topic: &str) -> Result<(), Error> {
     let topic = IdentTopic::new(topic);
     self.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
@@ -128,14 +128,14 @@ impl<R: Runtime> Libp2pMessaging<R> {
     Ok(())
   }
 
-  /// 向指定主题发布消息。
+  /// Publish message to a specified topic.
   ///
-  /// # 参数
-  /// - `topic`: 目标主题名称。
-  /// - `message`: 要发布的消息内容。
+  /// # Parameters
+  /// - `topic`: Target topic name.
+  /// - `message`: The message content to be published.
   ///
-  /// # 返回
-  /// - `Result<(), Error>`: 成功时返回 `Ok(())`，失败时返回错误。
+  /// # Returns
+  /// - `Result<(), Error>`: Returns `Ok(())` on success, returns error on failure.
   pub fn publish(&mut self, topic: &str, message: &[u8]) -> Result<(), Error> {
     let topic = IdentTopic::new(topic);
     self
@@ -147,10 +147,10 @@ impl<R: Runtime> Libp2pMessaging<R> {
     Ok(())
   }
 
-  /// 获取当前发现的节点列表。
+  /// Get the list of currently discovered nodes.
   ///
-  /// # 返回
-  /// - `Vec<(String, Vec<String>)>`: 节点 ID 及其地址列表。
+  /// # Returns
+  /// - `Vec<(String, Vec<String>)>`: Node IDs and their address lists.
   pub fn get_peers(&self) -> Vec<(String, Vec<String>)> {
     self
       .swarm
@@ -165,9 +165,9 @@ impl<R: Runtime> Libp2pMessaging<R> {
       .collect()
   }
 
-  /// 启动 Libp2p 消息传递服务的主循环。
+  /// Start the main loop of Libp2p messaging service.
   ///
-  /// 该方法会持续监听事件并处理命令。
+  /// This method will continuously listen for events and handle commands.
   pub async fn run(&mut self) {
     self
       .swarm
@@ -201,7 +201,7 @@ impl<R: Runtime> Libp2pMessaging<R> {
             },
             Libp2pCommand::GetPeers(sender) => {
                 let peers = self.get_peers();
-                let _ = sender.send(peers); // 发送结果
+                let _ = sender.send(peers); // Send result
             },
           }
         },

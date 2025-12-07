@@ -18,14 +18,14 @@ pub fn get_peer_id(priv_key: &str) -> String {
     peer_id.to_string()
 }
 
-// 订阅指定主题。
+// Subscribe to a specified topic.
 ///
-/// # 参数
-/// - `topic`: 要订阅的主题名称。
+/// # Parameters
+/// - `topic`: The name of the topic to subscribe to.
 ///
-/// # 返回值
-/// - `Ok(())`: 订阅成功。
-/// - `Err(Error)`: 订阅失败，返回错误信息。
+/// # Return value
+/// - `Ok(())`: Subscription successful.
+/// - `Err(Error)`: Subscription failed, returns error information.
 #[command]
 pub async fn subscribe_topic<R: Runtime>(
     _app: AppHandle<R>,
@@ -46,14 +46,14 @@ pub async fn subscribe_topic<R: Runtime>(
     Ok(())
 }
 
-/// 取消订阅指定主题。
+/// Unsubscribe from a specified topic.
 ///
-/// # 参数
-/// - `topic`: 要取消订阅的主题名称。
+/// # Parameters
+/// - `topic`: The name of the topic to unsubscribe from.
 ///
-/// # 返回值
-/// - `Ok(())`: 取消订阅成功。
-/// - `Err(Error)`: 取消订阅失败，返回错误信息。
+/// # Return value
+/// - `Ok(())`: Unsubscription successful.
+/// - `Err(Error)`: Unsubscription failed, returns error information.
 #[command]
 pub async fn unsubscribe_topic<R: Runtime>(
     _app: AppHandle<R>,
@@ -68,15 +68,15 @@ pub async fn unsubscribe_topic<R: Runtime>(
     Ok(())
 }
 
-/// 向指定主题发送消息。
+/// Send message to a specified topic.
 ///
-/// # 参数
-/// - `topic`: 目标主题名称。
-/// - `message`: 要发送的消息内容。
+/// # Parameters
+/// - `topic`: Target topic name.
+/// - `message`: The message content to be sent.
 ///
-/// # 返回值
-/// - `Ok(())`: 消息发送成功。
-/// - `Err(Error)`: 消息发送失败，返回错误信息。
+/// # Return value
+/// - `Ok(())`: Message sent successfully.
+/// - `Err(Error)`: Message sending failed, returns error information.
 #[command]
 pub async fn send_message<R: Runtime>(
     _app: AppHandle<R>,
@@ -92,28 +92,28 @@ pub async fn send_message<R: Runtime>(
     Ok(())
 }
 
-/// 获取当前连接的节点及其支持的主题列表。
+/// Get currently connected nodes and their supported topic lists.
 ///
-/// # 返回值
-/// - `Ok(Vec<(String, Vec<String>)>)`: 成功返回节点及其主题列表。
-/// - `Err(Error)`: 获取失败，返回错误信息。
+/// # Return value
+/// - `Ok(Vec<(String, Vec<String>)>)`: Successfully returns nodes and their topic lists.
+/// - `Err(Error)`: Retrieval failed, returns error information.
 #[command]
 pub async fn get_peers<R: Runtime>(
     _app: AppHandle<R>,
     _window: Window<R>,
     state: State<'_, AppState>,
 ) -> Result<Vec<(String, Vec<String>)>, Error> {
-    // 创建一个 oneshot 通道
+    // Create a oneshot channel
     let (sender, mut receiver) = channel(1);
 
-    // 发送 GetPeers 命令，携带 sender
+    // Send GetPeers command, carrying sender
     state
         .command_sender
         .send(Libp2pCommand::GetPeers(sender))
         .await
         .map_err(|e| Error::ChannelSend(e.to_string()))?;
 
-    // 等待后台线程返回结果
+    // Wait for background thread to return result
     receiver
         .recv()
         .await

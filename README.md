@@ -1,167 +1,171 @@
+# Gigi: P2P Social Application
 
+A decentralized peer-to-peer social application built with Rust and TypeScript/React, leveraging Tauri for cross-platform development.
 
-Gigi：基于 P2P 网络的社交应用
-====
+## Project Structure
 
-本项目为一个基于 P2P 网络的社交应用，结合了 Rust 和 TypeScript/React 技术栈，使用 Tauri 进行多端开发。
+```
+├── apps/
+│   ├── gigi-app/          # Desktop application (Tauri + React)
+│   └── gigi-mobile/       # Mobile application (Tauri + React)
+├── pkgs/
+│   ├── gigi-dm/          # Core P2P direct messaging library
+│   ├── gigi-messaging/    # Tauri backend plugin for messaging
+│   ├── gigi-downloading/  # File downloading functionality
+│   └── gigi-mdns/         # mDNS nickname resolution service
+├── Cargo.lock
+├── Cargo.toml
+├── LICENSE
+├── package.json
+└── README.md
+```
 
-## 项目结构概览
+## Core Components
 
-- `apps/`：前端应用目录
-  - `gigi-mobile`：Gigi 移动端应用
-- `pkgs/`：后端核心库目录
-  - `direct-messaging`：基于 libp2p 的直接消息传递库
-  - `gigi-messaging`：一个 Tauri 后端，用于实现基于 libp2p 的消息传递功能
+### Direct Messaging Library (`pkgs/gigi-dm`)
 
-## Direct Messaging 库
+A Rust library built on libp2p that provides:
+- **Direct TCP connections** (no mDNS required)
+- **Text and image message** support
+- **Noise protocol encryption** for secure communication
+- **Yamux multiplexing** for efficient connection usage
+- **Request-Response protocol** for reliable message delivery
+- **Async processing** using Tokio runtime
 
-### 简介
+### Gigi Messaging Plugin (`pkgs/gigi-messaging`)
 
-`pkgs/direct-messaging` 是一个基于 Rust libp2p 框架的点对点消息传递库，支持：
+A Tauri backend plugin that integrates messaging into frontend apps:
+- **Gossipsub protocol** for publish-subscribe messaging
+- **mDNS for peer discovery** and automatic connection management
+- **Event-based architecture** for message reception and peer discovery
+- **Command API** for frontend integration (subscribe, unsubscribe, send messages)
 
-- 🔗 直接 TCP 连接（无需 mDNS）
-- 💬 文本消息传递
-- 🖼️ 图片文件传输
-- 🔐 Noise 协议加密
-- 🚀 高性能异步处理
+### Frontend Applications (`apps/`)
 
-### 快速开始
+React-based applications using Tauri for cross-platform deployment:
+- **Mobile-first design** with responsive UI
+- **Authentication system** with registration and login flows
+- **Router-based navigation** using React Router
+- **State management** architecture for application state
+- **Tauri integration** for accessing native functionality
 
-#### 安装依赖
+## Technology Stack
+
+### Backend
+- **Rust**: Core language for P2P libraries
+- **libp2p**: P2P networking framework
+- **Tokio**: Async runtime
+- **Serde**: Serialization/deserialization
+- **Tauri**: App framework bridge
+
+### Frontend
+- **TypeScript**: Type-safe JavaScript
+- **React**: UI framework
+- **Tauri**: Cross-platform app wrapper
+- **React Router**: Navigation
+- **Bun**: Package manager
+
+## Key Features
+
+### Decentralized Communication
+- **Point-to-point messaging** without central servers
+- **Publish-subscribe model** for topic-based communication
+- **Automatic peer discovery** via mDNS
+- **Encrypted connections** using Noise protocol
+
+### Messaging Capabilities
+- **Text messages**: Simple and reliable text communication
+- **Image sharing**: Support for image file transmission
+- **Message acknowledgment**: Reliable message delivery confirmation
+- **Content addressing**: Unique identification for messages
+
+### Cross-Platform Support
+- **Desktop applications** for Windows, macOS, and Linux
+- **Mobile applications** for iOS and Android
+- **Native OS integration** via Tauri
+- **Consistent UI/UX** across platforms
+
+### Security
+- **Ed25519 key pairs** for identity verification
+- **End-to-end encryption** for all communications
+- **Secure peer-to-peer connections**
+- **Connection timeout protection**
+
+## Getting Started
+
+### Prerequisites
+- **Rust**: Install via [rustup](https://rustup.rs/)
+- **Bun**: Install via [bun.sh](https://bun.sh/)
+- **Tauri CLI**: Install via `cargo install tauri-cli`
+
+### Installation
 
 ```bash
-# 安装项目依赖
+# Install project dependencies
 bun install
 
-# 构建 Rust 库
-cargo build --package direct-messaging
+# Build Rust libraries
+cargo build
 ```
 
-#### 运行聊天示例
+### Running Applications
 
-1. **启动第一个节点（监听模式）**：
-   ```bash
-   cargo run --example chat -- --port 8080
-   ```
+#### Desktop Application
+```bash
+bun run --cwd apps/gigi-app tauri dev
+```
 
-2. **启动第二个节点（连接模式）**：
-   ```bash
-   cargo run --example chat -- --addr /ip4/127.0.0.1/tcp/8080
-   ```
+#### Mobile Application
+```bash
+bun run --cwd apps/gigi-mobile tauri dev
+```
 
-### 交互式命令
+### Building Applications
 
-启动聊天应用后，可以使用以下命令：
+#### Desktop Application
+```bash
+bun run --cwd apps/gigi-app tauri build
+```
 
-- `直接输入文本` - 发送文本消息到所有连接的节点
-- `/text <message>` - 发送文本消息到所有连接的节点
-- `/image <path>` - 发送图片文件到所有连接的节点
-- `/connect <multiaddr>` - 连接到指定节点
-- `/peers` - 查看已连接的节点
-- `/help` - 显示帮助信息
+#### Mobile Application
+```bash
+bun run --cwd apps/gigi-mobile tauri build
+```
 
-### 示例用法
+## Development
+
+### Direct Messaging Library
 
 ```bash
-# 节点 1：启动监听
-cargo run --example chat -- --port 8080
+# Build the library
+cargo build --package gigi-dm
 
-# 节点 2：连接并发送消息
-cargo run --example chat -- --addr /ip4/127.0.0.1/tcp/8080
+# Run tests
+cargo test --package gigi-dm
 
-# 在聊天界面中：
-> /connect /ip4/127.0.0.1/tcp/8081
-> hello world
-> /image /path/to/image.jpg
-> /peers
+# Run chat example
+cargo run --example chat --package gigi-dm -- --port 8080
 ```
 
-### API 使用
-
-```rust
-use direct_messaging::{DirectMessaging, Message};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 创建消息传递实例
-    let (mut messaging, _receiver) = DirectMessaging::new().await?;
-    
-    // 开始监听
-    let listen_addr = messaging.start_listening(8080)?;
-    println!("Listening on: {}", listen_addr);
-    
-    // 连接到其他节点
-    let addr: libp2p::Multiaddr = "/ip4/127.0.0.1/tcp/8081".parse()?;
-    messaging.dial_peer(&addr)?;
-    
-    // 发送文本消息
-    let peers = messaging.get_connected_peers();
-    for peer_id in peers {
-        messaging.send_message(peer_id, Message::text("Hello!")).await?;
-    }
-    
-    Ok(())
-}
-```
-
-## 开发与构建
-
-### Direct Messaging 库
+### Gigi Messaging Plugin
 
 ```bash
-# 构建库
-cargo build --package direct-messaging
+# Build the plugin
+cargo build --package gigi-messaging
 
-# 运行测试
-cargo test --package direct-messaging
-
-# 运行示例
-cargo run --example chat --package direct-messaging
+# Run tests
+cargo test --package gigi-messaging
 ```
 
-### Gigi 主应用
+## How to Contribute
 
-#### 移动开发
+1. Fork the repository
+2. Create a new branch for your feature or bug fix
+3. Make your changes with appropriate tests
+4. Submit a pull request
 
-1. 确保你已安装 Rust 和 Tauri CLI。
-2. 进入 `apps/gigi-mobile` 目录
-    - bun install
-    - bun run tauri dev, or
-    - bun run tauri android dev
-3. 构建
-    - bun run tauri build, or
-    - bun run tauri android build
+Please follow the project's code style and ensure all tests pass before submitting.
 
-## 技术特性
+## License
 
-### libp2p 网络层
-
-- **TCP 传输层**：稳定的 TCP 连接
-- **Noise 加密**：端到端加密通信
-- **Yamux 多路复用**：单一连接上的多路通信
-- **Request-Response 协议**：可靠的请求-响应模式
-- **JSON 编解码**：高效的序列化/反序列化
-
-### 消息类型
-
-- **Text**：纯文本消息
-- **Image**：图片文件（自动 MIME 类型检测）
-
-### 安全特性
-
-- Ed25519 密钥对生成
-- Noise 协议加密
-- 连接超时保护
-- 消息确认机制
-
-## 服务条款
-
-详见 `apps/gigi-mobile/src/assets/TermsOfUse.md`。
-
-## 如何贡献
-
-欢迎贡献代码，提交 Issue 或 Pull Request。请遵循项目代码规范，并确保提交的代码通过测试。
-
-## 许可证
-
-本项目遵循 MIT 许可证。详见根目录下的 `LICENSE` 文件。
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

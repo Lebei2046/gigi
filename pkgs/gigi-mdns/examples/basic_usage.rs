@@ -1,4 +1,4 @@
-//! Basic usage example of the mdns-nickname library
+//! Basic usage example of the gigi-mdns library
 //!
 //! This example demonstrates how to create a nickname manager,
 //! set a nickname, discover peers, and handle events.

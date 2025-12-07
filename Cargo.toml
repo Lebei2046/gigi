@@ -4,9 +4,9 @@ members = [
   "apps/gigi-app/src-tauri",
   "apps/gigi-mobile/src-tauri",
   "pkgs/gigi-messaging",
-  "pkgs/mdns-nickname",
+  "pkgs/gigi-mdns",
   "pkgs/gigi-downloading",
-  "pkgs/direct-messaging",
+  "pkgs/gigi-dm",
 ]
 
 [workspace.package]
@@ -52,9 +52,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4.0", features = ["derive"] }
 gigi-messaging = { version = "0.0.1", path = "./pkgs/gigi-messaging" }
-mdns-nickname = { version = "0.0.1", path = "./pkgs/mdns-nickname" }
+gigi-mdns = { version = "0.0.1", path = "./pkgs/gigi-mdns" }
 gigi-downloading = { version = "0.0.1", path = "./pkgs/gigi-downloading" }
-direct-messaging = { version = "0.0.1", path = "./pkgs/direct-messaging" }
+gigi-dm = { version = "0.0.1", path = "./pkgs/gigi-dm" }
 libp2p-identity = "0.2"
 
 

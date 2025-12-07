@@ -2,7 +2,7 @@
 
 A Rust library for peer-to-peer file-transfering using `libp2p`'s `request-response` protocol.
 
-The `gigi-downloading` is designed to be integrated into gigi direct-messaging program for large-file sharing. 
+The `gigi-downloading` is designed to be integrated into gigi-dm program for large-file sharing. 
 
 ## Features
 

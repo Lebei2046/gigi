@@ -1,16 +1,16 @@
-/// 提供与 libp2p 消息传递相关的功能模块。
+/// Provides functionality modules related to libp2p messaging.
 ///
-/// 该模块包含以下主要组件：
-/// - `Libp2pMessaging`: 用于管理 libp2p 消息传递的核心功能。
-/// - `Error`: 定义 libp2p 操作中可能出现的错误类型。
-/// - `MessageReceivedEvent` 和 `PeerDiscoveredEvent`: 定义消息接收和对等节点发现的事件模型。
+/// This module contains the following main components:
+/// - `Libp2pMessaging`: Core functionality for managing libp2p messaging.
+/// - `Error`: Defines error types that may occur in libp2p operations.
+/// - `MessageReceivedEvent` and `PeerDiscoveredEvent`: Define event models for message reception and peer discovery.
 ///
-/// 模块还提供了以下功能：
-/// - 订阅和取消订阅主题。
-/// - 发送消息到指定主题。
-/// - 获取当前连接的对等节点列表。
+/// The module also provides the following features:
+/// - Subscribe and unsubscribe to topics.
+/// - Send messages to specified topics.
+/// - Get the list of currently connected peers.
 ///
-/// 使用 `init` 函数初始化插件并将其集成到 Tauri 应用中。
+/// Use the `init` function to initialize the plugin and integrate it into a Tauri application.
 use tauri::{
     Manager, Runtime,
     async_runtime::{Sender, channel, spawn},
@@ -26,13 +26,13 @@ pub use models::{MessageReceivedEvent, PeerDiscoveredEvent};
 pub use network::Libp2pMessaging;
 pub mod commands;
 
-/// 表示 libp2p 命令的枚举类型。
+/// Enum type representing libp2p commands.
 ///
-/// 包含以下命令：
-/// - `Subscribe`: 订阅指定主题。
-/// - `Unsubscribe`: 取消订阅指定主题。
-/// - `SendMessage`: 发送消息到指定主题。
-/// - `GetPeers`: 获取当前连接的对等节点列表。
+/// Contains the following commands:
+/// - `Subscribe`: Subscribe to a specified topic.
+/// - `Unsubscribe`: Unsubscribe from a specified topic.
+/// - `SendMessage`: Send message to a specified topic.
+/// - `GetPeers`: Get the list of currently connected peers.
 pub enum Libp2pCommand {
     Subscribe(String),
     Unsubscribe(String),
@@ -40,21 +40,21 @@ pub enum Libp2pCommand {
     GetPeers(Sender<Vec<(String, Vec<String>)>>),
 }
 
-/// 应用状态管理结构体。
+/// Application state management structure.
 ///
-/// 包含一个命令发送器 (`command_sender`)，用于向 libp2p 任务发送命令。
+/// Contains a command sender (`command_sender`) for sending commands to libp2p tasks.
 pub struct AppState {
     pub command_sender: Sender<Libp2pCommand>,
 }
 
-// 初始化 libp2p 消息传递插件。
+// Initialize libp2p messaging plugin.
 ///
-/// 该函数会：
-/// 1. 创建一个命令通道用于与 libp2p 任务通信。
-/// 2. 将应用状态 (`AppState`) 注册到 Tauri 应用中。
-/// 3. 启动 libp2p 任务以处理消息传递逻辑。
+/// This function will:
+/// 1. Create a command channel for communication with libp2p tasks.
+/// 2. Register the application state (`AppState`) to the Tauri application.
+/// 3. Start libp2p tasks to handle messaging logic.
 ///
-/// 返回一个配置好的 `TauriPlugin` 实例，可以集成到 Tauri 应用中。
+/// Returns a configured `TauriPlugin` instance that can be integrated into a Tauri application.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("libp2p-messaging")
         .setup(|app, _api| {

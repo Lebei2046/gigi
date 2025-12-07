@@ -1,5 +1,5 @@
 [package]
-name = "mdns-nickname"
+name = "gigi-mdns"
 version.workspace = true
 edition = "2021"
 

@@ -1,5 +1,5 @@
 [package]
-name = "direct-messaging"
+name = "gigi-dm"
 version.workspace = true
 edition = "2021"
 

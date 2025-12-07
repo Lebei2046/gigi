@@ -1,4 +1,4 @@
-# Gigi Direct-Messaging
+# Gigi DM (Direct Messaging)
 
 A Rust library for peer-to-peer messaging using `libp2p`'s `request-response` protocol.
 
@@ -24,5 +24,5 @@ In this directory, create a rust library project, write the code in `lib.rs`, an
 Make sure the dependencies come from the workspace to gurantee the compatibility.
 
 ## References
-- /home/lebei/dev/rust-libp2p/examples/chat
-- /home/lebei/dev/rust-libp2p/protocols/request-response
+- [Libp2p Chat Example](https://github.com/libp2p/rust-libp2p/tree/master/examples/chat)
+- [Libp2p Request-Response Protocol](https://github.com/libp2p/rust-libp2p/tree/master/protocols/request-response)                

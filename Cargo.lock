@@ -1197,28 +1197,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "direct-messaging"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.21.7",
- "bytes",
- "clap",
- "futures",
- "libp2p",
- "mime",
- "mime_guess",
- "serde",
- "serde_bytes",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1881,6 +1859,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "gigi-dm"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.21.7",
+ "bytes",
+ "clap",
+ "futures",
+ "libp2p",
+ "mime",
+ "mime_guess",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "gigi-downloading"
 version = "0.0.1"
 dependencies = [
@@ -1907,6 +1907,20 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "gigi-mdns"
+version = "0.0.1"
+dependencies = [
+ "async-trait",
+ "futures",
+ "libp2p",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "tokio",
 ]
 
 [[package]]
@@ -3339,20 +3353,6 @@ name = "matches"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2532096657941c2fea9c289d370a250971c689d4f143798ff67113ec042024a5"
-
-[[package]]
-name = "mdns-nickname"
-version = "0.0.1"
-dependencies = [
- "async-trait",
- "futures",
- "libp2p",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "thiserror 2.0.17",
- "tokio",
-]
 
 [[package]]
 name = "memchr"

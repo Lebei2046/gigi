@@ -81,15 +81,6 @@ If no nickname is specified, a random nickname will be generated automatically:
 cargo run --example basic_usage
 ```
 
-### Automated Testing
-
-Use the provided test script to test mutual discovery of two processes:
-```bash
-./test_discovery.sh
-```
-
-This script will start two instances that should discover each other and exchange nickname information within 30 seconds.
-
 ## API Overview
 
 ### Main Methods
