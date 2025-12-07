@@ -32,13 +32,53 @@ A Rust library based on libp2p that implements a combination of mDNS + request-r
 ### Basic Code Example
 
 ```rust
-use mdns_nickname::{Nickname, NicknameManager, NicknameEvent};
+use gigi_mdns::{Nickname, NicknameManager, NicknameBehaviourEvent};
+use futures::StreamExt;
+use libp2p::Transport;
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create identity and behaviour
+    let keypair = libp2p::identity::Keypair::generate_ed25519();
+    let peer_id = libp2p::PeerId::from(keypair.public());
+    
+    // Create behaviour with custom config
+    let mdns_config = libp2p::mdns::Config {
+        ttl: Duration::from_secs(60),
+        query_interval: Duration::from_secs(10),
+        ..libp2p::mdns::Config::default()
+    };
+    
+    let behaviour = NicknameManager::create_behaviour(
+        peer_id,
+        mdns_config,
+        libp2p::request_response::Config::default(),
+    )?;
+    
+    // Create swarm
+    let swarm = libp2p::SwarmBuilder::with_existing_identity(keypair)
+        .with_tokio()
+        .with_other_transport(|_keypair| {
+            libp2p::tcp::tokio::Transport::default()
+                .upgrade(libp2p::core::upgrade::Version::V1)
+                .authenticate(
+                    libp2p::noise::Config::new(&_keypair)
+                        .expect("Signing libp2p-noise static DH keypair failed."),
+                )
+                .multiplex(libp2p::yamux::Config::default())
+                .boxed()
+        })
+        .expect("Failed to create transport")
+        .with_behaviour(|_keypair| behaviour)
+        .expect("Failed to create behaviour")
+        .with_swarm_config(|c| {
+            c.with_idle_connection_timeout(Duration::from_secs(60))
+        })
+        .build();
+    
     // Create nickname manager
-    let (mut manager, mut event_rx) = NicknameManager::new_with_events().await?;
+    let mut manager = NicknameManager::with_swarm(swarm)?;
     
     // Set nickname
     let my_nickname = Nickname::new("awesome-device-123".to_string())?;
@@ -49,19 +89,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     manager.start_listening(listen_addr)?;
     
     // Handle events
-    while let Some(event) = event_rx.recv().await {
-        match event {
-            NicknameEvent::PeerDiscovered { peer_id, nickname } => {
-                println!("Peer discovered: {} (nickname: {:?})", peer_id, nickname);
+    loop {
+        tokio::select! {
+            event = manager.swarm.select_next_some() => {
+                handle_swarm_event(&mut manager, event);
             }
-            NicknameEvent::NicknameUpdated { peer_id, nickname } => {
-                println!("Nickname updated: {} -> {}", peer_id, nickname);
-            }
-            // ... other events
         }
     }
-    
-    Ok(())
+}
+
+fn handle_swarm_event(
+    manager: &mut NicknameManager,
+    event: libp2p::swarm::SwarmEvent<NicknameBehaviourEvent>,
+) {
+    match event {
+        libp2p::swarm::SwarmEvent::Behaviour(NicknameBehaviourEvent::Mdns(mdns_event)) => {
+            match mdns_event {
+                libp2p::mdns::Event::Discovered(list) => {
+                    for (peer_id, addr) in list {
+                        let _ = manager.handle_mdns_discovered(peer_id, addr);
+                        let _ = manager.request_nickname(peer_id);
+                    }
+                }
+                libp2p::mdns::Event::Expired(list) => {
+                    for (peer_id, _) in list {
+                        if let Some(event) = manager.handle_mdns_expired(peer_id) {
+                            // Handle peer expired event
+                        }
+                    }
+                }
+            }
+        }
+        libp2p::swarm::SwarmEvent::Behaviour(NicknameBehaviourEvent::RequestResponse(req_resp_event)) => {
+            if let Ok(Some(event)) = manager.handle_request_response_event(req_resp_event) {
+                // Handle request-response event
+            }
+        }
+        _ => {}
+    }
 }
 ```
 
@@ -84,9 +149,13 @@ cargo run --example basic_usage
 ## API Overview
 
 ### Main Methods
-- `new()` / `new_with_events()`: Create manager
+- `with_swarm()`: Create manager with existing swarm
+- `create_behaviour()`: Create network behaviour for swarm construction
 - `set_nickname()`: Set local nickname
 - `start_listening()`: Start listening on network
+- `handle_mdns_discovered()`: Handle mDNS peer discovery
+- `handle_mdns_expired()`: Handle mDNS peer expiration
+- `handle_request_response_event()`: Handle request-response events
 - `request_nickname()`: Request peer's nickname
 - `announce_nickname()`: Broadcast nickname to all discovered peers
 - `get_discovered_peers()`: Get discovered peers
@@ -142,8 +211,48 @@ The library provides a complete error type `NicknameError`, including:
 - Timeout errors
 - Connection failures
 
+## Migration Guide (v0.0.1)
+
+The API has been refactored to provide more flexibility and better separation of concerns:
+
+### Before
+```rust
+// Old API - created swarm internally
+let (mut manager, mut event_rx) = NicknameManager::new_with_events().await?;
+let _ = manager.run().await; // Problematic blocking method
+```
+
+### After
+```rust
+// New API - manual swarm creation and event handling
+let keypair = libp2p::identity::Keypair::generate_ed25519();
+let behaviour = NicknameManager::create_behaviour(peer_id, mdns_config, req_config)?;
+let swarm = SwarmBuilder::with_existing_identity(keypair)
+    .with_tokio()
+    .with_other_transport(|keypair| { /* transport setup */ })
+    .with_behaviour(|_| behaviour)
+    .build();
+let mut manager = NicknameManager::with_swarm(swarm)?;
+
+// Manual event handling in your own loop
+loop {
+    tokio::select! {
+        event = manager.swarm.select_next_some() => {
+            handle_swarm_event(&mut manager, event);
+        }
+    }
+}
+```
+
+### Benefits of New API
+- **Better Control**: Full control over swarm construction and configuration
+- **Flexibility**: Easier to test and use in different contexts
+- **Separation of Concerns**: Protocol handling in library, application logic in your code
+- **Cleaner Architecture**: No blocking methods that monopolize the instance
+
 ## Notes
 
 - Requires Tokio async runtime
 - mDNS only works on local networks
 - It's recommended to add appropriate timeouts and retry mechanisms in production environments
+- The `swarm` field is now public for direct access to libp2p functionality
