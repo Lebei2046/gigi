@@ -1,5 +1,7 @@
 use clap::Parser;
-use gigi_downloading::{FileTransferServer, ServerConfig};
+use futures::StreamExt;
+use gigi_downloading::{ComposedEvent, FileTransferServer};
+use libp2p::SwarmBuilder;
 use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
 
@@ -27,12 +29,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Args::parse();
 
-    let config = ServerConfig {
-        info_path: args.info_path,
-        listen_port: args.port,
-    };
+    // Create identity and behaviour
+    let id_keys = libp2p::identity::Keypair::generate_ed25519();
 
-    let (mut server, mut event_receiver) = FileTransferServer::new(config).await?;
+    let behaviour = FileTransferServer::create_behaviour()?;
+
+    let mut swarm = SwarmBuilder::with_existing_identity(id_keys)
+        .with_tokio()
+        .with_tcp(
+            libp2p::tcp::Config::default(),
+            libp2p::noise::Config::new,
+            libp2p::yamux::Config::default,
+        )?
+        .with_behaviour(|_| behaviour)?
+        .with_swarm_config(|c| {
+            c.with_idle_connection_timeout(std::time::Duration::from_secs(300))
+            // 5 minutes for large files
+        })
+        .build();
+
+    let listen_addr: libp2p::Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", args.port).parse()?;
+    swarm.listen_on(listen_addr)?;
+
+    let (mut server, mut event_receiver) = FileTransferServer::with_swarm(swarm, args.info_path)?;
 
     // Share the specified files
     for file_path in args.files {
@@ -78,15 +97,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Run the server event loop in a separate task
     let server_handle = tokio::spawn(async move {
-        if let Err(e) = server.run().await {
-            eprintln!("Server error: {}", e);
+        loop {
+            tokio::select! {
+                swarm_event = server.swarm.select_next_some() => {
+                    match swarm_event {
+                        libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::RequestResponse(event)) => {
+                            if let Err(e) = server.handle_request_response_event(event) {
+                                eprintln!("Server error handling event: {}", e);
+                            }
+                        }
+                        libp2p::swarm::SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                            println!("Connection established with {}", peer_id);
+                        }
+                        libp2p::swarm::SwarmEvent::IncomingConnectionError { local_addr, send_back_addr, error, .. } => {
+                            eprintln!("Incoming connection error from {} to {}: {}", send_back_addr, local_addr, error);
+                        }
+                        libp2p::swarm::SwarmEvent::ListenerClosed { addresses, reason, .. } => {
+                            eprintln!("Listener closed on {:?}: {:?}", addresses, reason);
+                        }
+                        libp2p::swarm::SwarmEvent::ListenerError { error, .. } => {
+                            eprintln!("Listener error: {}", error);
+                        }
+                        _ => {}
+                    }
+                }
+                _ = tokio::signal::ctrl_c() => {
+                    println!("Ctrl+C received, shutting down...");
+                    break;
+                }
+            }
         }
     });
 
-    // Wait for Ctrl+C
-    tokio::signal::ctrl_c().await?;
-    println!("Shutting down server...");
-    server_handle.abort();
-
+    server_handle.await?;
     Ok(())
 }

@@ -1,5 +1,6 @@
 use clap::Parser;
-use gigi_downloading::{ClientConfig, ComposedEvent, FileTransferClient, FileTransferEvent};
+use gigi_downloading::{ComposedEvent, FileTransferClient, FileTransferEvent};
+use libp2p::SwarmBuilder;
 use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
 
@@ -27,11 +28,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Args::parse();
 
-    let server_addr: libp2p::Multiaddr = args.addr.parse()?;
+    let _server_addr: libp2p::Multiaddr = args.addr.parse()?;
 
-    let config = ClientConfig { server_addr };
+    // Create identity and behaviour
+    let id_keys = libp2p::identity::Keypair::generate_ed25519();
+    let behaviour = FileTransferClient::create_behaviour()?;
 
-    let (mut client, mut event_receiver) = FileTransferClient::new(config).await?;
+    let mut swarm = SwarmBuilder::with_existing_identity(id_keys)
+        .with_tokio()
+        .with_tcp(
+            libp2p::tcp::Config::default(),
+            libp2p::noise::Config::new,
+            libp2p::yamux::Config::default,
+        )?
+        .with_behaviour(|_| behaviour)?
+        .with_swarm_config(|c| {
+            c.with_idle_connection_timeout(std::time::Duration::from_secs(300))
+            // 5 minutes for large files
+        })
+        .build();
+
+    swarm.dial(args.addr.parse::<libp2p::Multiaddr>()?)?;
+
+    let (mut client, mut event_receiver) = FileTransferClient::with_swarm(swarm)?;
     println!("DEBUG: Client created successfully");
 
     println!("Connecting to server at {}", args.addr);
@@ -62,7 +81,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::RequestResponse(event)) => {
-                        client.handle_request_response_event(event).await?;
+                        let events = client.handle_request_response_event(event)?;
+                        for event in events {
+                            let _ = client.event_sender.unbounded_send(event);
+                        }
                     }
                     _ => {}
                 }
@@ -107,6 +129,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         return Ok(());
                                     }
                                     _ => {}
+                                }
+                            }
+                            FileTransferEvent::ChunkReceived { file_id, chunk_index, chunk, .. } => {
+                                // Handle chunk processing and forward events
+                                match client.handle_chunk_received(
+                                    file_id.clone(),
+                                    chunk_index,
+                                    chunk,
+                                ).await {
+                                    Ok(events) => {
+                                        for event in events {
+                                            let _ = client.event_sender.unbounded_send(event);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to handle chunk: {}", e);
+                                    }
                                 }
                             }
                             FileTransferEvent::DownloadProgress { file_id: _, downloaded_chunks, total_chunks } => {
