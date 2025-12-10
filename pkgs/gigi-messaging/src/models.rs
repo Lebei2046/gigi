@@ -1,14 +1,19 @@
-use serde::{Deserialize, Serialize};
+/// Simple message models for gigi-messaging
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct MessageReceivedEvent {
-  pub topic: String,
-  pub data: String,
-  pub sender: String,
+/// Message structure for group messaging
+#[derive(Debug, Clone)]
+pub struct GroupMessage {
+    pub topic: String,
+    pub sender: String,
+    pub content: String,
+    pub timestamp: u64,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct PeerDiscoveredEvent {
-  pub id: String,
-  pub addresses: Vec<String>,
+/// Direct message between peers
+#[derive(Debug, Clone)]
+pub struct DirectMessage {
+    pub to: String,
+    pub from: String,
+    pub content: String,
+    pub timestamp: u64,
 }

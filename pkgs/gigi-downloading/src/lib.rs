@@ -7,11 +7,10 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use async_trait::async_trait;
 use futures::channel::mpsc;
 use libp2p::{
     core::Multiaddr,
-    request_response::{self, OutboundRequestId, ProtocolSupport, ResponseChannel},
+    request_response::{self, cbor, OutboundRequestId, ProtocolSupport, ResponseChannel},
     swarm::{NetworkBehaviour, Swarm},
     PeerId, StreamProtocol,
 };
@@ -76,90 +75,21 @@ pub struct DownloadingFile {
     pub max_concurrent_requests: usize,
 }
 
+/// NetworkBehaviour for file transfer
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "ComposedEvent")]
+#[behaviour(out_event = "FileTransferBehaviourEvent")]
 pub struct FileTransferBehaviour {
-    request_response: request_response::Behaviour<FileTransferCodec>,
+    pub request_response: cbor::Behaviour<Request, Response>,
 }
 
 #[derive(Debug)]
-pub enum ComposedEvent {
+pub enum FileTransferBehaviourEvent {
     RequestResponse(request_response::Event<Request, Response>),
 }
 
-impl From<request_response::Event<Request, Response>> for ComposedEvent {
+impl From<request_response::Event<Request, Response>> for FileTransferBehaviourEvent {
     fn from(event: request_response::Event<Request, Response>) -> Self {
-        ComposedEvent::RequestResponse(event)
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct FileTransferCodec;
-
-#[async_trait]
-impl request_response::Codec for FileTransferCodec {
-    type Protocol = StreamProtocol;
-    type Request = Request;
-    type Response = Response;
-
-    async fn read_request<T>(
-        &mut self,
-        _: &Self::Protocol,
-        io: &mut T,
-    ) -> std::io::Result<Self::Request>
-    where
-        T: futures::AsyncRead + Unpin + Send,
-    {
-        let mut buf = vec![];
-        futures::io::AsyncReadExt::read_to_end(io, &mut buf).await?;
-        serde_json::from_slice(&buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-    }
-
-    async fn read_response<T>(
-        &mut self,
-        _: &Self::Protocol,
-        io: &mut T,
-    ) -> std::io::Result<Self::Response>
-    where
-        T: futures::AsyncRead + Unpin + Send,
-    {
-        let mut buf = vec![];
-        futures::io::AsyncReadExt::read_to_end(io, &mut buf).await?;
-        serde_json::from_slice(&buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-    }
-
-    async fn write_request<T>(
-        &mut self,
-        _: &Self::Protocol,
-        io: &mut T,
-        req: Self::Request,
-    ) -> std::io::Result<()>
-    where
-        T: futures::AsyncWrite + Unpin + Send,
-    {
-        let data = serde_json::to_vec(&req)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        futures::io::AsyncWriteExt::write_all(io, &data).await?;
-        futures::io::AsyncWriteExt::close(io).await?;
-        Ok(())
-    }
-
-    async fn write_response<T>(
-        &mut self,
-        _: &Self::Protocol,
-        io: &mut T,
-        res: Self::Response,
-    ) -> std::io::Result<()>
-    where
-        T: futures::AsyncWrite + Unpin + Send,
-    {
-        let data = serde_json::to_vec(&res)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        futures::io::AsyncWriteExt::write_all(io, &data).await?;
-        futures::io::AsyncWriteExt::close(io).await?;
-        Ok(())
+        FileTransferBehaviourEvent::RequestResponse(event)
     }
 }
 
@@ -252,14 +182,13 @@ impl FileTransferServer {
 
     /// Create a file transfer behaviour for external swarm creation
     pub fn create_behaviour() -> Result<FileTransferBehaviour> {
-        let behaviour = FileTransferBehaviour {
-            request_response: request_response::Behaviour::new(
-                [(StreamProtocol::new(PROTOCOL_NAME), ProtocolSupport::Full)],
-                request_response::Config::default()
-                    .with_request_timeout(std::time::Duration::from_secs(60)), // 1 minute per chunk
-            ),
-        };
-        Ok(behaviour)
+        let request_response = cbor::Behaviour::new(
+            [(StreamProtocol::new(PROTOCOL_NAME), ProtocolSupport::Full)],
+            request_response::Config::default()
+                .with_request_timeout(std::time::Duration::from_secs(60)), // 1 minute per chunk
+        );
+
+        Ok(FileTransferBehaviour { request_response })
     }
 
     pub fn share_file(&mut self, file_path: &Path) -> Result<String> {
@@ -358,6 +287,18 @@ impl FileTransferServer {
             .filter(|f| !f.revoked)
             .map(|f| f.info.clone())
             .collect()
+    }
+
+    /// Handle a single file transfer event and return structured events
+    pub fn handle_file_transfer_event(
+        &mut self,
+        event: FileTransferBehaviourEvent,
+    ) -> Result<Vec<FileTransferEvent>> {
+        match event {
+            FileTransferBehaviourEvent::RequestResponse(req_resp_event) => {
+                self.handle_request_response_event(req_resp_event)
+            }
+        }
     }
 
     /// Handle a single request-response event and return structured events
@@ -517,14 +458,13 @@ impl FileTransferClient {
 
     /// Create a file transfer behaviour for external swarm creation
     pub fn create_behaviour() -> Result<FileTransferBehaviour> {
-        let behaviour = FileTransferBehaviour {
-            request_response: request_response::Behaviour::new(
-                [(StreamProtocol::new(PROTOCOL_NAME), ProtocolSupport::Full)],
-                request_response::Config::default()
-                    .with_request_timeout(std::time::Duration::from_secs(60)), // 1 minute per chunk
-            ),
-        };
-        Ok(behaviour)
+        let request_response = cbor::Behaviour::new(
+            [(StreamProtocol::new(PROTOCOL_NAME), ProtocolSupport::Full)],
+            request_response::Config::default()
+                .with_request_timeout(std::time::Duration::from_secs(60)), // 1 minute per chunk
+        );
+
+        Ok(FileTransferBehaviour { request_response })
     }
 
     pub async fn get_file_info(&mut self, file_id: &str) -> Result<()> {
@@ -599,6 +539,18 @@ impl FileTransferClient {
         }
 
         Ok(())
+    }
+
+    /// Handle a single file transfer event and return structured events
+    pub fn handle_file_transfer_event(
+        &mut self,
+        event: FileTransferBehaviourEvent,
+    ) -> Result<Vec<FileTransferEvent>> {
+        match event {
+            FileTransferBehaviourEvent::RequestResponse(req_resp_event) => {
+                self.handle_request_response_event(req_resp_event)
+            }
+        }
     }
 
     /// Handle a single request-response event and return structured events

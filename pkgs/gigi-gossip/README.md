@@ -160,10 +160,10 @@ Run the chat example:
 
 ```bash
 # Terminal 1
-cargo run --package gigi-gossip --features examples --example chat -- --nickname Alice --topic test-chat
+cargo run --package gigi-gossip --example chat -- --nickname Alice --topic test-chat
 
 # Terminal 2  
-cargo run --package gigi-gossip --features examples --example chat -- --nickname Bob --topic test-chat
+cargo run --package gigi-gossip --example chat -- --nickname Bob --topic test-chat
 ```
 
 ### Testing
@@ -191,7 +191,7 @@ The chat supports:
 
 ## Features
 
-- `examples` - Include example dependencies and build examples
+No optional features - all functionality is included by default.
 
 ## Dependencies
 

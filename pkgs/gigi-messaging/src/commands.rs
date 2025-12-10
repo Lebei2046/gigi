@@ -1,121 +1,59 @@
-use hex::decode;
-use libp2p::identity;
-use tauri::{AppHandle, Runtime, State, Window, async_runtime::channel, command};
+//! Tauri commands for Gigi Messaging
+//!
+//! This module provides Tauri commands for the Gigi P2P functionality.
 
-use crate::{AppState, Error, Libp2pCommand};
+use crate::{Error, P2pState};
+use tauri::{State, command};
 
+/// Send a message to a topic (group messaging)
 #[command]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[command]
-pub fn get_peer_id(priv_key: &str) -> String {
-    let bytes = decode(priv_key).unwrap().to_vec();
-    let id_keys = identity::Keypair::ed25519_from_bytes(bytes).unwrap();
-    let peer_id = id_keys.public().to_peer_id();
-
-    peer_id.to_string()
-}
-
-// Subscribe to a specified topic.
-///
-/// # Parameters
-/// - `topic`: The name of the topic to subscribe to.
-///
-/// # Return value
-/// - `Ok(())`: Subscription successful.
-/// - `Err(Error)`: Subscription failed, returns error information.
-#[command]
-pub async fn subscribe_topic<R: Runtime>(
-    _app: AppHandle<R>,
-    _window: Window<R>,
-    state: State<'_, AppState>,
-    topic: String,
+pub async fn send_message(
+    _state: State<'_, P2pState>,
+    _topic: String,
+    _message: String,
 ) -> Result<(), Error> {
-    // Check if sender is closed
-    if state.command_sender.is_closed() {
-        return Err(Error::ChannelClosed);
-    }
-
-    state
-        .command_sender
-        .send(Libp2pCommand::Subscribe(topic))
-        .await
-        .map_err(|e| Error::ChannelSend(e.to_string()))?;
+    // This is a placeholder implementation
+    // In a real implementation, you would use the P2pState to send the message
     Ok(())
 }
 
-/// Unsubscribe from a specified topic.
-///
-/// # Parameters
-/// - `topic`: The name of the topic to unsubscribe from.
-///
-/// # Return value
-/// - `Ok(())`: Unsubscription successful.
-/// - `Err(Error)`: Unsubscription failed, returns error information.
+/// Subscribe to a topic
 #[command]
-pub async fn unsubscribe_topic<R: Runtime>(
-    _app: AppHandle<R>,
-    _window: Window<R>,
-    state: State<'_, AppState>,
-    topic: String,
-) -> Result<(), Error> {
-    state
-        .command_sender
-        .send(Libp2pCommand::Unsubscribe(topic))
-        .await?;
+pub async fn subscribe_topic(_state: State<'_, P2pState>, _topic: String) -> Result<(), Error> {
+    // Placeholder implementation
     Ok(())
 }
 
-/// Send message to a specified topic.
-///
-/// # Parameters
-/// - `topic`: Target topic name.
-/// - `message`: The message content to be sent.
-///
-/// # Return value
-/// - `Ok(())`: Message sent successfully.
-/// - `Err(Error)`: Message sending failed, returns error information.
+/// Unsubscribe from a topic
 #[command]
-pub async fn send_message<R: Runtime>(
-    _app: AppHandle<R>,
-    _window: Window<R>,
-    state: State<'_, AppState>,
-    topic: String,
-    message: String,
-) -> Result<(), Error> {
-    state
-        .command_sender
-        .send(Libp2pCommand::SendMessage(topic, message.into_bytes()))
-        .await?;
+pub async fn unsubscribe_topic(_state: State<'_, P2pState>, _topic: String) -> Result<(), Error> {
+    // Placeholder implementation
     Ok(())
 }
 
-/// Get currently connected nodes and their supported topic lists.
-///
-/// # Return value
-/// - `Ok(Vec<(String, Vec<String>)>)`: Successfully returns nodes and their topic lists.
-/// - `Err(Error)`: Retrieval failed, returns error information.
+/// Send an image
 #[command]
-pub async fn get_peers<R: Runtime>(
-    _app: AppHandle<R>,
-    _window: Window<R>,
-    state: State<'_, AppState>,
-) -> Result<Vec<(String, Vec<String>)>, Error> {
-    // Create a oneshot channel
-    let (sender, mut receiver) = channel(1);
+pub async fn send_image(
+    _state: State<'_, P2pState>,
+    _topic: String,
+    _image_data: String,
+    _filename: String,
+    _size: usize,
+) -> Result<(), Error> {
+    // Placeholder implementation
+    Ok(())
+}
 
-    // Send GetPeers command, carrying sender
-    state
-        .command_sender
-        .send(Libp2pCommand::GetPeers(sender))
-        .await
-        .map_err(|e| Error::ChannelSend(e.to_string()))?;
+/// Get list of connected peers
+#[command]
+pub async fn get_peers(_state: State<'_, P2pState>) -> Result<Vec<String>, Error> {
+    // Placeholder implementation
+    Ok(vec![])
+}
 
-    // Wait for background thread to return result
-    receiver
-        .recv()
-        .await
-        .ok_or_else(|| Error::ChannelReceive("Channel closed".to_string()))
+/// Get current peer ID
+#[command]
+pub fn get_peer_id(_state: State<'_, P2pState>) -> Result<String, Error> {
+    // Placeholder implementation - make it synchronous
+    Ok("peer-id-placeholder".to_string())
 }

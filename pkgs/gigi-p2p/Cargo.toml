@@ -1,23 +1,32 @@
 [package]
-name = "gigi-gossip"
-version = "0.1.0"
+name = "gigi-p2p"
+version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-gigi-mdns = { path = "../gigi-mdns" }
 libp2p = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }
-tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 humantime = { workspace = true }
+thiserror = { workspace = true }
+bytes = { workspace = true }
+blake3 = { workspace = true }
+sha2 = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 clap = { workspace = true }
+crossterm = { workspace = true }
+indicatif = { workspace = true }
+console = { workspace = true }
+tokio-util = { workspace = true, features = ["codec"] }
+chrono = { workspace = true }
 
 [[example]]
 name = "chat"

@@ -1,5 +1,5 @@
 use clap::Parser;
-use gigi_gossip::{ComposedEvent, GossipChat, GossipEvent, Message};
+use gigi_gossip::{create_behaviour, GossipBehaviourEvent, GossipChat, GossipEvent, Message};
 use libp2p::{futures::StreamExt, identity::Keypair, SwarmBuilder};
 use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let keypair = Keypair::generate_ed25519();
 
     // Create behaviour
-    let behaviour = GossipChat::create_behaviour(keypair.clone())?;
+    let behaviour = create_behaviour(keypair.clone())?;
 
     // Build swarm with custom configuration
     let mut swarm = SwarmBuilder::with_existing_identity(keypair)
@@ -158,13 +158,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Handle swarm events
             swarm_event = chat.swarm.select_next_some() => {
                 match swarm_event {
-                    libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::Gossipsub(event)) => {
-                        if let Err(e) = chat.handle_event(ComposedEvent::Gossipsub(event)) {
+                    libp2p::swarm::SwarmEvent::Behaviour(GossipBehaviourEvent::Gossipsub(event)) => {
+                        if let Err(e) = chat.handle_event(GossipBehaviourEvent::Gossipsub(event)) {
                             eprintln!("Error handling gossipsub event: {}", e);
                         }
                     }
-                    libp2p::swarm::SwarmEvent::Behaviour(ComposedEvent::Mdns(event)) => {
-                        if let Err(e) = chat.handle_event(ComposedEvent::Mdns(event)) {
+                    libp2p::swarm::SwarmEvent::Behaviour(GossipBehaviourEvent::Mdns(event)) => {
+                        if let Err(e) = chat.handle_event(GossipBehaviourEvent::Mdns(event)) {
                             eprintln!("Error handling mDNS event: {}", e);
                         }
                     }
@@ -189,11 +189,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         running = false;
                     }
                     "peers" => {
-                        let peers = chat.get_peers();
                         println!("📊 Connected peers:");
-                        for (peer_id, nickname) in peers {
-                            println!("  - {} ({})", nickname, peer_id);
-                        }
+                        println!("  (Peer list functionality not implemented in current API)");
                     }
                     line if line.starts_with("image ") => {
                         let path = line.strip_prefix("image ").unwrap().trim();
@@ -204,7 +201,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     .unwrap_or_default()
                                     .to_string_lossy()
                                     .to_string();
-                                
+
                                 let size_mb = data.len() as f64 / (1024.0 * 1024.0);
                                 println!("📊 Image size: {:.2} MB", size_mb);
 

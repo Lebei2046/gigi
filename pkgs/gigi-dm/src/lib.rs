@@ -3,8 +3,8 @@ use base64::{engine::general_purpose, Engine as _};
 use bytes::Bytes;
 use libp2p::{
     core::Multiaddr,
-    request_response::{self, ProtocolSupport},
-    swarm::Swarm,
+    request_response::{self, json, ProtocolSupport},
+    swarm::{NetworkBehaviour, Swarm},
     PeerId, StreamProtocol,
 };
 use serde::{Deserialize, Serialize};
@@ -30,9 +30,25 @@ pub enum Response {
     Error(String),
 }
 
-// Using JSON codec provided by libp2p
-type MessagingBehaviour = request_response::json::Behaviour<Message, Response>;
+/// NetworkBehaviour for direct messaging
+#[derive(NetworkBehaviour)]
+#[behaviour(out_event = "DirectMessagingEvent")]
+pub struct DirectMessagingBehaviour {
+    pub request_response: json::Behaviour<Message, Response>,
+}
 
+#[derive(Debug)]
+pub enum DirectMessagingEvent {
+    RequestResponse(request_response::Event<Message, Response>),
+}
+
+impl From<request_response::Event<Message, Response>> for DirectMessagingEvent {
+    fn from(event: request_response::Event<Message, Response>) -> Self {
+        DirectMessagingEvent::RequestResponse(event)
+    }
+}
+
+/// High-level messaging events
 #[derive(Debug, Clone)]
 pub enum MessagingEvent {
     MessageReceived { peer: PeerId, message: Message },
@@ -43,14 +59,15 @@ pub enum MessagingEvent {
     ResponseSent,
 }
 
+/// High-level interface for direct messaging
 pub struct DirectMessaging {
-    pub swarm: Swarm<MessagingBehaviour>,
+    pub swarm: Swarm<DirectMessagingBehaviour>,
     local_peer_id: PeerId,
 }
 
 impl DirectMessaging {
     /// Create DirectMessaging with existing swarm
-    pub fn with_swarm(swarm: Swarm<MessagingBehaviour>) -> Result<Self> {
+    pub fn with_swarm(swarm: Swarm<DirectMessagingBehaviour>) -> Result<Self> {
         let local_peer_id = *swarm.local_peer_id();
 
         let messaging = Self {
@@ -62,15 +79,16 @@ impl DirectMessaging {
     }
 
     /// Create a messaging behaviour for external swarm creation
-    pub fn create_behaviour(config: request_response::Config) -> Result<MessagingBehaviour> {
-        let behaviour = MessagingBehaviour::new(
+    pub fn create_behaviour(config: request_response::Config) -> Result<DirectMessagingBehaviour> {
+        let request_response = json::Behaviour::new(
             [(
                 StreamProtocol::new(MESSAGING_PROTOCOL),
                 ProtocolSupport::Full,
             )],
             config,
         );
-        Ok(behaviour)
+
+        Ok(DirectMessagingBehaviour { request_response })
     }
 
     pub fn start_listening(&mut self, port: u16) -> Result<Multiaddr> {
@@ -96,6 +114,7 @@ impl DirectMessaging {
         let _request_id = self
             .swarm
             .behaviour_mut()
+            .request_response
             .send_request(&peer_id, message.clone());
 
         // Store pending request for response handling
@@ -116,6 +135,18 @@ impl DirectMessaging {
         self.local_peer_id
     }
 
+    /// Handle a direct messaging event and return display information
+    pub async fn handle_messaging_event(
+        &mut self,
+        event: DirectMessagingEvent,
+    ) -> Result<Option<MessagingEvent>> {
+        match event {
+            DirectMessagingEvent::RequestResponse(req_resp_event) => {
+                self.handle_request_response_event(req_resp_event).await
+            }
+        }
+    }
+
     /// Handle a request-response event from the swarm and return display information
     pub async fn handle_request_response_event(
         &mut self,
@@ -133,6 +164,7 @@ impl DirectMessaging {
                         let _ = self
                             .swarm
                             .behaviour_mut()
+                            .request_response
                             .send_response(channel, Response::Ack);
 
                         // Return the received message for display
