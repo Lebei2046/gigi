@@ -46,3 +46,4 @@ Commands to implement
 **Don't use `tui` in `chat.rs`**
 
 **Make sure the dependencies come from the workspace to gurantee the compatibility.**
+# Modified NOTES.md

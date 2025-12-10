@@ -20,6 +20,10 @@ struct Args {
     /// Directory for saving files
     #[arg(short, long, default_value = "downloads")]
     output: PathBuf,
+
+    /// File for recording shared file information
+    #[arg(long, default_value = "shared.json")]
+    shared: PathBuf,
 }
 
 fn show_help() {
@@ -32,6 +36,7 @@ fn show_help() {
     println!("  │  join <group>            Join a group            │");
     println!("  │  leave <group>           Leave a group           │");
     println!("  │  send-group <grp> <msg>  Send to group           │");
+    println!("  │  send-group-image <grp> <path> Send group image   │");
     println!("  │  share <path>            Share a file            │");
     println!("  │  files, f                List shared files       │");
     println!("  │  download <nick> <code>  Download shared file    │");
@@ -43,7 +48,7 @@ fn show_help() {
     println!("  • Files are automatically saved to downloads/");
 }
 
-async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf) {
+async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pClient) {
     match event {
         P2pEvent::PeerDiscovered {
             peer_id,
@@ -99,6 +104,26 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf) {
             group,
             message,
         } => {
+            // Check if this is an image message with download command
+            if message.contains("🖼️") && message.starts_with("/download") {
+                let parts: Vec<&str> = message.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let share_code = parts[1];
+                    println!(
+                        "🖼️ [{}/{}]: {} ({}) sent image, downloading...",
+                        group, from_nickname, from, from_nickname
+                    );
+
+                    // Download the file (need to use a mutable reference)
+                    // For now, we'll just print the command for the user to execute manually
+                    println!(
+                        "💡 To download this image, run: download {} {}",
+                        from_nickname, share_code
+                    );
+                    return;
+                }
+            }
+
             println!(
                 "📢 [{}/{}]: {} ({}): {}",
                 group, from_nickname, from, from_nickname, message
@@ -110,25 +135,59 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf) {
             group,
             filename,
             data,
+            message,
         } => {
-            let file_path = output_dir.join(&filename);
-            match fs::write(&file_path, &data).await {
-                Ok(()) => {
+            // Check if this is the new format with share code (data is empty)
+            // or legacy format with embedded image data
+            if data.is_empty() {
+                // New format - extract share code from message and show download hint
+                if message.contains("🖼️") && message.starts_with("/download") {
+                    let parts: Vec<&str> = message.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        let share_code = parts[1];
+                        println!(
+                            "🖼️ [{}/{}]: {} ({}) sent image: {} - Use 'download {} {}' to get it",
+                            group,
+                            from_nickname,
+                            from,
+                            from_nickname,
+                            filename,
+                            from_nickname,
+                            share_code
+                        );
+                    } else {
+                        println!(
+                            "🖼️ [{}/{}]: {} ({}) sent image: {}",
+                            group, from_nickname, from, from_nickname, filename
+                        );
+                    }
+                } else {
                     println!(
-                        "🖼️ [{}/{}]: {} ({}) sent image: {} (saved to {})",
-                        group,
-                        from_nickname,
-                        from,
-                        from_nickname,
-                        filename,
-                        file_path.display()
+                        "🖼️ [{}/{}]: {} ({}) sent image: {}",
+                        group, from_nickname, from, from_nickname, filename
                     );
                 }
-                Err(e) => {
-                    println!(
-                        "❌ Failed to save group image from {} ({}): {}",
-                        from_nickname, from, e
-                    );
+            } else {
+                // Legacy mode - save directly embedded image data
+                let file_path = output_dir.join(&filename);
+                match fs::write(&file_path, &data).await {
+                    Ok(()) => {
+                        println!(
+                            "🖼️ [{}/{}]: {} ({}) sent image: {} (saved to {})",
+                            group,
+                            from_nickname,
+                            from,
+                            from_nickname,
+                            filename,
+                            file_path.display()
+                        );
+                    }
+                    Err(e) => {
+                        println!(
+                            "❌ Failed to save group image from {} ({}): {}",
+                            from_nickname, from, e
+                        );
+                    }
                 }
             }
         }
@@ -307,6 +366,21 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                 }
             }
         }
+        "send-group-image" | "sgi" => {
+            if parts.len() < 3 {
+                println!("❌ Usage: send-group-image <group> <image-path>");
+            } else {
+                let group = parts[1];
+                let image_path = parts[2];
+                match client
+                    .send_group_image(group, &PathBuf::from(image_path))
+                    .await
+                {
+                    Ok(()) => println!("✅ Image sent to group: {}", group),
+                    Err(e) => println!("❌ Failed to send image to group: {}", e),
+                }
+            }
+        }
         "share" | "sh" => {
             if parts.len() < 2 {
                 println!("❌ Usage: share <file-path>");
@@ -368,7 +442,7 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
     true
 }
 
-fn display_welcome(nickname: &str, port: u16, output_dir: &PathBuf) {
+fn display_welcome(nickname: &str, port: u16, output_dir: &PathBuf, shared_file: &PathBuf) {
     println!("🎯 Gigi P2P Chat - {}", nickname);
     if port == 0 {
         println!("📡 Port: Random (assigned by OS)");
@@ -376,6 +450,7 @@ fn display_welcome(nickname: &str, port: u16, output_dir: &PathBuf) {
         println!("📡 Port: {}", port);
     }
     println!("💾 Downloads: {:?}", output_dir);
+    println!("📋 Shared files: {:?}", shared_file);
     println!("🚀 Starting up...\n");
 
     println!("Welcome to Gigi P2P Chat! Type 'help' for commands.");
@@ -396,17 +471,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(&args.output).await?;
 
     // Create P2P client
-    let (mut client, mut event_receiver) = P2pClient::new(
+    let (mut client, mut event_receiver) = P2pClient::new_with_config(
         libp2p::identity::Keypair::generate_ed25519(),
         args.nickname.clone(),
         args.output.clone(),
+        args.shared.clone(),
     )?;
 
     // Start listening
     let listen_addr = format!("/ip4/0.0.0.0/tcp/{}", args.port).parse()?;
     client.start_listening(listen_addr)?;
 
-    display_welcome(&args.nickname, args.port, &args.output);
+    display_welcome(&args.nickname, args.port, &args.output, &args.shared);
 
     println!("🌐 Local Peer ID: {}", client.local_peer_id());
     println!("🔍 Starting mDNS discovery...");
@@ -449,7 +525,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Handle P2P events from the event receiver
             Some(event) = event_receiver.next() => {
-                handle_p2p_event(event, &args.output).await;
+                handle_p2p_event(event, &args.output, &client).await;
             }
 
             // Handle stdin input

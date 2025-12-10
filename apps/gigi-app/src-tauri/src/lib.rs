@@ -37,11 +37,7 @@ pub struct GroupMessageArgs {
     message: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct GroupImageArgs {
-    group: String,
-    image_path: String,
-}
+
 
 #[derive(Debug, Deserialize)]
 pub struct DownloadFileArgs {
@@ -124,11 +120,11 @@ async fn initialize_p2p(app: AppHandle, config: P2pConfig) -> Result<(), String>
                         "message": message
                     }),
                 },
-                gigi_p2p::P2pEvent::FileDownloadCompleted { filename, path, .. } => {
+                gigi_p2p::P2pEvent::FileDownloadCompleted { file_id, path, .. } => {
                     P2pEventFrontend {
                         event_type: "file_download_completed".to_string(),
                         data: serde_json::json!({
-                            "filename": filename,
+                            "file_id": file_id,
                             "path": path.to_string_lossy()
                         }),
                     }

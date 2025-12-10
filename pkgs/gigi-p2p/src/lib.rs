@@ -102,6 +102,7 @@ pub enum P2pEvent {
         group: String,
         filename: String,
         data: Vec<u8>,
+        message: String,
     },
     GroupJoined {
         group: String,
@@ -357,6 +358,7 @@ pub struct P2pClient {
     pub active_downloads: HashMap<String, DownloadInfo>,
     pub output_directory: PathBuf,
     pub persistent_dir: PathBuf,
+    pub shared_file_path: PathBuf,
 
     // Event handling
     pub event_sender: mpsc::UnboundedSender<P2pEvent>,
@@ -379,6 +381,21 @@ impl P2pClient {
         keypair: Keypair,
         nickname: String,
         output_directory: PathBuf,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
+        Self::new_with_config(
+            keypair,
+            nickname,
+            output_directory,
+            PathBuf::from("shared.json"),
+        )
+    }
+
+    /// Create a new P2P client with custom shared file path
+    pub fn new_with_config(
+        keypair: Keypair,
+        nickname: String,
+        output_directory: PathBuf,
+        shared_file_path: PathBuf,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
         let (event_sender, event_receiver) = mpsc::unbounded();
 
@@ -456,6 +473,7 @@ impl P2pClient {
             active_downloads: HashMap::new(),
             output_directory,
             persistent_dir,
+            shared_file_path,
             event_sender,
         };
 
@@ -633,6 +651,7 @@ impl P2pClient {
                             group: group_name,
                             filename: group_message.filename.unwrap_or_default(),
                             data: group_message.data.unwrap_or_default(),
+                            message: group_message.content.clone(),
                         });
                     } else {
                         self.send_event(P2pEvent::GroupMessage {
@@ -943,28 +962,34 @@ impl P2pClient {
     }
 
     /// Send image to group
-    pub fn send_group_image(&mut self, group_name: &str, image_path: &Path) -> Result<()> {
-        let group = self
-            .groups
-            .get(group_name)
-            .ok_or_else(|| P2pError::GroupNotFound(group_name.to_string()))?;
+    pub async fn send_group_image(&mut self, group_name: &str, image_path: &Path) -> Result<()> {
+        let group_topic = {
+            let group = self
+                .groups
+                .get(group_name)
+                .ok_or_else(|| P2pError::GroupNotFound(group_name.to_string()))?;
+            group.topic.clone()
+        };
 
-        let data = std::fs::read(image_path)?;
+        // First share the file to get a share code
+        let share_code = self.share_file(image_path).await?;
+
         let filename = image_path
             .file_name()
             .and_then(|n| n.to_str())
             .ok_or_else(|| P2pError::FileNotFound(image_path.to_path_buf()))?
             .to_string();
 
+        // Send a message with the share code instead of the raw image data
         let group_message = GroupMessage {
             sender_nickname: self.local_nickname.clone(),
-            content: "".to_string(),
+            content: format!("/download {} 🖼️", share_code),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?
                 .as_secs(),
             is_image: true,
-            filename: Some(filename.clone()),
-            data: Some(data),
+            filename: Some(filename),
+            data: None, // No raw data, just share code in content
         };
 
         let msg_data = serde_json::to_vec(&group_message)?;
@@ -972,7 +997,7 @@ impl P2pClient {
         self.swarm
             .behaviour_mut()
             .gossipsub
-            .publish(group.topic.clone(), msg_data)?;
+            .publish(group_topic, msg_data)?;
 
         Ok(())
     }
@@ -993,7 +1018,56 @@ impl P2pClient {
         // Calculate file hash
         let hash = self.calculate_file_hash(&path)?;
 
-        // Generate share code and file ID
+        // Check if file is already shared
+        if let Some((existing_share_code, existing_shared_file)) = self
+            .shared_files
+            .iter()
+            .find(|(_, shared_file)| shared_file.path == path)
+        {
+            // File already shared, check if it has changed
+            if existing_shared_file.info.hash == hash {
+                // File unchanged, return existing share code
+                println!(
+                    "📂 File '{}' already shared with code: {} (unchanged)",
+                    filename, existing_share_code
+                );
+                return Ok(existing_share_code.clone());
+            } else {
+                // File changed, update the existing entry
+                let updated_info = FileInfo {
+                    id: existing_shared_file.info.id.clone(),
+                    name: filename.clone(),
+                    size: metadata.len(),
+                    hash: hash.clone(),
+                    chunk_count: (metadata.len() as usize + CHUNK_SIZE - 1) / CHUNK_SIZE,
+                    created_at: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)?
+                        .as_secs(),
+                };
+
+                let share_code = existing_share_code.clone();
+                let updated_shared_file = SharedFile {
+                    info: updated_info,
+                    path: path.clone(),
+                    share_code: share_code.clone(),
+                    revoked: false,
+                };
+
+                self.shared_files
+                    .insert(share_code.clone(), updated_shared_file);
+                self.save_shared_files()?;
+
+                println!(
+                    "📂 Updated file '{}' (hash: {}) with existing code: {}",
+                    filename,
+                    &hash[..8],
+                    share_code
+                );
+                return Ok(share_code);
+            }
+        }
+
+        // New file, create new entry
         let share_code = self.generate_share_code(&filename);
         let file_id = share_code.clone();
 
@@ -1094,7 +1168,12 @@ impl P2pClient {
 
     /// Load shared files from persistent storage
     fn load_shared_files(&mut self) -> Result<()> {
-        let shared_files_path = self.persistent_dir.join("shared_files.json");
+        // For relative paths, use current working directory, not persistent_dir
+        let shared_files_path = if self.shared_file_path.is_absolute() {
+            self.shared_file_path.clone()
+        } else {
+            std::env::current_dir()?.join(&self.shared_file_path)
+        };
 
         if shared_files_path.exists() {
             let content = std::fs::read_to_string(&shared_files_path)?;
@@ -1167,8 +1246,21 @@ impl P2pClient {
 
     /// Save shared files to persistent storage
     fn save_shared_files(&self) -> Result<()> {
-        std::fs::create_dir_all(&self.persistent_dir)?;
-        let shared_files_path = self.persistent_dir.join("shared_files.json");
+        let shared_files_path = if self.shared_file_path.is_absolute() {
+            self.shared_file_path
+                .parent()
+                .map(|p| std::fs::create_dir_all(p))
+                .transpose()?
+                .unwrap_or(());
+            self.shared_file_path.clone()
+        } else {
+            // For relative paths, use current working directory
+            let path = std::env::current_dir()?.join(&self.shared_file_path);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            path
+        };
 
         let content = serde_json::to_string_pretty(&self.shared_files)?;
         std::fs::write(&shared_files_path, content)?;
