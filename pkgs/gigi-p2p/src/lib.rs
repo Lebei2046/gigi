@@ -580,7 +580,10 @@ impl P2pClient {
                         .send_response(channel, response);
                 }
                 request_response::Message::Response { response, .. } => {
-                    println!("📨 Received nickname response from {}: {:?}", peer, response);
+                    println!(
+                        "📨 Received nickname response from {}: {:?}",
+                        peer, response
+                    );
                     if let NicknameResponse::Nickname { nickname, .. } = response {
                         self.update_peer_nickname(peer, nickname);
                     }
@@ -872,7 +875,7 @@ impl P2pClient {
                 });
             }
         }
-        
+
         Ok(())
     }
 

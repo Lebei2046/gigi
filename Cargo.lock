@@ -1858,11 +1858,20 @@ dependencies = [
 name = "gigi-messaging"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "dirs",
+ "futures",
  "gigi-p2p",
+ "libp2p 0.56.0",
  "serde",
+ "serde_json",
  "tauri",
  "thiserror 2.0.17",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

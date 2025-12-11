@@ -1,53 +1,43 @@
-use tokio::sync::mpsc::error::SendError;
+use thiserror::Error;
 
-/// Defines error types in the Gigi messaging plugin.
-///
-/// This enum covers various errors that may occur in the plugin, including I/O errors, configuration errors, network errors, etc.
-/// Each error variant provides detailed error information for debugging and handling.
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// I/O operation error.
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-
-    /// P2P service error.
-    #[error("P2P service error: {0}")]
-    P2pError(String),
-
-    /// Configuration error.
-    #[error("Configuration error: {0}")]
-    ConfigError(String),
-
-    /// Channel send error.
-    #[error("Channel send error: {0}")]
-    ChannelSend(String),
-
-    /// Channel receive error.
-    #[error("Channel receive error: {0}")]
-    ChannelReceive(String),
-
-    /// Channel closed error.
-    #[error("Channel closed")]
-    ChannelClosed,
-
-    /// Not implemented error.
-    #[error("Feature not implemented: {0}")]
-    NotImplemented(String),
-}
-
-// Implement conversion to Tauri's InvokeError
-impl From<Error> for tauri::ipc::InvokeError {
-    fn from(err: Error) -> Self {
-        tauri::ipc::InvokeError::from(err.to_string())
-    }
-}
-
-/// Convert from `SendError<T>` to `Error`.
-///
-/// Used for error conversion when channel sending fails.
-impl<T> From<SendError<T>> for Error {
-    fn from(err: SendError<T>) -> Self {
-        Error::ChannelSend(format!("Failed to send command: {}", err))
-    }
+#[derive(Debug, Error)]
+pub enum MessagingError {
+    #[error("P2P error: {0}")]
+    P2pError(#[from] gigi_p2p::P2pError),
+    
+    #[error("Client not initialized")]
+    NotInitialized,
+    
+    #[error("Invalid peer ID: {0}")]
+    InvalidPeerId(String),
+    
+    #[error("Invalid group name: {0}")]
+    InvalidGroupName(String),
+    
+    #[error("File not found: {0}")]
+    FileNotFound(String),
+    
+    #[error("Event channel closed")]
+    EventChannelClosed,
+    
+    #[error("Invalid private key format")]
+    InvalidPrivateKey,
+    
+    #[error("Key generation failed")]
+    KeyGenerationFailed,
+    
+    #[error("Key update failed")]
+    KeyUpdateFailed,
+    
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+    
+    #[error("Base64 decode error: {0}")]
+    Base64Error(#[from] base64::DecodeError),
+    
+    #[error("JSON error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    
+    #[error("Anyhow error: {0}")]
+    AnyhowError(#[from] anyhow::Error),
 }
