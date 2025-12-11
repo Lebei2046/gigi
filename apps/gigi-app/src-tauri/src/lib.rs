@@ -37,8 +37,6 @@ pub struct GroupMessageArgs {
     message: String,
 }
 
-
-
 #[derive(Debug, Deserialize)]
 pub struct DownloadFileArgs {
     nickname: String,

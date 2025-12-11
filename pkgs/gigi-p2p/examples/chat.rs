@@ -38,6 +38,7 @@ fn show_help() {
     println!("  │  send-group <grp> <msg>  Send to group           │");
     println!("  │  send-group-image <grp> <path> Send group image   │");
     println!("  │  share <path>            Share a file            │");
+    println!("  │  unshare <code>          Unshare a file          │");
     println!("  │  files, f                List shared files       │");
     println!("  │  download <nick> <code>  Download shared file    │");
     println!("  │  quit, exit, q           Exit the chat           │");
@@ -389,6 +390,17 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                 match client.share_file(&PathBuf::from(file_path)).await {
                     Ok(share_code) => println!("✅ File shared with code: {}", share_code),
                     Err(e) => println!("❌ Failed to share file: {}", e),
+                }
+            }
+        }
+        "unshare" | "ush" => {
+            if parts.len() < 2 {
+                println!("❌ Usage: unshare <share-code>");
+            } else {
+                let share_code = parts[1];
+                match client.unshare_file(share_code) {
+                    Ok(()) => println!("✅ File with code {} is no longer shared", share_code),
+                    Err(e) => println!("❌ Failed to unshare file: {}", e),
                 }
             }
         }

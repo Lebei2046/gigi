@@ -357,7 +357,6 @@ pub struct P2pClient {
     pub downloading_files: HashMap<String, DownloadingFile>,
     pub active_downloads: HashMap<String, DownloadInfo>,
     pub output_directory: PathBuf,
-    pub persistent_dir: PathBuf,
     pub shared_file_path: PathBuf,
 
     // Event handling
@@ -398,8 +397,6 @@ impl P2pClient {
         shared_file_path: PathBuf,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
         let (event_sender, event_receiver) = mpsc::unbounded();
-
-        let persistent_dir = output_directory.join(".gigi");
 
         // Create behaviours
         let mdns =
@@ -472,7 +469,6 @@ impl P2pClient {
             downloading_files: HashMap::new(),
             active_downloads: HashMap::new(),
             output_directory,
-            persistent_dir,
             shared_file_path,
             event_sender,
         };
@@ -1111,6 +1107,28 @@ impl P2pClient {
     /// List shared files
     pub fn list_shared_files(&self) -> Vec<&SharedFile> {
         self.shared_files.values().collect()
+    }
+
+    /// Unshare a file by share code
+    pub fn unshare_file(&mut self, share_code: &str) -> Result<()> {
+        if let Some(shared_file) = self.shared_files.remove(share_code) {
+            // Send event that file is revoked
+            self.send_event(P2pEvent::FileRevoked {
+                file_id: shared_file.info.id.clone(),
+            });
+
+            // Save updated shared files
+            self.save_shared_files()?;
+
+            println!(
+                "🗑️ Unshared file '{}' with share code: {}",
+                shared_file.info.name, share_code
+            );
+
+            Ok(())
+        } else {
+            Err(P2pError::InvalidShareCode(share_code.to_string()).into())
+        }
     }
 
     /// Download file from peer
