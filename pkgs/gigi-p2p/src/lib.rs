@@ -505,7 +505,8 @@ impl P2pClient {
                 }
             }
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                if let Some(peer) = self.peers.get(&peer_id) {
+                if let Some(peer) = self.peers.remove(&peer_id) {
+                    self.nickname_to_peer.remove(&peer.nickname);
                     self.send_event(P2pEvent::Disconnected {
                         peer_id,
                         nickname: peer.nickname.clone(),
@@ -571,6 +572,7 @@ impl P2pClient {
                             NicknameResponse::Ack
                         }
                     };
+                    println!("📤 Sending nickname response to {}: {:?}", peer, response);
                     let _ = self
                         .swarm
                         .behaviour_mut()
@@ -578,6 +580,7 @@ impl P2pClient {
                         .send_response(channel, response);
                 }
                 request_response::Message::Response { response, .. } => {
+                    println!("📨 Received nickname response from {}: {:?}", peer, response);
                     if let NicknameResponse::Nickname { nickname, .. } = response {
                         self.update_peer_nickname(peer, nickname);
                     }
@@ -854,6 +857,23 @@ impl P2pClient {
         if let Some(peer) = self.peers.remove(peer_id) {
             self.nickname_to_peer.remove(&peer.nickname);
         }
+    }
+
+    /// Gracefully shutdown the client and notify all peers
+    pub fn shutdown(&mut self) -> Result<()> {
+        // Close all connections and notify peers
+        let connected_peers: Vec<PeerId> = self.peers.keys().copied().collect();
+        for peer_id in connected_peers {
+            if let Some(peer) = self.peers.remove(&peer_id) {
+                self.nickname_to_peer.remove(&peer.nickname);
+                self.send_event(P2pEvent::Disconnected {
+                    peer_id,
+                    nickname: peer.nickname.clone(),
+                });
+            }
+        }
+        
+        Ok(())
     }
 
     /// List all discovered peers

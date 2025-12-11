@@ -438,6 +438,10 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
         }
         "quit" | "exit" | "q" => {
             println!("👋 Goodbye!");
+            // Gracefully shutdown the P2P client
+            if let Err(e) = client.shutdown() {
+                println!("⚠️ Error during shutdown: {}", e);
+            }
             return false;
         }
         _ => {
