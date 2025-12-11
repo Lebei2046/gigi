@@ -1863,6 +1863,7 @@ dependencies = [
  "dirs",
  "futures",
  "gigi-p2p",
+ "hex",
  "libp2p 0.56.0",
  "serde",
  "serde_json",
@@ -1878,12 +1879,14 @@ dependencies = [
 name = "gigi-mobile"
 version = "0.1.0"
 dependencies = [
- "gigi-messaging",
+ "hex",
+ "libp2p 0.56.0",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "tokio",
 ]
 
 [[package]]

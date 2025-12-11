@@ -6,7 +6,7 @@ import { keccak_256 } from '@noble/hashes/sha3';
 import { getPublicKey } from '@noble/secp256k1';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { randomBytes, hexToBytes, bytesToHex } from '@noble/hashes/utils';
-import { getPeerId } from './messaging';
+import { tryGetPeerId } from './messaging';
 
 /**
  * Functions for generating mnemonics, deriving keys, encrypting and decrypting
@@ -73,7 +73,7 @@ export async function generateAddress(mnemonic: string[]): Promise<AddressInfo> 
   const { privateKey } = deriveKeys(mnemonic);
 
   const address = getAddressByPrivateKey(privateKey);
-  const peerId = await getPeerId(privateKey);
+  const peerId = await tryGetPeerId(privateKey);
 
   return { address, peerId };
 }

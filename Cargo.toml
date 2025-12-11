@@ -3,7 +3,6 @@ resolver = "2"
 members = [
   "apps/gigi-app/src-tauri",
   "apps/gigi-mobile/src-tauri",
-  "pkgs/gigi-messaging",
   "pkgs/gigi-p2p",
 ]
 
@@ -48,9 +47,9 @@ chrono = { version = "0.4", features = ["serde"] }
 rand = "0.8"
 humantime = "2.3"
 tracing = "0.1"
+hex = "0.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4.0", features = ["derive"] }
-gigi-messaging = { version = "0.0.1", path = "./pkgs/gigi-messaging" }
 gigi-p2p = { version = "0.0.1", path = "./pkgs/gigi-p2p" }
 libp2p-identity = "0.2"
 base64 = "0.22"
