@@ -1,25 +1,28 @@
-import { useEffect, useState } from "react";
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import AgreeToContinue from "./AgreeToContinue";
-import { useSignupContext } from "../context/SignupContext";
+import { useEffect, useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import AgreeToContinue from './AgreeToContinue'
+import { useSignupContext } from '../context/SignupContext'
 
 export default function MnemonicInput() {
-  const STEP: number = 1;
+  const STEP: number = 1
 
-  const { state: { mnemonic }, dispatch } = useSignupContext();
-  const [isCheckboxDisabled, setIsCheckboxDisabled] = useState<boolean>(true);
+  const {
+    state: { mnemonic },
+    dispatch,
+  } = useSignupContext()
+  const [isCheckboxDisabled, setIsCheckboxDisabled] = useState<boolean>(true)
 
   const handleChange = (index: number, value: string) => {
-    const newMnemonic = [...mnemonic];
-    newMnemonic[index] = value;
-    dispatch({ type: "SET_MNEMONIC", payload: newMnemonic });
-  };
+    const newMnemonic = [...mnemonic]
+    newMnemonic[index] = value
+    dispatch({ type: 'SET_MNEMONIC', payload: newMnemonic })
+  }
 
   useEffect(() => {
-    const isAllFilled = mnemonic.every(word => word.trim() !== "");
-    setIsCheckboxDisabled(!isAllFilled);
-  }, [mnemonic]);
+    const isAllFilled = mnemonic.every(word => word.trim() !== '')
+    setIsCheckboxDisabled(!isAllFilled)
+  }, [mnemonic])
 
   return (
     <div>
@@ -33,7 +36,7 @@ export default function MnemonicInput() {
               type="text"
               placeholder="word"
               value={mnemonic[index]}
-              onChange={(event) => handleChange(index, event.target.value)}
+              onChange={event => handleChange(index, event.target.value)}
             />
           </div>
         ))}
@@ -41,7 +44,8 @@ export default function MnemonicInput() {
       <Alert variant="default">
         <AlertTitle>Heads up!</AlertTitle>
         <AlertDescription>
-          Anyone with access to your recovery phrase can access your assets. Store it securely. Gigi does not keep a backup of your 12-word phrase.
+          Anyone with access to your recovery phrase can access your assets.
+          Store it securely. Gigi does not keep a backup of your 12-word phrase.
         </AlertDescription>
       </Alert>
       <AgreeToContinue
@@ -51,5 +55,5 @@ export default function MnemonicInput() {
         disabled={isCheckboxDisabled}
       />
     </div>
-  );
+  )
 }

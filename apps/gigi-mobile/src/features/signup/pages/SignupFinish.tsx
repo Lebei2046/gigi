@@ -1,34 +1,37 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
   CardContent,
-  CardFooter
-} from "@/components/ui/card";
-import { useAppDispatch } from "@/store";
-import { loadAuthData } from "@/store/authSlice";
-import { useSignupContext } from "../context/SignupContext";
+  CardFooter,
+} from '@/components/ui/card'
+import { useAppDispatch } from '@/store'
+import { loadAuthData } from '@/store/authSlice'
+import { useSignupContext } from '../context/SignupContext'
 
 export default function SignupFinish() {
-  const navigate = useNavigate();
-  const appDispatch = useAppDispatch();
-  const { state: { address, peerId, name }, saveAccountInfo } = useSignupContext();
+  const navigate = useNavigate()
+  const appDispatch = useAppDispatch()
+  const {
+    state: { address, peerId, name },
+    saveAccountInfo,
+  } = useSignupContext()
 
   useEffect(() => {
     const saveInfo = async () => {
-      await saveAccountInfo();
-    };
-    saveInfo();
-  }, [saveAccountInfo]);
+      await saveAccountInfo()
+    }
+    saveInfo()
+  }, [saveAccountInfo])
 
   const handleLogin = async () => {
-    await appDispatch(loadAuthData());
-    navigate('/login');
-  };
+    await appDispatch(loadAuthData())
+    navigate('/login')
+  }
 
   return (
     <Card>

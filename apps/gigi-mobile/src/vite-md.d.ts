@@ -1,6 +1,6 @@
 declare module '*.md' {
-  import type React from 'react';
+  import type React from 'react'
 
-  const ReactComponent: React.VFC;
-  export { attributes, toc, html, ReactComponent };
+  const ReactComponent: React.VFC
+  export { attributes, toc, html, ReactComponent }
 }

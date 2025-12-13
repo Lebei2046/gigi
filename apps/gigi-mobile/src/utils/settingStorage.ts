@@ -2,7 +2,7 @@
  * Safe storage wrapper with validation using IndexedDB
  */
 
-import { db } from '../models/db';
+import { db } from '../models/db'
 
 type StorageData = {
   version: string
@@ -15,45 +15,48 @@ const STORAGE_VERSION = 'v1'
 export async function migrateLocalStorageToIndexedDB(): Promise<void> {
   try {
     // Check if we have data in localStorage
-    const localStorageKeys = ['gigi'];
+    const localStorageKeys = ['gigi']
 
     for (const key of localStorageKeys) {
-      const item = localStorage.getItem(key);
+      const item = localStorage.getItem(key)
       if (item) {
         // If data exists in localStorage, migrate it to IndexedDB
-        const setting = await db.settings.get(key);
+        const setting = await db.settings.get(key)
         if (!setting) {
           // Only migrate if not already in IndexedDB
           await db.settings.put({
             key,
             value: item,
-            updatedAt: new Date()
-          });
+            updatedAt: new Date(),
+          })
         }
         // Remove from localStorage after successful migration
-        localStorage.removeItem(key);
+        localStorage.removeItem(key)
       }
     }
   } catch (error) {
-    console.error('Failed to migrate data from localStorage to IndexedDB:', error);
+    console.error(
+      'Failed to migrate data from localStorage to IndexedDB:',
+      error
+    )
   }
 }
 
 export async function getStorageItem<T>(key: string): Promise<T | null> {
   try {
-    const setting = await db.settings.get(key);
-    if (!setting) return null;
+    const setting = await db.settings.get(key)
+    if (!setting) return null
 
-    const parsed = JSON.parse(setting.value) as StorageData;
+    const parsed = JSON.parse(setting.value) as StorageData
     if (parsed.version !== STORAGE_VERSION) {
-      console.warn(`Storage version mismatch for ${key}, clearing...`);
-      return null;
+      console.warn(`Storage version mismatch for ${key}, clearing...`)
+      return null
     }
 
-    return parsed.data as T;
+    return parsed.data as T
   } catch (error) {
-    console.error(`Failed to parse ${key} from IndexedDB:`, error);
-    return null;
+    console.error(`Failed to parse ${key} from IndexedDB:`, error)
+    return null
   }
 }
 
@@ -61,22 +64,22 @@ export async function setStorageItem<T>(key: string, value: T): Promise<void> {
   try {
     const data: StorageData = {
       version: STORAGE_VERSION,
-      data: value
-    };
+      data: value,
+    }
     await db.settings.put({
       key,
       value: JSON.stringify(data),
-      updatedAt: new Date()
-    });
+      updatedAt: new Date(),
+    })
   } catch (error) {
-    console.error(`Failed to store ${key} in IndexedDB:`, error);
+    console.error(`Failed to store ${key} in IndexedDB:`, error)
   }
 }
 
 export async function clearStorageItem(key: string): Promise<void> {
   try {
-    await db.settings.delete(key);
+    await db.settings.delete(key)
   } catch (error) {
-    console.error(`Failed to remove ${key} from IndexedDB:`, error);
+    console.error(`Failed to remove ${key} from IndexedDB:`, error)
   }
 }

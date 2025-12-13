@@ -1,10 +1,10 @@
-import { useSignupContext } from '../context/SignupContext';
+import { useSignupContext } from '../context/SignupContext'
 
 interface AgreetoContinueProps {
-  id: string;
-  label: string;
-  step: number;
-  disabled?: boolean;
+  id: string
+  label: string
+  step: number
+  disabled?: boolean
 }
 
 export default function AgreeToContinue({
@@ -13,11 +13,17 @@ export default function AgreeToContinue({
   step,
   disabled = false,
 }: AgreetoContinueProps) {
-  const { dispatch, state: { steps } } = useSignupContext();
+  const {
+    dispatch,
+    state: { steps },
+  } = useSignupContext()
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch({ type: "SET_STEP_CHECKED", payload: { index: step, checked: e.target.checked } });
-  };
+    dispatch({
+      type: 'SET_STEP_CHECKED',
+      payload: { index: step, checked: e.target.checked },
+    })
+  }
 
   return (
     <div className="flex items-center mb-6">
@@ -31,5 +37,5 @@ export default function AgreeToContinue({
       />
       <label htmlFor={id}>{label}</label>
     </div>
-  );
+  )
 }

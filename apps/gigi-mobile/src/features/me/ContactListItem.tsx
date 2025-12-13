@@ -1,26 +1,30 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { getAvatarUrl } from "@/utils/imageStorage";
+import React, { useCallback, useEffect, useState } from 'react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getAvatarUrl } from '@/utils/imageStorage'
 
 interface ContactListItemProps {
-  name: string;
+  name: string
   peerId: string
-  onClick: () => void;
+  onClick: () => void
 }
 
-const ContactListItem: React.FC<ContactListItemProps> = ({ name, peerId, onClick }) => {
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+const ContactListItem: React.FC<ContactListItemProps> = ({
+  name,
+  peerId,
+  onClick,
+}) => {
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   const loadAvatar = useCallback(async () => {
     if (peerId) {
-      const url = await getAvatarUrl(peerId);
-      setAvatarUrl(url);
+      const url = await getAvatarUrl(peerId)
+      setAvatarUrl(url)
     }
-  }, [peerId]);
+  }, [peerId])
 
   useEffect(() => {
-    loadAvatar();
-  }, [loadAvatar]);
+    loadAvatar()
+  }, [loadAvatar])
 
   return (
     <div
@@ -28,7 +32,7 @@ const ContactListItem: React.FC<ContactListItemProps> = ({ name, peerId, onClick
       onClick={onClick}
     >
       <Avatar>
-        <AvatarImage src={avatarUrl || "https://github.com/shadcn.png"} />
+        <AvatarImage src={avatarUrl || 'https://github.com/shadcn.png'} />
         <AvatarFallback>CN</AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
@@ -38,7 +42,7 @@ const ContactListItem: React.FC<ContactListItemProps> = ({ name, peerId, onClick
         <p className="text-gray-500 mt-1 truncate">{peerId}</p>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ContactListItem;
+export default ContactListItem

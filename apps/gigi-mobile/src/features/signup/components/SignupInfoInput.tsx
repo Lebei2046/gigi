@@ -1,37 +1,44 @@
-import { useState, useEffect, type ChangeEvent } from 'react';
-import { Input } from "@/components/ui/input"
-import { useSignupContext } from '../context/SignupContext';
+import { useState, useEffect, type ChangeEvent } from 'react'
+import { Input } from '@/components/ui/input'
+import { useSignupContext } from '../context/SignupContext'
 
 export default function SignupInfoInput() {
-  const STEP: number = 3;
+  const STEP: number = 3
 
-  const { state: { name, password }, dispatch } = useSignupContext();
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordStrength, setPasswordStrength] = useState(0);
-  const [showWarning, setShowWarning] = useState(false);
+  const {
+    state: { name, password },
+    dispatch,
+  } = useSignupContext()
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordStrength, setPasswordStrength] = useState(0)
+  const [showWarning, setShowWarning] = useState(false)
 
   const handleNameChange = (e: ChangeEvent<HTMLInputElement>) => {
-    dispatch({ type: "SET_NAME", payload: e.target.value });
-  };
+    dispatch({ type: 'SET_NAME', payload: e.target.value })
+  }
 
   const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    dispatch({ type: "SET_PASSWORD", payload: value });
-    const strength = Math.min(value.length * 10, 100);
-    setPasswordStrength(strength);
-  };
+    const value = e.target.value
+    dispatch({ type: 'SET_PASSWORD', payload: value })
+    const strength = Math.min(value.length * 10, 100)
+    setPasswordStrength(strength)
+  }
 
   const handleConfirmPasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setConfirmPassword(e.target.value);
-  };
+    setConfirmPassword(e.target.value)
+  }
 
   useEffect(() => {
-    const isMatch = confirmPassword === password;
-    const isWarning = confirmPassword !== '' && !isMatch;
-    const nextEnabled = password !== '' && confirmPassword !== '' && name !== '' && isMatch;
-    setShowWarning(isWarning);
-    dispatch({ type: "SET_STEP_CHECKED", payload: { index: STEP, checked: nextEnabled } });
-  }, [password, confirmPassword, name, dispatch]);
+    const isMatch = confirmPassword === password
+    const isWarning = confirmPassword !== '' && !isMatch
+    const nextEnabled =
+      password !== '' && confirmPassword !== '' && name !== '' && isMatch
+    setShowWarning(isWarning)
+    dispatch({
+      type: 'SET_STEP_CHECKED',
+      payload: { index: STEP, checked: nextEnabled },
+    })
+  }, [password, confirmPassword, name, dispatch])
 
   return (
     <div>
@@ -57,12 +64,23 @@ export default function SignupInfoInput() {
           onChange={handlePasswordChange}
         />
         {/* Replaced Progress with a simple div-based progress bar */}
-        <div style={{ width: '100%', backgroundColor: '#e0e0e0', borderRadius: '4px' }}>
+        <div
+          style={{
+            width: '100%',
+            backgroundColor: '#e0e0e0',
+            borderRadius: '4px',
+          }}
+        >
           <div
             style={{
               width: `${passwordStrength}%`,
               height: '8px',
-              backgroundColor: passwordStrength > 70 ? 'green' : passwordStrength > 40 ? 'orange' : 'red',
+              backgroundColor:
+                passwordStrength > 70
+                  ? 'green'
+                  : passwordStrength > 40
+                    ? 'orange'
+                    : 'red',
               borderRadius: '4px',
               transition: 'width 0.3s',
             }}
@@ -82,5 +100,5 @@ export default function SignupInfoInput() {
         {showWarning && <p style={{ color: 'red' }}>Passwords do not match!</p>}
       </div>
     </div>
-  );
+  )
 }

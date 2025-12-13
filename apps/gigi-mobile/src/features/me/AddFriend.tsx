@@ -1,6 +1,6 @@
-import { useState } from "react";
-import QRCode from "react-qr-code";
-import { Button } from "@/components/ui/button"
+import { useState } from 'react'
+import QRCode from 'react-qr-code'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -8,38 +8,38 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import QrScanner from "@/components/QrScanner";
-import { addContact } from "@/models/contact";
+} from '@/components/ui/card'
+import QrScanner from '@/components/QrScanner'
+import { addContact } from '@/models/contact'
 
 interface AddFriendProps {
-  name: string;
-  peerId: string;
+  name: string
+  peerId: string
 }
 
 export default function AddFriend({ name, peerId }: AddFriendProps) {
-  const [showQrScanner, setShowQrScanner] = useState(false);
-  const qrData = encodeURI(JSON.stringify({ name, peerId }));
+  const [showQrScanner, setShowQrScanner] = useState(false)
+  const qrData = encodeURI(JSON.stringify({ name, peerId }))
 
   const handleOnClose = (result: string | null) => {
     if (result) {
-      const value = decodeURI(result);
+      const value = decodeURI(result)
       try {
-        const obj = JSON.parse(value);
+        const obj = JSON.parse(value)
         if (obj.name && obj.peerId) {
-          addContact(obj.name, obj.peerId);
+          addContact(obj.name, obj.peerId)
         }
       } catch (error) {
-        console.log(error);
+        console.log(error)
       }
     }
-    setShowQrScanner(false);
+    setShowQrScanner(false)
   }
 
   const handleScanClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowQrScanner(true);
-  };
+    e.stopPropagation()
+    setShowQrScanner(true)
+  }
 
   return (
     <div className="items-center p-2 bg-gray-50 rounded">
@@ -60,15 +60,16 @@ export default function AddFriend({ name, peerId }: AddFriendProps) {
           />
         </CardContent>
         <CardFooter className="flex-col gap-2">
-          <Button variant="outline" className="w-full" onClick={handleScanClick}>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleScanClick}
+          >
             Scan Code
           </Button>
         </CardFooter>
       </Card>
-      {showQrScanner && (
-        <QrScanner
-          onClose={handleOnClose} />
-      )}
+      {showQrScanner && <QrScanner onClose={handleOnClose} />}
     </div>
-  );
+  )
 }

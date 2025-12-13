@@ -1,0 +1,7 @@
+node_modules
+dist
+build
+.git
+*.md
+!.prettierrc
+!.eslintrc.js

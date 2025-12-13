@@ -1,11 +1,11 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import ContactList from "./ContactList";
-import ChangeAvatar from "./ChangeAvatar";
-import AddFriend from "./AddFriend";
-import { useAppSelector } from "@/store";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import ContactList from './ContactList'
+import ChangeAvatar from './ChangeAvatar'
+import AddFriend from './AddFriend'
+import { useAppSelector } from '@/store'
 
 export default function Me() {
-  const { name, peerId } = useAppSelector((state) => state.auth);
+  const { name, peerId } = useAppSelector(state => state.auth)
 
   return (
     <div className="flex flex-col bg-gray-100">
@@ -27,15 +27,9 @@ export default function Me() {
       <div className="mt-4 bg-white">
         <Tabs defaultValue="contacts" className="w-full">
           <TabsList className="flex w-full">
-            <TabsTrigger value="contacts">
-              Contacts
-            </TabsTrigger>
-            <TabsTrigger value="2d-code">
-              2D Code
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              Settings
-            </TabsTrigger>
+            <TabsTrigger value="contacts">Contacts</TabsTrigger>
+            <TabsTrigger value="2d-code">2D Code</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
           <TabsContent value="contacts" className="flex-grow w-full">
             <ContactList />
@@ -49,5 +43,5 @@ export default function Me() {
         </Tabs>
       </div>
     </div>
-  );
+  )
 }
