@@ -51,8 +51,8 @@ export class MessagingClient {
 
 
   // Initialize messaging with existing private key
-  static async initializeWithKey(privateKey: string): Promise<string> {
-    return invoke('messaging_initialize_with_key', { privateKey });
+  static async initializeWithKey(privateKey: Uint8Array, nickname: string): Promise<string> {
+    return invoke('messaging_initialize_with_key', { privateKey: Array.from(privateKey), nickname });
   }
 
 
@@ -158,6 +158,11 @@ export class MessagingClient {
   static async clearAppData(): Promise<void> {
     return invoke('clear_app_data');
   }
+
+  // Emit current P2P state (for catching up on missed events)
+  static async emitCurrentState(): Promise<void> {
+    return invoke('emit_current_state');
+  }
 }
 
 // Event listening utilities
@@ -166,19 +171,29 @@ export class MessagingEvents {
 
   // Register event listener
   static on(eventType: string, callback: (data: any) => void): void {
+    console.log(`Registering listener for event: ${eventType}`);
     if (!this.listeners.has(eventType)) {
       this.listeners.set(eventType, []);
       // Start listening to Tauri events
       import('@tauri-apps/api/event').then(({ listen }) => {
+        console.log(`🎯 Starting Tauri listener for: ${eventType}`);
         listen(eventType, (event) => {
+          console.log(`🎯 Tauri event received: ${eventType}`, event.payload); // Debug log
           const callbacks = this.listeners.get(eventType);
           if (callbacks) {
+            console.log(`📞 Calling ${callbacks.length} callbacks for: ${eventType}`);
             callbacks.forEach(cb => cb(event.payload));
           }
+        }).catch(error => {
+          console.error(`❌ Failed to listen to event ${eventType}:`, error);
         });
+      }).catch(error => {
+        console.error(`❌ Failed to import Tauri event module for ${eventType}:`, error);
       });
     }
-    this.listeners.get(eventType)!.push(callback);
+    const callbacks = this.listeners.get(eventType)!;
+    callbacks.push(callback);
+    console.log(`📝 Added callback for: ${eventType}. Total callbacks: ${callbacks.length}`);
   }
 
   // Remove event listener

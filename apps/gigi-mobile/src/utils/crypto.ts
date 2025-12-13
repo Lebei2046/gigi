@@ -106,3 +106,8 @@ function stringToUint8Array(str: string): Uint8Array {
 function expandTo32Bytes(input: Uint8Array): Uint8Array {
   return hkdf(keccak_256, input, undefined, undefined, 32);
 }
+
+export function getPrivateKeyFromMnemonic(mnemonic: string[]): Uint8Array {
+  const { privateKey } = deriveKeys(mnemonic);
+  return privateKey;
+}

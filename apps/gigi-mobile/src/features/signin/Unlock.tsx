@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { login } from '@/store/authSlice';
+import { loginWithP2P, setError } from '@/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/store';
 
 export default function Unlock() {
@@ -18,6 +18,7 @@ export default function Unlock() {
   const dispatch = useAppDispatch();
   const { error } = useAppSelector((state: { auth: any; }) => state.auth);
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   return (
     <Card>
@@ -48,12 +49,22 @@ export default function Unlock() {
         <div>
           <Button
             color="primary"
-            onClick={() => {
-              dispatch(login({ password }));
-              navigate('/');
+            disabled={isLoading}
+            onClick={async () => {
+              setIsLoading(true);
+              try {
+                const result = await dispatch(loginWithP2P(password));
+                if (result?.payload?.success) {
+                  navigate('/');
+                } else if (result?.payload?.error) {
+                  dispatch(setError(result.payload.error));
+                }
+              } finally {
+                setIsLoading(false);
+              }
             }}
           >
-            Unlock
+            {isLoading ? 'Initializing...' : 'Unlock'}
           </Button>
         </div>
       </CardFooter>

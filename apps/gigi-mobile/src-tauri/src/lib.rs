@@ -198,25 +198,29 @@ fn try_get_peer_id(priv_key: Vec<u8>) -> Result<String, String> {
 
 #[tauri::command]
 async fn messaging_initialize_with_key(
-    private_key: &str,
+    private_key: Vec<u8>,
+    nickname: String,
     app_handle: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let decoded_key =
-        hex::decode(private_key).map_err(|e| format!("Failed to decode private key: {}", e))?;
-
-    let keypair = identity::Keypair::ed25519_from_bytes(decoded_key)
+    let keypair = identity::Keypair::ed25519_from_bytes(private_key)
         .map_err(|e| format!("Failed to create keypair: {}", e))?;
 
     let peer_id = keypair.public().to_peer_id();
     let public_key_hex = hex::encode(keypair.to_protobuf_encoding().unwrap());
 
+    // Update nickname in config before creating P2P client
+    {
+        let mut config_guard = state.config.write().await;
+        config_guard.nickname = nickname.clone();
+    }
+
     let config_guard = state.config.read().await;
     let output_dir = PathBuf::from(&config_guard.download_folder);
-    let nickname = config_guard.nickname.clone();
+    let final_nickname = config_guard.nickname.clone();
     drop(config_guard);
 
-    match P2pClient::new(keypair, nickname, output_dir) {
+    match P2pClient::new(keypair, final_nickname, output_dir) {
         Ok((mut client, event_receiver)) => {
             // Start listening on a random port
             let addr = "/ip4/0.0.0.0/tcp/0".parse().unwrap();
@@ -239,24 +243,92 @@ async fn messaging_initialize_with_key(
             let active_downloads = state.active_downloads.clone();
             let shared_files = state.shared_files.clone();
             let app_handle_clone = app_handle.clone();
-            let mut receiver = {
+            let receiver = {
                 let mut guard = state.event_receiver.lock().await;
                 guard.take().unwrap()
             };
 
+            // Spawn two separate tasks to avoid deadlock:
+            // 1. Swarm event polling - briefly locks the client to handle events
+            // 2. P2P event handling - processes events from the receiver
+
+            let p2p_client_for_events = p2p_client.clone();
+
             tokio::spawn(async move {
-                while let Some(event) = receiver.next().await {
-                    if let Err(e) = handle_p2p_event_with_fields(
-                        event,
-                        &p2p_client,
-                        &config,
-                        &active_downloads,
-                        &shared_files,
-                        &app_handle_clone,
-                    )
-                    .await
-                    {
-                        eprintln!("Error handling P2P event: {}", e);
+                // Task 1: Poll swarm events and handle them
+                println!("🔥 Starting swarm event polling task");
+                loop {
+                    // Check if client is initialized and poll for events with timeout
+                    let client_ready = {
+                        let client_guard = p2p_client_for_events.lock().await;
+                        client_guard.as_ref().is_some()
+                    };
+
+                    if client_ready {
+                        // Use tokio::select! with timeout to avoid blocking indefinitely
+                        let swarm_event_result =
+                            tokio::time::timeout(tokio::time::Duration::from_millis(100), async {
+                                let mut client_guard = p2p_client_for_events.lock().await;
+                                if let Some(client) = client_guard.as_mut() {
+                                    Some(client.swarm.select_next_some().await)
+                                } else {
+                                    None
+                                }
+                            })
+                            .await;
+
+                        match swarm_event_result {
+                            Ok(Some(swarm_event)) => {
+                                // Briefly lock again to handle the event
+                                let mut client_guard = p2p_client_for_events.lock().await;
+                                if let Some(client) = client_guard.as_mut() {
+                                    println!("🎯 Processing swarm event...");
+                                    if let Err(e) = client.handle_event(swarm_event) {
+                                        eprintln!("Error handling swarm event: {}", e);
+                                    }
+                                    println!("✅ Swarm event processed");
+                                }
+                            }
+                            Ok(None) => {
+                                println!("⚠️ Client became None, waiting...");
+                                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                            }
+                            Err(_) => {
+                                // Timeout occurred - this is expected, gives other tasks chance to run
+                                // Don't print anything to avoid spam
+                            }
+                        }
+                    } else {
+                        // Client not ready, wait and retry
+                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    }
+                }
+            });
+
+            tokio::spawn(async move {
+                // Task 2: Handle P2P events from the receiver
+                let mut receiver = receiver;
+                println!("🚀 Starting P2P event handling task");
+
+                loop {
+                    println!("⏳ Waiting for P2P event...");
+                    if let Some(event) = receiver.next().await {
+                        println!(
+                            "📦 Received P2P event: {:?}",
+                            std::mem::discriminant(&event)
+                        );
+                        if let Err(e) = handle_p2p_event_with_fields(
+                            event,
+                            &p2p_client,
+                            &config,
+                            &active_downloads,
+                            &shared_files,
+                            &app_handle_clone,
+                        )
+                        .await
+                        {
+                            eprintln!("Error handling P2P event: {}", e);
+                        }
                     }
                 }
             });
@@ -267,6 +339,9 @@ async fn messaging_initialize_with_key(
             app_handle
                 .emit("public-key-changed", &public_key_hex)
                 .unwrap();
+
+            // Emit nickname-changed event to ensure frontend is in sync
+            app_handle.emit("nickname-changed", &nickname).unwrap();
 
             Ok(peer_id.to_string())
         }
@@ -539,12 +614,18 @@ async fn handle_p2p_event_with_fields(
         P2pEvent::PeerDiscovered {
             peer_id, nickname, ..
         } => {
+            println!(
+                "🔥 Rust emitting peer-discovered event for {} ({})",
+                nickname, peer_id
+            );
             let peer = Peer {
                 id: peer_id.to_string(),
                 nickname: nickname.clone(),
                 capabilities: vec!["messaging".to_string(), "file_transfer".to_string()],
             };
-            app_handle.emit("peer-discovered", &peer)?;
+            app_handle
+                .emit("peer-discovered", &peer)
+                .map_err(|e| format!("Failed to emit peer-discovered: {}", e))?;
         }
         P2pEvent::PeerExpired { peer_id, nickname } => {
             app_handle.emit(
@@ -664,13 +745,19 @@ async fn handle_p2p_event_with_fields(
             )?;
         }
         P2pEvent::Connected { peer_id, nickname } => {
-            app_handle.emit(
-                "peer-connected",
-                &json!({
-                    "peer_id": peer_id.to_string(),
-                    "nickname": nickname
-                }),
-            )?;
+            println!(
+                "🔥 Rust emitting peer-connected event for {} ({})",
+                nickname, peer_id
+            );
+            app_handle
+                .emit(
+                    "peer-connected",
+                    &json!({
+                        "peer_id": peer_id.to_string(),
+                        "nickname": nickname
+                    }),
+                )
+                .map_err(|e| format!("Failed to emit peer-connected: {}", e))?;
         }
         P2pEvent::Disconnected { peer_id, nickname } => {
             app_handle.emit(
@@ -687,6 +774,99 @@ async fn handle_p2p_event_with_fields(
         _ => {}
     }
     Ok(())
+}
+
+#[tauri::command]
+async fn emit_current_state(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    println!("🚀 emit_current_state called");
+
+    // Clone the client to avoid holding the mutex lock during emit operations
+    let client_clone = {
+        println!("🔒 Attempting to lock P2P client...");
+
+        // Add timeout to prevent deadlock
+        match tokio::time::timeout(tokio::time::Duration::from_secs(2), state.p2p_client.lock())
+            .await
+        {
+            Ok(client_guard) => {
+                println!("✅ Successfully locked P2P client");
+
+                if let Some(client) = client_guard.as_ref() {
+                    // Clone what we need and immediately release the lock
+                    let peer_id = client.local_peer_id().to_string();
+                    let peers = client.list_peers();
+                    let peer_data: Vec<Peer> = peers
+                        .iter()
+                        .map(|peer| Peer {
+                            id: peer.peer_id.to_string(),
+                            nickname: peer.nickname.clone(),
+                            capabilities: vec![
+                                "messaging".to_string(),
+                                "file_transfer".to_string(),
+                            ],
+                        })
+                        .collect();
+
+                    println!("📤 Collected {} peers, releasing lock", peers.len());
+                    Some((peer_id, peer_data))
+                } else {
+                    None
+                }
+            }
+            Err(_) => {
+                println!("⚠️ Timeout: Failed to acquire P2P client lock within 2 seconds, but continuing...");
+                // Return success instead of error to avoid frontend issues
+                return Ok(());
+            }
+        }
+    };
+
+    // Now emit events without holding the mutex lock
+    match client_clone {
+        Some((peer_id, peers)) => {
+            println!("📤 Emitting peer-id-changed: {}", peer_id);
+            app_handle
+                .emit("peer-id-changed", &peer_id)
+                .map_err(|e| format!("Failed to emit peer-id-changed: {}", e))?;
+            println!("✅ peer-id-changed emitted successfully");
+
+            for peer in peers {
+                println!(
+                    "📤 Emitting peer-discovered for {} ({})",
+                    peer.nickname, peer.id
+                );
+                app_handle
+                    .emit("peer-discovered", &peer)
+                    .map_err(|e| format!("Failed to emit peer-discovered: {}", e))?;
+                println!("✅ peer-discovered emitted successfully");
+
+                println!(
+                    "📤 Emitting peer-connected for {} ({})",
+                    peer.nickname, peer.id
+                );
+                app_handle
+                    .emit(
+                        "peer-connected",
+                        &json!({
+                            "peer_id": peer.id,
+                            "nickname": peer.nickname
+                        }),
+                    )
+                    .map_err(|e| format!("Failed to emit peer-connected: {}", e))?;
+                println!("✅ peer-connected emitted successfully");
+            }
+
+            println!("🎉 emit_current_state completed successfully");
+            Ok(())
+        }
+        None => {
+            println!("❌ P2P client not initialized");
+            Err("P2P client not initialized".to_string())
+        }
+    }
 }
 
 #[tauri::command]
@@ -759,6 +939,7 @@ pub fn run() {
             messaging_get_active_downloads,
             messaging_update_config,
             messaging_get_config,
+            emit_current_state,
             clear_app_data,
         ])
         .run(tauri::generate_context!())

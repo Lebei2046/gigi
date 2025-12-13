@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { getStorageItem, clearStorageItem } from '../utils/settingStorage';
-import { decryptMnemonics, getAddress } from '../utils/crypto';
+import { decryptMnemonics, getAddress, getPrivateKeyFromMnemonic } from '../utils/crypto';
+import { MessagingClient } from '../utils/messaging';
 
 type AuthState = {
   status: 'unregistered' | 'unauthenticated' | 'authenticated';
@@ -60,6 +61,9 @@ const authSlice = createSlice({
       state.name = null;
       state.error = null;
     },
+    setError: (state, action: PayloadAction<string>) => {
+      state.error = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder.addCase('auth/initAuth/fulfilled' as any, (state, action: PayloadAction<any>) => {
@@ -110,5 +114,35 @@ export const resetAuth = () => async (dispatch: any) => {
   }
 };
 
-export const { clearAuth, setUnregistered, login, resetState } = authSlice.actions;
+// Async action for login with P2P initialization
+export const loginWithP2P = (password: string) => async (dispatch: any, getState: any) => {
+  const state = getState().auth;
+  if (!state.mnemonic || !state.nonce || !state.address) {
+    return { success: false, error: 'No auth data available' };
+  }
+
+  try {
+    const decryptedMnemonics = decryptMnemonics(state.mnemonic, password, state.nonce);
+    const generatedAddress = getAddress(decryptedMnemonics);
+    
+    if (generatedAddress !== state.address) {
+      return { success: false, error: '密码有误，请重新输入！' };
+    }
+
+    // Extract private key and initialize P2P
+    const privateKey = getPrivateKeyFromMnemonic(decryptedMnemonics);
+    // Use the stored name as nickname, fallback to "Anonymous" if not available
+    const nickname = state.name || "Anonymous";
+    const peerId = await MessagingClient.initializeWithKey(privateKey, nickname);
+
+    dispatch(login({ password }));
+    
+    return { success: true, peerId };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'P2P初始化失败';
+    return { success: false, error: errorMessage };
+  }
+};
+
+export const { clearAuth, setUnregistered, login, resetState, setError } = authSlice.actions;
 export default authSlice.reducer;
