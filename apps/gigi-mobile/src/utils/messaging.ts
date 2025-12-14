@@ -178,6 +178,11 @@ export class MessagingClient {
   static async emitCurrentState(): Promise<void> {
     return invoke('emit_current_state')
   }
+
+  // Get message history with a peer
+  static async getMessageHistory(peerId: string): Promise<Message[]> {
+    return invoke('messaging_get_message_history', { peerId })
+  }
 }
 
 // Event listening utilities
@@ -186,7 +191,7 @@ export class MessagingEvents {
 
   // Register event listener
   static on(eventType: string, callback: (data: any) => void): void {
-    console.log(`Registering listener for event: ${eventType}`)
+    console.log(`🔔 Registering listener for event: ${eventType}`)
     if (!this.listeners.has(eventType)) {
       this.listeners.set(eventType, [])
       // Start listening to Tauri events
@@ -201,6 +206,8 @@ export class MessagingEvents {
                 `📞 Calling ${callbacks.length} callbacks for: ${eventType}`
               )
               callbacks.forEach(cb => cb(event.payload))
+            } else {
+              console.warn(`⚠️ No callbacks found for event: ${eventType}`)
             }
           }).catch(error => {
             console.error(`❌ Failed to listen to event ${eventType}:`, error)

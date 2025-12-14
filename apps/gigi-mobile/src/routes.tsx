@@ -5,7 +5,7 @@ const Signup = lazy(() => import('./features/signup/Signup'))
 const Unlock = lazy(() => import('./features/signin/Unlock'))
 const ResetAccount = lazy(() => import('./features/signin/ResetAccount'))
 const Home = lazy(() => import('./features/home/Home'))
-// const Chat = lazy(() => import('./features/chat/Chat'));
+const ChatRoom = lazy(() => import('./features/chat/ChatRoom'))
 
 export const unregisteredRoutes: RouteObject[] = [
   {
@@ -30,10 +30,10 @@ export const authenticatedRoutes: RouteObject[] = [
     path: '/',
     element: <Home />,
   },
-  // {
-  //   path: '/chat/:id',
-  //   element: <Chat />,
-  // },
+  {
+    path: '/chat/:id',
+    element: <ChatRoom />,
+  },
   {
     path: '*',
     element: <Home />,

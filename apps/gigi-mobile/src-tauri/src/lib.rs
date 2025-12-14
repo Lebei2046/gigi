@@ -659,7 +659,7 @@ async fn handle_p2p_event_with_fields(
                     .duration_since(std::time::UNIX_EPOCH)?
                     .as_secs(),
             };
-            app_handle.emit("direct-message", &msg)?;
+            app_handle.emit("message-received", &msg)?;
         }
         P2pEvent::GroupMessage {
             from,
