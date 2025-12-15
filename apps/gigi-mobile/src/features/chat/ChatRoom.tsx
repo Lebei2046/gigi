@@ -7,6 +7,12 @@ import { addLog } from '@/store/logsSlice'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft as BackIcon } from 'lucide-react'
+import {
+  updateChatInfo,
+  updateLatestMessage,
+  getChatInfo,
+  resetUnreadCount,
+} from '@/utils/chatUtils'
 
 interface Message {
   id: string
@@ -56,13 +62,21 @@ export default function ChatRoom() {
         const savedHistory = localStorage.getItem(historyKey)
         if (savedHistory) {
           const history = JSON.parse(savedHistory)
+          // Convert timestamps to milliseconds if needed
+          const normalizedHistory = history.map((msg: any) => ({
+            ...msg,
+            timestamp:
+              msg.timestamp < 1000000000000
+                ? msg.timestamp * 1000
+                : msg.timestamp,
+          }))
           console.log(
             '📚 Loaded message history for',
             peer.nickname,
             ':',
-            history
+            normalizedHistory
           )
-          setMessages(history)
+          setMessages(normalizedHistory)
         }
       } catch (error) {
         console.error('Failed to load message history:', error)
@@ -71,6 +85,26 @@ export default function ChatRoom() {
     }
 
     loadMessageHistory()
+
+    // Initialize chat info in IndexedDB only if it doesn't exist
+    const initializeChatInfo = async () => {
+      const existingChat = await getChatInfo(peer.id)
+      if (!existingChat) {
+        // Only create new chat entry if it doesn't exist
+        await updateChatInfo(peer.id, peer.nickname, '', Date.now(), false)
+        console.log('📝 Created new chat entry for peer:', peer.id)
+      } else {
+        console.log(
+          '📝 Chat entry already exists for peer:',
+          peer.id,
+          existingChat
+        )
+        // Reset unread count when user opens the chat
+        await resetUnreadCount(peer.id)
+      }
+    }
+
+    initializeChatInfo()
 
     // Save messages to localStorage
     const saveMessageHistory = (messages: Message[]) => {
@@ -88,14 +122,42 @@ export default function ChatRoom() {
 
       // Only process messages from this peer
       if (message.from_peer_id === peer.id) {
+        // Convert timestamp to milliseconds if needed
+        const timestampMs =
+          message.timestamp < 1000000000000
+            ? message.timestamp * 1000
+            : message.timestamp
+        console.log(
+          '🕐 Received message with raw timestamp:',
+          message.timestamp,
+          'converted:',
+          timestampMs,
+          'date:',
+          new Date(timestampMs)
+        )
+
         const newMessage = {
           ...message,
+          timestamp: timestampMs,
           isOutgoing: false,
         }
 
         setMessages(prev => {
           const updatedMessages = [...prev, newMessage]
           saveMessageHistory(updatedMessages)
+
+          // Update latest message in IndexedDB immediately
+          updateLatestMessage(
+            peer.id,
+            newMessage.content,
+            newMessage.timestamp,
+            false
+          ).then(() => {
+            console.log(
+              '💾 Updated latest message in IndexedDB for received message'
+            )
+          })
+
           return updatedMessages
         })
 
@@ -113,6 +175,22 @@ export default function ChatRoom() {
 
     return () => {
       MessagingEvents.off('message-received', handleMessageReceived)
+
+      // Final update to ensure everything is saved when leaving chat
+      if (peer && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1]
+        updateLatestMessage(
+          peer.id,
+          lastMessage.content,
+          lastMessage.timestamp,
+          lastMessage.isOutgoing
+        ).then(() => {
+          console.log(
+            '💾 Final update when leaving ChatRoom for peer:',
+            peer.id
+          )
+        })
+      }
     }
   }, [peer, navigate, dispatch])
 
@@ -124,14 +202,22 @@ export default function ChatRoom() {
       console.log('Sending message:', newMessage)
 
       // Add message to local state immediately
+      const timestamp = Date.now()
       const messageToAdd = {
         id: Date.now().toString(),
         from_peer_id: peer.id,
         from_nickname: peer.nickname,
         content: newMessage.trim(),
-        timestamp: Date.now(),
+        timestamp: timestamp,
         isOutgoing: true,
       }
+
+      console.log(
+        '🕐 Creating message with timestamp:',
+        timestamp,
+        'date:',
+        new Date(timestamp)
+      )
 
       setMessages(prev => {
         const updatedMessages = [...prev, messageToAdd]
@@ -142,6 +228,17 @@ export default function ChatRoom() {
         } catch (error) {
           console.error('Failed to save message history:', error)
         }
+
+        // Update latest message in IndexedDB immediately
+        updateLatestMessage(
+          peer.id,
+          messageToAdd.content,
+          messageToAdd.timestamp,
+          true
+        ).then(() => {
+          console.log('💾 Updated latest message in IndexedDB for sent message')
+        })
+
         return updatedMessages
       })
 

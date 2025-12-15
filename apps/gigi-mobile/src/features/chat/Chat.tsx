@@ -4,24 +4,101 @@ import { MessagingClient, MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import { useNavigate } from 'react-router-dom'
+import {
+  getAllChats,
+  updateLatestMessage,
+  getChatInfo,
+  updateChatInfo,
+  cleanupInvalidTimestamps,
+} from '@/utils/chatUtils'
+import type { Chat } from '@/models/db'
 
 export default function Chat() {
   const [peers, setPeers] = useState<Peer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [chats, setChats] = useState<Chat[]>([])
   const [latestMessages, setLatestMessages] = useState<Record<string, string>>(
     {}
   )
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
-  // Debug: Track latestMessages changes
+  // Define loadChats function outside useEffect so it can be used elsewhere
+  const loadChats = async () => {
+    try {
+      console.log('🔄 Loading chats from IndexedDB...')
+      const allChats = await getAllChats()
+      setChats(allChats)
+
+      // Update latestMessages from chats - this is the single source of truth
+      const messagesFromChats: Record<string, string> = {}
+      allChats.forEach(chat => {
+        if (chat.lastMessage) {
+          messagesFromChats[chat.id] = chat.lastMessage
+        }
+      })
+      setLatestMessages(messagesFromChats)
+
+      console.log('📚 Loaded chats from IndexedDB:', allChats)
+      console.log('💬 Latest messages from IndexedDB:', messagesFromChats)
+    } catch (error) {
+      console.error('Failed to load chats:', error)
+    }
+  }
+
+  // Load chats from IndexedDB and set up periodic refresh
   useEffect(() => {
-    console.log('🔄 Chat.tsx latestMessages state changed:', latestMessages)
-  }, [latestMessages])
+    // Clean up any existing invalid timestamps first
+    cleanupInvalidTimestamps()
+
+    // Load immediately
+    loadChats()
+
+    // Set up more frequent refresh to catch updates from ChatRoom
+    const refreshInterval = setInterval(loadChats, 1000) // Refresh every 1 second
+
+    // Also refresh when window gets focus (user returns from ChatRoom)
+    const handleFocus = () => {
+      console.log('🔄 Window focused, refreshing chats...')
+      loadChats()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    // Also refresh when document becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Document visible, refreshing chats...')
+        loadChats()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(refreshInterval)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
 
   // Handle peer click to open chat
-  const handlePeerClick = (peer: Peer) => {
+  const handlePeerClick = async (peer: Peer) => {
+    try {
+      // Ensure chat entry exists in IndexedDB before navigating
+      const existingChat = await getChatInfo(peer.id)
+      if (!existingChat) {
+        await updateChatInfo(peer.id, peer.nickname, '', Date.now(), false)
+        console.log(
+          '📝 Created chat entry for peer before navigation:',
+          peer.id
+        )
+        // Refresh the chats list to include the new entry
+        loadChats()
+      }
+    } catch (error) {
+      console.error('Error ensuring chat entry exists:', error)
+    }
+
     navigate(`/chat/${peer.id}`, { state: { peer } })
   }
 
@@ -171,6 +248,21 @@ export default function Chat() {
             console.error('Failed to save received message to history:', error)
           }
 
+          // Convert timestamp to milliseconds if needed, otherwise use current time
+          const timestampMs =
+            message.timestamp && message.timestamp < 1000000000000
+              ? message.timestamp * 1000
+              : message.timestamp || Date.now()
+
+          // Update in IndexedDB first - this is the single source of truth
+          updateLatestMessage(
+            message.from_peer_id,
+            message.content,
+            timestampMs,
+            false
+          )
+
+          // Then update local state to match IndexedDB
           setLatestMessages(prev => {
             const newMessages = {
               ...prev,
@@ -241,7 +333,9 @@ export default function Chat() {
       '🎨 Chat.tsx rendering with peers:',
       peers.length,
       'latestMessages:',
-      latestMessages
+      latestMessages,
+      'chats:',
+      chats
     )
 
     return (
@@ -259,6 +353,8 @@ export default function Chat() {
           <div className="space-y-2">
             {peers.map(peer => {
               const latestMessage = latestMessages[peer.id]
+              const chatInfo = chats.find(chat => chat.id === peer.id)
+
               return (
                 <div
                   key={peer.id}
@@ -277,14 +373,22 @@ export default function Chat() {
                         </div>
                       )}
                     </div>
-                    {latestMessage && (
-                      <div className="ml-2 text-right animate-pulse">
+                    {(chatInfo?.lastMessage || latestMessage) && (
+                      <div className="ml-2 text-right">
                         <div className="text-xs text-blue-600 font-medium">
-                          💬 New
+                          💬{' '}
+                          {chatInfo?.unreadCount && chatInfo.unreadCount > 0
+                            ? `(${chatInfo.unreadCount})`
+                            : 'Latest'}
                         </div>
                         <div className="text-xs text-gray-600 max-w-32 truncate font-medium">
-                          {latestMessage}
+                          {chatInfo?.lastMessage || latestMessage}
                         </div>
+                        {chatInfo?.lastMessageTime && (
+                          <div className="text-xs text-gray-400">
+                            {chatInfo.lastMessageTime}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
