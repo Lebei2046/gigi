@@ -6,7 +6,7 @@ export default function SignupInfoInput() {
   const STEP: number = 3
 
   const {
-    state: { name, password },
+    state: { name, password, createGroup, groupName },
     dispatch,
   } = useSignupContext()
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -28,17 +28,32 @@ export default function SignupInfoInput() {
     setConfirmPassword(e.target.value)
   }
 
+  const handleCreateGroupChange = (e: ChangeEvent<HTMLInputElement>) => {
+    dispatch({ type: 'SET_CREATE_GROUP', payload: e.target.checked })
+    if (!e.target.checked) {
+      dispatch({ type: 'SET_GROUP_NAME', payload: '' })
+    }
+  }
+
+  const handleGroupNameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    dispatch({ type: 'SET_GROUP_NAME', payload: e.target.value })
+  }
+
   useEffect(() => {
     const isMatch = confirmPassword === password
     const isWarning = confirmPassword !== '' && !isMatch
     const nextEnabled =
-      password !== '' && confirmPassword !== '' && name !== '' && isMatch
+      password !== '' &&
+      confirmPassword !== '' &&
+      name !== '' &&
+      isMatch &&
+      (!createGroup || (createGroup && groupName.trim() !== ''))
     setShowWarning(isWarning)
     dispatch({
       type: 'SET_STEP_CHECKED',
       payload: { index: STEP, checked: nextEnabled },
     })
-  }, [password, confirmPassword, name, dispatch])
+  }, [password, confirmPassword, name, createGroup, groupName, dispatch])
 
   return (
     <div>
@@ -99,6 +114,30 @@ export default function SignupInfoInput() {
         />
         {showWarning && <p style={{ color: 'red' }}>Passwords do not match!</p>}
       </div>
+
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            id="createGroup"
+            checked={createGroup}
+            onChange={handleCreateGroupChange}
+          />
+          <label htmlFor="createGroup">Create the first chat group</label>
+        </div>
+      </div>
+
+      {createGroup && (
+        <div>
+          <label>First Chat Group Name</label>
+          <Input
+            type="text"
+            placeholder="Enter your group name"
+            value={groupName}
+            onChange={handleGroupNameChange}
+          />
+        </div>
+      )}
     </div>
   )
 }

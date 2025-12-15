@@ -5,21 +5,11 @@ interface Contact {
   name: string
 }
 
-interface Chat {
-  id: string // peer-id作为唯一标识
+interface Group {
+  id: string // group peer-id
   name: string
-  isGroup?: boolean
-  lastMessage?: string
-  lastMessageTime?: string
-  unreadCount?: number
-}
-
-interface Message {
-  id?: number
-  chatId: string
-  sender: string
-  content: string
-  timestamp: Date
+  joined: boolean // whether current user has joined this group
+  createdAt: Date
 }
 
 // 添加图片存储接口
@@ -47,8 +37,7 @@ interface Settings {
 
 const db = new Dexie('GigiDatabase') as Dexie & {
   contacts: EntityTable<Contact, 'id'>
-  chats: EntityTable<Chat, 'id'>
-  messages: EntityTable<Message, 'id'>
+  groups: EntityTable<Group, 'id'>
   images: EntityTable<Image, 'id'>
   avatars: EntityTable<Avatar, 'id'>
   settings: EntityTable<Settings, 'key'>
@@ -56,12 +45,11 @@ const db = new Dexie('GigiDatabase') as Dexie & {
 
 db.version(1).stores({
   contacts: 'id, name',
-  chats: 'id, name',
-  messages: '++id, chatId, timestamp',
+  groups: 'id, name, joined, createdAt',
   images: 'id, createdAt',
   avatars: 'id, imageId, createdAt, updatedAt',
   settings: 'key, updatedAt',
 })
 
-export type { Contact, Chat, Message, Image, Avatar, Settings }
+export type { Contact, Group, Image, Avatar, Settings }
 export { db }

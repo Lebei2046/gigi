@@ -126,3 +126,24 @@ export function getPrivateKeyFromMnemonic(mnemonic: string[]): Uint8Array {
   const { privateKey } = deriveKeys(mnemonic)
   return privateKey
 }
+
+export function deriveGroupPrivateKey(mnemonic: string[]): Uint8Array {
+  if (mnemonic.length !== 12 && mnemonic.length !== 24) {
+    throw new Error('Mnemonic must be 12 or 24 words long')
+  }
+
+  const seed = mnemonicToSeedSync(mnemonic.join(' '))
+  const hdKey = HDKey.fromMasterSeed(seed)
+  const groupChildKey = hdKey.derive("m/44'/60'/1'/0/0")
+
+  if (!groupChildKey.privateKey) {
+    throw new Error('Group key derivation failed')
+  }
+
+  return groupChildKey.privateKey
+}
+
+export async function generateGroupPeerId(mnemonic: string[]): Promise<string> {
+  const groupPrivateKey = deriveGroupPrivateKey(mnemonic)
+  return await MessagingClient.tryGetPeerId(groupPrivateKey)
+}

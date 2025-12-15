@@ -11,37 +11,6 @@ type StorageData = {
 
 const STORAGE_VERSION = 'v1'
 
-// Migration function to move data from localStorage to IndexedDB
-export async function migrateLocalStorageToIndexedDB(): Promise<void> {
-  try {
-    // Check if we have data in localStorage
-    const localStorageKeys = ['gigi']
-
-    for (const key of localStorageKeys) {
-      const item = localStorage.getItem(key)
-      if (item) {
-        // If data exists in localStorage, migrate it to IndexedDB
-        const setting = await db.settings.get(key)
-        if (!setting) {
-          // Only migrate if not already in IndexedDB
-          await db.settings.put({
-            key,
-            value: item,
-            updatedAt: new Date(),
-          })
-        }
-        // Remove from localStorage after successful migration
-        localStorage.removeItem(key)
-      }
-    }
-  } catch (error) {
-    console.error(
-      'Failed to migrate data from localStorage to IndexedDB:',
-      error
-    )
-  }
-}
-
 export async function getStorageItem<T>(key: string): Promise<T | null> {
   try {
     const setting = await db.settings.get(key)

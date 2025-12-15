@@ -17,16 +17,22 @@ export default function SignupFinish() {
   const navigate = useNavigate()
   const appDispatch = useAppDispatch()
   const {
-    state: { address, peerId, name },
+    state: { address, peerId, name, createGroup, groupName },
     saveAccountInfo,
+    saveGroupInfo,
   } = useSignupContext()
 
   useEffect(() => {
     const saveInfo = async () => {
       await saveAccountInfo()
+
+      // Save group info if user chose to create a group
+      if (createGroup && groupName.trim()) {
+        await saveGroupInfo()
+      }
     }
     saveInfo()
-  }, [saveAccountInfo])
+  }, [saveAccountInfo, createGroup, groupName, saveGroupInfo])
 
   const handleLogin = async () => {
     await appDispatch(loadAuthData())
@@ -46,6 +52,23 @@ export default function SignupFinish() {
         <p>Account Name: {name}</p>
         <p>Wallet Address: {address}</p>
         <p>Peer Id: {peerId}</p>
+
+        {createGroup && groupName.trim() && (
+          <div
+            style={{
+              marginTop: '16px',
+              padding: '12px',
+              backgroundColor: '#f0f9ff',
+              borderRadius: '6px',
+            }}
+          >
+            <h3>Group Created</h3>
+            <p>Group Name: {groupName.trim()}</p>
+            <p style={{ fontSize: '14px', color: '#666' }}>
+              Your group has been created and is ready to use!
+            </p>
+          </div>
+        )}
       </CardContent>
       <CardFooter>
         <Button color="primary" onClick={handleLogin}>

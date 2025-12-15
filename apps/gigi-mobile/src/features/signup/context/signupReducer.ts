@@ -13,6 +13,8 @@ export type SignupState = {
   address: string
   peerId: string
   name: string
+  createGroup: boolean
+  groupName: string
 }
 
 export type SignupAction =
@@ -21,6 +23,8 @@ export type SignupAction =
   | { type: 'SET_MNEMONIC'; payload: string[] }
   | { type: 'SET_PASSWORD'; payload: string }
   | { type: 'SET_NAME'; payload: string }
+  | { type: 'SET_CREATE_GROUP'; payload: boolean }
+  | { type: 'SET_GROUP_NAME'; payload: string }
   | { type: 'SET_STEP_CHECKED'; payload: StepType }
   | { type: 'INIT_SIGNUP'; payload: SignupType }
   | { type: 'ACCOUNT_INFO_SAVED'; payload: AddressInfo }
@@ -34,6 +38,8 @@ export const initialState: SignupState = {
   address: '',
   peerId: '',
   name: '',
+  createGroup: false,
+  groupName: '',
 }
 
 export const signupReducer: Reducer<SignupState, SignupAction> = (
@@ -58,6 +64,10 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
       return { ...state, password: action.payload }
     case 'SET_NAME':
       return { ...state, name: action.payload }
+    case 'SET_CREATE_GROUP':
+      return { ...state, createGroup: action.payload }
+    case 'SET_GROUP_NAME':
+      return { ...state, groupName: action.payload }
     case 'INIT_SIGNUP':
       return {
         ...state,

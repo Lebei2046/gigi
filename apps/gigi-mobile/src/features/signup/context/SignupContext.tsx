@@ -5,13 +5,19 @@ import {
   type SignupAction,
   type SignupState,
 } from './signupReducer'
-import { encryptMnemonics, generateAddress } from '@/utils/crypto'
+import {
+  encryptMnemonics,
+  generateAddress,
+  generateGroupPeerId,
+} from '@/utils/crypto'
 import { setStorageItem } from '@/utils/settingStorage'
+import { db } from '@/models/db'
 
 type SignupContextType = {
   state: SignupState
   dispatch: React.Dispatch<SignupAction>
   saveAccountInfo: () => Promise<void>
+  saveGroupInfo: () => Promise<void>
 }
 
 const SignupContext = createContext<SignupContextType | undefined>(undefined)
@@ -39,8 +45,39 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'ACCOUNT_INFO_SAVED', payload: { address, peerId } })
   }
 
+  const saveGroupInfo = async () => {
+    if (!state.createGroup || !state.groupName.trim()) {
+      return
+    }
+
+    try {
+      // Derive group peer ID from user's mnemonic
+      const groupPeerId = await generateGroupPeerId(state.mnemonic)
+
+      // Save group to IndexedDB
+      await db.groups.add({
+        id: groupPeerId,
+        name: state.groupName.trim(),
+        joined: false, // User hasn't joined yet, just created it
+        createdAt: new Date(),
+      })
+
+      console.log('Group saved successfully:', {
+        id: groupPeerId,
+        name: state.groupName.trim(),
+        joined: false,
+        createdAt: new Date(),
+      })
+    } catch (error) {
+      console.error('Failed to save group:', error)
+      throw error
+    }
+  }
+
   return (
-    <SignupContext.Provider value={{ state, dispatch, saveAccountInfo }}>
+    <SignupContext.Provider
+      value={{ state, dispatch, saveAccountInfo, saveGroupInfo }}
+    >
       {children}
     </SignupContext.Provider>
   )
