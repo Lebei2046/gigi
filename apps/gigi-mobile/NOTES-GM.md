@@ -39,6 +39,24 @@ When coming back from `ChatRoom` to `peer list` page, the latest chat message no
 - with the received share group message, pick `Accept` to accept the message, and save the chat group in indexedDB with `joined` as true
 
 
+# Task 5 - Chat in a group
+
+- after logining, subscribe the group-id topics for the chat groups that the user has joined or created 
+
+**For sender**
+
+- in 'Chats' page, click the chat group to open a `ChatRoom` page for the group
+- in `ChatRoom` page, display received/sent messages of the group
+- in `ChatRoom` page, input and send chat messages to the group
+
+**For receiver**
+
+- in `Chats` page, display the latest message notification of the group
+- in 'Chats' page, click the chat group to open a `ChatRoom` page for the group
+- in `ChatRoom` page, display received/sent messages of the group
+- in `ChatRoom` page, input and send chat messages to the group
+
+
 
 We now have implemented the direct chat function, but we need to add a group chat function. We have direct chat persistence to local storage, but we need to add group chat persistence to indexedDB. So, we need to design a unified structure of chat persistence to indexedDB and transfer the direct chat persistence from local storage to indexedDB. 
 

@@ -129,6 +129,15 @@ export async function getAllGroups(): Promise<Group[]> {
   }
 }
 
+export async function getGroup(id: string): Promise<Group | undefined> {
+  try {
+    return await db.groups.get(id)
+  } catch (error) {
+    console.error('Failed to get group:', error)
+    return undefined
+  }
+}
+
 export async function saveGroup(
   group: Omit<Group, 'id'> & { id?: string }
 ): Promise<void> {
@@ -161,7 +170,8 @@ export async function updateLatestMessage(
   chatId: string,
   message: string,
   timestamp: number,
-  isOutgoing: boolean = false
+  isOutgoing: boolean = false,
+  isGroup: boolean = false
 ): Promise<void> {
   try {
     const timestampMs = ensureMilliseconds(timestamp)

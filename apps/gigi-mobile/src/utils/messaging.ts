@@ -113,7 +113,13 @@ export class MessagingClient {
     groupId: string,
     message: string
   ): Promise<string> {
-    return invoke('messaging_send_group_message', { groupId, message })
+    console.log('🚀 MessagingClient.sendGroupMessage called:')
+    console.log('   - Group ID:', groupId)
+    console.log('   - Message:', message)
+
+    const result = invoke('messaging_send_group_message', { groupId, message })
+    console.log('📤 invoke() called, awaiting result...')
+    return result
   }
 
   // Share a file
@@ -220,7 +226,18 @@ export class MessagingEvents {
         .then(({ listen }) => {
           console.log(`🎯 Starting Tauri listener for: ${eventType}`)
           listen(eventType, event => {
-            console.log(`🎯 Tauri event received: ${eventType}`, event.payload) // Debug log
+            if (eventType === 'group-message') {
+              console.log(`🔥🔥🔥 TAURI GROUP-MESSAGE EVENT RECEIVED 🔥🔥🔥`)
+              console.log(
+                `🎯 Tauri event received: ${eventType}`,
+                event.payload
+              )
+            } else {
+              console.log(
+                `🎯 Tauri event received: ${eventType}`,
+                event.payload
+              ) // Debug log
+            }
             const callbacks = this.listeners.get(eventType)
             if (callbacks) {
               console.log(

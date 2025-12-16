@@ -58,14 +58,14 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
       await db.groups.add({
         id: groupPeerId,
         name: state.groupName.trim(),
-        joined: false, // User hasn't joined yet, just created it
+        joined: false, // false = group creator/owner, true = invited member
         createdAt: new Date(),
       })
 
       console.log('Group saved successfully:', {
         id: groupPeerId,
         name: state.groupName.trim(),
-        joined: false,
+        joined: false, // group creator/owner
         createdAt: new Date(),
       })
     } catch (error) {

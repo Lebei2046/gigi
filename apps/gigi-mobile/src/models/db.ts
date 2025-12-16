@@ -8,7 +8,7 @@ interface Contact {
 interface Group {
   id: string // group peer-id
   name: string
-  joined: boolean // whether current user has joined this group
+  joined: boolean // false = group creator/owner, true = invited member who joined
   createdAt: Date
 }
 

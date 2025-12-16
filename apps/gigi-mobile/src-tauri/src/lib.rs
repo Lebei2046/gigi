@@ -704,6 +704,11 @@ async fn handle_p2p_event_with_fields(
             group,
             message,
         } => {
+            println!("🚀 RUST: Processing GroupMessage event:");
+            println!("   - From: {} ({})", from_nickname, from);
+            println!("   - Group: {}", group);
+            println!("   - Message: {}", message);
+
             let msg = GroupMessage {
                 id: uuid::Uuid::new_v4().to_string(),
                 group_id: group,
@@ -714,7 +719,15 @@ async fn handle_p2p_event_with_fields(
                     .duration_since(std::time::UNIX_EPOCH)?
                     .as_secs(),
             };
+
+            println!("🔥 RUST: Emitting 'group-message' event to frontend:");
+            println!("   - Message ID: {}", msg.id);
+            println!("   - Group ID: {}", msg.group_id);
+            println!("   - From: {} ({})", msg.from_nickname, msg.from_peer_id);
+            println!("   - Content: {}", msg.content);
+
             app_handle.emit("group-message", &msg)?;
+            println!("✅ RUST: 'group-message' event emitted successfully");
         }
         P2pEvent::FileShareRequest {
             from,

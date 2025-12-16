@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   getAllChats,
   getAllGroups,
+  getGroup,
   saveGroup,
   updateLatestMessage,
   getChatInfo,
@@ -69,8 +70,18 @@ export default function Chat() {
 
   // Handle group share notifications
   useEffect(() => {
-    const handleGroupShareReceived = (shareMessage: GroupShareMessage) => {
+    const handleGroupShareReceived = async (
+      shareMessage: GroupShareMessage
+    ) => {
       console.log('🎉 Received group share:', shareMessage)
+
+      // Check if group already exists
+      const existingGroup = await getGroup(shareMessage.group_id)
+      if (existingGroup) {
+        console.log('🔄 Group already exists, ignoring share message')
+        return
+      }
+
       setGroupShareNotifications(prev => [...prev, shareMessage])
     }
 
@@ -79,6 +90,53 @@ export default function Chat() {
     return () => {
       MessagingEvents.off('group-share-received', handleGroupShareReceived)
     }
+  }, [])
+
+  // Subscribe to joined groups on startup
+  useEffect(() => {
+    const subscribeToGroups = async () => {
+      try {
+        const allGroups = await getAllGroups()
+        const joinedGroups = allGroups.filter(group => group.joined)
+
+        console.log(
+          '🎯 Chat.tsx: Found groups to subscribe to:',
+          joinedGroups.length
+        )
+        console.log(
+          '🎯 Chat.tsx: Joined groups:',
+          joinedGroups.map(g => ({ id: g.id, name: g.name }))
+        )
+
+        for (const group of joinedGroups) {
+          try {
+            console.log(
+              '🔔 Chat.tsx: Attempting to join group:',
+              group.id,
+              '(',
+              group.name,
+              ')'
+            )
+            await MessagingClient.joinGroup(group.id)
+            console.log(
+              '✅ Chat.tsx: Successfully joined group topic:',
+              group.name,
+              'ID:',
+              group.id
+            )
+          } catch (error) {
+            console.error(
+              `❌ Chat.tsx: Failed to subscribe to group ${group.name}:`,
+              error
+            )
+          }
+        }
+      } catch (error) {
+        console.error('❌ Chat.tsx: Failed to subscribe to groups:', error)
+      }
+    }
+
+    subscribeToGroups()
   }, [])
 
   // Load chats and groups from IndexedDB and set up periodic refresh
@@ -299,6 +357,7 @@ export default function Chat() {
             message.from_peer_id,
             message.content,
             timestampMs,
+            false,
             false
           )
 
@@ -315,7 +374,75 @@ export default function Chat() {
           dispatch(
             addLog({
               event: 'message_received',
-              data: `Message from ${message.from_nickname}: ${message.content}`,
+              data: `Direct message from ${message.from_nickname}: ${message.content}`,
+              type: 'info',
+            })
+          )
+        }
+
+        // Group message receiving handler
+        const handleGroupMessageReceived = (message: any) => {
+          console.log('🔥 GROUP MESSAGE RECEIVED in Chat.tsx:', message)
+          console.log('🔥 From peer ID:', message.from_peer_id)
+          console.log('🔥 Group ID:', message.group_id)
+          console.log('🔥 From nickname:', message.from_nickname)
+          console.log('🔥 Content:', message.content)
+          console.log('🔥 Timestamp:', message.timestamp)
+
+          // Save message to localStorage for history
+          try {
+            const historyKey = `chat_history_group_${message.group_id}`
+            const savedHistory = localStorage.getItem(historyKey)
+            let history = savedHistory ? JSON.parse(savedHistory) : []
+
+            // Add received message to history
+            const newMessage = {
+              ...message,
+              isOutgoing: false, // Received message
+              isGroup: true, // Group message
+            }
+            history = [...history, newMessage]
+            localStorage.setItem(historyKey, JSON.stringify(history))
+            console.log(
+              '💾 Saved received group message to history for group:',
+              message.group_id
+            )
+          } catch (error) {
+            console.error(
+              'Failed to save received group message to history:',
+              error
+            )
+          }
+
+          // Convert timestamp to milliseconds if needed, otherwise use current time
+          const timestampMs =
+            message.timestamp && message.timestamp < 1000000000000
+              ? message.timestamp * 1000
+              : message.timestamp || Date.now()
+
+          // Update in IndexedDB first - this is single source of truth
+          updateLatestMessage(
+            message.group_id,
+            message.content,
+            timestampMs,
+            false,
+            true
+          )
+
+          // Then update local state to match IndexedDB
+          setLatestMessages(prev => {
+            const newMessages = {
+              ...prev,
+              [message.group_id]: message.content,
+            }
+            console.log('💬 Updated latest messages (group):', newMessages)
+            return newMessages
+          })
+
+          dispatch(
+            addLog({
+              event: 'group_message_received',
+              data: `Group message from ${message.from_nickname} in group ${message.group_id}: ${message.content}`,
               type: 'info',
             })
           )
@@ -325,9 +452,11 @@ export default function Chat() {
         MessagingEvents.on('peer-connected', handlePeerConnected)
         MessagingEvents.on('peer-disconnected', handlePeerDisconnected)
         MessagingEvents.on('message-received', handleMessageReceived)
+        MessagingEvents.on('group-message', handleGroupMessageReceived)
         console.log(
-          '✅ Chat.tsx event listeners registered for: peer-connected, peer-disconnected, message-received'
+          '🎯 Chat.tsx event listeners registered for: peer-connected, peer-disconnected, message-received, group-message'
         )
+        console.log('🎯 Listening for group messages on all groups...')
 
         // Clean up on unmount
         return () => {
@@ -336,6 +465,7 @@ export default function Chat() {
             MessagingEvents.off('peer-connected', handlePeerConnected)
             MessagingEvents.off('peer-disconnected', handlePeerDisconnected)
             MessagingEvents.off('message-received', handleMessageReceived)
+            MessagingEvents.off('group-message', handleGroupMessageReceived)
             console.log('Event listeners cleaned up')
           } catch (error) {
             console.error('Error cleaning up event listeners:', error)
@@ -406,7 +536,7 @@ export default function Chat() {
         await saveGroup({
           id: shareMessage.group_id,
           name: shareMessage.group_name,
-          joined: true,
+          joined: true, // true = invited member who joined the group
           createdAt: new Date(shareMessage.timestamp * 1000),
         })
 
@@ -484,16 +614,27 @@ export default function Chat() {
                   className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="font-medium text-blue-800">
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => navigate(`/chat/${group.id}`)}
+                    >
+                      <div className="font-medium text-blue-800 hover:text-blue-600">
                         👥 {group.name}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {group.joined ? 'Joined' : 'Not joined'} • {group.id}
+                        {group.joined ? 'Joined' : 'Owned'} • {group.id}
                       </div>
+                      {latestMessages[group.id] && (
+                        <div className="text-xs text-gray-600 mt-1 truncate">
+                          💬 {latestMessages[group.id]}
+                        </div>
+                      )}
                     </div>
                     <button
-                      onClick={() => handleShareGroup(group)}
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleShareGroup(group)
+                      }}
                       className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
                     >
                       Share

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import type { Peer } from '@/utils/messaging'
+import { useNavigate, useLocation, useParams } from 'react-router-dom'
+import type { Peer, GroupShareMessage } from '@/utils/messaging'
 import { MessagingClient, MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
@@ -12,7 +12,9 @@ import {
   updateLatestMessage,
   getChatInfo,
   resetUnreadCount,
+  getGroup,
 } from '@/utils/chatUtils'
+import type { Group } from '@/models/db'
 
 interface Message {
   id: string
@@ -21,19 +23,23 @@ interface Message {
   content: string
   timestamp: number
   isOutgoing: boolean
+  isGroup?: boolean // true for group messages, false for direct messages
 }
 
 export default function ChatRoom() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { id } = useParams<{ id: string }>()
   const dispatch = useAppDispatch()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const [peer, setPeer] = useState<Peer | null>(location.state?.peer || null)
+  const [group, setGroup] = useState<Group | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [isGroupChat, setIsGroupChat] = useState(false)
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -41,24 +47,92 @@ export default function ChatRoom() {
   }, [messages])
 
   useEffect(() => {
-    if (!peer) {
-      navigate('/chat')
-      return
+    // Determine if this is a group chat or peer chat
+    const initializeChatRoom = async () => {
+      if (!id) {
+        navigate('/chat')
+        return
+      }
+
+      // Check if this is a group by looking up the group in database
+      const groupData = await getGroup(id)
+
+      if (groupData) {
+        // This is a group chat
+        setIsGroupChat(true)
+        setGroup(groupData)
+        setPeer(null)
+
+        console.log('ChatRoom mounted for group:', groupData)
+        dispatch(
+          addLog({
+            event: 'group_chat_room_opened',
+            data: `Opened group chat: ${groupData.name}`,
+            type: 'info',
+          })
+        )
+
+        // Join the group topic if we've joined the group (not if we own it)
+        // joined=false means we own the group, joined=true means we were invited
+        if (groupData.joined) {
+          try {
+            await MessagingClient.joinGroup(id)
+            console.log('✅ Joined group topic:', id)
+          } catch (error) {
+            console.error('Failed to join group topic:', error)
+          }
+        } else {
+          console.log(
+            '👑 Group owner detected, ensuring topic subscription for owned group:',
+            id
+          )
+          // Group owners also need to subscribe to their own group topics to send messages
+          try {
+            await MessagingClient.joinGroup(id)
+            console.log('✅ Subscribed to own group topic:', id)
+          } catch (error) {
+            console.error('Failed to subscribe to own group topic:', error)
+          }
+        }
+      } else if (location.state?.peer) {
+        // This is a peer chat
+        setIsGroupChat(false)
+        setPeer(location.state.peer)
+        setGroup(null)
+
+        console.log('ChatRoom mounted for peer:', location.state.peer)
+        dispatch(
+          addLog({
+            event: 'chat_room_opened',
+            data: `Opened chat with ${location.state.peer.nickname}`,
+            type: 'info',
+          })
+        )
+      } else {
+        // Invalid chat room
+        navigate('/chat')
+        return
+      }
+
+      setIsLoading(false)
     }
 
-    console.log('ChatRoom mounted for peer:', peer)
-    dispatch(
-      addLog({
-        event: 'chat_room_opened',
-        data: `Opened chat with ${peer.nickname}`,
-        type: 'info',
-      })
-    )
+    initializeChatRoom()
+  }, [id, location.state?.peer, navigate, dispatch])
+
+  useEffect(() => {
+    if (isLoading || (!peer && !group)) return
+
+    const chatId = isGroupChat ? group?.id : peer?.id
+    const chatName = isGroupChat ? group?.name : peer?.nickname
+    if (!chatId || !chatName) return
 
     // Load message history from localStorage
     const loadMessageHistory = () => {
       try {
-        const historyKey = `chat_history_${peer.id}`
+        const historyKey = isGroupChat
+          ? `chat_history_group_${chatId}`
+          : `chat_history_${chatId}`
         const savedHistory = localStorage.getItem(historyKey)
         if (savedHistory) {
           const history = JSON.parse(savedHistory)
@@ -69,10 +143,11 @@ export default function ChatRoom() {
               msg.timestamp < 1000000000000
                 ? msg.timestamp * 1000
                 : msg.timestamp,
+            isGroup: isGroupChat,
           }))
           console.log(
             '📚 Loaded message history for',
-            peer.nickname,
+            isGroupChat ? `group ${chatName}` : `peer ${chatName}`,
             ':',
             normalizedHistory
           )
@@ -81,26 +156,37 @@ export default function ChatRoom() {
       } catch (error) {
         console.error('Failed to load message history:', error)
       }
-      setIsLoading(false)
     }
 
     loadMessageHistory()
 
     // Initialize chat info in IndexedDB only if it doesn't exist
     const initializeChatInfo = async () => {
-      const existingChat = await getChatInfo(peer.id)
+      const existingChat = await getChatInfo(chatId)
       if (!existingChat) {
         // Only create new chat entry if it doesn't exist
-        await updateChatInfo(peer.id, peer.nickname, '', Date.now(), false)
-        console.log('📝 Created new chat entry for peer:', peer.id)
+        await updateChatInfo(
+          chatId,
+          chatName,
+          '',
+          Date.now(),
+          false,
+          isGroupChat
+        )
+        console.log(
+          '📝 Created new chat entry for:',
+          isGroupChat ? 'group' : 'peer',
+          chatId
+        )
       } else {
         console.log(
-          '📝 Chat entry already exists for peer:',
-          peer.id,
+          '📝 Chat entry already exists for:',
+          isGroupChat ? 'group' : 'peer',
+          chatId,
           existingChat
         )
         // Reset unread count when user opens the chat
-        await resetUnreadCount(peer.id)
+        await resetUnreadCount(chatId)
       }
     }
 
@@ -109,170 +195,308 @@ export default function ChatRoom() {
     // Save messages to localStorage
     const saveMessageHistory = (messages: Message[]) => {
       try {
-        const historyKey = `chat_history_${peer.id}`
+        const historyKey = isGroupChat
+          ? `chat_history_group_${chatId}`
+          : `chat_history_${chatId}`
         localStorage.setItem(historyKey, JSON.stringify(messages))
       } catch (error) {
         console.error('Failed to save message history:', error)
       }
     }
 
-    // Listen for new messages
+    // Listen for new messages (both direct and group)
     const handleMessageReceived = (message: any) => {
       console.log('New message in ChatRoom:', message)
 
-      // Only process messages from this peer
-      if (message.from_peer_id === peer.id) {
-        // Convert timestamp to milliseconds if needed
-        const timestampMs =
-          message.timestamp < 1000000000000
-            ? message.timestamp * 1000
-            : message.timestamp
-        console.log(
-          '🕐 Received message with raw timestamp:',
-          message.timestamp,
-          'converted:',
-          timestampMs,
-          'date:',
-          new Date(timestampMs)
-        )
+      // Process direct messages for peer chats
+      if (!isGroupChat && message.from_peer_id === peer?.id) {
+        handleDirectMessage(message, saveMessageHistory)
+      }
+      // Process group messages for group chats
+      else if (isGroupChat && message.group_id === group?.id) {
+        handleGroupMessage(message, saveMessageHistory)
+      }
+    }
 
-        const newMessage = {
-          ...message,
-          timestamp: timestampMs,
-          isOutgoing: false,
+    const handleDirectMessage = (
+      message: any,
+      saveMessageHistory: (messages: Message[]) => void
+    ) => {
+      // Convert timestamp to milliseconds if needed
+      const timestampMs =
+        message.timestamp < 1000000000000
+          ? message.timestamp * 1000
+          : message.timestamp
+
+      const newMessage = {
+        ...message,
+        timestamp: timestampMs,
+        isOutgoing: false,
+        isGroup: false,
+      }
+
+      setMessages(prev => {
+        const updatedMessages = [...prev, newMessage]
+        saveMessageHistory(updatedMessages)
+
+        // Update latest message in IndexedDB immediately
+        updateLatestMessage(
+          peer!.id,
+          newMessage.content,
+          newMessage.timestamp,
+          false,
+          false
+        ).then(() => {
+          console.log(
+            '💾 Updated latest message in IndexedDB for received direct message'
+          )
+        })
+
+        return updatedMessages
+      })
+
+      dispatch(
+        addLog({
+          event: 'chat_message_received',
+          data: `Message from ${message.from_nickname}: ${message.content}`,
+          type: 'info',
+        })
+      )
+    }
+
+    const handleGroupMessage = (
+      message: any,
+      saveMessageHistory: (messages: Message[]) => void
+    ) => {
+      // Convert timestamp to milliseconds if needed
+      const timestampMs =
+        message.timestamp < 1000000000000
+          ? message.timestamp * 1000
+          : message.timestamp
+
+      const newMessage = {
+        id: message.id || crypto.randomUUID(),
+        from_peer_id: message.from_peer_id,
+        from_nickname: message.from_nickname,
+        content: message.content,
+        timestamp: timestampMs,
+        isOutgoing: false,
+        isGroup: true,
+      }
+
+      setMessages(prev => {
+        const updatedMessages = [...prev, newMessage]
+        saveMessageHistory(updatedMessages)
+
+        // Update latest message in IndexedDB immediately
+        updateLatestMessage(
+          group!.id,
+          newMessage.content,
+          newMessage.timestamp,
+          false,
+          true
+        ).then(() => {
+          console.log(
+            '💾 Updated latest message in IndexedDB for received group message'
+          )
+        })
+
+        return updatedMessages
+      })
+
+      dispatch(
+        addLog({
+          event: 'group_message_received',
+          data: `Group message from ${message.from_nickname}: ${message.content}`,
+          type: 'info',
+        })
+      )
+    }
+
+    // Listen for both direct and group messages
+    MessagingEvents.on('message-received', handleMessageReceived)
+    MessagingEvents.on('group-message', handleMessageReceived)
+
+    return () => {
+      MessagingEvents.off('message-received', handleMessageReceived)
+      MessagingEvents.off('group-message', handleMessageReceived)
+
+      // Final update to ensure everything is saved when leaving chat
+      if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1]
+        updateLatestMessage(
+          chatId,
+          lastMessage.content,
+          lastMessage.timestamp,
+          lastMessage.isOutgoing,
+          isGroupChat
+        ).then(() => {
+          console.log(
+            '💾 Final update when leaving ChatRoom for:',
+            isGroupChat ? 'group' : 'peer',
+            chatId
+          )
+        })
+      }
+    }
+  }, [peer, group, isGroupChat, isLoading, dispatch, messages.length])
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || sending) return
+    if (!isGroupChat && !peer) return
+    if (isGroupChat && !group) return
+
+    setSending(true)
+    let messageToAdd: Message | null = null
+    const timestamp = Date.now()
+
+    try {
+      if (isGroupChat) {
+        // Send group message
+        console.log('Sending group message:', newMessage)
+
+        messageToAdd = {
+          id: Date.now().toString(),
+          from_peer_id: 'me', // This would be the current user's peer ID
+          from_nickname: 'Me', // This would be the current user's nickname
+          content: newMessage.trim(),
+          timestamp: timestamp,
+          isOutgoing: true,
+          isGroup: true,
         }
 
+        // Add message to local state immediately
         setMessages(prev => {
-          const updatedMessages = [...prev, newMessage]
-          saveMessageHistory(updatedMessages)
+          const updatedMessages = [...prev, messageToAdd!]
+          // Save to localStorage
+          try {
+            const historyKey = `chat_history_group_${group!.id}`
+            localStorage.setItem(historyKey, JSON.stringify(updatedMessages))
+          } catch (error) {
+            console.error('Failed to save group message history:', error)
+          }
 
           // Update latest message in IndexedDB immediately
           updateLatestMessage(
-            peer.id,
-            newMessage.content,
-            newMessage.timestamp,
-            false
+            group!.id,
+            messageToAdd!.content,
+            messageToAdd!.timestamp,
+            true,
+            true
           ).then(() => {
             console.log(
-              '💾 Updated latest message in IndexedDB for received message'
+              '💾 Updated latest message in IndexedDB for sent group message'
             )
           })
 
           return updatedMessages
         })
 
+        // Send group message via backend
+        const result = await MessagingClient.sendGroupMessage(
+          group!.id,
+          newMessage.trim()
+        )
+        console.log(
+          '✅ Group message sent successfully to',
+          group!.name,
+          'result:',
+          result
+        )
+
         dispatch(
           addLog({
-            event: 'chat_message_received',
-            data: `Message from ${message.from_nickname}: ${message.content}`,
+            event: 'group_message_sent',
+            data: `Group message sent to ${group!.name}: ${newMessage.trim()}`,
+            type: 'info',
+          })
+        )
+      } else {
+        // Send direct message
+        console.log('Sending direct message:', newMessage)
+
+        messageToAdd = {
+          id: Date.now().toString(),
+          from_peer_id: peer!.id,
+          from_nickname: peer!.nickname,
+          content: newMessage.trim(),
+          timestamp: timestamp,
+          isOutgoing: true,
+          isGroup: false,
+        }
+
+        console.log(
+          '🕐 Creating message with timestamp:',
+          timestamp,
+          'date:',
+          new Date(timestamp)
+        )
+
+        setMessages(prev => {
+          const updatedMessages = [...prev, messageToAdd!]
+          // Save to localStorage
+          try {
+            const historyKey = `chat_history_${peer!.id}`
+            localStorage.setItem(historyKey, JSON.stringify(updatedMessages))
+          } catch (error) {
+            console.error('Failed to save message history:', error)
+          }
+
+          // Update latest message in IndexedDB immediately
+          updateLatestMessage(
+            peer!.id,
+            messageToAdd!.content,
+            messageToAdd!.timestamp,
+            true,
+            false
+          ).then(() => {
+            console.log(
+              '💾 Updated latest message in IndexedDB for sent direct message'
+            )
+          })
+
+          return updatedMessages
+        })
+
+        // Send via backend using nickname (preferred method)
+        const result = await MessagingClient.sendMessageToNickname(
+          peer!.nickname,
+          newMessage.trim()
+        )
+        console.log(
+          '✅ Direct message sent successfully to',
+          peer!.nickname,
+          'result:',
+          result
+        )
+
+        dispatch(
+          addLog({
+            event: 'message_sent',
+            data: `Message sent to ${peer!.nickname}: ${newMessage.trim()}`,
             type: 'info',
           })
         )
       }
-    }
-
-    MessagingEvents.on('message-received', handleMessageReceived)
-
-    return () => {
-      MessagingEvents.off('message-received', handleMessageReceived)
-
-      // Final update to ensure everything is saved when leaving chat
-      if (peer && messages.length > 0) {
-        const lastMessage = messages[messages.length - 1]
-        updateLatestMessage(
-          peer.id,
-          lastMessage.content,
-          lastMessage.timestamp,
-          lastMessage.isOutgoing
-        ).then(() => {
-          console.log(
-            '💾 Final update when leaving ChatRoom for peer:',
-            peer.id
-          )
-        })
-      }
-    }
-  }, [peer, navigate, dispatch])
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !peer || sending) return
-
-    setSending(true)
-    try {
-      console.log('Sending message:', newMessage)
-
-      // Add message to local state immediately
-      const timestamp = Date.now()
-      const messageToAdd = {
-        id: Date.now().toString(),
-        from_peer_id: peer.id,
-        from_nickname: peer.nickname,
-        content: newMessage.trim(),
-        timestamp: timestamp,
-        isOutgoing: true,
-      }
-
-      console.log(
-        '🕐 Creating message with timestamp:',
-        timestamp,
-        'date:',
-        new Date(timestamp)
-      )
-
-      setMessages(prev => {
-        const updatedMessages = [...prev, messageToAdd]
-        // Save to localStorage
-        try {
-          const historyKey = `chat_history_${peer.id}`
-          localStorage.setItem(historyKey, JSON.stringify(updatedMessages))
-        } catch (error) {
-          console.error('Failed to save message history:', error)
-        }
-
-        // Update latest message in IndexedDB immediately
-        updateLatestMessage(
-          peer.id,
-          messageToAdd.content,
-          messageToAdd.timestamp,
-          true
-        ).then(() => {
-          console.log('💾 Updated latest message in IndexedDB for sent message')
-        })
-
-        return updatedMessages
-      })
-
-      // Send via backend using nickname (preferred method)
-      const result = await MessagingClient.sendMessageToNickname(
-        peer.nickname,
-        newMessage.trim()
-      )
-      console.log(
-        '✅ Message sent successfully to',
-        peer.nickname,
-        'result:',
-        result
-      )
-
-      dispatch(
-        addLog({
-          event: 'message_sent',
-          data: `Message sent to ${peer.nickname}: ${newMessage.trim()}`,
-          type: 'info',
-        })
-      )
 
       setNewMessage('')
     } catch (error) {
-      console.error('❌ Failed to send message to', peer.nickname, ':', error)
+      console.error('❌ Failed to send message:', error)
 
       // Remove the message from local state if sending failed
-      setMessages(prev => prev.filter(msg => msg.id !== messageToAdd.id))
+      if (messageToAdd) {
+        setMessages(prev => prev.filter(msg => msg.id !== messageToAdd!.id))
+      }
+
+      const targetName = isGroupChat ? group!.name : peer!.nickname
+      const eventType = isGroupChat
+        ? 'group_message_send_error'
+        : 'message_send_error'
 
       dispatch(
         addLog({
-          event: 'message_send_error',
-          data: `Failed to send message to ${peer.nickname}: ${error}`,
+          event: eventType,
+          data: `Failed to send message to ${targetName}: ${error}`,
           type: 'error',
         })
       )
@@ -300,13 +524,16 @@ export default function ChatRoom() {
     )
   }
 
-  if (!peer) {
+  if (!peer && !group) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500">Peer not found</p>
+        <p className="text-gray-500">Chat not found</p>
       </div>
     )
   }
+
+  const chatTitle = isGroupChat ? group?.name : peer?.nickname
+  const chatId = isGroupChat ? group?.id : peer?.id
 
   return (
     <div className="flex flex-col h-full">
@@ -316,8 +543,12 @@ export default function ChatRoom() {
           <BackIcon size={20} />
         </Button>
         <div>
-          <h2 className="text-lg font-semibold">{peer.nickname}</h2>
-          <p className="text-sm text-gray-500">{peer.id}</p>
+          <h2 className="text-lg font-semibold">
+            {isGroupChat ? `👥 ${chatTitle}` : chatTitle}
+          </h2>
+          <p className="text-sm text-gray-500">
+            {isGroupChat ? `Group • ${chatId}` : `Direct • ${chatId}`}
+          </p>
         </div>
       </div>
 
@@ -326,7 +557,9 @@ export default function ChatRoom() {
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-500">
-              No messages yet. Start a conversation!
+              {isGroupChat
+                ? 'No messages in this group yet. Start the conversation!'
+                : 'No messages yet. Start a conversation!'}
             </p>
           </div>
         ) : (
@@ -339,15 +572,25 @@ export default function ChatRoom() {
                 className={`max-w-xs px-4 py-2 rounded-lg ${
                   message.isOutgoing
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-900'
+                    : message.isGroup
+                      ? 'bg-green-100 text-gray-900 border border-green-200'
+                      : 'bg-gray-200 text-gray-900'
                 }`}
               >
-                {!message.isOutgoing && (
-                  <p className="text-xs font-medium mb-1 opacity-70">
-                    {message.from_nickname}
-                  </p>
-                )}
+                {/* Show sender name for group messages and incoming direct messages */}
+                {!message.isOutgoing &&
+                  (message.isGroup || !message.isGroup) && (
+                    <p className="text-xs font-medium mb-1 opacity-70">
+                      {message.isGroup && '👥'} {message.from_nickname}
+                    </p>
+                  )}
                 <p className="text-sm break-words">{message.content}</p>
+                <p className="text-xs mt-1 opacity-60">
+                  {new Date(message.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
               </div>
             </div>
           ))
@@ -362,7 +605,11 @@ export default function ChatRoom() {
             value={newMessage}
             onChange={e => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={`Message ${peer.nickname}...`}
+            placeholder={
+              isGroupChat
+                ? `Message ${group?.name}...`
+                : `Message ${peer?.nickname}...`
+            }
             disabled={sending}
             className="flex-1"
           />

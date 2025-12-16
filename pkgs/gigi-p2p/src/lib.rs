@@ -56,6 +56,8 @@ pub enum P2pError {
     SerializationError(#[from] serde_json::Error),
     #[error("Timeout: {0}")]
     Timeout(String),
+    #[error("Message send error: {0}")]
+    MessageSendError(String),
 }
 
 /// Unified P2P event
@@ -670,9 +672,19 @@ impl P2pClient {
                 message,
                 ..
             } => {
+                println!("🔥 Raw gossipsub message received from: {}", peer_id);
+                println!("🔥 Topic: {}", message.topic);
+                println!("🔥 Data length: {} bytes", message.data.len());
+
                 if let Ok(group_message) = serde_json::from_slice::<GroupMessage>(&message.data) {
                     let group_name = message.topic.to_string();
                     let nickname = self.get_peer_nickname(&peer_id)?;
+
+                    println!("✅ Parsed group message successfully:");
+                    println!("   - From: {} ({})", nickname, peer_id);
+                    println!("   - Group: {}", group_name);
+                    println!("   - Content: {}", group_message.content);
+                    println!("   - Timestamp: {}", group_message.timestamp);
 
                     if group_message.is_image {
                         self.send_event(P2pEvent::GroupImageMessage {
@@ -684,17 +696,26 @@ impl P2pClient {
                             message: group_message.content.clone(),
                         });
                     } else {
+                        let group_name_clone = group_name.clone();
                         self.send_event(P2pEvent::GroupMessage {
                             from: peer_id,
                             from_nickname: nickname,
                             group: group_name,
                             message: group_message.content,
                         });
+                        println!(
+                            "🚀 Emitted GroupMessage event for group: {}",
+                            group_name_clone
+                        );
                     }
+                } else {
+                    println!("❌ Failed to parse group message from gossipsub data");
+                    println!("🔍 Raw data: {:?}", String::from_utf8(message.data));
                 }
             }
             gossipsub::Event::Subscribed { topic, .. } => {
                 let group_name = topic.to_string();
+                println!("✅ Successfully subscribed to group topic: {}", group_name);
                 self.send_event(P2pEvent::GroupJoined { group: group_name });
             }
             gossipsub::Event::Unsubscribed { topic, .. } => {
@@ -975,7 +996,14 @@ impl P2pClient {
 
     /// Join a group
     pub fn join_group(&mut self, group_name: &str) -> Result<()> {
+        println!("🔔 Joining group: {}", group_name);
         let topic = IdentTopic::new(group_name);
+
+        // Check if already subscribed
+        if self.groups.contains_key(group_name) {
+            println!("⚠️ Already subscribed to group: {}", group_name);
+            return Ok(());
+        }
 
         self.swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
 
@@ -986,6 +1014,7 @@ impl P2pClient {
         };
 
         self.groups.insert(group_name.to_string(), group_info);
+        println!("✅ Successfully joined group: {}", group_name);
 
         Ok(())
     }
@@ -1006,6 +1035,8 @@ impl P2pClient {
 
     /// Send message to group
     pub fn send_group_message(&mut self, group_name: &str, message: String) -> Result<()> {
+        println!("📤 Sending group message to: {}", group_name);
+
         let group = self
             .groups
             .get(group_name)
@@ -1015,7 +1046,8 @@ impl P2pClient {
             sender_nickname: self.local_nickname.clone(),
             content: message,
             timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or(Duration::from_secs(0))
                 .as_secs(),
             is_image: false,
             filename: None,
@@ -1029,6 +1061,7 @@ impl P2pClient {
             .gossipsub
             .publish(group.topic.clone(), data)?;
 
+        println!("✅ Group message published successfully");
         Ok(())
     }
 
