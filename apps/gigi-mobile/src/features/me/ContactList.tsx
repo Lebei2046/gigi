@@ -42,15 +42,15 @@ const ContactList: React.FC = () => {
   }, [filteredGroups])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* 搜索框 */}
-      <div className="sticky top-0 z-10 bg-gray-100 p-2">
-        <div className="flex items-center bg-white rounded-lg px-3 py-2">
-          <HiOutlineSearch className="w-5 h-5 text-gray-400 mr-2" />
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center bg-gray-100 rounded-xl px-4 py-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
+          <HiOutlineSearch className="w-5 h-5 text-gray-400 mr-3" />
           <input
             type="text"
-            placeholder="搜索"
-            className="flex-1 outline-none text-sm"
+            placeholder="Search contacts..."
+            className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-500 text-sm"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -60,45 +60,71 @@ const ContactList: React.FC = () => {
       {/* 联系人列表 */}
       <div className="flex-1 overflow-y-auto">
         {filteredGroups.length > 0 ? (
-          filteredGroups.map(([letter, group]) => (
-            <div
-              key={letter}
-              ref={el => {
-                groupRefs.current[letter] = el
-              }}
-              className="py-2"
-            >
-              <div className="bg-gray-100 px-4 py-1 text-sm text-gray-500 sticky top-0">
-                {letter}
+          <div className="px-4 py-2">
+            {filteredGroups.map(([letter, group]) => (
+              <div
+                key={letter}
+                ref={el => {
+                  groupRefs.current[letter] = el
+                }}
+                className="mb-4"
+              >
+                <div className="sticky top-14 z-10 bg-blue-600 text-white px-3 py-2 rounded-lg mb-2 text-sm font-semibold shadow-sm">
+                  {letter}
+                </div>
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  {group.map(contact => (
+                    <ContactListItem
+                      key={contact.id}
+                      name={contact.name}
+                      peerId={contact.id}
+                      onClick={function (): void {
+                        console.log('TODO: Go to chat')
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="bg-white">
-                {group.map(contact => (
-                  <ContactListItem
-                    key={contact.id}
-                    name={contact.name}
-                    peerId={contact.id}
-                    onClick={function (): void {
-                      console.log('TODO: Go to chat')
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         ) : (
-          <div className="py-10 text-center text-gray-500">
-            没有找到匹配的联系人
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center py-12 px-6">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-10 h-10 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  ></path>
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No Contacts Found
+              </h3>
+              <p className="text-gray-600 text-sm">
+                {searchTerm
+                  ? 'No contacts match your search.'
+                  : "You haven't added any contacts yet."}
+              </p>
+            </div>
           </div>
         )}
       </div>
 
       {/* 字母索引 */}
       {letters.length > 0 && (
-        <div className="absolute right-1 top-20 bottom-16 flex flex-col justify-center">
+        <div className="absolute right-3 top-24 bottom-20 flex flex-col justify-center bg-white/80 backdrop-blur rounded-full p-1 shadow-sm">
           {letters.map(letter => (
             <button
               key={letter}
-              className="text-xs px-1 py-0.5"
+              className="w-8 h-8 text-xs font-medium text-gray-600 hover:bg-blue-100 hover:text-blue-600 rounded-full transition-colors duration-200 flex items-center justify-center"
               onClick={() => {
                 const element = groupRefs.current[letter]
                 if (element) {

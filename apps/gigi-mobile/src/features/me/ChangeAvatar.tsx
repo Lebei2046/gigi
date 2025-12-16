@@ -5,9 +5,10 @@ import { getAvatarUrl, storeAvatar } from '@/utils/imageStorage'
 
 interface ChangeAvatarProps {
   peerId: string
+  name?: string
 }
 
-export default function ChangeAvatar({ peerId }: ChangeAvatarProps) {
+export default function ChangeAvatar({ peerId, name }: ChangeAvatarProps) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -38,7 +39,17 @@ export default function ChangeAvatar({ peerId }: ChangeAvatarProps) {
         await loadAvatar()
       } catch (error) {
         console.error('Failed to upload avatar:', error)
-        alert('Failed to upload avatar')
+        // Show a more subtle error notification
+        const notification = document.createElement('div')
+        notification.textContent = 'Failed to upload avatar'
+        notification.className =
+          'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity duration-300'
+        document.body.appendChild(notification)
+
+        setTimeout(() => {
+          notification.style.opacity = '0'
+          setTimeout(() => document.body.removeChild(notification), 300)
+        }, 3000)
       } finally {
         setIsUploading(false)
         if (fileInputRef.current) {
@@ -49,20 +60,27 @@ export default function ChangeAvatar({ peerId }: ChangeAvatarProps) {
   }
 
   return (
-    <div
-      className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center mr-4 cursor-pointer relative"
-      onClick={handleAvatarClick}
-    >
-      {isUploading ? (
-        <div className="w-6 h-6 border-t-2 border-blue-500 rounded-full animate-spin"></div>
-      ) : (
-        <Avatar>
-          <AvatarImage src={avatarUrl || 'https://github.com/shadcn.png'} />
-          <AvatarFallback>CN</AvatarFallback>
-        </Avatar>
-      )}
-      <div className="absolute bottom-0 right-3 bg-white rounded-full p-1 shadow">
-        <FiCamera className="h-4 w-4 text-gray-600" />
+    <div className="relative cursor-pointer group" onClick={handleAvatarClick}>
+      <div className="w-20 h-20 rounded-full overflow-hidden border-3 border-white shadow-lg ring-4 ring-white/50 transition-transform group-hover:scale-105">
+        {isUploading ? (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+            <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <Avatar className="w-full h-full">
+            <AvatarImage
+              src={avatarUrl || ''}
+              alt="Profile"
+              className="object-cover"
+            />
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-lg font-bold">
+              {(name || 'U').charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        )}
+      </div>
+      <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 shadow-lg border-2 border-white transition-colors group-hover:bg-blue-700">
+        <FiCamera className="h-3 w-3 text-white" />
       </div>
       <input
         type="file"

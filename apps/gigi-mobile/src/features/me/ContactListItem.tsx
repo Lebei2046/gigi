@@ -28,18 +28,43 @@ const ContactListItem: React.FC<ContactListItemProps> = ({
 
   return (
     <div
-      className="flex items-center p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
+      className="flex items-center p-4 hover:bg-gray-50 cursor-pointer transition-colors duration-200 border-b border-gray-100 last:border-b-0"
       onClick={onClick}
     >
-      <Avatar>
-        <AvatarImage src={avatarUrl || 'https://github.com/shadcn.png'} />
-        <AvatarFallback>CN</AvatarFallback>
-      </Avatar>
+      <div className="w-12 h-12 rounded-full overflow-hidden mr-4 flex-shrink-0">
+        <Avatar className="w-full h-full">
+          <AvatarImage
+            src={avatarUrl || ''}
+            alt={name}
+            className="object-cover"
+          />
+          <AvatarFallback className="bg-gradient-to-br from-green-400 to-green-600 text-white font-bold">
+            {name?.charAt(0).toUpperCase() || '?'}
+          </AvatarFallback>
+        </Avatar>
+      </div>
       <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold truncate">{name}</h2>
+        <div className="flex justify-between items-start">
+          <h3 className="font-semibold text-gray-900 truncate text-lg">
+            {name}
+          </h3>
+          <svg
+            className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M9 5l7 7-7 7"
+            ></path>
+          </svg>
         </div>
-        <p className="text-gray-500 mt-1 truncate">{peerId}</p>
+        <p className="text-gray-500 text-sm font-mono truncate mt-1">
+          {peerId}
+        </p>
       </div>
     </div>
   )

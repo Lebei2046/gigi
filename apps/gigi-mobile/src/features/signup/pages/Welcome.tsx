@@ -16,16 +16,16 @@ export default function Welcome() {
       <div className="w-full max-w-2xl space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Let's set up your wallet account
+            Let's set up your account
           </h1>
           <p className="text-gray-600">Pick an option below to get started</p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Create new wallet</CardTitle>
+            <CardTitle>Create new account</CardTitle>
             <CardDescription>
-              Create a fresh wallet and generate a new seed phrase
+              Create a fresh account and generate a new seed phrase
             </CardDescription>
             <CardAction>
               <Button
@@ -44,7 +44,7 @@ export default function Welcome() {
           <CardHeader>
             <CardTitle>Import seed phrase</CardTitle>
             <CardDescription>
-              Restore an existing wallet using your seed phrase
+              Restore an existing account using your seed phrase
             </CardDescription>
             <CardAction>
               <Button
