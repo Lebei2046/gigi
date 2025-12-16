@@ -378,6 +378,24 @@ async fn messaging_send_message_to_nickname(
 }
 
 #[tauri::command]
+async fn messaging_send_direct_share_group_message(
+    nickname: &str,
+    group_id: &str,
+    group_name: &str,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let mut client_guard = state.p2p_client.lock().await;
+    if let Some(client) = client_guard.as_mut() {
+        client
+            .send_direct_share_group_message(nickname, group_id.to_string(), group_name.to_string())
+            .map_err(|e| format!("Failed to send group share message: {}", e))?;
+        Ok(uuid::Uuid::new_v4().to_string())
+    } else {
+        Err("P2P client not initialized".to_string())
+    }
+}
+
+#[tauri::command]
 async fn messaging_get_peers(state: State<'_, AppState>) -> Result<Vec<Peer>, String> {
     let client_guard = state.p2p_client.lock().await;
     if let Some(client) = client_guard.as_ref() {
@@ -661,6 +679,25 @@ async fn handle_p2p_event_with_fields(
             };
             app_handle.emit("message-received", &msg)?;
         }
+        P2pEvent::DirectGroupShareMessage {
+            from,
+            from_nickname,
+            group_id,
+            group_name,
+        } => {
+            app_handle.emit(
+                "group-share-received",
+                &json!({
+                    "from_peer_id": from.to_string(),
+                    "from_nickname": from_nickname,
+                    "group_id": group_id,
+                    "group_name": group_name,
+                    "timestamp": std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)?
+                        .as_secs(),
+                }),
+            )?;
+        }
         P2pEvent::GroupMessage {
             from,
             from_nickname,
@@ -924,6 +961,7 @@ pub fn run() {
             messaging_initialize_with_key,
             messaging_send_message,
             messaging_send_message_to_nickname,
+            messaging_send_direct_share_group_message,
             messaging_get_peers,
             messaging_set_nickname,
             messaging_join_group,

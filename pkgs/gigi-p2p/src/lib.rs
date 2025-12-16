@@ -88,6 +88,12 @@ pub enum P2pEvent {
         filename: String,
         data: Vec<u8>,
     },
+    DirectGroupShareMessage {
+        from: PeerId,
+        from_nickname: String,
+        group_id: String,
+        group_name: String,
+    },
 
     // Group messaging events
     GroupMessage {
@@ -193,8 +199,18 @@ pub enum NicknameResponse {
 /// Direct messaging messages
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DirectMessage {
-    Text { message: String },
-    Image { filename: String, data: Vec<u8> },
+    Text {
+        message: String,
+    },
+    Image {
+        filename: String,
+        data: Vec<u8>,
+    },
+    ShareGroup {
+        group_id: String,
+        group_name: String,
+        inviter_nickname: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -624,6 +640,18 @@ impl P2pClient {
                         data,
                     });
                 }
+                DirectMessage::ShareGroup {
+                    group_id,
+                    group_name,
+                    inviter_nickname: _,
+                } => {
+                    self.send_event(P2pEvent::DirectGroupShareMessage {
+                        from: peer,
+                        from_nickname: nickname,
+                        group_id,
+                        group_name,
+                    });
+                }
             }
             let _ = self
                 .swarm
@@ -917,6 +945,30 @@ impl P2pClient {
             .behaviour_mut()
             .direct_msg
             .send_request(&peer_id, DirectMessage::Image { filename, data });
+
+        Ok(())
+    }
+
+    /// Send group share message to peer
+    pub fn send_direct_share_group_message(
+        &mut self,
+        nickname: &str,
+        group_id: String,
+        group_name: String,
+    ) -> Result<()> {
+        let peer_id = *self
+            .nickname_to_peer
+            .get(nickname)
+            .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
+
+        self.swarm.behaviour_mut().direct_msg.send_request(
+            &peer_id,
+            DirectMessage::ShareGroup {
+                group_id,
+                group_name,
+                inviter_nickname: self.local_nickname.clone(),
+            },
+        );
 
         Ok(())
     }

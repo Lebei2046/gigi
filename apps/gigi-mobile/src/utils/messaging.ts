@@ -24,6 +24,14 @@ export interface GroupMessage {
   timestamp: number
 }
 
+export interface GroupShareMessage {
+  from_peer_id: string
+  from_nickname: string
+  group_id: string
+  group_name: string
+  timestamp: number
+}
+
 export interface FileInfo {
   id: string
   name: string
@@ -70,6 +78,19 @@ export class MessagingClient {
     message: string
   ): Promise<string> {
     return invoke('messaging_send_message_to_nickname', { nickname, message })
+  }
+
+  // Send group share message to peer
+  static async sendShareGroupMessage(
+    targetNickname: string,
+    groupId: string,
+    groupName: string
+  ): Promise<string> {
+    return invoke('messaging_send_direct_share_group_message', {
+      nickname: targetNickname,
+      groupId,
+      groupName,
+    })
   }
 
   // Get connected peers

@@ -1,26 +1,34 @@
 import { useEffect, useState } from 'react'
-import type { Peer } from '@/utils/messaging'
+import type { Peer, GroupShareMessage } from '@/utils/messaging'
 import { MessagingClient, MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import { useNavigate } from 'react-router-dom'
 import {
   getAllChats,
+  getAllGroups,
+  saveGroup,
   updateLatestMessage,
   getChatInfo,
   updateChatInfo,
   cleanupInvalidTimestamps,
 } from '@/utils/chatUtils'
-import type { Chat } from '@/models/db'
+import type { Chat, Group } from '@/models/db'
 
 export default function Chat() {
   const [peers, setPeers] = useState<Peer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [chats, setChats] = useState<Chat[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [latestMessages, setLatestMessages] = useState<Record<string, string>>(
     {}
   )
+  const [groupShareNotifications, setGroupShareNotifications] = useState<
+    GroupShareMessage[]
+  >([])
+  const [showShareDrawer, setShowShareDrawer] = useState(false)
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
@@ -47,29 +55,61 @@ export default function Chat() {
     }
   }
 
-  // Load chats from IndexedDB and set up periodic refresh
+  // Define loadGroups function outside useEffect
+  const loadGroups = async () => {
+    try {
+      console.log('🔄 Loading groups from IndexedDB...')
+      const allGroups = await getAllGroups()
+      setGroups(allGroups)
+      console.log('👥 Loaded groups from IndexedDB:', allGroups)
+    } catch (error) {
+      console.error('Failed to load groups:', error)
+    }
+  }
+
+  // Handle group share notifications
+  useEffect(() => {
+    const handleGroupShareReceived = (shareMessage: GroupShareMessage) => {
+      console.log('🎉 Received group share:', shareMessage)
+      setGroupShareNotifications(prev => [...prev, shareMessage])
+    }
+
+    MessagingEvents.on('group-share-received', handleGroupShareReceived)
+
+    return () => {
+      MessagingEvents.off('group-share-received', handleGroupShareReceived)
+    }
+  }, [])
+
+  // Load chats and groups from IndexedDB and set up periodic refresh
   useEffect(() => {
     // Clean up any existing invalid timestamps first
     cleanupInvalidTimestamps()
 
     // Load immediately
     loadChats()
+    loadGroups()
 
     // Set up more frequent refresh to catch updates from ChatRoom
-    const refreshInterval = setInterval(loadChats, 1000) // Refresh every 1 second
+    const refreshInterval = setInterval(() => {
+      loadChats()
+      loadGroups()
+    }, 1000) // Refresh every 1 second
 
     // Also refresh when window gets focus (user returns from ChatRoom)
     const handleFocus = () => {
-      console.log('🔄 Window focused, refreshing chats...')
+      console.log('🔄 Window focused, refreshing chats and groups...')
       loadChats()
+      loadGroups()
     }
     window.addEventListener('focus', handleFocus)
 
     // Also refresh when document becomes visible
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('🔄 Document visible, refreshing chats...')
+        console.log('🔄 Document visible, refreshing chats and groups...')
         loadChats()
+        loadGroups()
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -338,63 +378,221 @@ export default function Chat() {
       chats
     )
 
+    // Group sharing functions
+    const handleShareGroup = (group: Group) => {
+      setSelectedGroup(group)
+      setShowShareDrawer(true)
+    }
+
+    const handleSendShareToPeer = async (targetPeer: Peer) => {
+      if (!selectedGroup) return
+
+      try {
+        await MessagingClient.sendShareGroupMessage(
+          targetPeer.nickname,
+          selectedGroup.id,
+          selectedGroup.name
+        )
+        console.log('📤 Group share sent successfully')
+        setShowShareDrawer(false)
+        setSelectedGroup(null)
+      } catch (error) {
+        console.error('Failed to send group share:', error)
+      }
+    }
+
+    const handleAcceptGroupShare = async (shareMessage: GroupShareMessage) => {
+      try {
+        await saveGroup({
+          id: shareMessage.group_id,
+          name: shareMessage.group_name,
+          joined: true,
+          createdAt: new Date(shareMessage.timestamp * 1000),
+        })
+
+        // Remove from notifications
+        setGroupShareNotifications(prev =>
+          prev.filter(msg => msg.from_peer_id !== shareMessage.from_peer_id)
+        )
+
+        // Refresh groups
+        loadGroups()
+
+        console.log('✅ Group share accepted and saved')
+      } catch (error) {
+        console.error('Failed to accept group share:', error)
+      }
+    }
+
+    const handleIgnoreGroupShare = (shareMessage: GroupShareMessage) => {
+      // Remove from notifications
+      setGroupShareNotifications(prev =>
+        prev.filter(msg => msg.from_peer_id !== shareMessage.from_peer_id)
+      )
+      console.log('🚫 Group share ignored')
+    }
+
     return (
       <div className="flex flex-col h-full p-4">
-        <h2 className="text-xl font-semibold mb-4">Peers</h2>
+        <h2 className="text-xl font-semibold mb-4">Chats</h2>
 
-        {peers.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">
-              No peers found. Make sure other devices are running Gigi on the
-              same network.
-            </p>
+        {/* Group Share Notifications */}
+        {groupShareNotifications.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {groupShareNotifications.map(notification => (
+              <div
+                key={notification.from_peer_id}
+                className="p-3 bg-purple-50 border border-purple-200 rounded-lg"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="font-medium text-purple-800">
+                      🎉 Group Invitation from {notification.from_nickname}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {notification.group_name}
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleAcceptGroupShare(notification)}
+                      className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleIgnoreGroupShare(notification)}
+                      className="px-3 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
+                    >
+                      Ignore
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className="space-y-2">
-            {peers.map(peer => {
-              const latestMessage = latestMessages[peer.id]
-              const chatInfo = chats.find(chat => chat.id === peer.id)
+        )}
 
-              return (
+        {/* Groups Section */}
+        {groups.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-medium mb-3">Groups</h3>
+            <div className="space-y-2">
+              {groups.map(group => (
                 <div
-                  key={peer.id}
-                  onClick={() => handlePeerClick(peer)}
-                  className="p-3 bg-green-50 border border-green-200 rounded-lg cursor-pointer hover:bg-green-100 transition-colors"
+                  key={group.id}
+                  className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="font-medium text-green-800">
-                        {peer.nickname}
+                      <div className="font-medium text-blue-800">
+                        👥 {group.name}
                       </div>
-                      <div className="text-sm text-gray-600">{peer.id}</div>
-                      {peer.capabilities.length > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {peer.capabilities.join(', ')}
-                        </div>
-                      )}
+                      <div className="text-xs text-gray-500">
+                        {group.joined ? 'Joined' : 'Not joined'} • {group.id}
+                      </div>
                     </div>
-                    {(chatInfo?.lastMessage || latestMessage) && (
-                      <div className="ml-2 text-right">
-                        <div className="text-xs text-blue-600 font-medium">
-                          💬{' '}
-                          {chatInfo?.unreadCount && chatInfo.unreadCount > 0
-                            ? `(${chatInfo.unreadCount})`
-                            : 'Latest'}
+                    <button
+                      onClick={() => handleShareGroup(group)}
+                      className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                    >
+                      Share
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Direct Chats Section */}
+        <div>
+          <h3 className="text-lg font-medium mb-3">Direct Chats</h3>
+          {peers.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500">
+                No peers found. Make sure other devices are running Gigi on the
+                same network.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {peers.map(peer => {
+                const latestMessage = latestMessages[peer.id]
+                const chatInfo = chats.find(chat => chat.id === peer.id)
+
+                return (
+                  <div
+                    key={peer.id}
+                    onClick={() => handlePeerClick(peer)}
+                    className="p-3 bg-green-50 border border-green-200 rounded-lg cursor-pointer hover:bg-green-100 transition-colors"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-medium text-green-800">
+                          {peer.nickname}
                         </div>
-                        <div className="text-xs text-gray-600 max-w-32 truncate font-medium">
-                          {chatInfo?.lastMessage || latestMessage}
-                        </div>
-                        {chatInfo?.lastMessageTime && (
-                          <div className="text-xs text-gray-400">
-                            {chatInfo.lastMessageTime}
+                        <div className="text-sm text-gray-600">{peer.id}</div>
+                        {peer.capabilities.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {peer.capabilities.join(', ')}
                           </div>
                         )}
                       </div>
-                    )}
+                      {(chatInfo?.lastMessage || latestMessage) && (
+                        <div className="ml-2 text-right">
+                          <div className="text-xs text-blue-600 font-medium">
+                            💬{' '}
+                            {chatInfo?.unreadCount && chatInfo.unreadCount > 0
+                              ? `(${chatInfo.unreadCount})`
+                              : 'Latest'}
+                          </div>
+                          <div className="text-xs text-gray-600 max-w-32 truncate font-medium">
+                            {chatInfo?.lastMessage || latestMessage}
+                          </div>
+                          {chatInfo?.lastMessageTime && (
+                            <div className="text-xs text-gray-400">
+                              {chatInfo.lastMessageTime}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Share Drawer */}
+        {showShareDrawer && selectedGroup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50">
+            <div className="bg-white w-full max-h-96 rounded-t-2xl p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">
+                  Share "{selectedGroup.name}" with:
+                </h3>
+                <button
+                  onClick={() => setShowShareDrawer(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {peers.map(peer => (
+                  <div
+                    key={peer.id}
+                    onClick={() => handleSendShareToPeer(peer)}
+                    className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="font-medium">{peer.nickname}</div>
+                    <div className="text-sm text-gray-600">{peer.id}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

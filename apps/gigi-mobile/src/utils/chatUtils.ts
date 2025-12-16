@@ -3,7 +3,7 @@
  */
 
 import { db } from '@/models/db'
-import type { Chat } from '@/models/db'
+import type { Chat, Group } from '@/models/db'
 
 /**
  * Convert timestamp to milliseconds if it's in seconds
@@ -117,6 +117,34 @@ export async function resetUnreadCount(chatId: string): Promise<void> {
     }
   } catch (error) {
     console.error('Failed to reset unread count:', error)
+  }
+}
+
+export async function getAllGroups(): Promise<Group[]> {
+  try {
+    return await db.groups.orderBy('createdAt').reverse().toArray()
+  } catch (error) {
+    console.error('Failed to get all groups:', error)
+    return []
+  }
+}
+
+export async function saveGroup(
+  group: Omit<Group, 'id'> & { id?: string }
+): Promise<void> {
+  try {
+    if (group.id) {
+      await db.groups.put(group)
+    } else {
+      await db.groups.add({
+        id: group.id || crypto.randomUUID(),
+        name: group.name,
+        joined: group.joined,
+        createdAt: group.createdAt,
+      })
+    }
+  } catch (error) {
+    console.error('Failed to save group:', error)
   }
 }
 
