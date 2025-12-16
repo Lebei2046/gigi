@@ -10,8 +10,7 @@ gigi/
 │   ├── gigi-app/          # Desktop application (Tauri + React)
 │   └── gigi-mobile/       # Mobile application (Tauri + React)
 ├── pkgs/
-│   ├── gigi-p2p/          # Comprehensive P2P networking library
-│   └── gigi-messaging/    # Tauri backend plugin for messaging
+│   └── gigi-p2p/          # Comprehensive P2P networking library
 ├── Cargo.lock
 ├── Cargo.toml             # Rust workspace configuration
 ├── package.json           # Node.js workspace configuration
@@ -52,14 +51,6 @@ A comprehensive Rust library built on libp2p that provides the complete P2P func
 - `unshare_file()` - Remove file sharing
 - `send_direct_image()` - Direct image sharing
 - `send_group_image()` - Group image sharing
-
-### Gigi Messaging Plugin (`pkgs/gigi-messaging`)
-
-A Tauri backend plugin that bridges P2P functionality to frontend applications:
-- **Tauri Integration**: Exposes P2P features to TypeScript/React frontends
-- **Event Bridge**: Forwards P2P events to frontend
-- **Command Interface**: Provides API for frontend integration
-- **Cross-Platform**: Native OS integration via Tauri
 
 ### Frontend Applications (`apps/`)
 
@@ -117,7 +108,12 @@ Both applications feature:
 
 ### Communication System
 - **Direct Messaging**: Real-time text and image sharing between peers
-- **Group Communication**: Gossipsub-based broadcast messaging
+- **Group Communication**: Gossipsub-based broadcast messaging with bidirectional communication
+  - **Group Creation**: Users can create groups and invite other peers  
+  - **Owner/Member Roles**: Distinguished access between group creators and invited members
+    - `joined: false` = Group Creator/Owner (owns the group)
+    - `joined: true` = Invited Member (joined the group)
+  - **Topic Subscription**: Both owners and members automatically subscribe to group topics for messaging
 - **File Sharing**: Comprehensive file transfer system
   - Share any file type with unique codes
   - Chunked downloads with progress tracking
@@ -179,6 +175,8 @@ cargo tauri dev
 #### Mobile Application
 ```bash
 # Development mode
+$ANDROID_HOME/emulator/emulator -list-avds
+$ANDROID_HOME/emulator/emulator -avd Medium_Phone_API_36.1
 bun run --cwd apps/gigi-mobile tauri dev
 
 # Note: Mobile development may require additional platform-specific setup
@@ -268,6 +266,38 @@ This project uses a monorepo structure with Rust and JavaScript workspaces:
 4. **Test** across both Rust and TypeScript
 5. **Update documentation** as needed
 6. **Submit** a pull request with clear description
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### Group Messaging Issues
+**Problem**: Group owner cannot send messages, group members don't receive messages
+
+**Root Cause**: Group owners (`joined: false`) and members (`joined: true`) both need to subscribe to the gossipsub topic to participate in group messaging.
+
+**Solution**: The application now automatically subscribes both group owners and members to group topics when opening group chats, regardless of the `joined` flag status.
+
+**Debugging Steps**:
+1. Check console logs for "✅ Successfully joined group" messages
+2. Verify both instances show "📊 Total groups in local storage: 1" 
+3. Ensure "📤 Sending group message" and "✅ Group message published successfully" appear
+4. Check for "🔥 Raw gossipsub message received" on receiver side
+
+#### Mobile Development Setup
+**Android Emulator Setup**:
+```bash
+# List available emulators
+$ANDROID_HOME/emulator/emulator -list-avds
+
+# Start emulator
+$ANDROID_HOME/emulator/emulator -avd Medium_Phone_API_36.1
+```
+
+**Common Build Issues**:
+- Ensure Android Studio and Android SDK are properly installed
+- Verify `$ANDROID_HOME` environment variable is set
+- Run `bun run tauri android init` before first mobile build
 
 ### Code Standards
 - **Rust**: Follow `rustfmt` and `clippy` recommendations
