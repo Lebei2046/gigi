@@ -8,19 +8,19 @@ interface EmojiCardProps {
 const EmojiCard: React.FC<EmojiCardProps> = ({ onSelect, onSend }) => {
   const emojiCategories = [
     {
-      name: '表情',
+      name: 'Emojis',
       emojis: ['😀', '😂', '😍', '😎', '🥰', '😜', '🥺', '😢'],
     },
     {
-      name: '符号',
+      name: 'Symbols',
       emojis: ['❤️', '🔥', '✨', '⭐', '💯', '🎉', '👍', '👏'],
     },
     {
-      name: '动物',
+      name: 'Animals',
       emojis: ['🐶', '🐱', '🐭', '🐰', '🦊', '🐻', '🐼', '🐨'],
     },
     {
-      name: '食物',
+      name: 'Food',
       emojis: ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓'],
     },
   ];
@@ -51,7 +51,7 @@ const EmojiCard: React.FC<EmojiCardProps> = ({ onSelect, onSend }) => {
               <button
                 key={emoji}
                 type="button"
-                // 添加详细事件处理
+                // Add detailed event handling
                 onClick={() => {
                   onSelect(emoji);
                 }}
@@ -67,13 +67,13 @@ const EmojiCard: React.FC<EmojiCardProps> = ({ onSelect, onSend }) => {
       <div className="flex justify-end p-2">
         <button
           type="button"
-          // 添加详细事件处理
+          // Add detailed event handling
           onClick={() => {
             onSend();
           }}
           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full transition-colors"
         >
-          发送
+          Send
         </button>
       </div>
     </div>

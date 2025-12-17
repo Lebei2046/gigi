@@ -58,15 +58,15 @@ const TopBar: React.FC<TopBarProps> = ({ title, menuOpen, setMenuOpen }) => {
 
   return (
     <div className="sticky top-0 z-50 bg-gray-100 px-4 py-3 flex items-center">
-      {/* 左侧占位元素 */}
+      {/* Left placeholder */}
       <div className="flex-1"></div>
 
-      {/* 居中标题 */}
+      {/* Center title */}
       <div className="flex-1 flex justify-center">
         <span className="text-xl font-semibold">{title}</span>
       </div>
 
-      {/* 右侧图标 */}
+      {/* Right icons */}
       <div className="flex-1 flex justify-end space-x-3">
         <HiOutlineSearch className="w-6 h-6 text-gray-600" />
         <HiPlusCircle
@@ -81,18 +81,18 @@ const TopBar: React.FC<TopBarProps> = ({ title, menuOpen, setMenuOpen }) => {
           >
             <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
               <HiUserGroup className="mr-2" />
-              发起群聊
+              Start Group Chat
             </div>
             <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center">
               <HiUserAdd className="mr-2" />
-              添加朋友
+              Add Friends
             </div>
             <div
               className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"
               onClick={handleScanClick}
             >
               <FaQrcode className="mr-2" />
-              扫一扫
+              Scan QR Code
             </div>
           </div>
         )}

@@ -21,13 +21,13 @@ const ImageMessageBubble = ({ imageId }: ImageMessageBubbleProps) => {
 
         const url = await getImageUrl(imageId);
 
-        // 只有在组件仍然挂载时才更新状态
+        // Only update state if component is still mounted
         if (isMounted) {
           currentImageUrl = url;
           setImageUrl(url);
         }
       } catch (err) {
-        // 只有在组件仍然挂载时才更新状态
+        // Only update state if component is still mounted
         if (isMounted) {
           setError(err instanceof Error ? err.message : 'Failed to load image');
         }
@@ -40,17 +40,17 @@ const ImageMessageBubble = ({ imageId }: ImageMessageBubbleProps) => {
 
     loadImage();
 
-    // 清理函数
+    // Cleanup function
     return () => {
       isMounted = false;
-      // 只在组件卸载时撤销当前的图片URL
+      // Only revoke current image URL when component unmounts
       if (currentImageUrl) {
         revokeImageUrl(currentImageUrl);
       }
     };
-  }, [imageId]); // 移除 imageUrl 依赖，只依赖 imageId
+  }, [imageId]); // Remove imageUrl dependency, only depend on imageId
 
-  // 固定容器高度以减少布局跳动
+  // Fixed container height to reduce layout jumping
   if (loading) {
     return (
       <div className="bg-gray-200 rounded-lg p-4 flex items-center justify-center" style={{ width: '200px', height: '200px' }}>

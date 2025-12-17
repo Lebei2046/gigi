@@ -45,7 +45,7 @@ const Dock: React.FC<DockProps> & {
     );
   };
 
-// 定义复合组件
+// Define composite components
 Dock.List = function DockList({ className = '', children }: { className?: string; children: React.ReactNode }) {
   return (
     <div

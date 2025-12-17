@@ -26,7 +26,7 @@ const Me: React.FC = () => {
   }, [loadAvatar]);
 
   const handleBack = () => {
-    // 使用 replace 而不是 push 来避免在浏览器历史记录中留下额外条目
+    // Use replace instead of push to avoid leaving extra entries in browser history
     navigate("/", { replace: true, state: { tab: 'me' } });
   };
 
@@ -40,13 +40,13 @@ const Me: React.FC = () => {
       try {
         setIsUploading(true);
         await storeAvatar(address, file);
-        await loadAvatar(); // 重新加载头像
+        await loadAvatar(); // Reload avatar
       } catch (error) {
         console.error('Failed to upload avatar:', error);
-        alert('头像上传失败');
+        alert('Avatar upload failed');
       } finally {
         setIsUploading(false);
-        // 重置文件输入
+        // Reset file input
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
@@ -60,7 +60,7 @@ const Me: React.FC = () => {
         <button className="mr-4" onClick={handleBack}>
           <FiArrowLeft className="h-6 w-6" />
         </button>
-        <h2 className="text-xl font-semibold">个人中心</h2>
+        <h2 className="text-xl font-semibold">Personal Center</h2>
       </div>
       <div className="flex items-center mb-4 relative">
         <div

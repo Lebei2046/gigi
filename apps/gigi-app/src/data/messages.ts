@@ -10,37 +10,37 @@ export const initialMessages: Message[] = [
   {
     id: '1',
     senderId: 'yuanMei',
-    content: '大家明天下午去打球吗？',
+    content: 'Is everyone going to play tomorrow afternoon?',
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
   },
   {
     id: '2',
     senderId: 'lebei',
-    content: '好啊，我下午3点有空',
+    content: 'Great, I\'m free at 3 PM',
     timestamp: new Date(Date.now() - 1000 * 60 * 60),
   },
   {
     id: '3',
     senderId: 'yingZi',
-    content: '算我一个！',
+    content: 'Count me in!',
     timestamp: new Date(Date.now() - 1000 * 60 * 50),
   },
   {
     id: '4',
     senderId: 'changAn',
-    content: '我可能晚点到，大概4点左右',
+    content: 'I might be late, around 4 PM',
     timestamp: new Date(Date.now() - 1000 * 60 * 30),
   },
   {
     id: '5',
     senderId: 'lebei',
-    content: '没问题，我会带多几副球拍',
+    content: 'No problem, I\'ll bring extra rackets',
     timestamp: new Date(Date.now() - 1000 * 60 * 15),
   },
   {
     id: '6',
     senderId: 'maoZhu',
-    content: '我来不成了，周末有家事要处理 😭',
+    content: 'I can\'t make it, have family matters to handle 😭',
     timestamp: new Date(Date.now() - 1000 * 60 * 10),
   },
 ];

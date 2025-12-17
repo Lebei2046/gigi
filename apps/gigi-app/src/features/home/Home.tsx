@@ -21,12 +21,12 @@ export default function Home() {
   useEffect(() => {
     if (location.state && location.state.tab) {
       setActiveTab(location.state.tab);
-      // 清除状态以避免在后续导航中重复使用
+      // Clear state to avoid reuse in subsequent navigation
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
-  // 使用 useMemo 优化各页面组件的渲染
+  // Use useMemo to optimize rendering of page components
   const chatContent = useMemo(() => (
     <ChatList onChatSelect={(chatId) => navigate(`/chat/${chatId}`)} />
   ), [navigate]);
@@ -46,33 +46,33 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-base-200">
       <Dock value={activeTab} onValueChange={setActiveTab}>
-        {/* 首页内容 */}
+        {/* Chat content */}
         <Dock.Content value="chat" className="mb-6">
           {chatContent}
         </Dock.Content>
 
-        {/* 搜索内容 */}
+        {/* Contact content */}
         <Dock.Content value="contact" className="mb-6">
           {contactContent}
         </Dock.Content>
 
-        {/* 音乐内容 */}
+        {/* Discover content */}
         <Dock.Content value="discover" className="mb-6">
           {discoverContent}
         </Dock.Content>
 
-        {/* 个人资料内容 */}
+        {/* Profile content */}
         <Dock.Content value="me" className="mb-6">
           {meContent}
         </Dock.Content>
 
-        {/* 固定在底部的 Dock 导航栏 */}
+        {/* Dock navigation bar fixed at bottom */}
         <Dock.List className="dock-bottom p-2 bg-base-100 bg-opacity-90 backdrop-blur-sm shadow-lg z-50">
           <Dock.Trigger value="chat" className="dock-item">
             <div className="dock-label">
               <div className="flex flex-col items-center text-lg">
                 <Chat className="dock-icon" />
-                <span className="dock-text">聊天</span>
+                <span className="dock-text">Chat</span>
               </div>
             </div>
           </Dock.Trigger>
@@ -81,7 +81,7 @@ export default function Home() {
             <div className="dock-label">
               <div className="flex flex-col items-center text-lg">
                 <Contact className="dock-icon" />
-                <span className="dock-text">通讯录</span>
+                <span className="dock-text">Contacts</span>
               </div>
             </div>
           </Dock.Trigger>
@@ -90,7 +90,7 @@ export default function Home() {
             <div className="dock-label">
               <div className="flex flex-col items-center text-lg">
                 <Discover className="dock-icon" />
-                <span className="dock-text">发现</span>
+                <span className="dock-text">Discover</span>
               </div>
             </div>
           </Dock.Trigger>
@@ -99,7 +99,7 @@ export default function Home() {
             <div className="dock-label">
               <div className="flex flex-col items-center text-lg">
                 <Me className="dock-icon" />
-                <span className="dock-text">我</span>
+                <span className="dock-text">Me</span>
               </div>
             </div>
           </Dock.Trigger>

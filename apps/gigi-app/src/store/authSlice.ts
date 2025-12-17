@@ -43,10 +43,10 @@ const authSlice = createSlice({
           state.status = 'authenticated';
           state.error = null;
         } else {
-          state.error = '密码有误，请重新输入！';
+          state.error = 'Password is incorrect, please re-enter!';
         }
       } catch (error) {
-        state.error = error instanceof Error ? error.message : '解密失败，请检查数据或密码是否正确';
+        state.error = error instanceof Error ? error.message : 'Decryption failed, please check if data or password is correct';
       }
     },
     resetState: (state) => {

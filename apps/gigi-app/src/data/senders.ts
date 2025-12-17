@@ -18,13 +18,13 @@ export interface Sender {
 }
 
 export const senders: Sender[] = [
-  { id: 'songGe', name: '松哥', avatar: FaUserTie },
+  { id: 'songGe', name: 'Song Ge', avatar: FaUserTie },
   { id: 'kelvin', name: 'Kelvin', avatar: FaUserGraduate },
-  { id: 'yuanMei', name: '袁枚', avatar: FaUserCircle },
-  { id: 'yingZi', name: '英子', avatar: FaUserSecret },
-  { id: 'changAn', name: '常安', avatar: FaUserAlt },
-  { id: 'maoZhu', name: '毛竹', avatar: FaUserNinja },
-  { id: 'yingZi2', name: '影子', avatar: FaUserAstronaut },
-  { id: 'luoLuo', name: '落落', avatar: FaUserCheck },
-  { id: 'lebei', name: '乐呗', avatar: FaUser },
+  { id: 'yuanMei', name: 'Yuan Mei', avatar: FaUserCircle },
+  { id: 'yingZi', name: 'Ying Zi', avatar: FaUserSecret },
+  { id: 'changAn', name: 'Chang An', avatar: FaUserAlt },
+  { id: 'maoZhu', name: 'Mao Zhu', avatar: FaUserNinja },
+  { id: 'yingZi2', name: 'Ying Zi', avatar: FaUserAstronaut },
+  { id: 'luoLuo', name: 'Luo Luo', avatar: FaUserCheck },
+  { id: 'lebei', name: 'Le Bei', avatar: FaUser },
 ];

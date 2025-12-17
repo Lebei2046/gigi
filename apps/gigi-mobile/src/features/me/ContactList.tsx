@@ -4,7 +4,7 @@ import ContactListItem from './ContactListItem'
 import { type Contact } from '@/models/db'
 import { useAllContacts } from '@/models/contact'
 
-// 工具函数：分组和排序联系人
+// Utility function: Group and sort contacts
 const groupAndSortContacts = (contacts: Contact[], searchTerm: string) => {
   const filtered = contacts.filter(contact =>
     contact.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -30,20 +30,20 @@ const ContactList: React.FC = () => {
   const contacts = useAllContacts()
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  // 缓存分组和排序结果
+  // Cache grouping and sorting results
   const filteredGroups = useMemo(() => {
     if (!contacts || contacts.length === 0) return []
     return groupAndSortContacts(contacts, searchTerm)
   }, [contacts, searchTerm])
 
-  // 字母索引
+  // Alphabet index
   const letters = useMemo(() => {
     return filteredGroups.map(([letter]) => letter)
   }, [filteredGroups])
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      {/* 搜索框 */}
+      {/* Search box */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center bg-gray-100 rounded-xl px-4 py-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
           <HiOutlineSearch className="w-5 h-5 text-gray-400 mr-3" />
@@ -57,7 +57,7 @@ const ContactList: React.FC = () => {
         </div>
       </div>
 
-      {/* 联系人列表 */}
+      {/* Contact list */}
       <div className="flex-1 overflow-y-auto">
         {filteredGroups.length > 0 ? (
           <div className="px-4 py-2">
@@ -118,7 +118,7 @@ const ContactList: React.FC = () => {
         )}
       </div>
 
-      {/* 字母索引 */}
+      {/* Alphabet index */}
       {letters.length > 0 && (
         <div className="absolute right-3 top-24 bottom-20 flex flex-col justify-center bg-white/80 backdrop-blur rounded-full p-1 shadow-sm">
           {letters.map(letter => (

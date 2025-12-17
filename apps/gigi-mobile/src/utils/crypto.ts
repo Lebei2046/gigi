@@ -47,7 +47,7 @@ export function encryptMnemonics(
   mnemonic: string
   nonce: string
 } {
-  const nonce = randomBytes(24) // XChaCha20需要24字节nonce
+  const nonce = randomBytes(24) // XChaCha20 requires 24-byte nonce
   const cipher = xchacha20poly1305(
     expandTo32Bytes(stringToUint8Array(password)),
     nonce
@@ -74,7 +74,7 @@ export function decryptMnemonics(
     return new TextDecoder().decode(decrypted).split(' ')
   } catch (error) {
     console.error('Decryption failed:', error)
-    throw new Error('解密失败，请检查密码是否正确或数据是否损坏')
+    throw new Error('Decryption failed, please check if password is correct or data is corrupted')
   }
 }
 
@@ -99,15 +99,15 @@ export function getAddress(mnemonic: string[]): string {
 }
 
 function getAddressByPrivateKey(privKey: Uint8Array): string {
-  // 1. 从私钥计算公钥 (非压缩格式，带04前缀)
-  const publicKey = getPublicKey(privKey, false) // false表示非压缩
+  // 1. Calculate public key from private key (uncompressed format, with 04 prefix)
+  const publicKey = getPublicKey(privKey, false) // false means uncompressed
 
-  // 2. 去掉04前缀，得到XY坐标 (各32字节)
-  // 3. 计算Keccak-256哈希
-  // 4. 取最后20字节作为地址
+  // 2. Remove 04 prefix, get XY coordinates (32 bytes each)
+  // 3. Calculate Keccak-256 hash
+  // 4. Take last 20 bytes as address
   const hash_20 = keccak_256(publicKey.slice(1)).slice(-20)
 
-  // 5. 转换为小写十六进制
+  // 5. Convert to lowercase hexadecimal
   const address = `0x${bytesToHex(hash_20)}`.toLowerCase()
 
   return address

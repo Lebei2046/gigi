@@ -3,9 +3,9 @@ import MessageBubble from './MessageBubble';
 import MessageActionCard from './MessageActionCard';
 import { senders } from '../../../../data/senders';
 import type { Message } from '../../../../models/db';
-import ImageMessageBubble from '../ImageMessageBubble'; // 导入图片消息组件
+import ImageMessageBubble from '../ImageMessageBubble'; // Import image message component
 
-// 使用 memo 包装消息项以避免不必要的重新渲染
+// Wrap message item with memo to avoid unnecessary re-renders
 const MessageItem = memo(({
   message,
   me,
@@ -32,7 +32,7 @@ const MessageItem = memo(({
   const isMe = message.sender === me;
   const isSelected = selectedMessages.includes(message.id || 0);
 
-  // 检查是否为图片消息
+  // Check if it's an image message
   const isImageMessage = message.content.startsWith('[image:');
   const imageId = isImageMessage ? message.content.slice(7, -1) : null;
 
@@ -53,7 +53,7 @@ const MessageItem = memo(({
       onTouchCancel={cancelPressTimer}
     >
       {isImageMessage && imageId ? (
-        // 渲染图片消息
+        // Render image message
         <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
           {!isMe && (
             <div className="text-sm mb-1">
@@ -69,7 +69,7 @@ const MessageItem = memo(({
           </div>
         </div>
       ) : (
-        // 渲染普通文本消息
+        // Render regular text message
         <MessageBubble
           message={message}
           sender={sender}
@@ -104,11 +104,11 @@ const MessagePanel = ({
   });
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // 修复长按问题
+  // Fix long press issue
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPress = useRef(false);
 
-  // 滚动到底部
+  // Scroll to bottom
   const scrollToBottom = () => {
     if (panelRef.current) {
       panelRef.current.scrollTop = panelRef.current.scrollHeight;
@@ -119,15 +119,15 @@ const MessagePanel = ({
     scrollToBottom();
   }, [messages]);
 
-  // 修复长按功能 - 不再使用 contextmenu 和直接 preventDefault
+  // Fix long press functionality - no longer using contextmenu and direct preventDefault
   const startPressTimer = (messageId: number) => {
     isLongPress.current = false;
 
-    // 设置1秒后触发长按事件
+    // Set long press event to trigger after 1 second
     pressTimer.current = setTimeout(() => {
       isLongPress.current = true;
       handleLongPress(messageId);
-    }, 600); // 微信长按时间约为600ms
+    }, 600); // WeChat long press time is about 600ms
   };
 
   const cancelPressTimer = () => {
@@ -138,7 +138,7 @@ const MessagePanel = ({
   };
 
   const handleLongPress = (messageId: number) => {
-    // 取消可能的定时器
+    // Cancel possible timer
     cancelPressTimer();
 
     setSelectedMessageId(messageId);
@@ -146,7 +146,7 @@ const MessagePanel = ({
     if (panelRef.current) {
       const panelRect = panelRef.current.getBoundingClientRect();
 
-      // 在消息面板中心位置显示动作卡片
+      // Show action card at center of message panel
       setActionCardPosition({
         top: panelRect.height / 2,
         left: panelRect.width / 2,
@@ -154,24 +154,24 @@ const MessagePanel = ({
     }
   };
 
-  // 点击消息处理
+  // Handle message click
   const handleMessageClick = (messageId: number) => {
-    // 取消可能的定时器
+    // Cancel possible timer
     cancelPressTimer();
 
-    // 如果长按已经触发，则忽略点击
+    // If long press already triggered, ignore click
     if (isLongPress.current) {
       isLongPress.current = false;
       return;
     }
 
-    // 如果是多选模式，处理多选
+    // If in multi-select mode, handle multi-selection
     if (isMultiSelect) {
       handleMultiSelect(messageId);
     }
   };
 
-  // 多选处理
+  // Handle multi-selection
   const handleMultiSelect = (messageId: number) => {
     if (selectedMessages.includes(messageId)) {
       setSelectedMessages((prev) => prev.filter((id) => id !== messageId));
@@ -180,30 +180,30 @@ const MessagePanel = ({
     }
   };
 
-  // 动作卡片操作处理
+  // Handle action card operations
   const handleAction = (action: string, messageId: number) => {
     onMessageAction(action, messageId);
     setSelectedMessageId(null);
 
-    // 处理多选操作
-    if (action === '多选') {
+    // Handle multi-select operation
+    if (action === 'Multi-select') {
       setIsMultiSelect(true);
       setSelectedMessages([messageId]);
     }
 
-    // 处理退出多选模式
-    if (action === '删除' && isMultiSelect) {
+    // Handle exit from multi-select mode
+    if (action === 'Delete' && isMultiSelect) {
       setIsMultiSelect(false);
       setSelectedMessages([]);
     }
   };
 
-  // 关闭所有操作卡片
+  // Close all action cards
   const closeActionCard = () => {
     setSelectedMessageId(null);
   };
 
-  // 点击其他地方关闭动作卡片
+  // Click outside to close action card
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Element;
@@ -229,7 +229,7 @@ const MessagePanel = ({
     };
   }, [selectedMessageId]);
 
-  // 按ESC键关闭动作卡片
+  // Press ESC key to close action card
   useEffect(() => {
     const handleEscapeKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && selectedMessageId) {
@@ -246,7 +246,7 @@ const MessagePanel = ({
     };
   }, [selectedMessageId]);
 
-  // 清除所有定时器
+  // Clear all timers
   useEffect(() => {
     return () => {
       if (pressTimer.current) {
@@ -260,7 +260,7 @@ const MessagePanel = ({
       ref={panelRef}
       className="h-full p-4 pb-0"
       onContextMenu={(e) => {
-        // 防止在面板上出现浏览器上下文菜单
+        // Prevent browser context menu from appearing on panel
         const target = e.target as Element;
         if (!target.closest || !target.closest('.message-action-card')) {
           e.preventDefault();
@@ -280,7 +280,7 @@ const MessagePanel = ({
         />
       ))}
 
-      {/* 动作卡片渲染 */}
+      {/* Action card rendering */}
       {selectedMessageId && (
         <MessageActionCard
           messageId={selectedMessageId}
@@ -290,7 +290,7 @@ const MessagePanel = ({
         />
       )}
 
-      {/* 底部间距 */}
+      {/* Bottom spacing */}
       <div className="h-12"></div>
     </div>
   );

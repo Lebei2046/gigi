@@ -1,12 +1,12 @@
 import Dexie, { type EntityTable } from 'dexie';
 
 interface Contact {
-  id: string; // address作为唯一标识
+  id: string; // address as unique identifier
   name: string;
 }
 
 interface Chat {
-  id: string; // address作为唯一标识
+  id: string; // address as unique identifier
   name: string;
   isGroup?: boolean;
   lastMessage?: string;
@@ -22,7 +22,7 @@ interface Message {
   timestamp: Date;
 }
 
-// 添加图片存储接口
+// Add image storage interface
 interface Image {
   id: string;
   data: Blob;
@@ -30,15 +30,15 @@ interface Image {
   createdAt: Date;
 }
 
-// 添加头像接口
+// Add avatar interface
 interface Avatar {
-  id: string; // address作为唯一标识
-  imageId: string; // 对应images表中的imageId
+  id: string; // address as unique identifier
+  imageId: string; // Corresponds to imageId in the images table
   createdAt: Date;
   updatedAt: Date;
 }
 
-// 添加设置接口
+// Add settings interface
 interface Settings {
   key: string;
   value: string;

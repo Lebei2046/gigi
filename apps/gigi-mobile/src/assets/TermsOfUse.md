@@ -1,33 +1,33 @@
-# Gigi 社交应用服务条款
+# Gigi Social App Terms of Service
 
-## 1. 接受条款
+## 1. Acceptance of Terms
 
-使用 Gigi 社交应用（以下简称“本应用”）即表示您同意遵守本服务条款。如果您不同意，请勿使用本应用。
+By using the Gigi Social App (hereinafter referred to as "the App"), you agree to comply with these Terms of Service. If you do not agree, do not use this App.
 
-## 2. 服务描述
+## 2. Service Description
 
-Gigi 是一个基于 P2P 网络的社交应用，允许用户通过去中心化网络进行交流和内容分享。
+Gigi is a social application based on P2P network that allows users to communicate and share content through a decentralized network.
 
-## 3. 用户责任
+## 3. User Responsibilities
 
-- 您必须遵守所有适用的法律法规。
-- 禁止发布违法、骚扰性、仇恨性或侵犯他人权利的内容。
-- 您需对通过本应用分享的内容负责。
+- You must comply with all applicable laws and regulations.
+- Publishing illegal, harassing, hateful, or rights-infringing content is prohibited.
+- You are responsible for the content shared through this App.
 
-## 4. 隐私政策
+## 4. Privacy Policy
 
-- 本应用不会存储您的聊天记录或个人信息在中心化服务器上。
-- P2P 网络特性可能导致其他节点临时缓存您的数据，但本应用不对此负责。
+- This App does not store your chat records or personal information on centralized servers.
+- P2P network characteristics may cause other nodes to temporarily cache your data, but this App is not responsible for this.
 
-## 5. 免责声明
+## 5. Disclaimer
 
-- 本应用按“现状”提供，不承诺无中断或错误。
-- 您理解并接受 P2P 网络的潜在风险（如数据泄露）。
+- This App is provided "as is" without guarantee of uninterrupted or error-free service.
+- You understand and accept the potential risks of P2P networks (such as data leakage).
 
-## 6. 条款修改
+## 6. Terms Modification
 
-我们保留随时修改条款的权利，修改后的条款将在本页面发布。
+We reserve the right to modify the terms at any time, and the modified terms will be published on this page.
 
-## 7. 终止服务
+## 7. Service Termination
 
-我们有权终止违反条款的用户访问权限。
+We have the right to terminate access for users who violate the terms.

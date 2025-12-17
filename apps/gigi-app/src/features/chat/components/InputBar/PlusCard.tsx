@@ -16,15 +16,15 @@ interface PlusCardProps {
 
 const PlusCard: React.FC<PlusCardProps> = ({ onSelect }) => {
   const actions = [
-    { name: '图片', icon: <FaImage /> },
-    { name: '拍摄', icon: <FaCamera /> },
-    { name: '语音通话', icon: <FaPhoneAlt /> },
-    { name: '位置', icon: <FaMapMarkerAlt /> },
-    { name: '红包', icon: <FaMoneyBillWave /> },
-    { name: '礼物', icon: <FaGift /> },
-    { name: '转账', icon: <FaMoneyBillWave /> },
-    { name: '语音输入', icon: <FaKeyboard /> },
-    { name: '收藏', icon: <FaCommentAlt /> },
+    { name: 'Image', icon: <FaImage /> },
+    { name: 'Camera', icon: <FaCamera /> },
+    { name: 'Voice Call', icon: <FaPhoneAlt /> },
+    { name: 'Location', icon: <FaMapMarkerAlt /> },
+    { name: 'Red Packet', icon: <FaMoneyBillWave /> },
+    { name: 'Gift', icon: <FaGift /> },
+    { name: 'Transfer', icon: <FaMoneyBillWave /> },
+    { name: 'Voice Input', icon: <FaKeyboard /> },
+    { name: 'Favorites', icon: <FaCommentAlt /> },
   ];
 
   return (
@@ -34,7 +34,7 @@ const PlusCard: React.FC<PlusCardProps> = ({ onSelect }) => {
           <button
             key={action.name}
             type="button"
-            // 添加详细事件处理
+            // Add detailed event handling
             onClick={() => {
               onSelect(action.name);
             }}

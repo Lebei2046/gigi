@@ -54,13 +54,13 @@ const authSlice = createSlice({
           state.status = 'authenticated'
           state.error = null
         } else {
-          state.error = '密码有误，请重新输入！'
+          state.error = 'Password is incorrect, please re-enter!'
         }
       } catch (error) {
         state.error =
           error instanceof Error
             ? error.message
-            : '解密失败，请检查数据或密码是否正确'
+            : 'Decryption failed, please check if data or password is correct'
       }
     },
     resetState: state => {
@@ -145,7 +145,7 @@ export const loginWithP2P =
       const generatedAddress = getAddress(decryptedMnemonics)
 
       if (generatedAddress !== state.address) {
-        return { success: false, error: '密码有误，请重新输入！' }
+        return { success: false, error: 'Password is incorrect, please re-enter!' }
       }
 
       // Extract private key and initialize P2P
@@ -162,7 +162,7 @@ export const loginWithP2P =
       return { success: true, peerId }
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'P2P初始化失败'
+        error instanceof Error ? error.message : 'P2P initialization failed'
       return { success: false, error: errorMessage }
     }
   }

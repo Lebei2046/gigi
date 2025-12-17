@@ -1,7 +1,7 @@
 import { db, type Chat } from './db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
-// 添加聊天相关函数
+// Add chat related functions
 export async function addChat(chat: Omit<Chat, 'id'>) {
   await db.chats.add(chat);
 }

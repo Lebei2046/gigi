@@ -26,12 +26,12 @@ const MessageActionCard: React.FC<MessageActionCardProps> = ({
 }) => {
   const [visible, setVisible] = useState(false);
 
-  // 添加动画效果
+  // Add animation effect
   useEffect(() => {
     setVisible(true);
   }, []);
 
-  // 处理动作点击
+  // Handle action clicks
   const handleActionClick = (action: string) => {
     setVisible(false);
     setTimeout(() => {
@@ -39,7 +39,7 @@ const MessageActionCard: React.FC<MessageActionCardProps> = ({
     }, 300);
   };
 
-  // 计算卡片的实际位置 - 避免超出屏幕
+  // Calculate actual card position - avoid going off screen
   const calculatePosition = useCallback(() => {
     const { innerWidth, innerHeight } = window;
     const cardWidth = 300;
@@ -48,12 +48,12 @@ const MessageActionCard: React.FC<MessageActionCardProps> = ({
     let left = position.left;
     let top = position.top;
 
-    // 调整水平位置 - 避免超出右侧
+    // Adjust horizontal position - avoid exceeding right edge
     if (left + cardWidth > innerWidth) {
       left = innerWidth - cardWidth - 20;
     }
 
-    // 调整垂直位置 - 避免超出底部
+    // Adjust vertical position - avoid exceeding bottom edge
     if (top + cardHeight > innerHeight) {
       top = innerHeight - cardHeight - 20;
     }
@@ -63,14 +63,14 @@ const MessageActionCard: React.FC<MessageActionCardProps> = ({
 
   const { top, left } = calculatePosition();
   const actions = [
-    { name: '复制', icon: <FiCopy />, color: 'text-blue-500' },
-    { name: '转发', icon: <FiShare2 />, color: 'text-green-500' },
-    { name: '删除', icon: <FiTrash2 />, color: 'text-red-500' },
-    { name: '多选', icon: <FiCheckSquare />, color: 'text-purple-500' },
-    { name: '引用', icon: <FiMessageSquare />, color: 'text-yellow-500' },
-    { name: '提醒', icon: <FiBell />, color: 'text-orange-500' },
-    { name: '翻译', icon: <FiGlobe />, color: 'text-blue-400' },
-    { name: '搜一搜', icon: <FiSearch />, color: 'text-teal-500' },
+    { name: 'Copy', icon: <FiCopy />, color: 'text-blue-500' },
+    { name: 'Forward', icon: <FiShare2 />, color: 'text-green-500' },
+    { name: 'Delete', icon: <FiTrash2 />, color: 'text-red-500' },
+    { name: 'Multi-select', icon: <FiCheckSquare />, color: 'text-purple-500' },
+    { name: 'Quote', icon: <FiMessageSquare />, color: 'text-yellow-500' },
+    { name: 'Remind', icon: <FiBell />, color: 'text-orange-500' },
+    { name: 'Translate', icon: <FiGlobe />, color: 'text-blue-400' },
+    { name: 'Search', icon: <FiSearch />, color: 'text-teal-500' },
   ];
 
   return (
@@ -86,20 +86,20 @@ const MessageActionCard: React.FC<MessageActionCardProps> = ({
         width: '300px',
       }}
     >
-      {/* 标题栏 */}
+      {/* Title bar */}
       <div className="flex justify-between items-center mb-4 pb-2 border-b">
-        <h3 className="text-sm font-medium text-gray-700">消息操作</h3>
+        <h3 className="text-sm font-medium text-gray-700">Message Actions</h3>
         <button
           type="button"
           onClick={onClose}
           className="p-1 rounded-full hover:bg-gray-100"
-          aria-label="关闭"
+          aria-label="Close"
         >
           <FiX />
         </button>
       </div>
 
-      {/* 操作网格 */}
+      {/* Action grid */}
       <div className="grid grid-cols-4 gap-3">
         {actions.map((action) => (
           <button
@@ -115,14 +115,14 @@ const MessageActionCard: React.FC<MessageActionCardProps> = ({
         ))}
       </div>
 
-      {/* 多选模式下的操作栏 */}
+      {/* Action bar in multi-select mode */}
       <div className="mt-4 pt-3 border-t">
         <button
           type="button"
-          onClick={() => handleActionClick('多选')}
+          onClick={() => handleActionClick('Multi-select')}
           className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
         >
-          多选消息
+          Select Messages
         </button>
       </div>
     </div>

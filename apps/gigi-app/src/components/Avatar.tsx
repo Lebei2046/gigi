@@ -43,7 +43,7 @@ const Avatar: React.FC<AvatarProps> = ({
     }
   }, [address]);
 
-  // 从用户名获取首字母
+  // Get initials from username
   const getInitials = (name: string) => {
     if (!name || typeof name !== 'string') return 'U';
     return name.charAt(0).toUpperCase();
@@ -89,7 +89,7 @@ const Avatar: React.FC<AvatarProps> = ({
     );
   }
 
-  // 如果没有上传头像，则显示默认头像
+  // If no avatar is uploaded, show default avatar
   return (
     <div
       className="rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-medium"

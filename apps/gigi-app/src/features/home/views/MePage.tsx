@@ -7,18 +7,18 @@ import { FaQrcode } from "react-icons/fa";
 const MePage: React.FC = () => {
   const navigate = useNavigate();
   const menus = [
-    { icon: "👜", name: "服务", label: "" },
-    { icon: "💰", name: "收藏", label: "" },
-    { icon: "🖼️", name: "相册", label: "" },
-    { icon: "💳", name: "卡包", label: "" },
-    { icon: "😊", name: "表情", label: "" },
-    { icon: "⚙️", name: "设置", label: "" },
+    { icon: "👜", name: "Services", label: "" },
+    { icon: "💰", name: "Favorites", label: "" },
+    { icon: "🖼️", name: "Album", label: "" },
+    { icon: "💳", name: "Wallet", label: "" },
+    { icon: "😊", name: "Emojis", label: "" },
+    { icon: "⚙️", name: "Settings", label: "" },
   ];
   const { name, address } = useAppSelector((state) => state.auth);
 
   return (
     <div className="flex flex-col h-full bg-gray-100">
-      {/* 个人信息区域 */}
+      {/* Personal info area */}
       <div className="bg-white py-6 px-4 flex items-center">
         <div className="flex-shrink-0 mr-4">
           <Avatar name={name || ''} address={address || ''} size={60} />
@@ -32,11 +32,11 @@ const MePage: React.FC = () => {
               onClick={() => navigate('/me')}
             />
           </div>
-          <p className="text-gray-500 mt-1">唧唧号: {address}</p>
+          <p className="text-gray-500 mt-1">Giji ID: {address}</p>
         </div>
       </div>
 
-      {/* 菜单区域 */}
+      {/* Menu area */}
       <div className="mt-4 bg-white">
         {menus.map((menu, index) => (
           <div

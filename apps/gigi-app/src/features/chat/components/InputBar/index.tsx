@@ -3,32 +3,32 @@ import { FiMic, FiSmile, FiPlusCircle } from 'react-icons/fi';
 import { MdKeyboard } from 'react-icons/md';
 import EmojiCard from './EmojiCard';
 import PlusCard from './PlusCard';
-import { storeImage } from '../../../../utils/imageStorage'; // 新增导入
+import { storeImage } from '../../../../utils/imageStorage'; // New import
 
 interface InputBarProps {
   onSend: (content: string) => void;
   onCardHeightChange: (height: number) => void;
   onInputHeightChange: (height: number) => void;
-  onImageSend?: (imageId: string) => void; // 新增属性用于发送图片
+  onImageSend?: (imageId: string) => void; // New prop for sending images
 }
 
 const InputBar = ({
   onSend,
   onCardHeightChange,
   onInputHeightChange,
-  onImageSend, // 新增属性
+  onImageSend, // New prop
 }: InputBarProps) => {
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [activeCard, setActiveCard] = useState<'emoji' | 'plus' | null>(null);
-  const [isImageUploading, setIsImageUploading] = useState(false); // 新增状态
+  const [isImageUploading, setIsImageUploading] = useState(false); // New state
   const inputRef = useRef<HTMLInputElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const cardContainerRef = useRef<HTMLDivElement>(null);
   const ignoreFocus = useRef(false);
-  const fileInputRef = useRef<HTMLInputElement>(null); // 新增引用用于文件输入
+  const fileInputRef = useRef<HTMLInputElement>(null); // New ref for file input
 
-  // 更新输入区高度
+  // Update input area height
   useEffect(() => {
     if (barRef.current) {
       const height = barRef.current.clientHeight;
@@ -36,14 +36,14 @@ const InputBar = ({
     }
   }, [isRecording, activeCard, onInputHeightChange]);
 
-  // 更新卡片高度
+  // Update card height
   useEffect(() => {
     const updateCardHeight = () => {
       if (cardContainerRef.current) {
         const height = activeCard ? cardContainerRef.current.scrollHeight : 0;
         onCardHeightChange(height);
 
-        // 滚动优化 - 延迟获取更精确的高度
+        // Scroll optimization - delayed fetching of more accurate height
         if (activeCard) {
           setTimeout(() => {
             const finalHeight = cardContainerRef.current?.scrollHeight || 0;
@@ -58,21 +58,21 @@ const InputBar = ({
     updateCardHeight();
   }, [activeCard, onCardHeightChange]);
 
-  // 关闭所有卡片
+  // Close all cards
   const closeAllCards = () => {
     setActiveCard(null);
   };
 
-  // 切换语音输入模式
+  // Toggle voice input mode
   const handleVoiceClick = () => {
     setIsRecording(!isRecording);
     closeAllCards();
     if (isRecording) {
-      onSend('[语音消息]');
+      onSend('[Voice message]');
     }
   };
 
-  // 切换表情包卡片
+  // Toggle emoji card
   const toggleEmojiCard = () => {
     if (activeCard === 'emoji') {
       closeAllCards();
@@ -88,7 +88,7 @@ const InputBar = ({
     }
   };
 
-  // 切换功能卡片
+  // Toggle function card
   const togglePlusCard = () => {
     if (activeCard === 'plus') {
       closeAllCards();
@@ -97,38 +97,38 @@ const InputBar = ({
     }
   };
 
-  // 处理图片上传
+  // Handle image upload
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       try {
         setIsImageUploading(true);
-        // 生成唯一 ID
+        // Generate unique ID
         const imageId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // 存储图片
+        // Store image
         await storeImage(imageId, file);
 
-        // 通知父组件发送图片消息
+        // Notify parent component to send image message
         if (onImageSend) {
           onImageSend(imageId);
         }
       } catch (error) {
         console.error('Error uploading image:', error);
-        alert('图片上传失败');
+        alert('Image upload failed');
       } finally {
         setIsImageUploading(false);
-        // 重置文件输入
+        // Reset file input
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-        // 关闭卡片
+        // Close card
         closeAllCards();
       }
     }
   };
 
-  // 处理表情选择
+  // Handle emoji selection
   const handleSelectEmoji = (emoji: string) => {
     setInputText((prev) => prev + emoji);
     ignoreFocus.current = true;
@@ -138,7 +138,7 @@ const InputBar = ({
     }, 50);
   };
 
-  // 发送消息
+  // Send message
   const handleSubmit = () => {
     if (inputText.trim()) {
       onSend(inputText);
@@ -147,17 +147,17 @@ const InputBar = ({
     }
   };
 
-  // 修复1: 增强点击外部关闭卡片逻辑
+  // Fix 1: Enhanced logic for closing card when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      // 确保点击目标有效
+      // Ensure click target is valid
       const target = e.target as HTMLElement;
       if (!barRef.current || !target) return;
 
-      // 检查点击是否在输入区内部
+      // Check if click is inside input area
       const isClickInside = barRef.current.contains(target);
 
-      // 点击在外部则关闭卡片
+      // Close card if click is outside
       if (!isClickInside) {
         closeAllCards();
       }
@@ -167,7 +167,7 @@ const InputBar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 处理输入框获得焦点事件
+  // Handle input field focus event
   const handleInputFocus = () => {
     if (!ignoreFocus.current && activeCard) {
       closeAllCards();
@@ -176,7 +176,7 @@ const InputBar = ({
 
   return (
     <div ref={barRef} className="bg-gray-100 h-full">
-      {/* 隐藏的文件输入元素 */}
+      {/* Hidden file input element */}
       <input
         type="file"
         ref={fileInputRef}
@@ -186,7 +186,7 @@ const InputBar = ({
         id="image-upload-input"
       />
 
-      {/* 输入工具栏 */}
+      {/* Input toolbar */}
       <div className="p-3 h-full">
         <div className="flex items-center h-full">
           <button
@@ -202,7 +202,7 @@ const InputBar = ({
               type="button"
               className="flex-1 bg-white py-3 px-4 rounded-full text-center hover:bg-gray-200"
             >
-              按住说话
+              Hold to speak
             </button>
           ) : (
             <input
@@ -210,7 +210,7 @@ const InputBar = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               className="flex-1 border-0 rounded-full py-2 px-4 mx-2 focus:ring-2 focus:ring-blue-300"
-              placeholder="输入消息"
+              placeholder="Enter message"
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               onFocus={handleInputFocus}
             />
@@ -232,7 +232,7 @@ const InputBar = ({
             type="button"
             onClick={togglePlusCard}
             className={`p-2 transition-colors rounded-full ${activeCard === 'plus' ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
-            disabled={isImageUploading} // 禁用按钮当图片正在上传时
+            disabled={isImageUploading} // Disable button when image is uploading
           >
             {isImageUploading ? (
               <div className="w-6 h-6 border-t-2 border-blue-500 rounded-full animate-spin"></div>
@@ -243,7 +243,7 @@ const InputBar = ({
         </div>
       </div>
 
-      {/* 卡片区域 - 从下方弹出 */}
+      {/* Card area - pops up from bottom */}
       <div
         ref={cardContainerRef}
         className={`absolute top-full left-0 right-0 overflow-hidden transition-all duration-300 bg-gray-100 ${activeCard ? 'translate-y-0' : 'translate-y-full'
@@ -251,7 +251,7 @@ const InputBar = ({
       >
         {activeCard === 'emoji' && (
           <div className="bg-white px-2 pb-2 pt-1 shadow-lg">
-            {/* 修复2: 确保表情卡片事件正确处理 */}
+            {/* Fix 2: Ensure emoji card events are handled correctly */}
             <EmojiCard
               onSelect={(emoji) => {
                 handleSelectEmoji(emoji);
@@ -265,17 +265,17 @@ const InputBar = ({
         )}
         {activeCard === 'plus' && (
           <div className="bg-white px-2 pb-2 pt-1 shadow-lg">
-            {/* 修复3: 确保加号卡片事件正确处理 */}
+            {/* Fix 3: Ensure plus card events are handled correctly */}
             <PlusCard
               onSelect={(action) => {
-                // 根据选择的操作执行不同的功能
+                // Execute different functions based on selected action
                 switch (action) {
-                  case '图片':
-                    // 触发文件选择
+                  case 'Image':
+                    // Trigger file selection
                     document.getElementById('image-upload-input')?.click();
                     break;
                   default:
-                    // 其他操作保持原有的回调关闭逻辑
+                    // Other operations maintain original callback close logic
                     closeAllCards();
                 }
               }}

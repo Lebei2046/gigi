@@ -21,7 +21,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
   menuOpen = false,
 }) => {
   const handleClick = () => {
-    // 如果菜单是打开的，不触发点击事件
+    // If menu is open, don't trigger click event
     if (!menuOpen && onClick) {
       onClick(id);
     }

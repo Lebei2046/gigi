@@ -5,25 +5,25 @@ import TopBar from "../components/TopBar";
 const discoverItems = [
   {
     icon: <FaCompass className="text-xl text-green-500" />,
-    label: "朋友圈",
+    label: "Moments",
   },
   {
     icon: <FaCamera className="text-xl text-blue-400" />,
-    label: "扫一扫",
+    label: "Scan QR Code",
   },
   {
     icon: <FaStar className="text-xl text-yellow-400" />,
-    label: "看一看",
+    label: "Discover",
   },
   {
     icon: <FaSmile className="text-xl text-pink-400" />,
-    label: "搜一搜",
+    label: "Search",
   },
 ];
 
 const DiscoverPage: React.FC = () => (
   <div className="flex flex-col h-full">
-    <TopBar title="发现" menuOpen={false} setMenuOpen={function (open: boolean): void {
+    <TopBar title="Discover" menuOpen={false} setMenuOpen={function (open: boolean): void {
       console.log(open);
     } } />
     <div className="space-y-2">

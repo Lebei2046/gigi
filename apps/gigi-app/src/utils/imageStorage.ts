@@ -1,6 +1,6 @@
 import { db, type Image } from '../models/db';
 
-// 存储图片
+// Store image
 export async function storeImage(imageId: string, imageFile: File): Promise<string> {
   try {
     const imageObject = {
@@ -18,7 +18,7 @@ export async function storeImage(imageId: string, imageFile: File): Promise<stri
   }
 }
 
-// 获取图片 Blob URL
+// Get image Blob URL
 export async function getImageUrl(imageId: string): Promise<string> {
   try {
     const imageObject = await db.images.get(imageId);
@@ -32,7 +32,7 @@ export async function getImageUrl(imageId: string): Promise<string> {
   }
 }
 
-// 获取图片 Blob 数据
+// Get image Blob data
 export async function getImageBlob(imageId: string): Promise<Blob> {
   try {
     const imageObject = await db.images.get(imageId);
@@ -46,7 +46,7 @@ export async function getImageBlob(imageId: string): Promise<Blob> {
   }
 }
 
-// 删除图片
+// Delete image
 export async function deleteImage(imageId: string): Promise<void> {
   try {
     await db.images.delete(imageId);
@@ -56,7 +56,7 @@ export async function deleteImage(imageId: string): Promise<void> {
   }
 }
 
-// 批量删除图片
+// Batch delete images
 export async function deleteImages(imageIds: string[]): Promise<void> {
   try {
     await db.images.bulkDelete(imageIds);
@@ -66,12 +66,12 @@ export async function deleteImages(imageIds: string[]): Promise<void> {
   }
 }
 
-// 清理图片 URL（避免内存泄漏）
+// Clean up image URL (avoid memory leaks)
 export function revokeImageUrl(url: string): void {
   URL.revokeObjectURL(url);
 }
 
-// 检查图片是否存在
+// Check if image exists
 export async function imageExists(imageId: string): Promise<boolean> {
   try {
     const count = await db.images.where('id').equals(imageId).count();
@@ -82,7 +82,7 @@ export async function imageExists(imageId: string): Promise<boolean> {
   }
 }
 
-// 获取所有图片信息（不包括实际的 Blob 数据）
+// Get all image info (excluding actual Blob data)
 export async function getAllImageInfo(): Promise<Omit<Image, 'data'>[]> {
   try {
     const images = await db.images.toArray();
@@ -94,19 +94,19 @@ export async function getAllImageInfo(): Promise<Omit<Image, 'data'>[]> {
   }
 }
 
-// 存储用户头像
+// Store user avatar
 export async function storeAvatar(address: string, imageFile: File): Promise<string> {
   try {
-    // 生成唯一的图片ID
+    // Generate unique image ID
     const imageId = `avatar_${address}_${Date.now()}`;
 
-    // 存储图片
+    // Store image
     await storeImage(imageId, imageFile);
 
-    // 保存或更新用户头像关联记录
+    // Save or update user avatar association record
     const now = new Date();
     await db.avatars.put({
-      id: address, // 使用address作为唯一标识
+      id: address, // Use address as unique identifier
       imageId,
       createdAt: now,
       updatedAt: now
@@ -119,13 +119,13 @@ export async function storeAvatar(address: string, imageFile: File): Promise<str
   }
 }
 
-// 获取用户头像URL
+// Get user avatar URL
 export async function getAvatarUrl(address: string): Promise<string | null> {
   try {
-    // 查找用户头像记录
+    // Find user avatar record
     const avatarRecord = await db.avatars.get(address);
     if (avatarRecord) {
-      // 获取图片URL
+      // Get image URL
       return await getImageUrl(avatarRecord.imageId);
     }
     return null;
@@ -135,15 +135,15 @@ export async function getAvatarUrl(address: string): Promise<string | null> {
   }
 }
 
-// 删除用户头像
+// Delete user avatar
 export async function deleteAvatar(address: string): Promise<void> {
   try {
-    // 查找用户头像记录
+    // Find user avatar record
     const avatarRecord = await db.avatars.get(address);
     if (avatarRecord) {
-      // 删除关联的图片
+      // Delete associated image
       await deleteImage(avatarRecord.imageId);
-      // 删除头像记录
+      // Delete avatar record
       await db.avatars.delete(address);
     }
   } catch (error) {
