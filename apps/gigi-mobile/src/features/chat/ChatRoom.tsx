@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
-import type { Peer, GroupShareMessage } from '@/utils/messaging'
+import type { Peer } from '@/utils/messaging'
 import { MessagingClient, MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'

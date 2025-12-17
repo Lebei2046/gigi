@@ -1,12 +1,4 @@
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card'
 import { ReactComponent as Terms } from '@/assets/TermsOfUse.md'
 import AgreeToContinue from './AgreeToContinue'
 

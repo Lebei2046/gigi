@@ -1,14 +1,6 @@
 import { useState } from 'react'
 import QRCode from 'react-qr-code'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import QrScanner from '@/components/QrScanner'
 import { addContact } from '@/models/contact'
 import { formatShortPeerId } from '@/utils/peerUtils'

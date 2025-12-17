@@ -43,15 +43,6 @@ A comprehensive Rust library built on libp2p that provides the complete P2P func
 - **Share Codes**: Unique codes for file access
 - **Duplicate Detection**: Same files share existing codes
 
-#### Key APIs
-- `send_direct_message()` - Direct peer messaging
-- `send_group_message()` - Group messaging
-- `share_file()` - Share files with unique codes
-- `download_file()` - Download shared files
-- `unshare_file()` - Remove file sharing
-- `send_direct_image()` - Direct image sharing
-- `send_group_image()` - Group image sharing
-
 ### Frontend Applications (`apps/`)
 
 Modern React-based applications built with TypeScript and Tauri:
@@ -111,8 +102,6 @@ Both applications feature:
 - **Group Communication**: Gossipsub-based broadcast messaging with bidirectional communication
   - **Group Creation**: Users can create groups and invite other peers  
   - **Owner/Member Roles**: Distinguished access between group creators and invited members
-    - `joined: false` = Group Creator/Owner (owns the group)
-    - `joined: true` = Invited Member (joined the group)
   - **Topic Subscription**: Both owners and members automatically subscribe to group topics for messaging
 - **File Sharing**: Comprehensive file transfer system
   - Share any file type with unique codes
@@ -147,7 +136,9 @@ Both applications feature:
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://gitee.com/gigi-w/gigi.git
+# Or
+git clonehttps://github.com/Lebei2046/gigi.git
 cd gigi
 
 # Install JavaScript/TypeScript dependencies
@@ -159,88 +150,6 @@ cargo build
 # Run tests
 cargo test
 ```
-
-### Running Applications
-
-#### Desktop Application
-```bash
-# Development mode with hot reload
-bun run --cwd apps/gigi-app tauri dev
-
-# Or using Tauri CLI directly
-cd apps/gigi-app
-cargo tauri dev
-```
-
-#### Mobile Application
-```bash
-# Development mode
-$ANDROID_HOME/emulator/emulator -list-avds
-$ANDROID_HOME/emulator/emulator -avd Medium_Phone_API_36.1
-bun run --cwd apps/gigi-mobile tauri dev
-
-# Note: Mobile development may require additional platform-specific setup
-```
-
-### Building Applications
-
-#### Production Builds
-```bash
-# Desktop application
-bun run --cwd apps/gigi-app tauri build
-
-# Mobile application
-bun run --cwd apps/gigi-mobile tauri build
-```
-
-## Development
-
-### P2P Library Development
-
-```bash
-# Build the P2P library
-cargo build --package gigi-p2p
-
-# Run tests
-cargo test --package gigi-p2p
-
-# Run the interactive chat example
-cargo run --package gigi-p2p --example chat -- --nickname Alice
-
-# Run with custom port
-cargo run --package gigi-p2p --example chat -- --nickname Bob --port 8080
-```
-
-### Messaging Plugin Development
-
-```bash
-# Build the Tauri plugin
-cargo build --package gigi-messaging
-
-# Run tests
-cargo test --package gigi-messaging
-```
-
-### Chat Application Features
-
-The included chat example demonstrates all features:
-- Peer discovery and connection management
-- Direct text and image messaging
-- Group chat with multiple participants
-- File sharing with progress tracking
-- Command-line interface for all operations
-
-Available commands in the chat example:
-- `help` - Show all available commands
-- `peers` - List connected peers
-- `send <nick> <message>` - Send direct message
-- `send-image <nick> <path>` - Send image
-- `join <group>` - Join group chat
-- `send-group <group> <message>` - Send group message
-- `share <path>` - Share file with code
-- `unshare <code>` - Remove file sharing
-- `files` - List shared files
-- `download <nick> <code>` - Download file
 
 ## Workspace Architecture
 

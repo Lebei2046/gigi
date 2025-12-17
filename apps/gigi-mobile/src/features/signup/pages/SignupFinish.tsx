@@ -1,14 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card'
 import { useAppDispatch } from '@/store'
 import { loadAuthData } from '@/store/authSlice'
 import { useSignupContext } from '../context/SignupContext'
