@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import type { Peer, GroupShareMessage } from '@/utils/messaging'
 import { MessagingClient, MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { formatShortPeerId } from '@/utils/peerUtils'
 import {
   getAllChats,
@@ -14,6 +14,7 @@ import {
   getChatInfo,
   updateChatInfo,
   cleanupInvalidTimestamps,
+  ensureChatEntriesForGroups,
 } from '@/utils/chatUtils'
 import type { Chat, Group } from '@/models/db'
 
@@ -26,6 +27,7 @@ export default function Chat() {
   const [latestMessages, setLatestMessages] = useState<Record<string, string>>(
     {}
   )
+  const lastUnreadCounts = useRef<any[]>([])
   const [groupShareNotifications, setGroupShareNotifications] = useState<
     GroupShareMessage[]
   >([])
@@ -34,11 +36,11 @@ export default function Chat() {
   const [componentError, setComponentError] = useState<Error | null>(null)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
 
   // Define loadChats function outside useEffect so it can be used elsewhere
   const loadChats = async () => {
     try {
-      console.log('🔄 Loading chats from IndexedDB...')
       const allChats = await getAllChats()
       setChats(allChats)
 
@@ -51,8 +53,56 @@ export default function Chat() {
       })
       setLatestMessages(messagesFromChats)
 
-      console.log('📚 Loaded chats from IndexedDB:', allChats)
-      console.log('💬 Latest messages from IndexedDB:', messagesFromChats)
+      // Log unread counts to track changes
+      const unreadChats = allChats.filter(chat => (chat.unreadCount || 0) > 0)
+      const currentUnreadCounts = unreadChats.map(chat => ({
+        id: chat.id,
+        name: chat.name,
+        isGroup: chat.isGroup,
+        unreadCount: chat.unreadCount,
+      }))
+
+      // Always log to see what's happening (this is key for debugging)
+      const lastUnreadCountsStr = JSON.stringify(lastUnreadCounts.current)
+      const currentCountsStr = JSON.stringify(currentUnreadCounts)
+
+      console.log('🔍 Unread counts check:', {
+        totalUnreadChats: unreadChats.length,
+        currentCounts: currentUnreadCounts,
+        hasChanged: lastUnreadCountsStr !== currentCountsStr,
+        caller: new Error().stack?.split('\n')[2]?.trim(), // Who called this?
+      })
+
+      if (
+        currentUnreadCounts.length > 0 &&
+        lastUnreadCountsStr !== currentCountsStr
+      ) {
+        console.log('🔢 Current unread counts:', currentUnreadCounts)
+
+        // Check for potential duplicates (same name with different IDs)
+        const nameGroups = currentUnreadCounts.reduce(
+          (groups, chat) => {
+            const key = chat.name.toLowerCase()
+            if (!groups[key]) groups[key] = []
+            groups[key].push(chat)
+            return groups
+          },
+          {} as Record<string, typeof currentUnreadCounts>
+        )
+
+        Object.entries(nameGroups).forEach(([name, chats]) => {
+          if (chats.length > 1) {
+            console.warn(
+              `⚠️ Found ${chats.length} chat entries with similar name "${name}":`,
+              chats
+            )
+          }
+        })
+
+        lastUnreadCounts.current = currentUnreadCounts
+      } else if (currentUnreadCounts.length === 0) {
+        console.log('✅ No unread messages found')
+      }
     } catch (error) {
       console.error('Failed to load chats:', error)
     }
@@ -61,10 +111,8 @@ export default function Chat() {
   // Define loadGroups function outside useEffect
   const loadGroups = async () => {
     try {
-      console.log('🔄 Loading groups from IndexedDB...')
       const allGroups = await getAllGroups()
       setGroups(allGroups)
-      console.log('👥 Loaded groups from IndexedDB:', allGroups)
     } catch (error) {
       console.error('Failed to load groups:', error)
     }
@@ -75,12 +123,9 @@ export default function Chat() {
     const handleGroupShareReceived = async (
       shareMessage: GroupShareMessage
     ) => {
-      console.log('🎉 Received group share:', shareMessage)
-
       // Check if group already exists
       const existingGroup = await getGroup(shareMessage.group_id)
       if (existingGroup) {
-        console.log('🔄 Group already exists, ignoring share message')
         return
       }
 
@@ -101,31 +146,9 @@ export default function Chat() {
         const allGroups = await getAllGroups()
         const joinedGroups = allGroups.filter(group => group.joined)
 
-        console.log(
-          '🎯 Chat.tsx: Found groups to subscribe to:',
-          joinedGroups.length
-        )
-        console.log(
-          '🎯 Chat.tsx: Joined groups:',
-          joinedGroups.map(g => ({ id: g.id, name: g.name }))
-        )
-
         for (const group of joinedGroups) {
           try {
-            console.log(
-              '🔔 Chat.tsx: Attempting to join group:',
-              group.id,
-              '(',
-              group.name,
-              ')'
-            )
             await MessagingClient.joinGroup(group.id)
-            console.log(
-              '✅ Chat.tsx: Successfully joined group topic:',
-              group.name,
-              'ID:',
-              group.id
-            )
           } catch (error) {
             console.error(
               `❌ Chat.tsx: Failed to subscribe to group ${group.name}:`,
@@ -146,19 +169,21 @@ export default function Chat() {
     // Clean up any existing invalid timestamps first
     cleanupInvalidTimestamps()
 
+    // Ensure all groups have corresponding chat entries
+    ensureChatEntriesForGroups()
+
     // Load immediately
     loadChats()
     loadGroups()
 
-    // Set up more frequent refresh to catch updates from ChatRoom
+    // Set up periodic refresh to catch updates from ChatRoom
     const refreshInterval = setInterval(() => {
       loadChats()
       loadGroups()
-    }, 1000) // Refresh every 1 second
+    }, 3000) // Refresh every 3 seconds
 
     // Also refresh when window gets focus (user returns from ChatRoom)
     const handleFocus = () => {
-      console.log('🔄 Window focused, refreshing chats and groups...')
       loadChats()
       loadGroups()
     }
@@ -167,19 +192,55 @@ export default function Chat() {
     // Also refresh when document becomes visible
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('🔄 Document visible, refreshing chats and groups...')
         loadChats()
         loadGroups()
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
+    // Refresh immediately when component mounts (when navigating back from ChatRoom)
+    const timer = setTimeout(() => {
+      loadChats()
+      loadGroups()
+    }, 100) // Small delay to ensure navigation is complete
+
+    // Additional refresh on route changes (when coming back from ChatRoom)
+    const handleRouteChange = () => {
+      setTimeout(() => {
+        loadChats()
+        loadGroups()
+      }, 50)
+    }
+
+    // Listen for navigation events
+    window.addEventListener('popstate', handleRouteChange)
+
+    // Listen for custom unread count reset events
+    const handleUnreadCountReset = (event?: CustomEvent) => {
+      console.log('🔄 Unread count reset event received, refreshing chats...')
+      if (event?.detail) {
+        console.log('📊 Event details:', event.detail)
+      }
+      loadChats()
+      loadGroups()
+    }
+    window.addEventListener('unreadCountReset', handleUnreadCountReset)
+
     return () => {
       clearInterval(refreshInterval)
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('popstate', handleRouteChange)
+      window.removeEventListener('unreadCountReset', handleUnreadCountReset)
+      clearTimeout(timer)
     }
   }, [])
+
+  // Refresh data when location changes (navigating back from ChatRoom)
+  useEffect(() => {
+    loadChats()
+    loadGroups()
+  }, [location.key]) // location.key changes on navigation
 
   // Handle peer click to open chat
   const handlePeerClick = async (peer: Peer) => {
@@ -187,13 +248,16 @@ export default function Chat() {
       // Ensure chat entry exists in IndexedDB before navigating
       const existingChat = await getChatInfo(peer.id)
       if (!existingChat) {
-        await updateChatInfo(peer.id, peer.nickname, '', Date.now(), false)
         console.log(
-          '📝 Created chat entry for peer before navigation:',
-          peer.id
+          `➕ Creating new chat entry for peer ${peer.id} (${peer.nickname})`
         )
+        await updateChatInfo(peer.id, peer.nickname, '', Date.now(), false)
         // Refresh the chats list to include the new entry
         loadChats()
+      } else {
+        console.log(
+          `✅ Chat entry already exists for peer ${peer.id} (${peer.nickname})`
+        )
       }
     } catch (error) {
       console.error('Error ensuring chat entry exists:', error)
@@ -204,13 +268,6 @@ export default function Chat() {
 
   useEffect(() => {
     try {
-      console.log('Chat component mounting...')
-      console.log(
-        '🎯 Chat.tsx useEffect running, dispatch:',
-        dispatch,
-        'navigate:',
-        navigate
-      )
       dispatch(
         addLog({
           event: 'chat_loaded',
@@ -221,8 +278,6 @@ export default function Chat() {
 
       const loadPeers = async () => {
         try {
-          console.log('Loading real peers...')
-
           // Add timeout to prevent hanging
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error('Timeout loading peers')), 5000)
@@ -234,7 +289,6 @@ export default function Chat() {
             timeoutPromise,
           ])) as Peer[]
 
-          console.log('Connected peers:', connectedPeers)
           setPeers(connectedPeers)
           dispatch(
             addLog({
@@ -264,27 +318,20 @@ export default function Chat() {
       // Set up periodic polling as fallback for real-time updates
       const pollInterval = setInterval(async () => {
         try {
-          console.log('Polling for peers...')
           const currentPeers = await MessagingClient.getPeers()
-          console.log('Current peers from poll:', currentPeers)
           setPeers(currentPeers)
         } catch (error) {
           console.error('Error polling peers:', error)
         }
       }, 3000) // Poll every 3 seconds
 
-      // Also try event listeners with debugging
       try {
-        console.log('Setting up event listeners...')
-
         const handlePeerConnected = (peer: any) => {
-          console.log('🔗 Peer connected event received:', peer)
           try {
             if (peer && peer.id && peer.nickname) {
               setPeers(prev => {
                 const exists = prev.find(p => p.id === peer.id)
                 if (!exists) {
-                  console.log('Adding new peer to state:', peer)
                   return [...prev, peer]
                 }
                 return prev
@@ -303,7 +350,6 @@ export default function Chat() {
         }
 
         const handlePeerDisconnected = (peer: any) => {
-          console.log('❌ Peer disconnected event received:', peer)
           try {
             if (peer && peer.id && peer.nickname) {
               setPeers(prev => prev.filter(p => p.id !== peer.id))
@@ -322,10 +368,6 @@ export default function Chat() {
 
         // Message receiving handler
         const handleMessageReceived = (message: any) => {
-          console.log('📨 Message received in Chat.tsx:', message)
-          console.log('📨 From peer ID:', message.from_peer_id)
-          console.log('📨 Content:', message.content)
-
           // Save message to localStorage for history
           try {
             const historyKey = `chat_history_${message.from_peer_id}`
@@ -339,10 +381,6 @@ export default function Chat() {
             }
             history = [...history, newMessage]
             localStorage.setItem(historyKey, JSON.stringify(history))
-            console.log(
-              '💾 Saved received message to history for peer:',
-              message.from_peer_id
-            )
           } catch (error) {
             console.error('Failed to save received message to history:', error)
           }
@@ -359,7 +397,8 @@ export default function Chat() {
             message.content,
             timestampMs,
             false,
-            false
+            false,
+            true // Increment unread for incoming direct messages
           )
 
           // Then update local state to match IndexedDB
@@ -368,7 +407,6 @@ export default function Chat() {
               ...prev,
               [message.from_peer_id]: message.content,
             }
-            console.log('📨 Updated latestMessages:', newMessages)
             return newMessages
           })
 
@@ -383,13 +421,6 @@ export default function Chat() {
 
         // Group message receiving handler
         const handleGroupMessageReceived = (message: any) => {
-          console.log('🔥 GROUP MESSAGE RECEIVED in Chat.tsx:', message)
-          console.log('🔥 From peer ID:', message.from_peer_id)
-          console.log('🔥 Group ID:', message.group_id)
-          console.log('🔥 From nickname:', message.from_nickname)
-          console.log('🔥 Content:', message.content)
-          console.log('🔥 Timestamp:', message.timestamp)
-
           // Save message to localStorage for history
           try {
             const historyKey = `chat_history_group_${message.group_id}`
@@ -404,10 +435,6 @@ export default function Chat() {
             }
             history = [...history, newMessage]
             localStorage.setItem(historyKey, JSON.stringify(history))
-            console.log(
-              '💾 Saved received group message to history for group:',
-              message.group_id
-            )
           } catch (error) {
             console.error(
               'Failed to save received group message to history:',
@@ -427,7 +454,8 @@ export default function Chat() {
             message.content,
             timestampMs,
             false,
-            true
+            true,
+            true // Increment unread for incoming group messages
           )
 
           // Then update local state to match IndexedDB
@@ -436,7 +464,6 @@ export default function Chat() {
               ...prev,
               [message.group_id]: message.content,
             }
-            console.log('💬 Updated latest messages (group):', newMessages)
             return newMessages
           })
 
@@ -454,10 +481,6 @@ export default function Chat() {
         MessagingEvents.on('peer-disconnected', handlePeerDisconnected)
         MessagingEvents.on('message-received', handleMessageReceived)
         MessagingEvents.on('group-message', handleGroupMessageReceived)
-        console.log(
-          '🎯 Chat.tsx event listeners registered for: peer-connected, peer-disconnected, message-received, group-message'
-        )
-        console.log('🎯 Listening for group messages on all groups...')
 
         // Clean up on unmount
         return () => {
@@ -467,7 +490,6 @@ export default function Chat() {
             MessagingEvents.off('peer-disconnected', handlePeerDisconnected)
             MessagingEvents.off('message-received', handleMessageReceived)
             MessagingEvents.off('group-message', handleGroupMessageReceived)
-            console.log('Event listeners cleaned up')
           } catch (error) {
             console.error('Error cleaning up event listeners:', error)
           }
@@ -498,7 +520,6 @@ export default function Chat() {
         selectedGroup.id,
         selectedGroup.name
       )
-      console.log('📤 Group share sent successfully')
       setShowShareDrawer(false)
       setSelectedGroup(null)
     } catch (error) {
@@ -522,8 +543,6 @@ export default function Chat() {
 
       // Refresh groups
       loadGroups()
-
-      console.log('✅ Group share accepted and saved')
     } catch (error) {
       console.error('Failed to accept group share:', error)
     }
@@ -534,7 +553,6 @@ export default function Chat() {
     setGroupShareNotifications(prev =>
       prev.filter(msg => msg.from_peer_id !== shareMessage.from_peer_id)
     )
-    console.log('🚫 Group share ignored')
   }
 
   // Error and loading states
@@ -596,15 +614,6 @@ export default function Chat() {
       </div>
     )
   }
-
-  console.log(
-    '🎨 Chat.tsx rendering with peers:',
-    peers.length,
-    'latestMessages:',
-    latestMessages,
-    'chats:',
-    chats
-  )
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -669,63 +678,90 @@ export default function Chat() {
               <span className="bg-blue-100 text-blue-600 text-xs font-medium px-2 py-1 rounded-full">
                 {groups.length}
               </span>
+              {(() => {
+                const totalGroupUnread = groups.reduce((sum, group) => {
+                  const chatInfo = chats.find(chat => chat.id === group.id)
+                  return sum + (chatInfo?.unreadCount || 0)
+                }, 0)
+                return (
+                  totalGroupUnread > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {totalGroupUnread}
+                    </span>
+                  )
+                )
+              })()}
             </div>
             <div className="space-y-3">
-              {groups.map(group => (
-                <div
-                  key={group.id}
-                  className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
-                >
+              {groups.map(group => {
+                const chatInfo = chats.find(chat => chat.id === group.id)
+                const unreadCount = chatInfo?.unreadCount || 0
+
+                return (
                   <div
-                    className="flex justify-between items-start p-4 cursor-pointer"
-                    onClick={() => navigate(`/chat/${group.id}`)}
+                    key={group.id}
+                    className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-semibold">G</span>
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900">
-                            {group.name}
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <span className="bg-gray-100 px-2 py-0.5 rounded">
-                              {group.joined ? 'Member' : 'Owner'}
+                    <div
+                      className="flex justify-between items-start p-4 cursor-pointer"
+                      onClick={() => navigate(`/chat/${group.id}`)}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-blue-600 font-semibold">
+                              G
                             </span>
                           </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-gray-900">
+                                {group.name}
+                              </span>
+                              {unreadCount > 0 && (
+                                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                                  {unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <span className="bg-gray-100 px-2 py-0.5 rounded">
+                                {group.joined ? 'Member' : 'Owner'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+                        {latestMessages[group.id] && (
+                          <div className="text-sm text-gray-600 mt-2 truncate ml-12">
+                            💬 {latestMessages[group.id]}
+                          </div>
+                        )}
                       </div>
-                      {latestMessages[group.id] && (
-                        <div className="text-sm text-gray-600 mt-2 truncate ml-12">
-                          💬 {latestMessages[group.id]}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={e => {
-                        e.stopPropagation()
-                        handleShareGroup(group)
-                      }}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          handleShareGroup(group)
+                        }}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.026a3 3 0 10-4.732 2.684m4.732-2.684a3 3 0 00-4.732-2.684"
-                        ></path>
-                      </svg>
-                    </button>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.026a3 3 0 10-4.732 2.684m4.732-2.684a3 3 0 00-4.732-2.684"
+                          ></path>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

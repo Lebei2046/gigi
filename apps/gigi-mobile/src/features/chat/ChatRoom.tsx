@@ -14,6 +14,7 @@ import {
   getChatInfo,
   resetUnreadCount,
   getGroup,
+  getAllChats,
 } from '@/utils/chatUtils'
 import type { Group } from '@/models/db'
 
@@ -41,6 +42,7 @@ export default function ChatRoom() {
   const [isLoading, setIsLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [isGroupChat, setIsGroupChat] = useState(false)
+  const unreadResetDone = useRef(false)
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -64,7 +66,6 @@ export default function ChatRoom() {
         setGroup(groupData)
         setPeer(null)
 
-        console.log('ChatRoom mounted for group:', groupData)
         dispatch(
           addLog({
             event: 'group_chat_room_opened',
@@ -78,19 +79,13 @@ export default function ChatRoom() {
         if (groupData.joined) {
           try {
             await MessagingClient.joinGroup(id)
-            console.log('✅ Joined group topic:', id)
           } catch (error) {
             console.error('Failed to join group topic:', error)
           }
         } else {
-          console.log(
-            '👑 Group owner detected, ensuring topic subscription for owned group:',
-            id
-          )
           // Group owners also need to subscribe to their own group topics to send messages
           try {
             await MessagingClient.joinGroup(id)
-            console.log('✅ Subscribed to own group topic:', id)
           } catch (error) {
             console.error('Failed to subscribe to own group topic:', error)
           }
@@ -101,7 +96,6 @@ export default function ChatRoom() {
         setPeer(location.state.peer)
         setGroup(null)
 
-        console.log('ChatRoom mounted for peer:', location.state.peer)
         dispatch(
           addLog({
             event: 'chat_room_opened',
@@ -146,12 +140,7 @@ export default function ChatRoom() {
                 : msg.timestamp,
             isGroup: isGroupChat,
           }))
-          console.log(
-            '📚 Loaded message history for',
-            isGroupChat ? `group ${chatName}` : `peer ${chatName}`,
-            ':',
-            normalizedHistory
-          )
+
           setMessages(normalizedHistory)
         }
       } catch (error) {
@@ -174,20 +163,55 @@ export default function ChatRoom() {
           false,
           isGroupChat
         )
-        console.log(
-          '📝 Created new chat entry for:',
-          isGroupChat ? 'group' : 'peer',
-          chatId
-        )
       } else {
-        console.log(
-          '📝 Chat entry already exists for:',
-          isGroupChat ? 'group' : 'peer',
-          chatId,
-          existingChat
-        )
-        // Reset unread count when user opens the chat
-        await resetUnreadCount(chatId)
+        // Reset unread count when user opens the chat (only once)
+        if (!unreadResetDone.current) {
+          console.log(
+            `🏠 Entering chat room for ${chatId}, resetting unread count`
+          )
+          await resetUnreadCount(chatId)
+
+          // Also reset unread counts for other chats with the same name (handles multiple peer IDs for same person)
+          const allChats = await getAllChats()
+          const currentChat = allChats.find(c => c.id === chatId)
+          if (currentChat) {
+            const sameNameChats = allChats.filter(
+              c =>
+                c.id !== chatId &&
+                c.name.toLowerCase() === currentChat.name.toLowerCase() &&
+                (c.unreadCount || 0) > 0
+            )
+
+            if (sameNameChats.length > 0) {
+              console.log(
+                `🔗 Found ${sameNameChats.length} other chats with same name "${currentChat.name}":`,
+                sameNameChats.map(c => ({
+                  id: c.id,
+                  unreadCount: c.unreadCount,
+                }))
+              )
+
+              for (const chat of sameNameChats) {
+                console.log(
+                  `🔄 Also resetting unread count for duplicate chat ${chat.id}`
+                )
+                await resetUnreadCount(chat.id)
+              }
+            }
+          }
+
+          unreadResetDone.current = true
+
+          // Double-check the reset worked and force refresh in Chat component
+          setTimeout(() => {
+            console.log(`🔄 Triggering focus event to refresh chat list`)
+            window.dispatchEvent(new Event('focus'))
+          }, 100)
+        } else {
+          console.log(
+            `🏠 Already in chat room ${chatId}, skipping unread reset (already done)`
+          )
+        }
       }
     }
 
@@ -207,8 +231,6 @@ export default function ChatRoom() {
 
     // Listen for new messages (both direct and group)
     const handleMessageReceived = (message: any) => {
-      console.log('New message in ChatRoom:', message)
-
       // Process direct messages for peer chats
       if (!isGroupChat && message.from_peer_id === peer?.id) {
         handleDirectMessage(message, saveMessageHistory)
@@ -245,13 +267,10 @@ export default function ChatRoom() {
           peer!.id,
           newMessage.content,
           newMessage.timestamp,
+          true, // Outgoing message
           false,
-          false
-        ).then(() => {
-          console.log(
-            '💾 Updated latest message in IndexedDB for received direct message'
-          )
-        })
+          false // Don't increment unread (outgoing messages reset to 0)
+        )
 
         return updatedMessages
       })
@@ -294,13 +313,10 @@ export default function ChatRoom() {
           group!.id,
           newMessage.content,
           newMessage.timestamp,
-          false,
-          true
-        ).then(() => {
-          console.log(
-            '💾 Updated latest message in IndexedDB for received group message'
-          )
-        })
+          true, // Outgoing message
+          true,
+          false // Don't increment unread (outgoing messages reset to 0)
+        )
 
         return updatedMessages
       })
@@ -330,14 +346,9 @@ export default function ChatRoom() {
           lastMessage.content,
           lastMessage.timestamp,
           lastMessage.isOutgoing,
-          isGroupChat
-        ).then(() => {
-          console.log(
-            '💾 Final update when leaving ChatRoom for:',
-            isGroupChat ? 'group' : 'peer',
-            chatId
-          )
-        })
+          isGroupChat,
+          false // Don't increment unread when leaving chat room
+        )
       }
     }
   }, [peer, group, isGroupChat, isLoading, dispatch, messages.length])
@@ -354,7 +365,6 @@ export default function ChatRoom() {
     try {
       if (isGroupChat) {
         // Send group message
-        console.log('Sending group message:', newMessage)
 
         messageToAdd = {
           id: Date.now().toString(),
@@ -383,12 +393,9 @@ export default function ChatRoom() {
             messageToAdd!.content,
             messageToAdd!.timestamp,
             true,
-            true
-          ).then(() => {
-            console.log(
-              '💾 Updated latest message in IndexedDB for sent group message'
-            )
-          })
+            true,
+            false // Don't increment unread for outgoing messages
+          )
 
           return updatedMessages
         })
@@ -397,12 +404,6 @@ export default function ChatRoom() {
         const result = await MessagingClient.sendGroupMessage(
           group!.id,
           newMessage.trim()
-        )
-        console.log(
-          '✅ Group message sent successfully to',
-          group!.name,
-          'result:',
-          result
         )
 
         dispatch(
@@ -414,7 +415,6 @@ export default function ChatRoom() {
         )
       } else {
         // Send direct message
-        console.log('Sending direct message:', newMessage)
 
         messageToAdd = {
           id: Date.now().toString(),
@@ -425,13 +425,6 @@ export default function ChatRoom() {
           isOutgoing: true,
           isGroup: false,
         }
-
-        console.log(
-          '🕐 Creating message with timestamp:',
-          timestamp,
-          'date:',
-          new Date(timestamp)
-        )
 
         setMessages(prev => {
           const updatedMessages = [...prev, messageToAdd!]
@@ -449,12 +442,9 @@ export default function ChatRoom() {
             messageToAdd!.content,
             messageToAdd!.timestamp,
             true,
-            false
-          ).then(() => {
-            console.log(
-              '💾 Updated latest message in IndexedDB for sent direct message'
-            )
-          })
+            false,
+            false // Don't increment unread for outgoing messages
+          )
 
           return updatedMessages
         })
@@ -463,12 +453,6 @@ export default function ChatRoom() {
         const result = await MessagingClient.sendMessageToNickname(
           peer!.nickname,
           newMessage.trim()
-        )
-        console.log(
-          '✅ Direct message sent successfully to',
-          peer!.nickname,
-          'result:',
-          result
         )
 
         dispatch(

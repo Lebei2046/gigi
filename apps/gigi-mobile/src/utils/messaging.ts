@@ -226,34 +226,17 @@ export class MessagingEvents {
         .then(({ listen }) => {
           console.log(`🎯 Starting Tauri listener for: ${eventType}`)
           listen(eventType, event => {
-            if (eventType === 'group-message') {
-              console.log(`🔥🔥🔥 TAURI GROUP-MESSAGE EVENT RECEIVED 🔥🔥🔥`)
-              console.log(
-                `🎯 Tauri event received: ${eventType}`,
-                event.payload
-              )
-            } else {
-              console.log(
-                `🎯 Tauri event received: ${eventType}`,
-                event.payload
-              ) // Debug log
-            }
             const callbacks = this.listeners.get(eventType)
             if (callbacks) {
-              console.log(
-                `📞 Calling ${callbacks.length} callbacks for: ${eventType}`
-              )
               callbacks.forEach(cb => cb(event.payload))
-            } else {
-              console.warn(`⚠️ No callbacks found for event: ${eventType}`)
             }
           }).catch(error => {
-            console.error(`❌ Failed to listen to event ${eventType}:`, error)
+            console.error(`Failed to listen to event ${eventType}:`, error)
           })
         })
         .catch(error => {
           console.error(
-            `❌ Failed to import Tauri event module for ${eventType}:`,
+            `Failed to import Tauri event module for ${eventType}:`,
             error
           )
         })

@@ -55,12 +55,6 @@ export async function cleanupInvalidTimestamps(): Promise<void> {
         }
       }
     }
-
-    if (updatedCount > 0) {
-      console.log(
-        `🕐 Cleaned up ${updatedCount} chat entries with invalid timestamps`
-      )
-    }
   } catch (error) {
     console.error('Failed to cleanup invalid timestamps:', error)
   }
@@ -75,14 +69,6 @@ export async function updateChatInfo(
 ): Promise<void> {
   try {
     const timestampMs = ensureMilliseconds(timestamp)
-    console.log(
-      '🕐 updateChatInfo - raw timestamp:',
-      timestamp,
-      'converted:',
-      timestampMs,
-      'date:',
-      new Date(timestampMs)
-    )
     await db.chats.put({
       id,
       name,
@@ -109,11 +95,34 @@ export async function getChatInfo(id: string): Promise<Chat | undefined> {
 export async function resetUnreadCount(chatId: string): Promise<void> {
   try {
     const existingChat = await db.chats.get(chatId)
+
     if (existingChat) {
+      const previousCount = existingChat.unreadCount || 0
+
+      // Always log the reset attempt (key for debugging)
+      console.log(
+        `🔄 Resetting unread count for chat ${chatId} (${existingChat.name}) from ${previousCount} to 0`
+      )
+
       await db.chats.update(chatId, {
         unreadCount: 0,
       })
-      console.log('🔔 Reset unread count for chat:', chatId)
+
+      if (previousCount > 0) {
+        // Force UI refresh by dispatching a custom event
+        window.dispatchEvent(
+          new CustomEvent('unreadCountReset', {
+            detail: { chatId, previousCount: 0 },
+          })
+        )
+        console.log(`✅ Dispatched unreadCountReset event for ${chatId}`)
+      } else {
+        console.log(
+          `ℹ️ Chat ${chatId} already had 0 unread count, no event dispatched`
+        )
+      }
+    } else {
+      console.log(`⚠️ No chat found with ID ${chatId} to reset unread count`)
     }
   } catch (error) {
     console.error('Failed to reset unread count:', error)
@@ -126,6 +135,30 @@ export async function getAllGroups(): Promise<Group[]> {
   } catch (error) {
     console.error('Failed to get all groups:', error)
     return []
+  }
+}
+
+export async function ensureChatEntriesForGroups(): Promise<void> {
+  try {
+    const allGroups = await getAllGroups()
+    const allChats = await getAllChats()
+    const chatIds = new Set(allChats.map(chat => chat.id))
+
+    for (const group of allGroups) {
+      if (!chatIds.has(group.id)) {
+        await db.chats.put({
+          id: group.id,
+          name: group.name,
+          isGroup: true,
+          lastMessage: '',
+          lastMessageTime: '',
+          lastMessageTimestamp: 0,
+          unreadCount: 0,
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Failed to ensure chat entries for groups:', error)
   }
 }
 
@@ -171,29 +204,53 @@ export async function updateLatestMessage(
   message: string,
   timestamp: number,
   isOutgoing: boolean = false,
-  isGroup: boolean = false
+  isGroup: boolean = false,
+  incrementUnread: boolean = false // New parameter to control unread count increment
 ): Promise<void> {
   try {
     const timestampMs = ensureMilliseconds(timestamp)
-    console.log(
-      '🕐 updateLatestMessage - raw timestamp:',
-      timestamp,
-      'converted:',
-      timestampMs,
-      'date:',
-      new Date(timestampMs)
-    )
     const existingChat = await db.chats.get(chatId)
 
     if (existingChat) {
+      let newUnreadCount = existingChat.unreadCount || 0
+
+      // Only increment unread count for incoming messages when explicitly requested
+      if (incrementUnread && !isOutgoing) {
+        newUnreadCount += 1
+        console.log(
+          `📈 Incrementing unread count for ${chatId} (${existingChat.name}) to ${newUnreadCount}`
+        )
+      } else if (isOutgoing) {
+        newUnreadCount = 0
+        console.log(
+          `📉 Resetting unread count for outgoing message ${chatId} (${existingChat.name}) to 0`
+        )
+      } else {
+        console.log(
+          `➡️ Keeping unread count unchanged for ${chatId} (${existingChat.name}) at ${newUnreadCount}`
+        )
+      }
+
       await db.chats.update(chatId, {
         lastMessage: message,
         lastMessageTime: new Date(timestampMs).toLocaleString(),
         lastMessageTimestamp: timestampMs,
-        unreadCount: isOutgoing ? 0 : (existingChat.unreadCount || 0) + 1,
+        unreadCount: newUnreadCount,
       })
     } else {
-      console.log('🕐 No existing chat found for:', chatId)
+      // Create new chat entry when one doesn't exist
+      const groupName = isGroup
+        ? `Group ${chatId.substring(0, 6)}...`
+        : `Peer ${chatId.substring(0, 6)}...`
+      await db.chats.put({
+        id: chatId,
+        name: groupName,
+        isGroup,
+        lastMessage: message,
+        lastMessageTime: new Date(timestampMs).toLocaleString(),
+        lastMessageTimestamp: timestampMs,
+        unreadCount: isOutgoing ? 0 : 1, // Start with 1 for incoming messages
+      })
     }
   } catch (error) {
     console.error('Failed to update latest message:', error)

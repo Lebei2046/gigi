@@ -54,14 +54,27 @@ const db = new Dexie('GigiDatabase') as Dexie & {
   settings: EntityTable<Settings, 'key'>
 }
 
-db.version(1).stores({
-  contacts: 'id, name',
-  groups: 'id, name, joined, createdAt',
-  chats: 'id, name, isGroup, lastMessageTime, lastMessageTimestamp',
-  images: 'id, createdAt',
-  avatars: 'id, imageId, createdAt, updatedAt',
-  settings: 'key, updatedAt',
-})
+db.version(2)
+  .stores({
+    contacts: 'id, name',
+    groups: 'id, name, joined, createdAt',
+    chats:
+      'id, name, isGroup, lastMessageTime, lastMessageTimestamp, unreadCount',
+    images: 'id, createdAt',
+    avatars: 'id, imageId, createdAt, updatedAt',
+    settings: 'key, updatedAt',
+  })
+  .upgrade(tx => {
+    // Initialize unreadCount for existing chats
+    return tx
+      .table('chats')
+      .toCollection()
+      .modify(chat => {
+        if (chat.unreadCount === undefined) {
+          chat.unreadCount = 0
+        }
+      })
+  })
 
 export type { Contact, Group, Chat, Image, Avatar, Settings }
 export { db }
