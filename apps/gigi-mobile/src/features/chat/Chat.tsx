@@ -4,6 +4,7 @@ import { MessagingClient, MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import { useNavigate } from 'react-router-dom'
+import { formatShortPeerId } from '@/utils/peerUtils'
 import {
   getAllChats,
   getAllGroups,
@@ -804,7 +805,7 @@ export default function Chat() {
                               )}
                             </div>
                             <div className="text-xs text-gray-500 font-mono truncate">
-                              {peer.id}
+                              {formatShortPeerId(peer.id)}
                             </div>
                             {peer.capabilities.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
@@ -923,7 +924,7 @@ export default function Chat() {
                               {peer.nickname}
                             </div>
                             <div className="text-xs text-gray-500 font-mono truncate">
-                              {peer.id}
+                              {formatShortPeerId(peer.id)}
                             </div>
                           </div>
                           <svg

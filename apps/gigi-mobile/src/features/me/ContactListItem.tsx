@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getAvatarUrl } from '@/utils/imageStorage'
+import { formatShortPeerId } from '@/utils/peerUtils'
 
 interface ContactListItemProps {
   name: string
@@ -63,7 +64,7 @@ const ContactListItem: React.FC<ContactListItemProps> = ({
           </svg>
         </div>
         <p className="text-gray-500 text-sm font-mono truncate mt-1">
-          {peerId}
+          {formatShortPeerId(peerId)}
         </p>
       </div>
     </div>

@@ -3,6 +3,7 @@ import ContactList from './ContactList'
 import ChangeAvatar from './ChangeAvatar'
 import AddFriend from './AddFriend'
 import { useAppSelector } from '@/store'
+import { formatShortPeerId } from '@/utils/peerUtils'
 
 export default function Me() {
   const { name, peerId } = useAppSelector(state => state.auth)
@@ -23,7 +24,7 @@ export default function Me() {
             <div className="flex items-center gap-2">
               <span className="text-blue-100 text-sm">Peer ID:</span>
               <p className="text-white text-sm font-mono bg-white/20 px-2 py-1 rounded truncate max-w-[200px]">
-                {peerId || 'Unknown'}
+                {formatShortPeerId(peerId) || 'Unknown'}
               </p>
             </div>
           </div>

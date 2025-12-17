@@ -7,6 +7,7 @@ import { addLog } from '@/store/logsSlice'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft as BackIcon } from 'lucide-react'
+import { formatShortPeerId } from '@/utils/peerUtils'
 import {
   updateChatInfo,
   updateLatestMessage,
@@ -547,7 +548,9 @@ export default function ChatRoom() {
             {isGroupChat ? `👥 ${chatTitle}` : chatTitle}
           </h2>
           <p className="text-sm text-gray-500">
-            {isGroupChat ? `Group • ${chatId}` : `Direct • ${chatId}`}
+            {isGroupChat
+              ? `Group • ${formatShortPeerId(chatId)}`
+              : `Direct • ${formatShortPeerId(chatId)}`}
           </p>
         </div>
       </div>
