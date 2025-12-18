@@ -145,7 +145,10 @@ export const loginWithP2P =
       const generatedAddress = getAddress(decryptedMnemonics)
 
       if (generatedAddress !== state.address) {
-        return { success: false, error: 'Password is incorrect, please re-enter!' }
+        return {
+          success: false,
+          error: 'Password is incorrect, please re-enter!',
+        }
       }
 
       // Extract private key and initialize P2P

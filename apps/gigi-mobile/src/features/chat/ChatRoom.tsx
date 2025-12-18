@@ -43,6 +43,7 @@ export default function ChatRoom() {
   const [sending, setSending] = useState(false)
   const [isGroupChat, setIsGroupChat] = useState(false)
   const unreadResetDone = useRef(false)
+  const saveTimeoutRef = useRef<NodeJS.Timeout>()
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -122,7 +123,7 @@ export default function ChatRoom() {
     const chatName = isGroupChat ? group?.name : peer?.nickname
     if (!chatId || !chatName) return
 
-    // Load message history from localStorage
+    // Load message history from localStorage with performance optimizations
     const loadMessageHistory = () => {
       try {
         const historyKey = isGroupChat
@@ -130,18 +131,26 @@ export default function ChatRoom() {
           : `chat_history_${chatId}`
         const savedHistory = localStorage.getItem(historyKey)
         if (savedHistory) {
-          const history = JSON.parse(savedHistory)
-          // Convert timestamps to milliseconds if needed
-          const normalizedHistory = history.map((msg: any) => ({
-            ...msg,
-            timestamp:
-              msg.timestamp < 1000000000000
-                ? msg.timestamp * 1000
-                : msg.timestamp,
-            isGroup: isGroupChat,
-          }))
+          // Use requestAnimationFrame to avoid blocking UI
+          requestAnimationFrame(() => {
+            try {
+              const history = JSON.parse(savedHistory)
+              // Batch process timestamps for better performance
+              const normalizedHistory = history.map((msg: any) => ({
+                ...msg,
+                timestamp:
+                  msg.timestamp < 1000000000000
+                    ? msg.timestamp * 1000
+                    : msg.timestamp,
+                isGroup: isGroupChat,
+              }))
 
-          setMessages(normalizedHistory)
+              // Only load last 100 messages initially for better performance
+              setMessages(normalizedHistory.slice(-100))
+            } catch (parseError) {
+              console.error('Failed to parse message history:', parseError)
+            }
+          })
         }
       } catch (error) {
         console.error('Failed to load message history:', error)
@@ -150,83 +159,56 @@ export default function ChatRoom() {
 
     loadMessageHistory()
 
-    // Initialize chat info in IndexedDB only if it doesn't exist
+    // Optimize chat info initialization - reduce database calls
     const initializeChatInfo = async () => {
-      const existingChat = await getChatInfo(chatId)
-      if (!existingChat) {
-        // Only create new chat entry if it doesn't exist
-        await updateChatInfo(
-          chatId,
-          chatName,
-          '',
-          Date.now(),
-          false,
-          isGroupChat
-        )
-      } else {
-        // Reset unread count when user opens the chat (only once)
-        if (!unreadResetDone.current) {
+      try {
+        const existingChat = await getChatInfo(chatId)
+        if (!existingChat) {
+          // Only create new chat entry if it doesn't exist
+          await updateChatInfo(
+            chatId,
+            chatName,
+            '',
+            Date.now(),
+            false,
+            isGroupChat
+          )
+        } else if (!unreadResetDone.current) {
+          // Reset unread count when user opens the chat (only once)
           console.log(
             `🏠 Entering chat room for ${chatId}, resetting unread count`
           )
           await resetUnreadCount(chatId)
-
-          // Also reset unread counts for other chats with the same name (handles multiple peer IDs for same person)
-          const allChats = await getAllChats()
-          const currentChat = allChats.find(c => c.id === chatId)
-          if (currentChat) {
-            const sameNameChats = allChats.filter(
-              c =>
-                c.id !== chatId &&
-                c.name.toLowerCase() === currentChat.name.toLowerCase() &&
-                (c.unreadCount || 0) > 0
-            )
-
-            if (sameNameChats.length > 0) {
-              console.log(
-                `🔗 Found ${sameNameChats.length} other chats with same name "${currentChat.name}":`,
-                sameNameChats.map(c => ({
-                  id: c.id,
-                  unreadCount: c.unreadCount,
-                }))
-              )
-
-              for (const chat of sameNameChats) {
-                console.log(
-                  `🔄 Also resetting unread count for duplicate chat ${chat.id}`
-                )
-                await resetUnreadCount(chat.id)
-              }
-            }
-          }
-
           unreadResetDone.current = true
 
-          // Double-check the reset worked and force refresh in Chat component
+          // Trigger refresh after a short delay (reduced timeout)
           setTimeout(() => {
-            console.log(`🔄 Triggering focus event to refresh chat list`)
             window.dispatchEvent(new Event('focus'))
-          }, 100)
-        } else {
-          console.log(
-            `🏠 Already in chat room ${chatId}, skipping unread reset (already done)`
-          )
+          }, 50)
         }
+      } catch (error) {
+        console.error('Failed to initialize chat info:', error)
       }
     }
 
     initializeChatInfo()
 
-    // Save messages to localStorage
+    // Debounced save to localStorage to reduce write operations
     const saveMessageHistory = (messages: Message[]) => {
-      try {
-        const historyKey = isGroupChat
-          ? `chat_history_group_${chatId}`
-          : `chat_history_${chatId}`
-        localStorage.setItem(historyKey, JSON.stringify(messages))
-      } catch (error) {
-        console.error('Failed to save message history:', error)
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
       }
+
+      saveTimeoutRef.current = setTimeout(() => {
+        try {
+          const historyKey = isGroupChat
+            ? `chat_history_group_${chatId}`
+            : `chat_history_${chatId}`
+          localStorage.setItem(historyKey, JSON.stringify(messages))
+        } catch (error) {
+          console.error('Failed to save message history:', error)
+        }
+      }, 300) // Debounce for 300ms
     }
 
     // Listen for new messages (both direct and group)
@@ -261,19 +243,20 @@ export default function ChatRoom() {
       setMessages(prev => {
         const updatedMessages = [...prev, newMessage]
         saveMessageHistory(updatedMessages)
+        return updatedMessages
+      })
 
-        // Update latest message in IndexedDB immediately
+      // Defer IndexedDB update to avoid blocking UI
+      setTimeout(() => {
         updateLatestMessage(
           peer!.id,
           newMessage.content,
           newMessage.timestamp,
-          true, // Outgoing message
+          false, // Incoming message
           false,
-          false // Don't increment unread (outgoing messages reset to 0)
+          true // Increment unread for incoming messages
         )
-
-        return updatedMessages
-      })
+      }, 0)
 
       dispatch(
         addLog({
@@ -307,19 +290,20 @@ export default function ChatRoom() {
       setMessages(prev => {
         const updatedMessages = [...prev, newMessage]
         saveMessageHistory(updatedMessages)
+        return updatedMessages
+      })
 
-        // Update latest message in IndexedDB immediately
+      // Defer IndexedDB update to avoid blocking UI
+      setTimeout(() => {
         updateLatestMessage(
           group!.id,
           newMessage.content,
           newMessage.timestamp,
-          true, // Outgoing message
+          false, // Incoming message
           true,
-          false // Don't increment unread (outgoing messages reset to 0)
+          true // Increment unread for incoming messages
         )
-
-        return updatedMessages
-      })
+      }, 0)
 
       dispatch(
         addLog({
@@ -337,6 +321,12 @@ export default function ChatRoom() {
     return () => {
       MessagingEvents.off('message-received', handleMessageReceived)
       MessagingEvents.off('group-message', handleMessageReceived)
+      console.log('🧹 Cleaned up ChatRoom event listeners')
+
+      // Clear any pending save timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
 
       // Final update to ensure everything is saved when leaving chat
       if (messages.length > 0) {
@@ -351,7 +341,7 @@ export default function ChatRoom() {
         )
       }
     }
-  }, [peer, group, isGroupChat, isLoading, dispatch, messages.length])
+  }, [peer?.id, group?.id, isGroupChat, isLoading, dispatch])
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return
@@ -379,23 +369,27 @@ export default function ChatRoom() {
         // Add message to local state immediately
         setMessages(prev => {
           const updatedMessages = [...prev, messageToAdd!]
-          // Save to localStorage
-          try {
-            const historyKey = `chat_history_group_${group!.id}`
-            localStorage.setItem(historyKey, JSON.stringify(updatedMessages))
-          } catch (error) {
-            console.error('Failed to save group message history:', error)
-          }
+          // Defer localStorage save to avoid blocking
+          setTimeout(() => {
+            try {
+              const historyKey = `chat_history_group_${group!.id}`
+              localStorage.setItem(historyKey, JSON.stringify(updatedMessages))
+            } catch (error) {
+              console.error('Failed to save group message history:', error)
+            }
+          }, 0)
 
-          // Update latest message in IndexedDB immediately
-          updateLatestMessage(
-            group!.id,
-            messageToAdd!.content,
-            messageToAdd!.timestamp,
-            true,
-            true,
-            false // Don't increment unread for outgoing messages
-          )
+          // Defer IndexedDB update to avoid blocking
+          setTimeout(() => {
+            updateLatestMessage(
+              group!.id,
+              messageToAdd!.content,
+              messageToAdd!.timestamp,
+              true,
+              true,
+              false // Don't increment unread for outgoing messages
+            )
+          }, 0)
 
           return updatedMessages
         })
@@ -428,23 +422,27 @@ export default function ChatRoom() {
 
         setMessages(prev => {
           const updatedMessages = [...prev, messageToAdd!]
-          // Save to localStorage
-          try {
-            const historyKey = `chat_history_${peer!.id}`
-            localStorage.setItem(historyKey, JSON.stringify(updatedMessages))
-          } catch (error) {
-            console.error('Failed to save message history:', error)
-          }
+          // Defer localStorage save to avoid blocking
+          setTimeout(() => {
+            try {
+              const historyKey = `chat_history_${peer!.id}`
+              localStorage.setItem(historyKey, JSON.stringify(updatedMessages))
+            } catch (error) {
+              console.error('Failed to save message history:', error)
+            }
+          }, 0)
 
-          // Update latest message in IndexedDB immediately
-          updateLatestMessage(
-            peer!.id,
-            messageToAdd!.content,
-            messageToAdd!.timestamp,
-            true,
-            false,
-            false // Don't increment unread for outgoing messages
-          )
+          // Defer IndexedDB update to avoid blocking
+          setTimeout(() => {
+            updateLatestMessage(
+              peer!.id,
+              messageToAdd!.content,
+              messageToAdd!.timestamp,
+              true,
+              false,
+              false // Don't increment unread for outgoing messages
+            )
+          }, 0)
 
           return updatedMessages
         })
@@ -493,7 +491,8 @@ export default function ChatRoom() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSendMessage()
+      // Defer send operation to avoid blocking input
+      setTimeout(handleSendMessage, 0)
     }
   }
 
@@ -550,37 +549,41 @@ export default function ChatRoom() {
             </p>
           </div>
         ) : (
-          messages.map(message => (
-            <div
-              key={message.id}
-              className={`flex ${message.isOutgoing ? 'justify-end' : 'justify-start'}`}
-            >
+          messages.slice(-100).map(
+            (
+              message // Only render last 100 messages for performance
+            ) => (
               <div
-                className={`max-w-xs px-4 py-2 rounded-lg ${
-                  message.isOutgoing
-                    ? 'bg-blue-500 text-white'
-                    : message.isGroup
-                      ? 'bg-green-100 text-gray-900 border border-green-200'
-                      : 'bg-gray-200 text-gray-900'
-                }`}
+                key={message.id}
+                className={`flex ${message.isOutgoing ? 'justify-end' : 'justify-start'}`}
               >
-                {/* Show sender name for group messages and incoming direct messages */}
-                {!message.isOutgoing &&
-                  (message.isGroup || !message.isGroup) && (
-                    <p className="text-xs font-medium mb-1 opacity-70">
-                      {message.isGroup && '👥'} {message.from_nickname}
-                    </p>
-                  )}
-                <p className="text-sm break-words">{message.content}</p>
-                <p className="text-xs mt-1 opacity-60">
-                  {new Date(message.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
+                <div
+                  className={`max-w-xs px-4 py-2 rounded-lg ${
+                    message.isOutgoing
+                      ? 'bg-blue-500 text-white'
+                      : message.isGroup
+                        ? 'bg-green-100 text-gray-900 border border-green-200'
+                        : 'bg-gray-200 text-gray-900'
+                  }`}
+                >
+                  {/* Show sender name for group messages and incoming direct messages */}
+                  {!message.isOutgoing &&
+                    (message.isGroup || !message.isGroup) && (
+                      <p className="text-xs font-medium mb-1 opacity-70">
+                        {message.isGroup && '👥'} {message.from_nickname}
+                      </p>
+                    )}
+                  <p className="text-sm break-words">{message.content}</p>
+                  <p className="text-xs mt-1 opacity-60">
+                    {new Date(message.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))
+            )
+          )
         )}
         <div ref={messagesEndRef} />
       </div>

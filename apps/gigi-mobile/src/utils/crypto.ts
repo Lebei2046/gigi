@@ -74,7 +74,9 @@ export function decryptMnemonics(
     return new TextDecoder().decode(decrypted).split(' ')
   } catch (error) {
     console.error('Decryption failed:', error)
-    throw new Error('Decryption failed, please check if password is correct or data is corrupted')
+    throw new Error(
+      'Decryption failed, please check if password is correct or data is corrupted'
+    )
   }
 }
 

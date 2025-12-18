@@ -219,6 +219,16 @@ export class MessagingEvents {
   // Register event listener
   static on(eventType: string, callback: (data: any) => void): void {
     console.log(`🔔 Registering listener for event: ${eventType}`)
+
+    // Check if this exact callback is already registered to prevent duplicates
+    const existingCallbacks = this.listeners.get(eventType)
+    if (existingCallbacks && existingCallbacks.includes(callback)) {
+      console.warn(
+        `⚠️ Callback already registered for ${eventType}, skipping duplicate`
+      )
+      return
+    }
+
     if (!this.listeners.has(eventType)) {
       this.listeners.set(eventType, [])
       // Start listening to Tauri events
@@ -228,7 +238,13 @@ export class MessagingEvents {
           listen(eventType, event => {
             const callbacks = this.listeners.get(eventType)
             if (callbacks) {
-              callbacks.forEach(cb => cb(event.payload))
+              callbacks.forEach(cb => {
+                try {
+                  cb(event.payload)
+                } catch (error) {
+                  console.error(`Error in callback for ${eventType}:`, error)
+                }
+              })
             }
           }).catch(error => {
             console.error(`Failed to listen to event ${eventType}:`, error)
@@ -242,6 +258,15 @@ export class MessagingEvents {
         })
     }
     const callbacks = this.listeners.get(eventType)!
+
+    // Prevent memory leak by limiting callbacks to max 10 per event type
+    if (callbacks.length >= 10) {
+      console.warn(
+        `⚠️ Too many callbacks for ${eventType} (${callbacks.length}), removing oldest`
+      )
+      callbacks.shift() // Remove the oldest callback
+    }
+
     callbacks.push(callback)
     console.log(
       `📝 Added callback for: ${eventType}. Total callbacks: ${callbacks.length}`
@@ -255,7 +280,14 @@ export class MessagingEvents {
       const index = callbacks.indexOf(callback)
       if (index > -1) {
         callbacks.splice(index, 1)
+        console.log(
+          `🗑️ Removed callback for: ${eventType}. Remaining callbacks: ${callbacks.length}`
+        )
+      } else {
+        console.warn(`⚠️ Callback not found for ${eventType}, cannot remove`)
       }
+    } else {
+      console.warn(`⚠️ No callbacks found for ${eventType}`)
     }
   }
 }

@@ -1,13 +1,29 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Peer, GroupShareMessage } from '@/utils/messaging'
 import { MessagingClient, MessagingEvents } from '@/utils/messaging'
-import { useAppDispatch } from '@/store'
+import { useAppDispatch, useAppSelector } from '@/store'
 import { addLog } from '@/store/logsSlice'
+import {
+  loadChatsAsync,
+  loadGroupsAsync,
+  subscribeToGroupsAsync,
+  loadPeersAsync,
+  setPeers,
+  addPeer,
+  removePeer,
+  setLoading,
+  setError,
+  addGroupShareNotification,
+  removeGroupShareNotification,
+  setShowShareDrawer,
+  setSelectedGroup,
+  setComponentError,
+  updateDirectMessage,
+  updateGroupMessage,
+} from '@/store/chatSlice'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { formatShortPeerId } from '@/utils/peerUtils'
 import {
-  getAllChats,
-  getAllGroups,
   getGroup,
   saveGroup,
   updateLatestMessage,
@@ -19,42 +35,35 @@ import {
 import type { Chat, Group } from '@/models/db'
 
 export default function Chat() {
-  const [peers, setPeers] = useState<Peer[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [chats, setChats] = useState<Chat[]>([])
-  const [groups, setGroups] = useState<Group[]>([])
-  const [latestMessages, setLatestMessages] = useState<Record<string, string>>(
-    {}
-  )
-  const lastUnreadCounts = useRef<any[]>([])
-  const [groupShareNotifications, setGroupShareNotifications] = useState<
-    GroupShareMessage[]
-  >([])
-  const [showShareDrawer, setShowShareDrawer] = useState(false)
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
-  const [componentError, setComponentError] = useState<Error | null>(null)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
+  const lastUnreadCounts = useRef<any[]>([])
+
+  // Select all state from Redux
+  const {
+    peers,
+    loading,
+    error,
+    chats,
+    groups,
+    latestMessages,
+    groupShareNotifications,
+    showShareDrawer,
+    selectedGroup,
+    componentError,
+  } = useAppSelector(state => state.chat)
 
   // Define loadChats function outside useEffect so it can be used elsewhere
   const loadChats = async () => {
     try {
-      const allChats = await getAllChats()
-      setChats(allChats)
+      dispatch(loadChatsAsync())
 
-      // Update latestMessages from chats - this is the single source of truth
-      const messagesFromChats: Record<string, string> = {}
-      allChats.forEach(chat => {
-        if (chat.lastMessage) {
-          messagesFromChats[chat.id] = chat.lastMessage
-        }
-      })
-      setLatestMessages(messagesFromChats)
-
-      // Log unread counts to track changes
-      const unreadChats = allChats.filter(chat => (chat.unreadCount || 0) > 0)
+      // Get the updated chats from Redux after loading
+      const currentState = await dispatch(loadChatsAsync()).unwrap()
+      const unreadChats = currentState.filter(
+        chat => (chat.unreadCount || 0) > 0
+      )
       const currentUnreadCounts = unreadChats.map(chat => ({
         id: chat.id,
         name: chat.name,
@@ -111,8 +120,7 @@ export default function Chat() {
   // Define loadGroups function outside useEffect
   const loadGroups = async () => {
     try {
-      const allGroups = await getAllGroups()
-      setGroups(allGroups)
+      dispatch(loadGroupsAsync())
     } catch (error) {
       console.error('Failed to load groups:', error)
     }
@@ -129,7 +137,7 @@ export default function Chat() {
         return
       }
 
-      setGroupShareNotifications(prev => [...prev, shareMessage])
+      dispatch(addGroupShareNotification(shareMessage))
     }
 
     MessagingEvents.on('group-share-received', handleGroupShareReceived)
@@ -141,28 +149,8 @@ export default function Chat() {
 
   // Subscribe to joined groups on startup
   useEffect(() => {
-    const subscribeToGroups = async () => {
-      try {
-        const allGroups = await getAllGroups()
-        const joinedGroups = allGroups.filter(group => group.joined)
-
-        for (const group of joinedGroups) {
-          try {
-            await MessagingClient.joinGroup(group.id)
-          } catch (error) {
-            console.error(
-              `❌ Chat.tsx: Failed to subscribe to group ${group.name}:`,
-              error
-            )
-          }
-        }
-      } catch (error) {
-        console.error('❌ Chat.tsx: Failed to subscribe to groups:', error)
-      }
-    }
-
-    subscribeToGroups()
-  }, [])
+    dispatch(subscribeToGroupsAsync())
+  }, [dispatch])
 
   // Load chats and groups from IndexedDB and set up periodic refresh
   useEffect(() => {
@@ -253,7 +241,7 @@ export default function Chat() {
         )
         await updateChatInfo(peer.id, peer.nickname, '', Date.now(), false)
         // Refresh the chats list to include the new entry
-        loadChats()
+        dispatch(loadChatsAsync())
       } else {
         console.log(
           `✅ Chat entry already exists for peer ${peer.id} (${peer.nickname})`
@@ -278,29 +266,18 @@ export default function Chat() {
 
       const loadPeers = async () => {
         try {
-          // Add timeout to prevent hanging
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Timeout loading peers')), 5000)
-          })
-
-          const peersPromise = MessagingClient.getPeers()
-          const connectedPeers = (await Promise.race([
-            peersPromise,
-            timeoutPromise,
-          ])) as Peer[]
-
-          setPeers(connectedPeers)
+          const result = await dispatch(loadPeersAsync()).unwrap()
           dispatch(
             addLog({
               event: 'peers_loaded',
-              data: `Loaded ${connectedPeers.length} connected peers`,
+              data: `Loaded ${result.length} connected peers`,
               type: 'info',
             })
           )
         } catch (error) {
           console.error('Failed to load peers:', error)
-          setError(`Failed to load peers: ${error}`)
-          setPeers([]) // Ensure we have an empty array on error
+          dispatch(setError(`Failed to load peers: ${error}`))
+          dispatch(setPeers([])) // Ensure we have an empty array on error
           dispatch(
             addLog({
               event: 'peers_load_error',
@@ -309,7 +286,7 @@ export default function Chat() {
             })
           )
         } finally {
-          setLoading(false)
+          dispatch(setLoading(false))
         }
       }
 
@@ -319,7 +296,7 @@ export default function Chat() {
       const pollInterval = setInterval(async () => {
         try {
           const currentPeers = await MessagingClient.getPeers()
-          setPeers(currentPeers)
+          dispatch(setPeers(currentPeers))
         } catch (error) {
           console.error('Error polling peers:', error)
         }
@@ -329,13 +306,7 @@ export default function Chat() {
         const handlePeerConnected = (peer: any) => {
           try {
             if (peer && peer.id && peer.nickname) {
-              setPeers(prev => {
-                const exists = prev.find(p => p.id === peer.id)
-                if (!exists) {
-                  return [...prev, peer]
-                }
-                return prev
-              })
+              dispatch(addPeer(peer))
               dispatch(
                 addLog({
                   event: 'peer_connected',
@@ -352,7 +323,7 @@ export default function Chat() {
         const handlePeerDisconnected = (peer: any) => {
           try {
             if (peer && peer.id && peer.nickname) {
-              setPeers(prev => prev.filter(p => p.id !== peer.id))
+              dispatch(removePeer(peer.id))
               dispatch(
                 addLog({
                   event: 'peer_disconnected',
@@ -366,8 +337,17 @@ export default function Chat() {
           }
         }
 
-        // Message receiving handler
+        // Message receiving handler - only handle when NOT in chat room
         const handleMessageReceived = (message: any) => {
+          // Don't process if we're currently in a chat room (ChatRoom will handle it)
+          const currentPath = window.location.pathname
+          if (currentPath.startsWith('/chat/') && currentPath !== '/chat') {
+            console.log(
+              '🔄 Skipping message processing in Chat component - ChatRoom is active'
+            )
+            return
+          }
+
           // Save message to localStorage for history
           try {
             const historyKey = `chat_history_${message.from_peer_id}`
@@ -401,14 +381,14 @@ export default function Chat() {
             true // Increment unread for incoming direct messages
           )
 
-          // Then update local state to match IndexedDB
-          setLatestMessages(prev => {
-            const newMessages = {
-              ...prev,
-              [message.from_peer_id]: message.content,
-            }
-            return newMessages
-          })
+          // Dispatch Redux action to handle message received
+          dispatch(
+            updateDirectMessage({
+              from_peer_id: message.from_peer_id,
+              content: message.content,
+              timestamp: timestampMs,
+            })
+          )
 
           dispatch(
             addLog({
@@ -419,8 +399,17 @@ export default function Chat() {
           )
         }
 
-        // Group message receiving handler
+        // Group message receiving handler - only handle when NOT in chat room
         const handleGroupMessageReceived = (message: any) => {
+          // Don't process if we're currently in a chat room (ChatRoom will handle it)
+          const currentPath = window.location.pathname
+          if (currentPath.startsWith('/chat/') && currentPath !== '/chat') {
+            console.log(
+              '🔄 Skipping group message processing in Chat component - ChatRoom is active'
+            )
+            return
+          }
+
           // Save message to localStorage for history
           try {
             const historyKey = `chat_history_group_${message.group_id}`
@@ -458,14 +447,14 @@ export default function Chat() {
             true // Increment unread for incoming group messages
           )
 
-          // Then update local state to match IndexedDB
-          setLatestMessages(prev => {
-            const newMessages = {
-              ...prev,
-              [message.group_id]: message.content,
-            }
-            return newMessages
-          })
+          // Dispatch Redux action to handle group message received
+          dispatch(
+            updateGroupMessage({
+              group_id: message.group_id,
+              content: message.content,
+              timestamp: timestampMs,
+            })
+          )
 
           dispatch(
             addLog({
@@ -490,6 +479,7 @@ export default function Chat() {
             MessagingEvents.off('peer-disconnected', handlePeerDisconnected)
             MessagingEvents.off('message-received', handleMessageReceived)
             MessagingEvents.off('group-message', handleGroupMessageReceived)
+            console.log('🧹 Cleaned up Chat event listeners')
           } catch (error) {
             console.error('Error cleaning up event listeners:', error)
           }
@@ -500,15 +490,23 @@ export default function Chat() {
       }
     } catch (error) {
       console.error('Chat component useEffect error:', error)
-      setComponentError(error as Error)
+      dispatch(setComponentError(error as Error))
       return () => {}
     }
-  }, [dispatch, navigate])
+  }, [dispatch])
 
   // Group sharing functions
   const handleShareGroup = (group: Group) => {
-    setSelectedGroup(group)
-    setShowShareDrawer(true)
+    // Convert to Redux-compatible format
+    const reduxGroup = {
+      ...group,
+      createdAt:
+        group.createdAt instanceof Date
+          ? group.createdAt.toISOString()
+          : group.createdAt,
+    }
+    dispatch(setSelectedGroup(reduxGroup))
+    dispatch(setShowShareDrawer(true))
   }
 
   const handleSendShareToPeer = async (targetPeer: Peer) => {
@@ -520,8 +518,8 @@ export default function Chat() {
         selectedGroup.id,
         selectedGroup.name
       )
-      setShowShareDrawer(false)
-      setSelectedGroup(null)
+      dispatch(setShowShareDrawer(false))
+      dispatch(setSelectedGroup(null))
     } catch (error) {
       console.error('Failed to send group share:', error)
     }
@@ -537,12 +535,10 @@ export default function Chat() {
       })
 
       // Remove from notifications
-      setGroupShareNotifications(prev =>
-        prev.filter(msg => msg.from_peer_id !== shareMessage.from_peer_id)
-      )
+      dispatch(removeGroupShareNotification(shareMessage.from_peer_id))
 
       // Refresh groups
-      loadGroups()
+      dispatch(loadGroupsAsync())
     } catch (error) {
       console.error('Failed to accept group share:', error)
     }
@@ -550,9 +546,7 @@ export default function Chat() {
 
   const handleIgnoreGroupShare = (shareMessage: GroupShareMessage) => {
     // Remove from notifications
-    setGroupShareNotifications(prev =>
-      prev.filter(msg => msg.from_peer_id !== shareMessage.from_peer_id)
-    )
+    dispatch(removeGroupShareNotification(shareMessage.from_peer_id))
   }
 
   // Error and loading states
@@ -898,7 +892,7 @@ export default function Chat() {
                     </p>
                   </div>
                   <button
-                    onClick={() => setShowShareDrawer(false)}
+                    onClick={() => dispatch(setShowShareDrawer(false))}
                     className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
                   >
                     <svg
