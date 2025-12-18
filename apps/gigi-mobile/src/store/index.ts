@@ -4,12 +4,14 @@ import type { TypedUseSelectorHook } from 'react-redux'
 import authReducer from './authSlice'
 import logsReducer from './logsSlice'
 import chatReducer from './chatSlice'
+import chatRoomReducer from './chatRoomSlice'
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     logs: logsReducer,
     chat: chatReducer,
+    chatRoom: chatRoomReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
