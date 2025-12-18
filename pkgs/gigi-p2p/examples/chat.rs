@@ -99,6 +99,18 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pCl
                 }
             }
         }
+        P2pEvent::DirectGroupShareMessage {
+            from,
+            from_nickname,
+            group_id,
+            group_name,
+        } => {
+            println!(
+                "📢 {} ({}) invited you to join group '{}' (ID: {})",
+                from_nickname, from, group_name, group_id
+            );
+            println!("💡 Use 'join {}' to accept the invitation", group_name);
+        }
         P2pEvent::GroupMessage {
             from,
             from_nickname,
@@ -533,10 +545,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         tokio::select! {
             // Handle swarm events through the client
-            swarm_event = client.swarm.select_next_some() => {
-                if let Err(e) = client.handle_event(swarm_event) {
-                    println!("❌ Error handling swarm event: {}", e);
-                }
+            _ = client.handle_next_swarm_event() => {
+                // Event handling is done internally
             }
 
             // Handle P2P events from the event receiver

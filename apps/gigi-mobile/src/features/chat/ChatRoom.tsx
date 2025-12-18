@@ -226,7 +226,7 @@ export default function ChatRoom() {
             const historyKey = `chat_history_group_${message.group_id}`
             const savedHistory = localStorage.getItem(historyKey)
             let history = savedHistory ? JSON.parse(savedHistory) : []
-            
+
             const newMessage = {
               ...message,
               isOutgoing: false, // Received message
@@ -234,7 +234,7 @@ export default function ChatRoom() {
             }
             history = [...history, newMessage]
             localStorage.setItem(historyKey, JSON.stringify(history))
-            
+
             // Update IndexedDB to increment unread count
             setTimeout(() => {
               updateLatestMessage(
@@ -253,7 +253,7 @@ export default function ChatRoom() {
             const historyKey = `chat_history_${message.from_peer_id}`
             const savedHistory = localStorage.getItem(historyKey)
             let history = savedHistory ? JSON.parse(savedHistory) : []
-            
+
             const newMessage = {
               ...message,
               isOutgoing: false, // Received message
@@ -261,7 +261,7 @@ export default function ChatRoom() {
             }
             history = [...history, newMessage]
             localStorage.setItem(historyKey, JSON.stringify(history))
-            
+
             // Update IndexedDB to increment unread count
             setTimeout(() => {
               updateLatestMessage(
@@ -276,7 +276,7 @@ export default function ChatRoom() {
               )
             }, 0)
           }
-          
+
           dispatch(
             addLog({
               event: 'message_saved_for_later',
@@ -292,7 +292,7 @@ export default function ChatRoom() {
 
     // Listen for direct messages
     MessagingEvents.on('message-received', handleMessageReceived)
-    
+
     // Listen for group messages separately
     const handleGroupMessageReceived = (message: any) => {
       handleMessageReceived(message)

@@ -265,33 +265,25 @@ async fn messaging_initialize_with_key(
                     };
 
                     if client_ready {
-                        // Use tokio::select! with timeout to avoid blocking indefinitely
-                        let swarm_event_result =
+                        // Use the public API to handle next swarm event with timeout
+                        let result =
                             tokio::time::timeout(tokio::time::Duration::from_millis(100), async {
                                 let mut client_guard = p2p_client_for_events.lock().await;
                                 if let Some(client) = client_guard.as_mut() {
-                                    Some(client.swarm.select_next_some().await)
+                                    client.handle_next_swarm_event().await
                                 } else {
-                                    None
+                                    Ok(()) // No error, just return
                                 }
                             })
                             .await;
 
-                        match swarm_event_result {
-                            Ok(Some(swarm_event)) => {
-                                // Briefly lock again to handle the event
-                                let mut client_guard = p2p_client_for_events.lock().await;
-                                if let Some(client) = client_guard.as_mut() {
-                                    println!("🎯 Processing swarm event...");
-                                    if let Err(e) = client.handle_event(swarm_event) {
-                                        eprintln!("Error handling swarm event: {}", e);
-                                    }
-                                    println!("✅ Swarm event processed");
-                                }
+                        match result {
+                            Ok(Ok(())) => {
+                                // Event handled successfully
+                                println!("✅ Swarm event processed");
                             }
-                            Ok(None) => {
-                                println!("⚠️ Client became None, waiting...");
-                                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                            Ok(Err(e)) => {
+                                eprintln!("Error handling swarm event: {}", e);
                             }
                             Err(_) => {
                                 // Timeout occurred - this is expected, gives other tasks chance to run
