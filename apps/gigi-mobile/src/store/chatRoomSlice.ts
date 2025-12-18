@@ -319,6 +319,10 @@ const chatRoomSlice = createSlice({
       state.messages.push(newMessage)
     },
 
+    clearMessages: state => {
+      state.messages = []
+    },
+
     resetChatRoomState: () => initialState,
   },
   extraReducers: builder => {
@@ -386,6 +390,7 @@ export const {
   setUnreadResetDone,
   handleDirectMessage,
   handleGroupMessage,
+  clearMessages,
   resetChatRoomState,
 } = chatRoomSlice.actions
 

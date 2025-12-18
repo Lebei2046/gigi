@@ -8,6 +8,7 @@ import {
   loadGroupsAsync,
   subscribeToGroupsAsync,
   loadPeersAsync,
+  clearChatMessagesAsync,
   setPeers,
   addPeer,
   removePeer,
@@ -20,9 +21,12 @@ import {
   setComponentError,
   updateDirectMessage,
   updateGroupMessage,
+  clearChatMessages,
 } from '@/store/chatSlice'
+import { clearMessages } from '@/store/chatRoomSlice'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { formatShortPeerId } from '@/utils/peerUtils'
+import { Trash2 } from 'lucide-react'
 import {
   getGroup,
   saveGroup,
@@ -509,6 +513,38 @@ export default function Chat() {
     dispatch(setShowShareDrawer(true))
   }
 
+  const handleClearMessages = async (
+    chatId: string,
+    isGroupChat: boolean,
+    chatName: string
+  ) => {
+    if (!confirm(`Remove messages for ${chatName}`)) {
+      return
+    }
+
+    try {
+      await dispatch(clearChatMessagesAsync({ chatId, isGroupChat })).unwrap()
+      dispatch(clearMessages())
+
+      dispatch(
+        addLog({
+          event: 'messages_cleared',
+          data: `Messages cleared for ${isGroupChat ? 'group' : 'direct'} chat: ${chatName}`,
+          type: 'info',
+        })
+      )
+    } catch (error) {
+      console.error('Failed to clear messages:', error)
+      dispatch(
+        addLog({
+          event: 'messages_clear_failed',
+          data: `Failed to clear messages for ${chatName}: ${error}`,
+          type: 'error',
+        })
+      )
+    }
+  }
+
   const handleSendShareToPeer = async (targetPeer: Peer) => {
     if (!selectedGroup) return
 
@@ -752,6 +788,16 @@ export default function Chat() {
                           ></path>
                         </svg>
                       </button>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          handleClearMessages(group.id, true, group.name)
+                        }}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Clear messages"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                 )
@@ -862,6 +908,22 @@ export default function Chat() {
                               {chatInfo?.lastMessage || latestMessage}
                             </div>
                           )}
+                        </div>
+                        <div className="flex gap-1 mt-2">
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              handleClearMessages(
+                                peer.id,
+                                false,
+                                peer.nickname || 'Unknown'
+                              )
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Clear messages"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </div>

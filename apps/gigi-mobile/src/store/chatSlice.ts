@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type { Peer, GroupShareMessage } from '@/utils/messaging'
 import type { Chat, Group } from '@/models/db'
-import { getAllChats, getAllGroups } from '@/utils/chatUtils'
+import { getAllChats, getAllGroups, updateChatInfo } from '@/utils/chatUtils'
 import { MessagingClient } from '@/utils/messaging'
 
 // Redux-compatible Group type with serializable dates
@@ -98,6 +98,22 @@ export const loadPeersAsync = createAsyncThunk('chat/loadPeers', async () => {
 
   return connectedPeers
 })
+
+export const clearChatMessagesAsync = createAsyncThunk(
+  'chat/clearMessages',
+  async ({ chatId, isGroupChat }: { chatId: string; isGroupChat: boolean }) => {
+    // Clear from localStorage
+    const historyKey = isGroupChat
+      ? `chat_history_group_${chatId}`
+      : `chat_history_${chatId}`
+    localStorage.removeItem(historyKey)
+
+    // Reset chat info in IndexedDB
+    await updateChatInfo(chatId, '', '', 0, false, isGroupChat)
+
+    return { chatId, isGroupChat }
+  }
+)
 
 const chatSlice = createSlice({
   name: 'chat',
@@ -232,6 +248,23 @@ const chatSlice = createSlice({
 
     // Reset component state
     resetChatState: () => initialState,
+
+    // Clear chat messages
+    clearChatMessages: (state, action: PayloadAction<{ chatId: string }>) => {
+      const { chatId } = action.payload
+
+      // Remove from latestMessages
+      delete state.latestMessages[chatId]
+
+      // Update chat info to remove last message
+      const chatIndex = state.chats.findIndex(chat => chat.id === chatId)
+      if (chatIndex !== -1) {
+        state.chats[chatIndex].lastMessage = ''
+        state.chats[chatIndex].lastMessageTime = ''
+        state.chats[chatIndex].lastMessageTimestamp = 0
+        state.chats[chatIndex].unreadCount = 0
+      }
+    },
   },
   extraReducers: builder => {
     builder
@@ -268,6 +301,24 @@ const chatSlice = createSlice({
         state.peers = []
         state.loading = false
       })
+      .addCase(clearChatMessagesAsync.fulfilled, (state, action) => {
+        const { chatId } = action.payload
+
+        // Remove from latestMessages
+        delete state.latestMessages[chatId]
+
+        // Update chat info to remove last message
+        const chatIndex = state.chats.findIndex(chat => chat.id === chatId)
+        if (chatIndex !== -1) {
+          state.chats[chatIndex].lastMessage = ''
+          state.chats[chatIndex].lastMessageTime = ''
+          state.chats[chatIndex].lastMessageTimestamp = 0
+          state.chats[chatIndex].unreadCount = 0
+        }
+      })
+      .addCase(clearChatMessagesAsync.rejected, (state, action) => {
+        console.error('Failed to clear chat messages:', action.error)
+      })
   },
 })
 
@@ -289,6 +340,7 @@ export const {
   updateDirectMessage,
   updateGroupMessage,
   resetChatState,
+  clearChatMessages,
 } = chatSlice.actions
 
 export default chatSlice.reducer
