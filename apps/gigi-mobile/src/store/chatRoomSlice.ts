@@ -202,7 +202,7 @@ export const sendMessageAsync = createAsyncThunk(
     content: string
     isGroupChat: boolean
     peer: Peer | null
-    group: Group | null
+    group: SerializableGroup | null
   }) => {
     const timestamp = Date.now()
     let result: any

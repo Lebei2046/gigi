@@ -217,15 +217,91 @@ export default function ChatRoom() {
           })
         )
       }
+      // Handle messages that are not for the current chat - save them for later
+      else {
+        // Save message to localStorage for when user returns to main chat screen
+        try {
+          if (message.group_id) {
+            // Group message not for current group
+            const historyKey = `chat_history_group_${message.group_id}`
+            const savedHistory = localStorage.getItem(historyKey)
+            let history = savedHistory ? JSON.parse(savedHistory) : []
+            
+            const newMessage = {
+              ...message,
+              isOutgoing: false, // Received message
+              isGroup: true, // Group message
+            }
+            history = [...history, newMessage]
+            localStorage.setItem(historyKey, JSON.stringify(history))
+            
+            // Update IndexedDB to increment unread count
+            setTimeout(() => {
+              updateLatestMessage(
+                message.group_id,
+                message.content,
+                message.timestamp < 1000000000000
+                  ? message.timestamp * 1000
+                  : message.timestamp,
+                false, // Incoming message
+                true, // Group message
+                true // Increment unread
+              )
+            }, 0)
+          } else {
+            // Direct message not for current peer
+            const historyKey = `chat_history_${message.from_peer_id}`
+            const savedHistory = localStorage.getItem(historyKey)
+            let history = savedHistory ? JSON.parse(savedHistory) : []
+            
+            const newMessage = {
+              ...message,
+              isOutgoing: false, // Received message
+              isGroup: false, // Direct message
+            }
+            history = [...history, newMessage]
+            localStorage.setItem(historyKey, JSON.stringify(history))
+            
+            // Update IndexedDB to increment unread count
+            setTimeout(() => {
+              updateLatestMessage(
+                message.from_peer_id,
+                message.content,
+                message.timestamp < 1000000000000
+                  ? message.timestamp * 1000
+                  : message.timestamp,
+                false, // Incoming message
+                false, // Direct message
+                true // Increment unread
+              )
+            }, 0)
+          }
+          
+          dispatch(
+            addLog({
+              event: 'message_saved_for_later',
+              data: `Saved message from ${message.from_nickname} for later: ${message.content}`,
+              type: 'info',
+            })
+          )
+        } catch (error) {
+          console.error('Failed to save message for later processing:', error)
+        }
+      }
     }
 
-    // Listen for both direct and group messages
+    // Listen for direct messages
     MessagingEvents.on('message-received', handleMessageReceived)
-    MessagingEvents.on('group-message', handleMessageReceived)
+    
+    // Listen for group messages separately
+    const handleGroupMessageReceived = (message: any) => {
+      handleMessageReceived(message)
+    }
+    MessagingEvents.on('group-message', handleGroupMessageReceived)
 
     return () => {
       MessagingEvents.off('message-received', handleMessageReceived)
-      MessagingEvents.off('group-message', handleMessageReceived)
+      MessagingEvents.off('group-message', handleGroupMessageReceived)
       console.log('🧹 Cleaned up ChatRoom event listeners')
 
       // Clear any pending save timeout
