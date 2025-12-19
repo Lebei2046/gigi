@@ -475,6 +475,35 @@ export default function Chat() {
         MessagingEvents.on('message-received', handleMessageReceived)
         MessagingEvents.on('group-message', handleGroupMessageReceived)
 
+        // Handle image messages when not in chat room
+        const handleImageMessageReceived = (messageData: any) => {
+          // Update latest message for chat list display
+          dispatch(
+            updateDirectMessage({
+              peerId: messageData.from_peer_id,
+              lastMessage: `📷 Image: ${messageData.filename}`,
+              timestamp: messageData.timestamp,
+            })
+          )
+        }
+
+        const handleGroupImageMessageReceived = (messageData: any) => {
+          // Update latest message for chat list display
+          dispatch(
+            updateGroupMessage({
+              groupId: messageData.group_id,
+              lastMessage: `📷 Image: ${messageData.filename}`,
+              timestamp: messageData.timestamp,
+            })
+          )
+        }
+
+        MessagingEvents.on('image-message-received', handleImageMessageReceived)
+        MessagingEvents.on(
+          'group-image-message-received',
+          handleGroupImageMessageReceived
+        )
+
         // Clean up on unmount
         return () => {
           clearInterval(pollInterval)
@@ -483,6 +512,14 @@ export default function Chat() {
             MessagingEvents.off('peer-disconnected', handlePeerDisconnected)
             MessagingEvents.off('message-received', handleMessageReceived)
             MessagingEvents.off('group-message', handleGroupMessageReceived)
+            MessagingEvents.off(
+              'image-message-received',
+              handleImageMessageReceived
+            )
+            MessagingEvents.off(
+              'group-image-message-received',
+              handleGroupImageMessageReceived
+            )
             console.log('🧹 Cleaned up Chat event listeners')
           } catch (error) {
             console.error('Error cleaning up event listeners:', error)

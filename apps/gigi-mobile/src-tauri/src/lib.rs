@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use base64::Engine;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use gigi_p2p::{FileInfo as P2pFileInfo, P2pClient, P2pEvent};
@@ -14,7 +15,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{Mutex, RwLock};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, warn};
 
 /// Initialize logging for the mobile application
 fn init_logging() {
@@ -569,6 +570,76 @@ async fn messaging_get_active_downloads(
 }
 
 #[tauri::command]
+async fn messaging_send_image_message(
+    nickname: &str,
+    image_data: Vec<u8>,
+    filename: &str,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let mut client_guard = state.p2p_client.lock().await;
+    if let Some(client) = client_guard.as_mut() {
+        // Create a temporary file to store the image
+        let temp_path = std::env::temp_dir().join(filename);
+
+        // Write the image data to temporary file
+        tokio::fs::write(&temp_path, image_data)
+            .await
+            .map_err(|e| format!("Failed to write temporary image file: {}", e))?;
+
+        // Send the image using existing P2P functionality
+        client
+            .send_direct_image(nickname, &temp_path)
+            .map_err(|e| format!("Failed to send image: {}", e))?;
+
+        // Clean up temporary file
+        tokio::fs::remove_file(&temp_path).await.ok(); // Ignore cleanup errors
+
+        Ok(uuid::Uuid::new_v4().to_string())
+    } else {
+        Err("P2P client not initialized".to_string())
+    }
+}
+
+#[tauri::command]
+async fn messaging_send_group_image_message(
+    group_id: &str,
+    image_data: Vec<u8>,
+    filename: &str,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let mut client_guard = state.p2p_client.lock().await;
+    if let Some(client) = client_guard.as_mut() {
+        // Create a temporary file to store the image
+        let temp_path = std::env::temp_dir().join(filename);
+
+        // Write the image data to temporary file
+        tokio::fs::write(&temp_path, image_data)
+            .await
+            .map_err(|e| format!("Failed to write temporary image file: {}", e))?;
+
+        // For now, we'll send the image as a file share in the group
+        // This could be enhanced later to support direct group image messages
+        let share_code = client
+            .share_file(&temp_path)
+            .await
+            .map_err(|e| format!("Failed to share image in group: {}", e))?;
+
+        // Send a message indicating an image was shared
+        let image_message = format!("📷 Shared image: {} (Code: {})", filename, share_code);
+        client
+            .send_group_message(group_id, image_message)
+            .map_err(|e| format!("Failed to send group image message: {}", e))?;
+
+        // Clean up temporary file
+        tokio::fs::remove_file(&temp_path).await.ok(); // Ignore cleanup errors
+
+        Ok(share_code)
+    } else {
+        Err("P2P client not initialized".to_string())
+    }
+}
+
+#[tauri::command]
 async fn messaging_update_config(
     config: Config,
     app_handle: AppHandle,
@@ -675,6 +746,49 @@ async fn handle_p2p_event_with_fields(
             };
             app_handle.emit("message-received", &msg)?;
         }
+        P2pEvent::DirectImageMessage {
+            from,
+            from_nickname,
+            filename,
+            data,
+        } => {
+            info!(
+                "Received direct image from {} ({}): {} ({} bytes)",
+                from_nickname,
+                from,
+                filename,
+                data.len()
+            );
+
+            // Create a unique image ID
+            let image_id = uuid::Uuid::new_v4().to_string();
+
+            // Convert image data to base64 for transmission to frontend
+            let mime_type = mime_guess::from_path(&filename)
+                .first_or_octet_stream()
+                .to_string();
+            let data_url = format!(
+                "data:{};base64,{}",
+                mime_type,
+                base64::prelude::BASE64_STANDARD.encode(&data)
+            );
+
+            // Send as a special image message
+            let msg = json!({
+                "id": uuid::Uuid::new_v4().to_string(),
+                "from_peer_id": from.to_string(),
+                "from_nickname": from_nickname,
+                "content": format!("📷 Image: {}", filename),
+                "timestamp": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_secs(),
+                "messageType": "image",
+                "imageId": image_id,
+                "imageData": data_url,
+                "filename": filename
+            });
+            app_handle.emit("image-message-received", &msg)?;
+        }
         P2pEvent::DirectGroupShareMessage {
             from,
             from_nickname,
@@ -724,6 +838,53 @@ async fn handle_p2p_event_with_fields(
 
             app_handle.emit("group-message", &msg)?;
             info!("'group-message' event emitted successfully");
+        }
+        P2pEvent::GroupImageMessage {
+            from,
+            from_nickname,
+            group,
+            filename,
+            data,
+            message: _,
+        } => {
+            info!(
+                "Received group image from {} ({}): {} in group {} ({} bytes)",
+                from_nickname,
+                from,
+                filename,
+                group,
+                data.len()
+            );
+
+            // Create a unique image ID
+            let image_id = uuid::Uuid::new_v4().to_string();
+
+            // Convert image data to base64 for transmission to frontend
+            let mime_type = mime_guess::from_path(&filename)
+                .first_or_octet_stream()
+                .to_string();
+            let data_url = format!(
+                "data:{};base64,{}",
+                mime_type,
+                base64::prelude::BASE64_STANDARD.encode(&data)
+            );
+
+            // Send as a special group image message
+            let msg = json!({
+                "id": uuid::Uuid::new_v4().to_string(),
+                "group_id": group,
+                "from_peer_id": from.to_string(),
+                "from_nickname": from_nickname,
+                "content": format!("📷 Image: {}", filename),
+                "timestamp": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_secs(),
+                "messageType": "image",
+                "imageId": image_id,
+                "imageData": data_url,
+                "filename": filename
+            });
+            app_handle.emit("group-image-message-received", &msg)?;
         }
         P2pEvent::FileShareRequest {
             from,
@@ -974,6 +1135,8 @@ pub fn run() {
             messaging_send_message,
             messaging_send_message_to_nickname,
             messaging_send_direct_share_group_message,
+            messaging_send_image_message,
+            messaging_send_group_image_message,
             messaging_get_peers,
             messaging_set_nickname,
             messaging_join_group,

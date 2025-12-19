@@ -118,3 +118,7 @@ Now test it:
 2. **Alice** opens the chat with Bob - she should see all the previous messages with Bob's messages on the left (gray) and if she replies, her messages on the right (blue)
 
 The message history will persist even if you refresh the page or restart the app! 🎉
+
+# Task 3
+
+Implement image message sending and receiving when two peers are chatting.

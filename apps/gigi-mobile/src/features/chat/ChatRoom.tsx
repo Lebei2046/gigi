@@ -8,10 +8,13 @@ import {
   loadMessageHistoryAsync,
   initializeChatInfoAsync,
   sendMessageAsync,
+  sendImageMessageAsync,
   setNewMessage,
   handleDirectMessage,
   handleGroupMessage,
   addMessage,
+  addImageMessage,
+  addGroupImageMessage,
   removeMessage,
   resetChatRoomState,
   generateMessageId,
@@ -299,9 +302,60 @@ export default function ChatRoom() {
     }
     MessagingEvents.on('group-message', handleGroupMessageReceived)
 
+    // Listen for image messages
+    const handleImageMessageReceived = (messageData: any) => {
+      if (chatId && messageData.from_peer_id === chatId && !isGroupChat) {
+        const imageMessage: Message = {
+          id: messageData.id,
+          from_peer_id: messageData.from_peer_id,
+          from_nickname: messageData.from_nickname,
+          content: messageData.content,
+          timestamp: messageData.timestamp,
+          isOutgoing: false,
+          isGroup: false,
+          messageType: 'image',
+          imageId: messageData.imageId,
+          imageData: messageData.imageData,
+          filename: messageData.filename,
+        }
+        dispatch(addImageMessage(imageMessage))
+      }
+    }
+
+    // Listen for group image messages
+    const handleGroupImageMessageReceived = (messageData: any) => {
+      if (chatId && messageData.group_id === chatId && isGroupChat) {
+        const imageMessage: Message = {
+          id: messageData.id,
+          from_peer_id: messageData.from_peer_id,
+          from_nickname: messageData.from_nickname,
+          content: messageData.content,
+          timestamp: messageData.timestamp,
+          isOutgoing: false,
+          isGroup: true,
+          messageType: 'image',
+          imageId: messageData.imageId,
+          imageData: messageData.imageData,
+          filename: messageData.filename,
+        }
+        dispatch(addGroupImageMessage(imageMessage))
+      }
+    }
+
+    MessagingEvents.on('image-message-received', handleImageMessageReceived)
+    MessagingEvents.on(
+      'group-image-message-received',
+      handleGroupImageMessageReceived
+    )
+
     return () => {
       MessagingEvents.off('message-received', handleMessageReceived)
       MessagingEvents.off('group-message', handleGroupMessageReceived)
+      MessagingEvents.off('image-message-received', handleImageMessageReceived)
+      MessagingEvents.off(
+        'group-image-message-received',
+        handleGroupImageMessageReceived
+      )
       console.log('🧹 Cleaned up ChatRoom event listeners')
 
       // Clear any pending save timeout
@@ -333,6 +387,79 @@ export default function ChatRoom() {
     chatId,
     chatName,
   ])
+
+  const handleImageSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) {
+      console.error('Please select an image file')
+      return
+    }
+
+    if (!isGroupChat && !peer) return
+    if (isGroupChat && !group) return
+
+    const timestamp = Date.now()
+
+    try {
+      // Add image message to local state immediately for optimistic UI
+      if (isGroupChat) {
+        const imageMessage: Message = {
+          id: generateMessageId(),
+          from_peer_id: 'me',
+          from_nickname: 'Me',
+          content: `📷 Image: ${file.name}`,
+          timestamp,
+          isOutgoing: true,
+          isGroup: true,
+          messageType: 'image',
+          imageId: generateMessageId(),
+          imageData: URL.createObjectURL(file), // Temporary preview URL
+          filename: file.name,
+        }
+
+        // Track this message to avoid duplicates
+        sentMessagesRef.current.add(imageMessage.id)
+        // Dispatch via Redux
+        dispatch(addMessage(imageMessage))
+      } else {
+        const imageMessage: Message = {
+          id: generateMessageId(),
+          from_peer_id: peer!.id,
+          from_nickname: peer!.nickname,
+          content: `📷 Image: ${file.name}`,
+          timestamp,
+          isOutgoing: true,
+          isGroup: false,
+          messageType: 'image',
+          imageId: generateMessageId(),
+          imageData: URL.createObjectURL(file), // Temporary preview URL
+          filename: file.name,
+        }
+
+        // Track this message to avoid duplicates
+        sentMessagesRef.current.add(imageMessage.id)
+        // Dispatch via Redux
+        dispatch(addMessage(imageMessage))
+      }
+
+      // Send image via Redux async thunk
+      await dispatch(
+        sendImageMessageAsync({
+          imageFile: file,
+          isGroupChat,
+          peer,
+          group,
+        })
+      )
+    } catch (error) {
+      console.error('Failed to send image:', error)
+    }
+
+    // Clear the file input
+    event.target.value = ''
+  }
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return
@@ -516,7 +643,21 @@ export default function ChatRoom() {
                         {message.isGroup && '👥'} {message.from_nickname}
                       </p>
                     )}
-                  <p className="text-sm break-words">{message.content}</p>
+                  {/* Render message content based on type */}
+                  {message.messageType === 'image' ? (
+                    <div className="flex flex-col gap-2">
+                      {message.imageData && (
+                        <img
+                          src={message.imageData}
+                          alt={message.filename}
+                          className="max-w-xs max-h-48 rounded-lg object-cover"
+                        />
+                      )}
+                      <p className="text-sm break-words">{message.content}</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm break-words">{message.content}</p>
+                  )}
                   <p className="text-xs mt-1 opacity-60">
                     {new Date(message.timestamp).toLocaleTimeString([], {
                       hour: '2-digit',
@@ -534,6 +675,25 @@ export default function ChatRoom() {
       {/* Message Input */}
       <div className="border-t bg-white p-4">
         <div className="flex gap-2">
+          {/* Image upload button */}
+          <div className="relative">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              disabled={sending}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={sending}
+              className="pointer-events-none"
+            >
+              📷
+            </Button>
+          </div>
+
           <Input
             value={newMessage}
             onChange={handleInputChange}

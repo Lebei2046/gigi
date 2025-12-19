@@ -13,6 +13,10 @@ export interface Message {
   from_nickname: string
   content: string
   timestamp: number
+  messageType?: 'text' | 'image'
+  imageId?: string
+  imageData?: string
+  filename?: string
 }
 
 export interface GroupMessage {
@@ -189,6 +193,38 @@ export class MessagingClient {
   // Get current configuration
   static async getConfig(): Promise<Config> {
     return invoke('messaging_get_config')
+  }
+
+  // Send image message
+  static async sendImageMessage(
+    nickname: string,
+    imageFile: File
+  ): Promise<string> {
+    // Convert File to Uint8Array
+    const arrayBuffer = await imageFile.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+
+    return invoke('messaging_send_image_message', {
+      nickname,
+      imageData: Array.from(uint8Array), // Convert to regular array for Tauri
+      filename: imageFile.name,
+    })
+  }
+
+  // Send group image message
+  static async sendGroupImageMessage(
+    groupId: string,
+    imageFile: File
+  ): Promise<string> {
+    // Convert File to Uint8Array
+    const arrayBuffer = await imageFile.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+
+    return invoke('messaging_send_group_image_message', {
+      groupId,
+      imageData: Array.from(uint8Array), // Convert to regular array for Tauri
+      filename: imageFile.name,
+    })
   }
 
   // Utility function to try get peer ID from private key

@@ -34,6 +34,10 @@ export interface Message {
   timestamp: number
   isOutgoing: boolean
   isGroup?: boolean
+  messageType?: 'text' | 'image'
+  imageId?: string
+  imageData?: string
+  filename?: string
 }
 
 export interface ChatRoomState {
@@ -222,6 +226,34 @@ export const sendMessageAsync = createAsyncThunk(
   }
 )
 
+export const sendImageMessageAsync = createAsyncThunk(
+  'chatRoom/sendImageMessage',
+  async ({
+    imageFile,
+    isGroupChat,
+    peer,
+    group,
+  }: {
+    imageFile: File
+    isGroupChat: boolean
+    peer: Peer | null
+    group: SerializableGroup | null
+  }) => {
+    const timestamp = Date.now()
+    let result: any
+
+    if (isGroupChat && group) {
+      result = await MessagingClient.sendGroupImageMessage(group.id, imageFile)
+    } else if (!isGroupChat && peer) {
+      result = await MessagingClient.sendImageMessage(peer.nickname, imageFile)
+    } else {
+      throw new Error('Invalid chat state for sending image message')
+    }
+
+    return { result, timestamp, filename: imageFile.name }
+  }
+)
+
 const chatRoomSlice = createSlice({
   name: 'chatRoom',
   initialState,
@@ -243,6 +275,14 @@ const chatRoomSlice = createSlice({
     },
 
     addMessage: (state, action: PayloadAction<Message>) => {
+      state.messages.push(action.payload)
+    },
+
+    addImageMessage: (state, action: PayloadAction<Message>) => {
+      state.messages.push(action.payload)
+    },
+
+    addGroupImageMessage: (state, action: PayloadAction<Message>) => {
       state.messages.push(action.payload)
     },
 
@@ -374,6 +414,20 @@ const chatRoomSlice = createSlice({
         state.sending = false
         state.error = action.error.message || 'Failed to send message'
       })
+
+      // Send image message
+      .addCase(sendImageMessageAsync.pending, state => {
+        state.sending = true
+        state.error = null
+      })
+      .addCase(sendImageMessageAsync.fulfilled, (state, action) => {
+        state.sending = false
+        state.newMessage = ''
+      })
+      .addCase(sendImageMessageAsync.rejected, (state, action) => {
+        state.sending = false
+        state.error = action.error.message || 'Failed to send image message'
+      })
   },
 })
 
@@ -383,6 +437,8 @@ export const {
   setIsGroupChat,
   setMessages,
   addMessage,
+  addImageMessage,
+  addGroupImageMessage,
   removeMessage,
   setNewMessage,
   setSending,
