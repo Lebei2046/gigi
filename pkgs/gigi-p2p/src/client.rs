@@ -13,7 +13,7 @@ use libp2p::{
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
-use tracing::error;
+use tracing::{debug, error, info, instrument, warn};
 
 use super::behaviour::{
     create_gossipsub_behaviour, create_gossipsub_config, DirectMessage, FileTransferRequest,
@@ -44,6 +44,7 @@ pub struct P2pClient {
 
 impl P2pClient {
     /// Create a new P2P client
+    #[instrument(skip(keypair))]
     pub fn new(
         keypair: Keypair,
         nickname: String,
@@ -58,6 +59,7 @@ impl P2pClient {
     }
 
     /// Create a new P2P client with custom shared file path
+    #[instrument(skip(keypair))]
     pub fn new_with_config(
         keypair: Keypair,
         nickname: String,
@@ -198,14 +200,14 @@ impl P2pClient {
     fn handle_mdns_event(&mut self, event: libp2p::mdns::Event) -> Result<()> {
         match event {
             mdns::Event::Discovered(list) => {
-                println!("🔍 mDNS discovered {} peers", list.len());
+                info!("mDNS discovered {} peers", list.len());
                 for (peer_id, addr) in list {
-                    println!("🔍 Found peer: {} at {}", peer_id, addr);
+                    debug!("Found peer: {} at {}", peer_id, addr);
                     self.handle_peer_discovered(peer_id, addr)?;
                 }
             }
             mdns::Event::Expired(list) => {
-                println!("👋 mDNS expired {} peers", list.len());
+                info!("mDNS expired {} peers", list.len());
                 for (peer_id, _addr) in list {
                     self.handle_peer_expired(peer_id)?;
                 }
@@ -236,7 +238,7 @@ impl P2pClient {
                             NicknameResponse::Ack
                         }
                     };
-                    println!("📤 Sending nickname response to {}: {:?}", peer, response);
+                    debug!("Sending nickname response to {}: {:?}", peer, response);
                     let _ = self
                         .swarm
                         .behaviour_mut()
@@ -244,10 +246,7 @@ impl P2pClient {
                         .send_response(channel, response);
                 }
                 request_response::Message::Response { response, .. } => {
-                    println!(
-                        "📨 Received nickname response from {}: {:?}",
-                        peer, response
-                    );
+                    debug!("Received nickname response from {}: {:?}", peer, response);
                     if let NicknameResponse::Nickname { nickname, .. } = response {
                         self.update_peer_nickname(peer, nickname);
                     }
@@ -318,19 +317,19 @@ impl P2pClient {
                 message,
                 ..
             } => {
-                println!("🔥 Raw gossipsub message received from: {}", peer_id);
-                println!("🔥 Topic: {}", message.topic);
-                println!("🔥 Data length: {} bytes", message.data.len());
+                debug!("Raw gossipsub message received from: {}", peer_id);
+                debug!("Topic: {}", message.topic);
+                debug!("Data length: {} bytes", message.data.len());
 
                 if let Ok(group_message) = serde_json::from_slice::<GroupMessage>(&message.data) {
                     let group_name = message.topic.to_string();
                     let nickname = self.get_peer_nickname(&peer_id)?;
 
-                    println!("✅ Parsed group message successfully:");
-                    println!("   - From: {} ({})", nickname, peer_id);
-                    println!("   - Group: {}", group_name);
-                    println!("   - Content: {}", group_message.content);
-                    println!("   - Timestamp: {}", group_message.timestamp);
+                    debug!("Parsed group message successfully:");
+                    debug!("   - From: {} ({})", nickname, peer_id);
+                    debug!("   - Group: {}", group_name);
+                    debug!("   - Content: {}", group_message.content);
+                    debug!("   - Timestamp: {}", group_message.timestamp);
 
                     if group_message.is_image {
                         self.send_event(P2pEvent::GroupImageMessage {
@@ -349,19 +348,16 @@ impl P2pClient {
                             group: group_name,
                             message: group_message.content,
                         });
-                        println!(
-                            "🚀 Emitted GroupMessage event for group: {}",
-                            group_name_clone
-                        );
+                        debug!("Emitted GroupMessage event for group: {}", group_name_clone);
                     }
                 } else {
-                    println!("❌ Failed to parse group message from gossipsub data");
-                    println!("🔍 Raw data: {:?}", String::from_utf8(message.data));
+                    warn!("Failed to parse group message from gossipsub data");
+                    debug!("Raw data: {:?}", String::from_utf8(message.data));
                 }
             }
             libp2p::gossipsub::Event::Subscribed { topic, .. } => {
                 let group_name = topic.to_string();
-                println!("✅ Successfully subscribed to group topic: {}", group_name);
+                info!("Successfully subscribed to group topic: {}", group_name);
                 self.send_event(P2pEvent::GroupJoined { group: group_name });
             }
             libp2p::gossipsub::Event::Unsubscribed { topic, .. } => {
@@ -628,15 +624,15 @@ impl P2pClient {
             self.nickname_to_peer.insert(nickname.clone(), peer_id);
 
             // Request nickname from peer
-            println!("📤 Sending GetNickname request to {}", peer_id);
+            debug!("Sending GetNickname request to {}", peer_id);
             self.swarm
                 .behaviour_mut()
                 .nickname
                 .send_request(&peer_id, NicknameRequest::GetNickname);
 
             // Announce our nickname
-            println!(
-                "📤 Sending AnnounceNickname request to {} as {}",
+            debug!(
+                "Sending AnnounceNickname request to {} as {}",
                 peer_id, self.local_nickname
             );
             self.swarm.behaviour_mut().nickname.send_request(
@@ -802,14 +798,15 @@ impl P2pClient {
     }
 
     /// Join a group
+    #[instrument(skip(self))]
     pub fn join_group(&mut self, group_name: &str) -> Result<()> {
-        println!("🔔 Joining group: {}", group_name);
+        info!("Joining group: {}", group_name);
         use libp2p::gossipsub::IdentTopic;
         let topic = IdentTopic::new(group_name);
 
         // Check if already subscribed
         if self.groups.contains_key(group_name) {
-            println!("⚠️ Already subscribed to group: {}", group_name);
+            warn!("Already subscribed to group: {}", group_name);
             return Ok(());
         }
 
@@ -822,7 +819,7 @@ impl P2pClient {
         };
 
         self.groups.insert(group_name.to_string(), group_info);
-        println!("✅ Successfully joined group: {}", group_name);
+        info!("Successfully joined group: {}", group_name);
 
         Ok(())
     }
@@ -842,8 +839,9 @@ impl P2pClient {
     }
 
     /// Send message to group
+    #[instrument(skip(self, message))]
     pub fn send_group_message(&mut self, group_name: &str, message: String) -> Result<()> {
-        println!("📤 Sending group message to: {}", group_name);
+        debug!("Sending group message to: {}", group_name);
 
         let group = self
             .groups
@@ -869,7 +867,7 @@ impl P2pClient {
             .gossipsub
             .publish(group.topic.clone(), data)?;
 
-        println!("✅ Group message published successfully");
+        debug!("Group message published successfully");
         Ok(())
     }
 

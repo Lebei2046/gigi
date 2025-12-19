@@ -14,6 +14,37 @@ pub mod error;
 pub mod events;
 pub mod file_transfer;
 
+/// Initialize tracing subscriber for the library
+///
+/// This is a convenience function for consumers who want to use the default
+/// logging configuration. Advanced users should set up their own tracing subscriber.
+///
+/// # Example
+/// ```rust
+/// gigi_p2p::init_tracing();
+/// ```
+pub fn init_tracing() {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .with_target(false)
+        .compact()
+        .init();
+}
+
+/// Initialize tracing with custom level
+///
+/// # Example
+/// ```rust
+/// gigi_p2p::init_tracing_with_level(tracing::Level::DEBUG);
+/// ```
+pub fn init_tracing_with_level(level: tracing::Level) {
+    tracing_subscriber::fmt()
+        .with_max_level(level)
+        .with_target(false)
+        .compact()
+        .init();
+}
+
 // Re-export public API
 pub use client::P2pClient;
 pub use error::P2pError;

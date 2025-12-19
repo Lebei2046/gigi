@@ -29,4 +29,6 @@ uuid = { version = "1.0", features = ["v4"] }
 gigi-p2p.workspace = true
 futures.workspace = true
 mime_guess = "2.0"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 

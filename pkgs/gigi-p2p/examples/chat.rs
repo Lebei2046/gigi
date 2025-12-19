@@ -4,6 +4,7 @@ use gigi_p2p::{P2pClient, P2pEvent};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use tokio::fs;
+use tracing::{debug, error, info, instrument};
 
 /// Gigi P2P Chat - Simple and clean terminal chat
 #[derive(Parser)]
@@ -49,7 +50,12 @@ fn show_help() {
     println!("  • Files are automatically saved to downloads/");
 }
 
+#[instrument(skip_all)]
 async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pClient) {
+    debug!(
+        event_type = ?std::mem::discriminant(&event),
+        "Handling P2P event"
+    );
     match event {
         P2pEvent::PeerDiscovered {
             peer_id,
@@ -81,6 +87,14 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pCl
             data,
         } => {
             let file_path = output_dir.join(&filename);
+            info!(
+                from = %from,
+                from_nickname = %from_nickname,
+                filename = %filename,
+                file_path = %file_path.display(),
+                data_size = data.len(),
+                "Received direct image message"
+            );
             match fs::write(&file_path, &data).await {
                 Ok(()) => {
                     println!(
@@ -90,8 +104,16 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pCl
                         filename,
                         file_path.display()
                     );
+                    info!("Direct image saved successfully");
                 }
                 Err(e) => {
+                    error!(
+                        from = %from,
+                        from_nickname = %from_nickname,
+                        filename = %filename,
+                        error = %e,
+                        "Failed to save direct image"
+                    );
                     println!(
                         "❌ Failed to save image from {} ({}): {}",
                         from_nickname, from, e
@@ -183,6 +205,15 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pCl
             } else {
                 // Legacy mode - save directly embedded image data
                 let file_path = output_dir.join(&filename);
+                info!(
+                    group = %group,
+                    from = %from,
+                    from_nickname = %from_nickname,
+                    filename = %filename,
+                    file_path = %file_path.display(),
+                    data_size = data.len(),
+                    "Saving legacy embedded group image"
+                );
                 match fs::write(&file_path, &data).await {
                     Ok(()) => {
                         println!(
@@ -194,8 +225,16 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pCl
                             filename,
                             file_path.display()
                         );
+                        info!("Legacy group image saved successfully");
                     }
                     Err(e) => {
+                        error!(
+                            from = %from,
+                            from_nickname = %from_nickname,
+                            filename = %filename,
+                            error = %e,
+                            "Failed to save legacy group image"
+                        );
                         println!(
                             "❌ Failed to save group image from {} ({}): {}",
                             from_nickname, from, e
@@ -292,14 +331,21 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pCl
             }
         }
         P2pEvent::FileDownloadFailed { file_id, error } => {
+            error!(
+                file_id = %file_id,
+                error = %error,
+                "File download failed"
+            );
             println!("❌ Download failed for {}: {}", file_id, error);
         }
         P2pEvent::Error(err) => {
+            error!(error = %err, "P2P error occurred");
             println!("❌ Error: {}", err);
         }
     }
 }
 
+#[instrument(skip(client), fields(command = input))]
 async fn process_command(input: &str, client: &mut P2pClient) -> bool {
     let parts: Vec<&str> = input.split_whitespace().collect();
     if parts.is_empty() {
@@ -327,9 +373,24 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
             } else {
                 let nickname = parts[1];
                 let message = parts[2..].join(" ");
+                info!(
+                    to_nickname = %nickname,
+                    message_length = message.len(),
+                    "Sending direct message"
+                );
                 match client.send_direct_message(nickname, message) {
-                    Ok(()) => println!("✅ Message sent to {}", nickname),
-                    Err(e) => println!("❌ Failed to send: {}", e),
+                    Ok(()) => {
+                        println!("✅ Message sent to {}", nickname);
+                        debug!("Direct message sent successfully");
+                    }
+                    Err(e) => {
+                        error!(
+                            to_nickname = %nickname,
+                            error = %e,
+                            "Failed to send direct message"
+                        );
+                        println!("❌ Failed to send: {}", e);
+                    }
                 }
             }
         }
@@ -339,9 +400,25 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
             } else {
                 let nickname = parts[1];
                 let image_path = parts[2];
+                info!(
+                    to_nickname = %nickname,
+                    image_path = %image_path,
+                    "Sending direct image"
+                );
                 match client.send_direct_image(nickname, &PathBuf::from(image_path)) {
-                    Ok(()) => println!("✅ Image sent to {}", nickname),
-                    Err(e) => println!("❌ Failed to send image: {}", e),
+                    Ok(()) => {
+                        println!("✅ Image sent to {}", nickname);
+                        debug!("Direct image sent successfully");
+                    }
+                    Err(e) => {
+                        error!(
+                            to_nickname = %nickname,
+                            image_path = %image_path,
+                            error = %e,
+                            "Failed to send direct image"
+                        );
+                        println!("❌ Failed to send image: {}", e);
+                    }
                 }
             }
         }
@@ -350,9 +427,20 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                 println!("❌ Usage: join <group>");
             } else {
                 let group = parts[1];
+                info!(group = %group, "Joining group");
                 match client.join_group(group) {
-                    Ok(()) => println!("✅ Joined group: {}", group),
-                    Err(e) => println!("❌ Failed to join group: {}", e),
+                    Ok(()) => {
+                        println!("✅ Joined group: {}", group);
+                        debug!("Successfully joined group");
+                    }
+                    Err(e) => {
+                        error!(
+                            group = %group,
+                            error = %e,
+                            "Failed to join group"
+                        );
+                        println!("❌ Failed to join group: {}", e);
+                    }
                 }
             }
         }
@@ -399,9 +487,20 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                 println!("❌ Usage: share <file-path>");
             } else {
                 let file_path = parts[1];
+                info!(file_path = %file_path, "Sharing file");
                 match client.share_file(&PathBuf::from(file_path)).await {
-                    Ok(share_code) => println!("✅ File shared with code: {}", share_code),
-                    Err(e) => println!("❌ Failed to share file: {}", e),
+                    Ok(share_code) => {
+                        println!("✅ File shared with code: {}", share_code);
+                        info!(share_code = %share_code, "File shared successfully");
+                    }
+                    Err(e) => {
+                        error!(
+                            file_path = %file_path,
+                            error = %e,
+                            "Failed to share file"
+                        );
+                        println!("❌ Failed to share file: {}", e);
+                    }
                 }
             }
         }
@@ -439,20 +538,40 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
             } else {
                 let nickname = parts[1];
                 let share_code = parts[2];
+                info!(
+                    from_nickname = %nickname,
+                    share_code = %share_code,
+                    "Starting file download"
+                );
                 match client.download_file(nickname, share_code) {
-                    Ok(()) => println!(
-                        "✅ Download started from {} with code {}",
-                        nickname, share_code
-                    ),
-                    Err(e) => println!("❌ Failed to start download: {}", e),
+                    Ok(()) => {
+                        println!(
+                            "✅ Download started from {} with code {}",
+                            nickname, share_code
+                        );
+                        debug!("File download started successfully");
+                    }
+                    Err(e) => {
+                        error!(
+                            from_nickname = %nickname,
+                            share_code = %share_code,
+                            error = %e,
+                            "Failed to start file download"
+                        );
+                        println!("❌ Failed to start download: {}", e);
+                    }
                 }
             }
         }
         "quit" | "exit" | "q" => {
             println!("👋 Goodbye!");
+            info!("Initiating graceful shutdown");
             // Gracefully shutdown the P2P client
             if let Err(e) = client.shutdown() {
+                error!(error = %e, "Error during shutdown");
                 println!("⚠️ Error during shutdown: {}", e);
+            } else {
+                info!("Shutdown completed successfully");
             }
             return false;
         }
@@ -490,25 +609,27 @@ fn display_welcome(nickname: &str, port: u16, output_dir: &PathBuf, shared_file:
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    // Initialize logging with minimal output
-    tracing_subscriber::fmt()
-        .with_env_filter("error") // Only show errors
-        .init();
+    // Initialize logging using the library's function
+    // gigi_p2p::init_tracing();
 
     // Create output directory
     fs::create_dir_all(&args.output).await?;
 
     // Create P2P client
+    info!("Creating P2P client with nickname: {}", args.nickname);
     let (mut client, mut event_receiver) = P2pClient::new_with_config(
         libp2p::identity::Keypair::generate_ed25519(),
         args.nickname.clone(),
         args.output.clone(),
         args.shared.clone(),
     )?;
+    info!("P2P client created successfully");
 
     // Start listening
     let listen_addr = format!("/ip4/0.0.0.0/tcp/{}", args.port).parse()?;
+    info!(address = %listen_addr, "Starting to listen");
     client.start_listening(listen_addr)?;
+    info!("Started listening successfully");
 
     display_welcome(&args.nickname, args.port, &args.output, &args.shared);
 
@@ -539,6 +660,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Main loop for handling swarm events and user input
     let mut running = true;
+    info!("Starting main event loop");
     while running {
         print!("> ");
         io::stdout().flush().unwrap();
@@ -546,16 +668,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             // Handle swarm events through the client
             _ = client.handle_next_swarm_event() => {
+                debug!("Swarm event handled internally");
                 // Event handling is done internally
             }
 
             // Handle P2P events from the event receiver
             Some(event) = event_receiver.next() => {
+                debug!("Received P2P event from receiver");
                 handle_p2p_event(event, &args.output, &client).await;
             }
 
             // Handle stdin input
             Some(input) = stdin_receiver.recv() => {
+                debug!("Processing user input: {}", input);
                 if !process_command(&input, &mut client).await {
                     running = false;
                 }
@@ -563,6 +688,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Handle Ctrl+C
             _ = tokio::signal::ctrl_c() => {
+                info!("Received Ctrl+C, initiating shutdown");
                 println!("\n👋 Goodbye!");
                 running = false;
             }
@@ -570,7 +696,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Clean up
+    info!("Cleaning up resources");
     stdin_handle.abort();
+    info!("Chat example completed");
 
     Ok(())
 }

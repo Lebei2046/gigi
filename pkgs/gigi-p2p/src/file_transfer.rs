@@ -10,6 +10,7 @@ use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tokio::fs;
+use tracing::info;
 
 use super::error::P2pError;
 use super::events::{ChunkInfo, FileInfo, SharedFile};
@@ -160,8 +161,8 @@ impl FileTransferManager {
             // File already shared, check if it has changed
             if existing_shared_file.info.hash == hash {
                 // File unchanged, return existing share code
-                println!(
-                    "📂 File '{}' already shared with code: {} (unchanged)",
+                info!(
+                    "File '{}' already shared with code: {} (unchanged)",
                     filename, existing_share_code
                 );
                 return Ok(existing_share_code.clone());
@@ -190,8 +191,8 @@ impl FileTransferManager {
                     .insert(share_code.clone(), updated_shared_file);
                 self.save_shared_files()?;
 
-                println!(
-                    "📂 Updated file '{}' (hash: {}) with existing code: {}",
+                info!(
+                    "Updated file '{}' (hash: {}) with existing code: {}",
                     filename,
                     &hash[..8],
                     share_code
@@ -231,8 +232,8 @@ impl FileTransferManager {
         // Save to persistent storage
         self.save_shared_files()?;
 
-        println!(
-            "📂 Shared file '{}' (hash: {}) with code: {}",
+        info!(
+            "Shared file '{}' (hash: {}) with code: {}",
             filename,
             &hash[..8],
             share_code
@@ -252,8 +253,8 @@ impl FileTransferManager {
             // Save updated shared files
             self.save_shared_files()?;
 
-            println!(
-                "🗑️ Unshared file '{}' with share code: {}",
+            info!(
+                "Unshared file '{}' with share code: {}",
                 shared_file.info.name, share_code
             );
 
@@ -333,8 +334,8 @@ impl FileTransferManager {
                 }
             }
 
-            println!(
-                "📂 Loaded {} shared files from storage",
+            info!(
+                "Loaded {} shared files from storage",
                 self.shared_files.len()
             );
         }

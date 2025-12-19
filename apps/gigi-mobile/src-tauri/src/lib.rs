@@ -14,6 +14,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{Mutex, RwLock};
+use tracing::{debug, error, info, instrument, warn};
+
+/// Initialize logging for the mobile application
+fn init_logging() {
+    gigi_p2p::init_tracing();
+}
 
 // Types that match the frontend expectations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,12 +152,12 @@ async fn load_shared_files(shared_files_path: &PathBuf) -> HashMap<String, FileI
             Ok(content) => match serde_json::from_str::<HashMap<String, FileInfo>>(&content) {
                 Ok(files) => files,
                 Err(e) => {
-                    eprintln!("Failed to deserialize shared files: {}", e);
+                    error!("Failed to deserialize shared files: {}", e);
                     HashMap::new()
                 }
             },
             Err(e) => {
-                eprintln!("Failed to read shared files file: {}", e);
+                error!("Failed to read shared files file: {}", e);
                 HashMap::new()
             }
         }
@@ -256,7 +262,7 @@ async fn messaging_initialize_with_key(
 
             tokio::spawn(async move {
                 // Task 1: Poll swarm events and handle them
-                println!("🔥 Starting swarm event polling task");
+                info!("Starting swarm event polling task");
                 loop {
                     // Check if client is initialized and poll for events with timeout
                     let client_ready = {
@@ -280,14 +286,15 @@ async fn messaging_initialize_with_key(
                         match result {
                             Ok(Ok(())) => {
                                 // Event handled successfully
-                                println!("✅ Swarm event processed");
+                                debug!("Swarm event processed successfully");
                             }
                             Ok(Err(e)) => {
-                                eprintln!("Error handling swarm event: {}", e);
+                                error!("Error handling swarm event: {}", e);
                             }
                             Err(_) => {
                                 // Timeout occurred - this is expected, gives other tasks chance to run
                                 // Don't print anything to avoid spam
+                                debug!("Swarm event polling timeout (expected)");
                             }
                         }
                     } else {
@@ -300,15 +307,12 @@ async fn messaging_initialize_with_key(
             tokio::spawn(async move {
                 // Task 2: Handle P2P events from the receiver
                 let mut receiver = receiver;
-                println!("🚀 Starting P2P event handling task");
+                info!("Starting P2P event handling task");
 
                 loop {
-                    println!("⏳ Waiting for P2P event...");
+                    debug!("Waiting for P2P event...");
                     if let Some(event) = receiver.next().await {
-                        println!(
-                            "📦 Received P2P event: {:?}",
-                            std::mem::discriminant(&event)
-                        );
+                        debug!("Received P2P event: {:?}", std::mem::discriminant(&event));
                         if let Err(e) = handle_p2p_event_with_fields(
                             event,
                             &p2p_client,
@@ -319,7 +323,7 @@ async fn messaging_initialize_with_key(
                         )
                         .await
                         {
-                            eprintln!("Error handling P2P event: {}", e);
+                            error!("Error handling P2P event: {}", e);
                         }
                     }
                 }
@@ -494,7 +498,7 @@ async fn messaging_share_file(
         if let Err(e) =
             save_shared_files(&*state.shared_files.lock().await, &state.shared_files_path).await
         {
-            eprintln!("Failed to save shared files: {}", e);
+            error!("Failed to save shared files: {}", e);
         }
 
         Ok(share_code)
@@ -533,7 +537,7 @@ async fn messaging_request_file_from_nickname(
 #[tauri::command]
 fn messaging_cancel_download(download_id: &str, _state: State<'_, AppState>) -> Result<(), String> {
     // Placeholder - would need to implement in gigi-p2p
-    println!("Cancelled download: {}", download_id);
+    info!("Cancelled download: {}", download_id);
     Ok(())
 }
 
@@ -624,8 +628,8 @@ async fn handle_p2p_event_with_fields(
         P2pEvent::PeerDiscovered {
             peer_id, nickname, ..
         } => {
-            println!(
-                "🔥 Rust emitting peer-discovered event for {} ({})",
+            info!(
+                "Emitting peer-discovered event for {} ({})",
                 nickname, peer_id
             );
             let peer = Peer {
@@ -696,10 +700,10 @@ async fn handle_p2p_event_with_fields(
             group,
             message,
         } => {
-            println!("🚀 RUST: Processing GroupMessage event:");
-            println!("   - From: {} ({})", from_nickname, from);
-            println!("   - Group: {}", group);
-            println!("   - Message: {}", message);
+            info!("Processing GroupMessage event:");
+            info!("   - From: {} ({})", from_nickname, from);
+            info!("   - Group: {}", group);
+            info!("   - Message: {}", message);
 
             let msg = GroupMessage {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -712,14 +716,14 @@ async fn handle_p2p_event_with_fields(
                     .as_secs(),
             };
 
-            println!("🔥 RUST: Emitting 'group-message' event to frontend:");
-            println!("   - Message ID: {}", msg.id);
-            println!("   - Group ID: {}", msg.group_id);
-            println!("   - From: {} ({})", msg.from_nickname, msg.from_peer_id);
-            println!("   - Content: {}", msg.content);
+            info!("Emitting 'group-message' event to frontend:");
+            info!("   - Message ID: {}", msg.id);
+            info!("   - Group ID: {}", msg.group_id);
+            info!("   - From: {} ({})", msg.from_nickname, msg.from_peer_id);
+            info!("   - Content: {}", msg.content);
 
             app_handle.emit("group-message", &msg)?;
-            println!("✅ RUST: 'group-message' event emitted successfully");
+            info!("'group-message' event emitted successfully");
         }
         P2pEvent::FileShareRequest {
             from,
@@ -787,8 +791,8 @@ async fn handle_p2p_event_with_fields(
             )?;
         }
         P2pEvent::Connected { peer_id, nickname } => {
-            println!(
-                "🔥 Rust emitting peer-connected event for {} ({})",
+            info!(
+                "Emitting peer-connected event for {} ({})",
                 nickname, peer_id
             );
             app_handle
@@ -823,18 +827,18 @@ async fn emit_current_state(
     app_handle: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    println!("🚀 emit_current_state called");
+    info!("emit_current_state called");
 
     // Clone the client to avoid holding the mutex lock during emit operations
     let client_clone = {
-        println!("🔒 Attempting to lock P2P client...");
+        debug!("Attempting to lock P2P client...");
 
         // Add timeout to prevent deadlock
         match tokio::time::timeout(tokio::time::Duration::from_secs(2), state.p2p_client.lock())
             .await
         {
             Ok(client_guard) => {
-                println!("✅ Successfully locked P2P client");
+                debug!("Successfully locked P2P client");
 
                 if let Some(client) = client_guard.as_ref() {
                     // Clone what we need and immediately release the lock
@@ -852,14 +856,14 @@ async fn emit_current_state(
                         })
                         .collect();
 
-                    println!("📤 Collected {} peers, releasing lock", peers.len());
+                    info!("Collected {} peers, releasing lock", peers.len());
                     Some((peer_id, peer_data))
                 } else {
                     None
                 }
             }
             Err(_) => {
-                println!("⚠️ Timeout: Failed to acquire P2P client lock within 2 seconds, but continuing...");
+                warn!("Timeout: Failed to acquire P2P client lock within 2 seconds, but continuing...");
                 // Return success instead of error to avoid frontend issues
                 return Ok(());
             }
@@ -869,24 +873,24 @@ async fn emit_current_state(
     // Now emit events without holding the mutex lock
     match client_clone {
         Some((peer_id, peers)) => {
-            println!("📤 Emitting peer-id-changed: {}", peer_id);
+            info!("Emitting peer-id-changed: {}", peer_id);
             app_handle
                 .emit("peer-id-changed", &peer_id)
                 .map_err(|e| format!("Failed to emit peer-id-changed: {}", e))?;
-            println!("✅ peer-id-changed emitted successfully");
+            info!("peer-id-changed emitted successfully");
 
             for peer in peers {
-                println!(
-                    "📤 Emitting peer-discovered for {} ({})",
+                info!(
+                    "Emitting peer-discovered for {} ({})",
                     peer.nickname, peer.id
                 );
                 app_handle
                     .emit("peer-discovered", &peer)
                     .map_err(|e| format!("Failed to emit peer-discovered: {}", e))?;
-                println!("✅ peer-discovered emitted successfully");
+                info!("peer-discovered emitted successfully");
 
-                println!(
-                    "📤 Emitting peer-connected for {} ({})",
+                info!(
+                    "Emitting peer-connected for {} ({})",
                     peer.nickname, peer.id
                 );
                 app_handle
@@ -898,14 +902,14 @@ async fn emit_current_state(
                         }),
                     )
                     .map_err(|e| format!("Failed to emit peer-connected: {}", e))?;
-                println!("✅ peer-connected emitted successfully");
+                info!("peer-connected emitted successfully");
             }
 
-            println!("🎉 emit_current_state completed successfully");
+            info!("emit_current_state completed successfully");
             Ok(())
         }
         None => {
-            println!("❌ P2P client not initialized");
+            error!("P2P client not initialized");
             Err("P2P client not initialized".to_string())
         }
     }
@@ -942,6 +946,9 @@ async fn clear_app_data(app_handle: AppHandle) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize logging first
+    init_logging();
+
     // Create initial state
     let app_state = AppState::default();
 
