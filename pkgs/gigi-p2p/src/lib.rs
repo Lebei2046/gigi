@@ -48,7 +48,9 @@ pub fn init_tracing_with_level(level: tracing::Level) {
 // Re-export public API
 pub use client::P2pClient;
 pub use error::P2pError;
-pub use events::{ChunkInfo, FileInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo, SharedFile};
+pub use events::{
+    ActiveDownload, ChunkInfo, FileInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo, SharedFile,
+};
 pub use file_transfer::CHUNK_SIZE;
 
 /// Re-export commonly used libp2p types for convenience

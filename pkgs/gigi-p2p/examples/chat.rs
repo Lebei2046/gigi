@@ -198,20 +198,30 @@ async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pC
             );
         }
         P2pEvent::FileDownloadProgress {
-            file_id,
+            download_id: _,
+            filename,
+            share_code: _,
+            from_nickname,
             downloaded_chunks,
             total_chunks,
         } => {
             let progress = (downloaded_chunks as f32 / total_chunks as f32) * 100.0;
             println!(
-                "📊 Download progress for {}: {:.1}% ({}/{})",
-                file_id, progress, downloaded_chunks, total_chunks
+                "📊 Download progress for {} from {}: {:.1}% ({}/{})",
+                filename, from_nickname, progress, downloaded_chunks, total_chunks
             );
         }
-        P2pEvent::FileDownloadCompleted { file_id, path } => {
+        P2pEvent::FileDownloadCompleted {
+            download_id: _,
+            filename,
+            share_code: _,
+            from_nickname,
+            path,
+        } => {
             println!(
-                "✅ Download completed: {} saved to {}",
-                file_id,
+                "✅ Download completed: {} from {} saved to {}",
+                filename,
+                from_nickname,
                 path.display()
             );
         }
@@ -245,13 +255,23 @@ async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pC
                 println!("  - {} ({} bytes)", file.name, file.size);
             }
         }
-        P2pEvent::FileDownloadFailed { file_id, error } => {
+        P2pEvent::FileDownloadFailed {
+            download_id: _,
+            filename,
+            share_code: _,
+            from_nickname,
+            error,
+        } => {
             error!(
-                file_id = %file_id,
+                filename = %filename,
+                from_nickname = %from_nickname,
                 error = %error,
                 "File download failed"
             );
-            println!("❌ Download failed for {}: {}", file_id, error);
+            println!(
+                "❌ Download failed for {} from {}: {}",
+                filename, from_nickname, error
+            );
         }
         P2pEvent::Error(err) => {
             error!(error = %err, "P2P error occurred");

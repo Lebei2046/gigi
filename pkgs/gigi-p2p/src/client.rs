@@ -20,7 +20,7 @@ use super::behaviour::{
     NicknameRequest, UnifiedBehaviour, UnifiedEvent,
 };
 use super::error::P2pError;
-use super::events::{ChunkInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo};
+use super::events::{ActiveDownload, ChunkInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo};
 use super::file_transfer::{FileTransferManager, CHUNK_SIZE};
 
 /// Main P2P client
@@ -37,6 +37,10 @@ pub struct P2pClient {
 
     // File sharing
     file_manager: FileTransferManager,
+
+    // Active download tracking for mobile apps
+    active_downloads: HashMap<String, ActiveDownload>,
+    download_share_codes: HashMap<String, String>, // download_id -> share_code mapping
 
     // Event handling
     event_sender: mpsc::UnboundedSender<P2pEvent>,
@@ -126,6 +130,8 @@ impl P2pClient {
             nickname_to_peer: HashMap::new(),
             groups: HashMap::new(),
             file_manager,
+            active_downloads: HashMap::new(),
+            download_share_codes: HashMap::new(),
             event_sender,
         };
 
@@ -457,38 +463,90 @@ impl P2pClient {
                         super::behaviour::FileTransferResponse::FileInfo(Some(info)) => {
                             // Start download when we receive file info
                             self.file_manager.start_download(peer, info.clone())?;
-                            self.send_event(P2pEvent::FileInfoReceived { from: peer, info: info.clone() });
-                            
+                            self.send_event(P2pEvent::FileInfoReceived {
+                                from: peer,
+                                info: info.clone(),
+                            });
+
+                            // Find and update the active download entry
+                            let from_nickname = self
+                                .peers
+                                .get(&peer)
+                                .map(|p| p.nickname.clone())
+                                .unwrap_or_else(|| peer.to_string());
+
+                            // Find the share code from pending downloads or use file_id as fallback
+                            let share_code = self
+                                .find_share_code_for_file(&info.id)
+                                .unwrap_or_else(|| info.id.clone());
+
+                            // Create unique download_id for this specific download
+                            let download_id = format!(
+                                "dl_{}_{}_{}",
+                                info.id,
+                                peer,
+                                std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs()
+                            );
+
+                            // Store share code mapping
+                            self.download_share_codes
+                                .insert(download_id.clone(), share_code.clone());
+
+                            // Update or create active download entry
+                            let active_download = ActiveDownload {
+                                download_id: download_id.clone(),
+                                filename: info.name.clone(),
+                                share_code: share_code.clone(),
+                                from_peer_id: peer,
+                                from_nickname: from_nickname.clone(),
+                                total_chunks: info.chunk_count,
+                                downloaded_chunks: 0,
+                                started_at: std::time::Instant::now(),
+                                completed: false,
+                                failed: false,
+                                error_message: None,
+                                final_path: None,
+                            };
+                            self.active_downloads
+                                .insert(download_id.clone(), active_download);
+
                             // Send download started event
                             self.send_event(P2pEvent::FileDownloadStarted {
                                 from: peer,
-                                from_nickname: self.peers.get(&peer).map(|p| p.nickname.clone()).unwrap_or_else(|| peer.to_string()),
+                                from_nickname: from_nickname,
                                 filename: info.name.clone(),
                             });
-                            
+
                             // Start requesting initial chunks
                             let file_id = info.id.clone();
                             let total_chunks = info.chunk_count;
                             let initial_requests = std::cmp::min(5, total_chunks); // Start with up to 5 concurrent requests
-                            
+
                             for chunk_index in 0..initial_requests {
-                                let _request_id = self.swarm.behaviour_mut().file_transfer.send_request(
-                                    &peer,
-                                    FileTransferRequest::GetChunk(file_id.clone(), chunk_index),
-                                );
+                                let _request_id =
+                                    self.swarm.behaviour_mut().file_transfer.send_request(
+                                        &peer,
+                                        FileTransferRequest::GetChunk(file_id.clone(), chunk_index),
+                                    );
                             }
                         }
                         super::behaviour::FileTransferResponse::FileInfo(None) => {
                             // File not found - send error event
                             self.send_event(P2pEvent::FileDownloadFailed {
-                                file_id: "unknown".to_string(),
+                                download_id: "unknown".to_string(),
+                                filename: "Unknown".to_string(),
+                                share_code: "unknown".to_string(),
+                                from_nickname: "Unknown".to_string(),
                                 error: "File not found".to_string(),
                             });
                         }
                         super::behaviour::FileTransferResponse::Chunk(Some(chunk)) => {
                             self.handle_chunk_received(
                                 peer,
-                                chunk.file_id.clone(),
+                                chunk.file_id.clone(), // Still use file_id for chunk requests (different concept)
                                 chunk.chunk_index,
                                 chunk,
                             )?;
@@ -517,147 +575,298 @@ impl P2pClient {
         chunk_index: usize,
         chunk: ChunkInfo,
     ) -> Result<()> {
+        // Find the download_id for this file_id
+        let download_id = self.find_download_id_by_file_id(&file_id);
+
         // Verify chunk hash
-        let calculated_hash = self.file_manager.calculate_chunk_hash(&chunk.data);
-        if calculated_hash != chunk.hash {
-            self.send_event(P2pEvent::FileDownloadFailed {
-                file_id: file_id.clone(),
-                error: format!("Chunk {} hash mismatch", chunk_index),
-            });
+        if !self.verify_chunk_hash(&chunk) {
+            self.send_download_failed_event(
+                download_id.as_deref().unwrap_or("unknown"),
+                format!("Chunk {} hash mismatch", chunk_index),
+            );
             return Ok(());
         }
 
         // Extract necessary data before mutable borrow
-        let (should_process, total_chunks) =
-            if let Some(downloading_file) = self.file_manager.downloading_files.get(&file_id) {
-                (true, downloading_file.info.chunk_count)
+        let Some((total_chunks, temp_path)) = self.get_download_info(&file_id) else {
+            return Ok(());
+        };
+
+        // Write chunk to temp file
+        if let Err(e) = self.write_chunk_to_file(&temp_path, chunk_index, &chunk.data) {
+            self.send_download_failed_event(
+                download_id.as_deref().unwrap_or("unknown"),
+                format!("Failed to write chunk: {}", e),
+            );
+            return Ok(());
+        }
+
+        // Update download progress
+        self.update_download_progress(&file_id, &peer, chunk_index, total_chunks, &download_id)
+    }
+
+    /// Verify chunk hash
+    fn verify_chunk_hash(&self, chunk: &ChunkInfo) -> bool {
+        let calculated_hash = self.file_manager.calculate_chunk_hash(&chunk.data);
+        calculated_hash == chunk.hash
+    }
+
+    /// Get download info from file manager
+    fn get_download_info(&self, file_id: &str) -> Option<(usize, PathBuf)> {
+        self.file_manager
+            .downloading_files
+            .get(file_id)
+            .map(|downloading_file| {
+                (
+                    downloading_file.info.chunk_count,
+                    downloading_file.temp_path.clone(),
+                )
+            })
+    }
+
+    /// Write chunk data to file at specific offset
+    fn write_chunk_to_file(&self, temp_path: &Path, chunk_index: usize, data: &[u8]) -> Result<()> {
+        use std::io::{Seek, Write};
+
+        let offset = chunk_index * CHUNK_SIZE;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(temp_path)?;
+
+        file.seek(std::io::SeekFrom::Start(offset as u64))?;
+        file.write_all(data)?;
+        file.flush()?;
+        Ok(())
+    }
+
+    /// Update download progress and handle completion
+    fn update_download_progress(
+        &mut self,
+        file_id: &str,
+        peer: &PeerId,
+        chunk_index: usize,
+        total_chunks: usize,
+        download_id: &Option<String>,
+    ) -> Result<()> {
+        // Update downloading file info
+        let (downloaded_count, output_path, expected_hash) =
+            if let Some(downloading_file) = self.file_manager.downloading_files.get_mut(file_id) {
+                downloading_file.downloaded_chunks.insert(chunk_index, true);
+
+                let downloaded_count = downloading_file
+                    .downloaded_chunks
+                    .values()
+                    .filter(|&&v| v)
+                    .count();
+
+                // Request next chunk if available (sliding window)
+                if downloading_file.next_chunk_to_request < total_chunks {
+                    let next_chunk = downloading_file.next_chunk_to_request;
+                    downloading_file.next_chunk_to_request += 1;
+
+                    let _request_id = self.swarm.behaviour_mut().file_transfer.send_request(
+                        peer,
+                        FileTransferRequest::GetChunk(file_id.to_string(), next_chunk),
+                    );
+                }
+
+                (
+                    downloaded_count,
+                    downloading_file.output_path.clone(),
+                    downloading_file.info.hash.clone(),
+                )
             } else {
-                (false, 0)
+                return Ok(());
             };
 
-        if should_process {
-            // Write chunk to temp file
-            let offset = chunk_index * CHUNK_SIZE;
-            let temp_path = self.file_manager.downloading_files[&file_id]
-                .temp_path
-                .clone();
-            match std::fs::OpenOptions::new()
-                .create(true)
-                .write(true)
-                .open(&temp_path)
-            {
-                Ok(mut file) => {
-                    use std::io::{Seek, Write};
-                    file.seek(std::io::SeekFrom::Start(offset as u64))?;
-                    file.write_all(&chunk.data)?;
-                    file.flush()?;
-
-                    // Update downloading file info
-                    if let Some(downloading_file) =
-                        self.file_manager.downloading_files.get_mut(&file_id)
-                    {
-                        downloading_file.downloaded_chunks.insert(chunk_index, true);
-
-                        let downloaded_count = downloading_file
-                            .downloaded_chunks
-                            .values()
-                            .filter(|&&v| v)
-                            .count();
-
-                        let next_chunk_to_request = downloading_file.next_chunk_to_request;
-                        let should_request_next = next_chunk_to_request < total_chunks;
-
-                        // Request next chunk if available (sliding window)
-                        if should_request_next {
-                            let next_chunk = next_chunk_to_request;
-                            downloading_file.next_chunk_to_request += 1;
-
-                            // Request next chunk
-                            let _request_id =
-                                self.swarm.behaviour_mut().file_transfer.send_request(
-                                    &peer,
-                                    FileTransferRequest::GetChunk(file_id.clone(), next_chunk),
-                                );
-                        }
-
-                        // Check if download is complete
-                        if downloaded_count == total_chunks {
-                            let output_path = downloading_file.output_path.clone();
-                            let expected_hash = downloading_file.info.hash.clone();
-
-                            // Drop the mutable borrow before calculating hash
-                            let _ = downloading_file;
-
-                            // Send progress event
-                            self.send_event(P2pEvent::FileDownloadProgress {
-                                file_id: file_id.clone(),
-                                downloaded_chunks: downloaded_count,
-                                total_chunks,
-                            });
-
-                            // Verify file hash
-                            match self.file_manager.calculate_file_hash(&temp_path) {
-                                Ok(file_hash) => {
-                                    if file_hash == expected_hash {
-                                        // Rename temp file to final name
-                                        match std::fs::rename(&temp_path, &output_path) {
-                                            Ok(_) => {
-                                                self.send_event(P2pEvent::FileDownloadCompleted {
-                                                    file_id: file_id.clone(),
-                                                    path: output_path,
-                                                });
-                                            }
-                                            Err(e) => {
-                                                self.send_event(P2pEvent::FileDownloadFailed {
-                                                    file_id: file_id.clone(),
-                                                    error: format!("Failed to rename file: {}", e),
-                                                });
-                                            }
-                                        }
-                                    } else {
-                                        self.send_event(P2pEvent::FileDownloadFailed {
-                                            file_id: file_id.clone(),
-                                            error: "File hash verification failed".to_string(),
-                                        });
-                                    }
-                                }
-                                Err(e) => {
-                                    self.send_event(P2pEvent::FileDownloadFailed {
-                                        file_id: file_id.clone(),
-                                        error: format!("Failed to calculate file hash: {}", e),
-                                    });
-                                }
-                            }
-
-                            // Remove from downloading files
-                            self.file_manager.downloading_files.remove(&file_id);
-                        } else {
-                            // Send progress event for incomplete download
-                            self.send_event(P2pEvent::FileDownloadProgress {
-                                file_id: file_id.clone(),
-                                downloaded_chunks: downloaded_count,
-                                total_chunks,
-                            });
-                        }
-                    }
-                }
-                Err(e) => {
-                    self.send_event(P2pEvent::FileDownloadFailed {
-                        file_id: file_id.clone(),
-                        error: format!("Failed to write chunk: {}", e),
-                    });
-                }
+        // Update active download progress
+        if let Some(download_id) = download_id {
+            if let Some(active_download) = self.active_downloads.get_mut(download_id) {
+                active_download.downloaded_chunks = downloaded_count;
             }
         }
 
-        self.send_event(P2pEvent::ChunkReceived {
-            from: peer,
-            file_id: file_id.clone(),
-            chunk_index,
-            chunk,
-        });
+        // Send progress event
+        self.send_progress_event(download_id, downloaded_count, total_chunks);
+
+        // Check if download is complete
+        if downloaded_count == total_chunks {
+            let Some(temp_path) = self
+                .file_manager
+                .downloading_files
+                .get(file_id)
+                .map(|f| f.temp_path.clone())
+            else {
+                return Ok(());
+            };
+
+            self.handle_download_complete(&temp_path, &output_path, &expected_hash, download_id)?;
+
+            // Remove from downloading files
+            self.file_manager.downloading_files.remove(file_id);
+        }
 
         Ok(())
+    }
+
+    /// Handle download completion and verification
+    fn handle_download_complete(
+        &mut self,
+        temp_path: &Path,
+        output_path: &Path,
+        expected_hash: &str,
+        download_id: &Option<String>,
+    ) -> Result<()> {
+        // Verify file hash
+        match self.file_manager.calculate_file_hash(temp_path) {
+            Ok(file_hash) => {
+                if file_hash == expected_hash {
+                    // Rename temp file to final name
+                    match std::fs::rename(temp_path, output_path) {
+                        Ok(_) => {
+                            self.send_download_completed_event(download_id, output_path);
+                        }
+                        Err(e) => {
+                            self.send_download_failed_event(
+                                download_id.as_deref().unwrap_or("unknown"),
+                                format!("Failed to rename file: {}", e),
+                            );
+                        }
+                    }
+                } else {
+                    self.send_download_failed_event(
+                        download_id.as_deref().unwrap_or("unknown"),
+                        "File hash verification failed".to_string(),
+                    );
+                }
+            }
+            Err(e) => {
+                self.send_download_failed_event(
+                    download_id.as_deref().unwrap_or("unknown"),
+                    format!("Failed to calculate file hash: {}", e),
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Helper to get download info for events
+    fn get_download_info_for_event(
+        &self,
+        download_id: &Option<String>,
+    ) -> (String, String, String, String) {
+        if let Some(download_id) = download_id {
+            if let Some(active_download) = self.active_downloads.get(download_id) {
+                (
+                    active_download.download_id.clone(),
+                    active_download.filename.clone(),
+                    active_download.share_code.clone(),
+                    active_download.from_nickname.clone(),
+                )
+            } else {
+                (
+                    download_id.clone(),
+                    "Unknown".to_string(),
+                    "Unknown".to_string(),
+                    "Unknown".to_string(),
+                )
+            }
+        } else {
+            (
+                "unknown".to_string(),
+                "Unknown".to_string(),
+                "Unknown".to_string(),
+                "Unknown".to_string(),
+            )
+        }
+    }
+
+    /// Send download failed event
+    fn send_download_failed_event(&mut self, download_id: &str, error: String) {
+        let (actual_download_id, filename, share_code, from_nickname) =
+            if let Some(active_download) = self.active_downloads.get(download_id) {
+                (
+                    active_download.download_id.clone(),
+                    active_download.filename.clone(),
+                    active_download.share_code.clone(),
+                    active_download.from_nickname.clone(),
+                )
+            } else {
+                (
+                    download_id.to_string(),
+                    "Unknown".to_string(),
+                    "Unknown".to_string(),
+                    "Unknown".to_string(),
+                )
+            };
+
+        self.send_event(P2pEvent::FileDownloadFailed {
+            download_id: actual_download_id,
+            filename,
+            share_code,
+            from_nickname,
+            error,
+        });
+    }
+
+    /// Send progress event
+    fn send_progress_event(
+        &mut self,
+        download_id: &Option<String>,
+        downloaded_count: usize,
+        total_chunks: usize,
+    ) {
+        let (actual_download_id, filename, share_code, from_nickname) =
+            self.get_download_info_for_event(download_id);
+
+        self.send_event(P2pEvent::FileDownloadProgress {
+            download_id: actual_download_id,
+            filename,
+            share_code,
+            from_nickname,
+            downloaded_chunks: downloaded_count,
+            total_chunks,
+        });
+    }
+
+    /// Send download completed event
+    fn send_download_completed_event(&mut self, download_id: &Option<String>, output_path: &Path) {
+        let (actual_download_id, filename, share_code, from_nickname) =
+            if let Some(download_id) = download_id {
+                if let Some(mut active_download) = self.active_downloads.remove(download_id) {
+                    active_download.completed = true;
+                    active_download.final_path = Some(output_path.to_path_buf());
+                    (
+                        active_download.download_id,
+                        active_download.filename,
+                        active_download.share_code,
+                        active_download.from_nickname,
+                    )
+                } else {
+                    (
+                        download_id.clone(),
+                        "Unknown".to_string(),
+                        "Unknown".to_string(),
+                        "Unknown".to_string(),
+                    )
+                }
+            } else {
+                (
+                    "unknown".to_string(),
+                    "Unknown".to_string(),
+                    "Unknown".to_string(),
+                    "Unknown".to_string(),
+                )
+            };
+
+        self.send_event(P2pEvent::FileDownloadCompleted {
+            download_id: actual_download_id,
+            filename,
+            share_code,
+            from_nickname,
+            path: output_path.to_path_buf(),
+        });
     }
 
     /// Handle peer discovery
@@ -1012,6 +1221,32 @@ impl P2pClient {
             .get(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
+        // Track download request with temporary entry
+        let temp_download_id = format!(
+            "pending_{}_{}",
+            share_code,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        );
+        let active_download = ActiveDownload {
+            download_id: temp_download_id.clone(),
+            filename: "Loading...".to_string(), // Will be updated when file info arrives
+            share_code: share_code.to_string(),
+            from_peer_id: peer_id,
+            from_nickname: nickname.to_string(),
+            total_chunks: 0,
+            downloaded_chunks: 0,
+            started_at: std::time::Instant::now(),
+            completed: false,
+            failed: false,
+            error_message: None,
+            final_path: None,
+        };
+        self.active_downloads
+            .insert(temp_download_id.clone(), active_download);
+
         // First request file info
         let _request_id = self.swarm.behaviour_mut().file_transfer.send_request(
             &peer_id,
@@ -1041,5 +1276,78 @@ impl P2pClient {
     /// Get joined groups
     pub fn list_groups(&self) -> Vec<&GroupInfo> {
         self.groups.values().collect()
+    }
+
+    // ===== Active Download Tracking Methods for Mobile Apps =====
+
+    /// Get all active downloads
+    pub fn get_active_downloads(&self) -> Vec<&ActiveDownload> {
+        self.active_downloads.values().collect()
+    }
+
+    /// Get active download by download_id
+    pub fn get_active_download(&self, download_id: &str) -> Option<&ActiveDownload> {
+        self.active_downloads.get(download_id)
+    }
+
+    /// Get active download by share code
+    pub fn get_download_by_share_code(&self, share_code: &str) -> Option<&ActiveDownload> {
+        self.active_downloads
+            .values()
+            .find(|download| download.share_code == share_code)
+    }
+
+    /// Remove completed or failed downloads (cleanup)
+    pub fn cleanup_downloads(&mut self) {
+        self.active_downloads
+            .retain(|_, download| !download.completed && !download.failed);
+    }
+
+    /// Helper to find share code for a download (looks in pending downloads first)
+    fn find_share_code_for_file(&self, file_id: &str) -> Option<String> {
+        // First check if we have it mapped
+        if let Some(share_code) = self.download_share_codes.get(file_id) {
+            return Some(share_code.clone());
+        }
+
+        // Look for pending downloads with this file_id pattern
+        self.active_downloads
+            .values()
+            .find(|download| {
+                download.download_id.contains(file_id)
+                    || download.download_id.starts_with("pending_")
+            })
+            .map(|download| download.share_code.clone())
+    }
+
+    /// Helper to find download_id by file_id
+    fn find_download_id_by_file_id(&self, file_id: &str) -> Option<String> {
+        // Look through active downloads to find the one with this file_id
+        self.active_downloads
+            .values()
+            .find(|download| download.download_id.contains(file_id))
+            .map(|download| download.download_id.clone())
+    }
+
+    /// Get downloads from a specific peer
+    pub fn get_downloads_from_peer(&self, peer_nickname: &str) -> Vec<&ActiveDownload> {
+        self.active_downloads
+            .values()
+            .filter(|download| download.from_nickname == peer_nickname)
+            .collect()
+    }
+
+    /// Get completed downloads (useful for UI history)
+    pub fn get_recent_downloads(&self, limit: usize) -> Vec<&ActiveDownload> {
+        let mut downloads: Vec<&ActiveDownload> = self
+            .active_downloads
+            .values()
+            .filter(|download| download.completed || download.failed)
+            .collect();
+
+        // Sort by started time (most recent first)
+        downloads.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        downloads.truncate(limit);
+        downloads
     }
 }

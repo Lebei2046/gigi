@@ -104,16 +104,25 @@ pub enum P2pEvent {
         filename: String,
     },
     FileDownloadProgress {
-        file_id: String,
+        download_id: String,
+        filename: String,
+        share_code: String,
+        from_nickname: String,
         downloaded_chunks: usize,
         total_chunks: usize,
     },
     FileDownloadCompleted {
-        file_id: String,
+        download_id: String,
+        filename: String,
+        share_code: String,
+        from_nickname: String,
         path: PathBuf,
     },
     FileDownloadFailed {
-        file_id: String,
+        download_id: String,
+        filename: String,
+        share_code: String,
+        from_nickname: String,
         error: String,
     },
 
@@ -189,4 +198,21 @@ pub struct GroupMessage {
     pub filename: Option<String>,
     pub file_size: Option<u64>,
     pub file_type: Option<String>,
+}
+
+/// Active download tracking for mobile UI applications
+#[derive(Debug, Clone)]
+pub struct ActiveDownload {
+    pub download_id: String,
+    pub filename: String,
+    pub share_code: String,
+    pub from_peer_id: libp2p::PeerId,
+    pub from_nickname: String,
+    pub total_chunks: usize,
+    pub downloaded_chunks: usize,
+    pub started_at: std::time::Instant,
+    pub completed: bool,
+    pub failed: bool,
+    pub error_message: Option<String>,
+    pub final_path: Option<PathBuf>,
 }
