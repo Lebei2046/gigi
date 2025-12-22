@@ -279,12 +279,19 @@ impl P2pClient {
                         message,
                     });
                 }
-                DirectMessage::Image { filename, data } => {
-                    self.send_event(P2pEvent::DirectImageMessage {
+                DirectMessage::FileShare {
+                    share_code,
+                    filename,
+                    file_size,
+                    file_type,
+                } => {
+                    self.send_event(P2pEvent::DirectFileShareMessage {
                         from: peer,
                         from_nickname: nickname,
+                        share_code,
                         filename,
-                        data,
+                        file_size,
+                        file_type,
                     });
                 }
                 DirectMessage::ShareGroup {
@@ -331,15 +338,29 @@ impl P2pClient {
                     debug!("   - Content: {}", group_message.content);
                     debug!("   - Timestamp: {}", group_message.timestamp);
 
-                    if group_message.is_image {
-                        self.send_event(P2pEvent::GroupImageMessage {
-                            from: peer_id,
-                            from_nickname: nickname,
-                            group: group_name,
-                            filename: group_message.filename.unwrap_or_default(),
-                            data: group_message.data.unwrap_or_default(),
-                            message: group_message.content.clone(),
-                        });
+                    if group_message.has_file_share {
+                        if let (
+                            Some(share_code),
+                            Some(filename),
+                            Some(file_size),
+                            Some(file_type),
+                        ) = (
+                            group_message.share_code,
+                            group_message.filename,
+                            group_message.file_size,
+                            group_message.file_type,
+                        ) {
+                            self.send_event(P2pEvent::GroupFileShareMessage {
+                                from: peer_id,
+                                from_nickname: nickname,
+                                group: group_name,
+                                share_code,
+                                filename,
+                                file_size,
+                                file_type,
+                                message: group_message.content.clone(),
+                            });
+                        }
                     } else {
                         let group_name_clone = group_name.clone();
                         self.send_event(P2pEvent::GroupMessage {
@@ -436,10 +457,33 @@ impl P2pClient {
                         super::behaviour::FileTransferResponse::FileInfo(Some(info)) => {
                             // Start download when we receive file info
                             self.file_manager.start_download(peer, info.clone())?;
-                            self.send_event(P2pEvent::FileInfoReceived { from: peer, info });
+                            self.send_event(P2pEvent::FileInfoReceived { from: peer, info: info.clone() });
+                            
+                            // Send download started event
+                            self.send_event(P2pEvent::FileDownloadStarted {
+                                from: peer,
+                                from_nickname: self.peers.get(&peer).map(|p| p.nickname.clone()).unwrap_or_else(|| peer.to_string()),
+                                filename: info.name.clone(),
+                            });
+                            
+                            // Start requesting initial chunks
+                            let file_id = info.id.clone();
+                            let total_chunks = info.chunk_count;
+                            let initial_requests = std::cmp::min(5, total_chunks); // Start with up to 5 concurrent requests
+                            
+                            for chunk_index in 0..initial_requests {
+                                let _request_id = self.swarm.behaviour_mut().file_transfer.send_request(
+                                    &peer,
+                                    FileTransferRequest::GetChunk(file_id.clone(), chunk_index),
+                                );
+                            }
                         }
                         super::behaviour::FileTransferResponse::FileInfo(None) => {
-                            // File not found
+                            // File not found - send error event
+                            self.send_event(P2pEvent::FileDownloadFailed {
+                                file_id: "unknown".to_string(),
+                                error: "File not found".to_string(),
+                            });
                         }
                         super::behaviour::FileTransferResponse::Chunk(Some(chunk)) => {
                             self.handle_chunk_received(
@@ -751,24 +795,36 @@ impl P2pClient {
         Ok(())
     }
 
-    /// Send image to peer
-    pub fn send_direct_image(&mut self, nickname: &str, image_path: &Path) -> Result<()> {
+    /// Send image to peer using file sharing
+    pub async fn send_direct_image(&mut self, nickname: &str, image_path: &Path) -> Result<()> {
         let peer_id = *self
             .nickname_to_peer
             .get(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
-        let data = std::fs::read(image_path)?;
-        let filename = image_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| P2pError::FileNotFound(image_path.to_path_buf()))?
+        // 1. Add image to file sharing system
+        let share_code = self.file_manager.share_file(image_path).await?;
+        let shared_file = self
+            .file_manager
+            .shared_files
+            .get(&share_code)
+            .ok_or_else(|| P2pError::FileNotFound(image_path.to_path_buf()))?;
+
+        // 2. Detect file type
+        let file_type = mime_guess::from_path(image_path)
+            .first_or_octet_stream()
             .to_string();
 
-        self.swarm
-            .behaviour_mut()
-            .direct_msg
-            .send_request(&peer_id, DirectMessage::Image { filename, data });
+        // 3. Send share code instead of raw data
+        self.swarm.behaviour_mut().direct_msg.send_request(
+            &peer_id,
+            DirectMessage::FileShare {
+                share_code: shared_file.share_code.clone(),
+                filename: shared_file.info.name.clone(),
+                file_size: shared_file.info.size,
+                file_type,
+            },
+        );
 
         Ok(())
     }
@@ -855,9 +911,11 @@ impl P2pClient {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or(Duration::from_secs(0))
                 .as_secs(),
-            is_image: false,
+            has_file_share: false,
+            share_code: None,
             filename: None,
-            data: None,
+            file_size: None,
+            file_type: None,
         };
 
         let data = serde_json::to_vec(&group_message)?;
@@ -871,7 +929,7 @@ impl P2pClient {
         Ok(())
     }
 
-    /// Send image to group
+    /// Send image to group using file sharing
     pub async fn send_group_image(&mut self, group_name: &str, image_path: &Path) -> Result<()> {
         let group_topic = {
             let group = self
@@ -881,25 +939,32 @@ impl P2pClient {
             group.topic.clone()
         };
 
-        // First share the file to get a share code
+        // 1. Share the file to get a share code
         let share_code = self.file_manager.share_file(image_path).await?;
+        let shared_file = self
+            .file_manager
+            .shared_files
+            .get(&share_code)
+            .ok_or_else(|| P2pError::FileNotFound(image_path.to_path_buf()))?;
 
-        let filename = image_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| P2pError::FileNotFound(image_path.to_path_buf()))?
+        let filename = shared_file.info.name.clone();
+        let file_size = shared_file.info.size;
+        let file_type = mime_guess::from_path(image_path)
+            .first_or_octet_stream()
             .to_string();
 
-        // Send a message with the share code instead of the raw image data
+        // 2. Send message with file share information
         let group_message = GroupMessage {
             sender_nickname: self.local_nickname.clone(),
-            content: format!("/download {} 🖼️", share_code),
+            content: format!("Shared image: {}", filename),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?
                 .as_secs(),
-            is_image: true,
+            has_file_share: true,
+            share_code: Some(shared_file.share_code.clone()),
             filename: Some(filename),
-            data: None, // No raw data, just share code in content
+            file_size: Some(file_size),
+            file_type: Some(file_type),
         };
 
         let msg_data = serde_json::to_vec(&group_message)?;
@@ -909,6 +974,7 @@ impl P2pClient {
             .gossipsub
             .publish(group_topic, msg_data)?;
 
+        debug!("Group image message published successfully");
         Ok(())
     }
 

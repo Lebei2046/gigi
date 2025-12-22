@@ -10,7 +10,9 @@ A comprehensive peer-to-peer networking library built on libp2p, supporting dire
 - 📁 **File Sharing**: Share files with unique share codes
 - 🖼️ **Image Transfer**: Send and receive images directly or in groups
 - 🔍 **Nicknames**: Human-readable peer identification
-- ⬇️ **Chunked Downloads**: Large files downloaded with progress tracking
+- ⬇️ **Chunked Downloads**: Large files downloaded with real-time progress tracking
+- ✅ **Integrity Verification**: SHA256 hash verification for all file transfers
+- 📊 **Progress Events**: Detailed download progress and completion events
 
 ## Quick Start
 
@@ -94,10 +96,10 @@ Chat commands:
 - `leave <group>` - Leave a group
 - `send-group <group> <message>` - Send group message
 - `send-group-image <group> <path>` - Send image to group
-- `share <file-path>` - Share a file
+- `share <file-path>` - Share a file (generates unique share code)
 - `unshare <share-code>` - Remove shared file record
 - `files` - List shared files
-- `download <nickname> <share-code>` - Download a file
+- `download <nickname> <share-code>` - Download a shared file with progress tracking
 - `quit` or `exit` - Exit the chat
 
 ## API Reference
@@ -137,10 +139,10 @@ All P2P events are emitted through the event receiver:
 - `FileRevoked` - File share revoked
 - `FileInfoReceived` - File information received
 - `ChunkReceived` - File chunk received
-- `FileDownloadStarted` - Download started
-- `FileDownloadProgress` - Download progress update
-- `FileDownloadCompleted` - Download completed
-- `FileDownloadFailed` - Download failed
+- `FileDownloadStarted` - Download started (with filename and peer info)
+- `FileDownloadProgress` - Download progress update (percentage and chunk counts)
+- `FileDownloadCompleted` - Download completed (with final file path)
+- `FileDownloadFailed` - Download failed (with detailed error message)
 - `ListeningOn` - Client started listening
 - `Connected` - Connected to peer
 - `Disconnected` - Disconnected from peer
@@ -170,13 +172,22 @@ Files are shared using a unique share code system:
 2. Download a file: `client.download_file("peer-nickname", "share-code")`
 3. Unshare a file: `client.unshare_file("share-code")` → removes file record
 
-Features:
-- **Chunked transfers** - Large files transferred in 256KB chunks
-- **Progress tracking** - Real-time download progress events
-- **Hash verification** - SHA256 integrity checking
+### Features:
+- **Chunked transfers** - Large files transferred in 256KB chunks with sliding window
+- **Real-time progress** - Detailed download progress events with percentage completion
+- **Hash verification** - SHA256 integrity checking for both chunks and complete files
+- **Concurrent downloads** - Up to 5 concurrent chunk requests for optimal performance
 - **Persistent storage** - Shared files saved to `shared.json`
 - **Automatic cleanup** - Invalid files removed from registry
 - **Duplicate detection** - Same files share existing codes
+- **Error handling** - Comprehensive error reporting for download failures
+
+### Download Process:
+1. **Initiation** - `FileDownloadStarted` event sent immediately when download begins
+2. **Chunk Requests** - Initial 5 chunks requested automatically with sliding window
+3. **Progress Tracking** - `FileDownloadProgress` events sent as chunks arrive
+4. **Verification** - File hash validated against expected SHA256
+5. **Completion** - `FileDownloadCompleted` event with final file path
 
 Files are automatically saved to the configured download directory and verified for integrity.
 
@@ -210,6 +221,22 @@ cargo test --package gigi-p2p
 - `anyhow` - Error handling
 - `thiserror` - Error types
 - `clap` - Command line parsing (examples)
+
+## Recent Improvements
+
+### File Download Enhancements
+- ✅ **Fixed Download Initiation** - Downloads now start immediately when requested
+- ✅ **Added Progress Events** - Real-time download progress with percentage indicators
+- ✅ **Improved Error Handling** - Clear error messages for failed downloads
+- ✅ **Concurrent Chunk Requests** - Optimized performance with sliding window approach
+- ✅ **Hash Verification** - Both chunk-level and file-level integrity checking
+
+### Chat Application
+- ✅ **Enhanced Command Interface** - Better user feedback and command handling
+- ✅ **Real-time Progress** - Visual progress indicators during file transfers
+- ✅ **Improved Error Messages** - Clear feedback for all operations
+
+The download functionality now provides immediate feedback and detailed progress tracking, making file transfers more reliable and user-friendly.
 
 ## License
 

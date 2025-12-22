@@ -1890,6 +1890,7 @@ dependencies = [
  "humantime",
  "indicatif",
  "libp2p 0.56.0",
+ "mime_guess",
  "serde",
  "serde_json",
  "sha2",

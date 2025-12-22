@@ -26,10 +26,12 @@ dist-ssr
 # Rust projects
 target
 
+# Added by cargo
+/target
+
 # AI prompts
-notes
 .marscode/
 
-# Added by cargo
-
-/target
+# file-sharing
+downloads
+shared.json

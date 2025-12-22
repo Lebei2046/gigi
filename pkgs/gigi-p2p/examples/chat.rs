@@ -51,7 +51,7 @@ fn show_help() {
 }
 
 #[instrument(skip_all)]
-async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pClient) {
+async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pClient) {
     debug!(
         event_type = ?std::mem::discriminant(&event),
         "Handling P2P event"
@@ -80,46 +80,27 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pCl
         } => {
             println!("💬 {} ({}): {}", from_nickname, from, message);
         }
-        P2pEvent::DirectImageMessage {
+        P2pEvent::DirectFileShareMessage {
             from,
             from_nickname,
+            share_code,
             filename,
-            data,
+            file_size,
+            file_type,
         } => {
-            let file_path = output_dir.join(&filename);
             info!(
                 from = %from,
                 from_nickname = %from_nickname,
+                share_code = %share_code,
                 filename = %filename,
-                file_path = %file_path.display(),
-                data_size = data.len(),
-                "Received direct image message"
+                file_size = %file_size,
+                file_type = %file_type,
+                "Received direct file share message"
             );
-            match fs::write(&file_path, &data).await {
-                Ok(()) => {
-                    println!(
-                        "🖼️ {} ({}) sent image: {} (saved to {})",
-                        from_nickname,
-                        from,
-                        filename,
-                        file_path.display()
-                    );
-                    info!("Direct image saved successfully");
-                }
-                Err(e) => {
-                    error!(
-                        from = %from,
-                        from_nickname = %from_nickname,
-                        filename = %filename,
-                        error = %e,
-                        "Failed to save direct image"
-                    );
-                    println!(
-                        "❌ Failed to save image from {} ({}): {}",
-                        from_nickname, from, e
-                    );
-                }
-            }
+            println!(
+                "📎 {} ({}) shared file: {} ({} bytes) - Type: {} - Use 'download {} {}' to get it",
+                from_nickname, from, filename, file_size, file_type, from_nickname, share_code
+            );
         }
         P2pEvent::DirectGroupShareMessage {
             from,
@@ -139,109 +120,43 @@ async fn handle_p2p_event(event: P2pEvent, output_dir: &PathBuf, _client: &P2pCl
             group,
             message,
         } => {
-            // Check if this is an image message with download command
-            if message.contains("🖼️") && message.starts_with("/download") {
-                let parts: Vec<&str> = message.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    let share_code = parts[1];
-                    println!(
-                        "🖼️ [{}/{}]: {} ({}) sent image, downloading...",
-                        group, from_nickname, from, from_nickname
-                    );
-
-                    // Download the file (need to use a mutable reference)
-                    // For now, we'll just print the command for the user to execute manually
-                    println!(
-                        "💡 To download this image, run: download {} {}",
-                        from_nickname, share_code
-                    );
-                    return;
-                }
-            }
-
             println!(
                 "📢 [{}/{}]: {} ({}): {}",
                 group, from_nickname, from, from_nickname, message
             );
         }
-        P2pEvent::GroupImageMessage {
+        P2pEvent::GroupFileShareMessage {
             from,
             from_nickname,
             group,
+            share_code,
             filename,
-            data,
+            file_size,
+            file_type,
             message,
         } => {
-            // Check if this is the new format with share code (data is empty)
-            // or legacy format with embedded image data
-            if data.is_empty() {
-                // New format - extract share code from message and show download hint
-                if message.contains("🖼️") && message.starts_with("/download") {
-                    let parts: Vec<&str> = message.split_whitespace().collect();
-                    if parts.len() >= 2 {
-                        let share_code = parts[1];
-                        println!(
-                            "🖼️ [{}/{}]: {} ({}) sent image: {} - Use 'download {} {}' to get it",
-                            group,
-                            from_nickname,
-                            from,
-                            from_nickname,
-                            filename,
-                            from_nickname,
-                            share_code
-                        );
-                    } else {
-                        println!(
-                            "🖼️ [{}/{}]: {} ({}) sent image: {}",
-                            group, from_nickname, from, from_nickname, filename
-                        );
-                    }
-                } else {
-                    println!(
-                        "🖼️ [{}/{}]: {} ({}) sent image: {}",
-                        group, from_nickname, from, from_nickname, filename
-                    );
-                }
-            } else {
-                // Legacy mode - save directly embedded image data
-                let file_path = output_dir.join(&filename);
-                info!(
-                    group = %group,
-                    from = %from,
-                    from_nickname = %from_nickname,
-                    filename = %filename,
-                    file_path = %file_path.display(),
-                    data_size = data.len(),
-                    "Saving legacy embedded group image"
-                );
-                match fs::write(&file_path, &data).await {
-                    Ok(()) => {
-                        println!(
-                            "🖼️ [{}/{}]: {} ({}) sent image: {} (saved to {})",
-                            group,
-                            from_nickname,
-                            from,
-                            from_nickname,
-                            filename,
-                            file_path.display()
-                        );
-                        info!("Legacy group image saved successfully");
-                    }
-                    Err(e) => {
-                        error!(
-                            from = %from,
-                            from_nickname = %from_nickname,
-                            filename = %filename,
-                            error = %e,
-                            "Failed to save legacy group image"
-                        );
-                        println!(
-                            "❌ Failed to save group image from {} ({}): {}",
-                            from_nickname, from, e
-                        );
-                    }
-                }
-            }
+            info!(
+                group = %group,
+                from = %from,
+                from_nickname = %from_nickname,
+                share_code = %share_code,
+                filename = %filename,
+                file_size = %file_size,
+                file_type = %file_type,
+                "Received group file share message"
+            );
+            println!(
+                "📎 [{}/{}]: {} ({}) shared file: {} ({} bytes) - Use 'download {} {}' to get it",
+                group,
+                from_nickname,
+                from,
+                from_nickname,
+                filename,
+                file_size,
+                from_nickname,
+                share_code
+            );
+            println!("   💬 {}", message);
         }
         P2pEvent::GroupJoined { group } => {
             println!("✅ Joined group: {}", group);
@@ -405,7 +320,10 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                     image_path = %image_path,
                     "Sending direct image"
                 );
-                match client.send_direct_image(nickname, &PathBuf::from(image_path)) {
+                match client
+                    .send_direct_image(nickname, &PathBuf::from(image_path))
+                    .await
+                {
                     Ok(()) => {
                         println!("✅ Image sent to {}", nickname);
                         debug!("Direct image sent successfully");

@@ -29,9 +29,11 @@ pub enum DirectMessage {
     Text {
         message: String,
     },
-    Image {
+    FileShare {
+        share_code: String,
         filename: String,
-        data: Vec<u8>,
+        file_size: u64,
+        file_type: String,
     },
     ShareGroup {
         group_id: String,

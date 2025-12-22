@@ -30,11 +30,13 @@ pub enum P2pEvent {
         from_nickname: String,
         message: String,
     },
-    DirectImageMessage {
+    DirectFileShareMessage {
         from: PeerId,
         from_nickname: String,
+        share_code: String,
         filename: String,
-        data: Vec<u8>,
+        file_size: u64,
+        file_type: String,
     },
     DirectGroupShareMessage {
         from: PeerId,
@@ -50,12 +52,14 @@ pub enum P2pEvent {
         group: String,
         message: String,
     },
-    GroupImageMessage {
+    GroupFileShareMessage {
         from: PeerId,
         from_nickname: String,
         group: String,
+        share_code: String,
         filename: String,
-        data: Vec<u8>,
+        file_size: u64,
+        file_type: String,
         message: String,
     },
     GroupJoined {
@@ -180,7 +184,9 @@ pub struct GroupMessage {
     pub sender_nickname: String,
     pub content: String,
     pub timestamp: u64,
-    pub is_image: bool,
+    pub has_file_share: bool,
+    pub share_code: Option<String>,
     pub filename: Option<String>,
-    pub data: Option<Vec<u8>>,
+    pub file_size: Option<u64>,
+    pub file_type: Option<String>,
 }
