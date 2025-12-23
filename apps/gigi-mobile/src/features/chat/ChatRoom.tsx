@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
-import { MessagingEvents } from '@/utils/messaging'
+import { MessagingClient, MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import {
@@ -8,13 +8,14 @@ import {
   loadMessageHistoryAsync,
   initializeChatInfoAsync,
   sendMessageAsync,
-  sendImageMessageAsync,
   setNewMessage,
   handleDirectMessage,
   handleGroupMessage,
   addMessage,
   addImageMessage,
   addGroupImageMessage,
+  updateMessage,
+  updateGroupMessage,
   removeMessage,
   resetChatRoomState,
   generateMessageId,
@@ -306,16 +307,18 @@ export default function ChatRoom() {
     const handleImageMessageReceived = (messageData: any) => {
       if (chatId && messageData.from_peer_id === chatId && !isGroupChat) {
         const imageMessage: Message = {
-          id: messageData.id,
+          id: messageData.share_code, // Use share_code as ID
           from_peer_id: messageData.from_peer_id,
           from_nickname: messageData.from_nickname,
-          content: messageData.content,
+          content: messageData.download_error
+            ? `❌ Image: ${messageData.filename} (Download failed)`
+            : `⬇️ Image: ${messageData.filename} (Downloading...)`,
           timestamp: messageData.timestamp,
           isOutgoing: false,
           isGroup: false,
           messageType: 'image',
-          imageId: messageData.imageId,
-          imageData: messageData.imageData,
+          imageId: messageData.share_code, // Use share_code as imageId
+          imageData: undefined, // Will be set after download
           filename: messageData.filename,
         }
         dispatch(addImageMessage(imageMessage))
@@ -326,19 +329,125 @@ export default function ChatRoom() {
     const handleGroupImageMessageReceived = (messageData: any) => {
       if (chatId && messageData.group_id === chatId && isGroupChat) {
         const imageMessage: Message = {
-          id: messageData.id,
+          id: messageData.share_code, // Use share_code as ID
           from_peer_id: messageData.from_peer_id,
           from_nickname: messageData.from_nickname,
-          content: messageData.content,
+          content: messageData.download_error
+            ? `❌ Image: ${messageData.filename} (Download failed)`
+            : `⬇️ Image: ${messageData.filename} (Downloading...)`,
           timestamp: messageData.timestamp,
           isOutgoing: false,
           isGroup: true,
           messageType: 'image',
-          imageId: messageData.imageId,
-          imageData: messageData.imageData,
+          imageId: messageData.share_code, // Use share_code as imageId
+          imageData: undefined, // Will be set after download
           filename: messageData.filename,
         }
         dispatch(addGroupImageMessage(imageMessage))
+      }
+    }
+
+    // Listen for file download events
+    const handleFileDownloadStarted = (data: any) => {
+      // This event is now handled automatically by the auto-download in DirectFileShareMessage handler
+      // No need to update message here since it's already created with downloading status
+    }
+
+    const handleFileDownloadProgress = (data: any) => {
+      // Update message content with progress
+      const progressText = `⬇️ Downloading ${data.filename}: ${data.progress_percent.toFixed(1)}%`
+
+      if (isGroupChat) {
+        dispatch(
+          updateGroupMessage({
+            id: data.share_code,
+            content: progressText,
+          })
+        )
+      } else if (!isGroupChat && data.from_peer_id === chatId) {
+        dispatch(
+          updateMessage({
+            id: data.share_code,
+            content: progressText,
+          })
+        )
+      }
+    }
+
+    const handleFileDownloadCompleted = async (data: any) => {
+      try {
+        // Convert local file to base64 for display
+        const imageData = await MessagingClient.getImageData(data.path)
+
+        // Extract actual filename from path if data.filename is wrong
+        const actualFilename =
+          data.filename === 'Loading...' || data.filename.includes('...')
+            ? data.path.split(/[\\/]/).pop() || data.filename
+            : data.filename
+
+        const updatedMessage: Partial<Message> = {
+          content: `📷 Image: ${actualFilename}`,
+          imageData, // Base64 data URL
+        }
+
+        if (isGroupChat) {
+          dispatch(
+            updateGroupMessage({
+              id: data.share_code,
+              ...updatedMessage,
+            })
+          )
+        } else if (!isGroupChat && data.from_peer_id === chatId) {
+          dispatch(
+            updateMessage({
+              id: data.share_code,
+              ...updatedMessage,
+            })
+          )
+        }
+      } catch (error) {
+        console.error('Failed to convert downloaded image to base64:', error)
+        // Fallback to file path if conversion fails
+        const fallbackMessage: Partial<Message> = {
+          content: `📷 Image: ${data.filename}`,
+          imageData: `file://${data.path}`,
+        }
+
+        if (isGroupChat) {
+          dispatch(
+            updateGroupMessage({
+              id: data.share_code,
+              ...fallbackMessage,
+            })
+          )
+        } else if (!isGroupChat && data.from_peer_id === chatId) {
+          dispatch(
+            updateMessage({
+              id: data.share_code,
+              ...fallbackMessage,
+            })
+          )
+        }
+      }
+    }
+
+    const handleFileDownloadFailed = (data: any) => {
+      const errorMessage = `❌ Image: ${data.filename} (Download failed: ${data.error})`
+
+      if (isGroupChat) {
+        dispatch(
+          updateGroupMessage({
+            id: data.share_code,
+            content: errorMessage,
+          })
+        )
+      } else if (!isGroupChat && data.from_peer_id === chatId) {
+        dispatch(
+          updateMessage({
+            id: data.share_code,
+            content: errorMessage,
+          })
+        )
       }
     }
 
@@ -348,6 +457,12 @@ export default function ChatRoom() {
       handleGroupImageMessageReceived
     )
 
+    // Register download event listeners
+    MessagingEvents.on('file-download-started', handleFileDownloadStarted)
+    MessagingEvents.on('file-download-progress', handleFileDownloadProgress)
+    MessagingEvents.on('file-download-completed', handleFileDownloadCompleted)
+    MessagingEvents.on('file-download-failed', handleFileDownloadFailed)
+
     return () => {
       MessagingEvents.off('message-received', handleMessageReceived)
       MessagingEvents.off('group-message', handleGroupMessageReceived)
@@ -356,6 +471,13 @@ export default function ChatRoom() {
         'group-image-message-received',
         handleGroupImageMessageReceived
       )
+      MessagingEvents.off('file-download-started', handleFileDownloadStarted)
+      MessagingEvents.off('file-download-progress', handleFileDownloadProgress)
+      MessagingEvents.off(
+        'file-download-completed',
+        handleFileDownloadCompleted
+      )
+      MessagingEvents.off('file-download-failed', handleFileDownloadFailed)
       console.log('🧹 Cleaned up ChatRoom event listeners')
 
       // Clear any pending save timeout
@@ -388,77 +510,134 @@ export default function ChatRoom() {
     chatName,
   ])
 
-  const handleImageSelect = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0]
-    if (!file || !file.type.startsWith('image/')) {
-      console.error('Please select an image file')
-      return
-    }
-
+  const handleImageSelectWithDialog = async () => {
     if (!isGroupChat && !peer) return
     if (isGroupChat && !group) return
 
-    const timestamp = Date.now()
-
     try {
+      // Use dialog to select image file
+      const filePath = await MessagingClient.selectImageFile()
+      if (!filePath) {
+        return // User cancelled the dialog
+      }
+
+      const timestamp = Date.now()
+      const filename = filePath.split(/[\\/]/).pop() || 'image'
+
       // Add image message to local state immediately for optimistic UI
+
       if (isGroupChat) {
         const imageMessage: Message = {
           id: generateMessageId(),
           from_peer_id: 'me',
           from_nickname: 'Me',
-          content: `📷 Image: ${file.name}`,
+          content: `📷 Image: ${filename} (Processing...)`,
           timestamp,
           isOutgoing: true,
           isGroup: true,
           messageType: 'image',
           imageId: generateMessageId(),
-          imageData: URL.createObjectURL(file), // Temporary preview URL
-          filename: file.name,
+          imageData: undefined, // Will be set after backend returns base64 data
+          filename,
         }
 
         // Track this message to avoid duplicates
         sentMessagesRef.current.add(imageMessage.id)
         // Dispatch via Redux
-        dispatch(addMessage(imageMessage))
+        dispatch(addImageMessage(imageMessage))
+
+        // Send image using file path and get response with image data
+        try {
+          const response = await MessagingClient.sendGroupImageMessageWithPath(
+            group!.id,
+            filePath
+          )
+
+          // Update the message with the returned message ID and image data
+          const updatedMessage: Message = {
+            ...imageMessage,
+            id: response.messageId,
+            imageData: `data:image/${filename.split('.').pop()};base64,${response.imageData}`,
+            content: `📷 Image: ${filename}`,
+          }
+
+          // Update the message in the store
+          dispatch(
+            updateGroupMessage({
+              id: imageMessage.id,
+              content: updatedMessage.content,
+              imageData: updatedMessage.imageData,
+              newId: updatedMessage.id,
+            })
+          )
+        } catch (error) {
+          console.error('❌ Failed to send group image:', error)
+          // Update message to show error
+          dispatch(
+            updateGroupMessage({
+              id: imageMessage.id,
+              content: `❌ Image: ${filename} (Failed to send)`,
+            })
+          )
+        }
       } else {
         const imageMessage: Message = {
           id: generateMessageId(),
           from_peer_id: peer!.id,
           from_nickname: peer!.nickname,
-          content: `📷 Image: ${file.name}`,
+          content: `📷 Image: ${filename} (Processing...)`,
           timestamp,
           isOutgoing: true,
           isGroup: false,
           messageType: 'image',
           imageId: generateMessageId(),
-          imageData: URL.createObjectURL(file), // Temporary preview URL
-          filename: file.name,
+          imageData: undefined, // Will be set after backend returns base64 data
+          filename,
         }
 
         // Track this message to avoid duplicates
         sentMessagesRef.current.add(imageMessage.id)
         // Dispatch via Redux
-        dispatch(addMessage(imageMessage))
-      }
+        dispatch(addImageMessage(imageMessage))
 
-      // Send image via Redux async thunk
-      await dispatch(
-        sendImageMessageAsync({
-          imageFile: file,
-          isGroupChat,
-          peer,
-          group,
-        })
-      )
+        // Send image using file path and get response with image data
+        try {
+          const response = await MessagingClient.sendImageMessageWithPath(
+            peer!.nickname,
+            filePath
+          )
+
+          // Update the message with the returned message ID and image data
+          const updatedMessage: Message = {
+            ...imageMessage,
+            id: response.messageId,
+            imageData: `data:image/${filename.split('.').pop()};base64,${response.imageData}`,
+            content: `📷 Image: ${filename}`,
+          }
+
+          // Update message in the store
+          dispatch(
+            updateMessage({
+              id: imageMessage.id,
+              content: updatedMessage.content,
+              imageData: updatedMessage.imageData,
+              newId: updatedMessage.id,
+            })
+          )
+        } catch (error) {
+          console.error('❌ Failed to send direct image:', error)
+          // Update message to show error
+          dispatch(
+            updateMessage({
+              id: imageMessage.id,
+              content: `❌ Image: ${filename} (Failed to send)`,
+            })
+          )
+        }
+      }
     } catch (error) {
       console.error('Failed to send image:', error)
     }
-
-    // Clear the file input
-    event.target.value = ''
   }
 
   const handleSendMessage = async () => {
@@ -676,23 +855,15 @@ export default function ChatRoom() {
       <div className="border-t bg-white p-4">
         <div className="flex gap-2">
           {/* Image upload button */}
-          <div className="relative">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageSelect}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              disabled={sending}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={sending}
-              className="pointer-events-none"
-            >
-              📷
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleImageSelectWithDialog}
+            disabled={sending}
+            title="Select image file"
+          >
+            📷
+          </Button>
 
           <Input
             value={newMessage}

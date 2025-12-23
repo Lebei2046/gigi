@@ -182,7 +182,7 @@ export const initializeChatInfoAsync = createAsyncThunk(
       await updateChatInfo(chatId, chatName, '', Date.now(), false, isGroupChat)
     } else if (!unreadResetDone) {
       // Reset unread count when user opens the chat (only once)
-      console.log(`🏠 Entering chat room for ${chatId}, resetting unread count`)
+
       await resetUnreadCount(chatId)
 
       // Trigger refresh after a short delay
@@ -223,34 +223,6 @@ export const sendMessageAsync = createAsyncThunk(
     }
 
     return { result, timestamp }
-  }
-)
-
-export const sendImageMessageAsync = createAsyncThunk(
-  'chatRoom/sendImageMessage',
-  async ({
-    imageFile,
-    isGroupChat,
-    peer,
-    group,
-  }: {
-    imageFile: File
-    isGroupChat: boolean
-    peer: Peer | null
-    group: SerializableGroup | null
-  }) => {
-    const timestamp = Date.now()
-    let result: any
-
-    if (isGroupChat && group) {
-      result = await MessagingClient.sendGroupImageMessage(group.id, imageFile)
-    } else if (!isGroupChat && peer) {
-      result = await MessagingClient.sendImageMessage(peer.nickname, imageFile)
-    } else {
-      throw new Error('Invalid chat state for sending image message')
-    }
-
-    return { result, timestamp, filename: imageFile.name }
   }
 )
 
@@ -359,6 +331,42 @@ const chatRoomSlice = createSlice({
       state.messages.push(newMessage)
     },
 
+    updateMessage: (
+      state,
+      action: PayloadAction<{
+        id: string
+        content?: string
+        imageData?: string
+        newId?: string
+      }>
+    ) => {
+      const { id, content, imageData, newId } = action.payload
+      const message = state.messages.find(msg => msg.id === id)
+      if (message) {
+        if (content !== undefined) message.content = content
+        if (imageData !== undefined) message.imageData = imageData
+        if (newId !== undefined) message.id = newId
+      }
+    },
+
+    updateGroupMessage: (
+      state,
+      action: PayloadAction<{
+        id: string
+        content?: string
+        imageData?: string
+        newId?: string
+      }>
+    ) => {
+      const { id, content, imageData, newId } = action.payload
+      const message = state.messages.find(msg => msg.id === id)
+      if (message) {
+        if (content !== undefined) message.content = content
+        if (imageData !== undefined) message.imageData = imageData
+        if (newId !== undefined) message.id = newId
+      }
+    },
+
     clearMessages: state => {
       state.messages = []
     },
@@ -414,20 +422,6 @@ const chatRoomSlice = createSlice({
         state.sending = false
         state.error = action.error.message || 'Failed to send message'
       })
-
-      // Send image message
-      .addCase(sendImageMessageAsync.pending, state => {
-        state.sending = true
-        state.error = null
-      })
-      .addCase(sendImageMessageAsync.fulfilled, (state, action) => {
-        state.sending = false
-        state.newMessage = ''
-      })
-      .addCase(sendImageMessageAsync.rejected, (state, action) => {
-        state.sending = false
-        state.error = action.error.message || 'Failed to send image message'
-      })
   },
 })
 
@@ -440,6 +434,8 @@ export const {
   addImageMessage,
   addGroupImageMessage,
   removeMessage,
+  updateMessage,
+  updateGroupMessage,
   setNewMessage,
   setSending,
   setError,

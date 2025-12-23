@@ -539,6 +539,7 @@ impl P2pClient {
                                 download_id: "unknown".to_string(),
                                 filename: "Unknown".to_string(),
                                 share_code: "unknown".to_string(),
+                                from_peer_id: libp2p::PeerId::random(),
                                 from_nickname: "Unknown".to_string(),
                                 error: "File not found".to_string(),
                             });
@@ -755,7 +756,7 @@ impl P2pClient {
     fn get_download_info_for_event(
         &self,
         download_id: &Option<String>,
-    ) -> (String, String, String, String) {
+    ) -> (String, String, String, String, libp2p::PeerId) {
         if let Some(download_id) = download_id {
             if let Some(active_download) = self.active_downloads.get(download_id) {
                 (
@@ -763,6 +764,7 @@ impl P2pClient {
                     active_download.filename.clone(),
                     active_download.share_code.clone(),
                     active_download.from_nickname.clone(),
+                    active_download.from_peer_id,
                 )
             } else {
                 (
@@ -770,6 +772,7 @@ impl P2pClient {
                     "Unknown".to_string(),
                     "Unknown".to_string(),
                     "Unknown".to_string(),
+                    libp2p::PeerId::random(),
                 )
             }
         } else {
@@ -778,19 +781,21 @@ impl P2pClient {
                 "Unknown".to_string(),
                 "Unknown".to_string(),
                 "Unknown".to_string(),
+                libp2p::PeerId::random(),
             )
         }
     }
 
     /// Send download failed event
     fn send_download_failed_event(&mut self, download_id: &str, error: String) {
-        let (actual_download_id, filename, share_code, from_nickname) =
+        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) =
             if let Some(active_download) = self.active_downloads.get(download_id) {
                 (
                     active_download.download_id.clone(),
                     active_download.filename.clone(),
                     active_download.share_code.clone(),
                     active_download.from_nickname.clone(),
+                    active_download.from_peer_id,
                 )
             } else {
                 (
@@ -798,6 +803,7 @@ impl P2pClient {
                     "Unknown".to_string(),
                     "Unknown".to_string(),
                     "Unknown".to_string(),
+                    libp2p::PeerId::random(),
                 )
             };
 
@@ -805,6 +811,7 @@ impl P2pClient {
             download_id: actual_download_id,
             filename,
             share_code,
+            from_peer_id,
             from_nickname,
             error,
         });
@@ -817,13 +824,14 @@ impl P2pClient {
         downloaded_count: usize,
         total_chunks: usize,
     ) {
-        let (actual_download_id, filename, share_code, from_nickname) =
+        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) =
             self.get_download_info_for_event(download_id);
 
         self.send_event(P2pEvent::FileDownloadProgress {
             download_id: actual_download_id,
             filename,
             share_code,
+            from_peer_id,
             from_nickname,
             downloaded_chunks: downloaded_count,
             total_chunks,
@@ -832,7 +840,7 @@ impl P2pClient {
 
     /// Send download completed event
     fn send_download_completed_event(&mut self, download_id: &Option<String>, output_path: &Path) {
-        let (actual_download_id, filename, share_code, from_nickname) =
+        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) =
             if let Some(download_id) = download_id {
                 if let Some(mut active_download) = self.active_downloads.remove(download_id) {
                     active_download.completed = true;
@@ -842,6 +850,7 @@ impl P2pClient {
                         active_download.filename,
                         active_download.share_code,
                         active_download.from_nickname,
+                        active_download.from_peer_id,
                     )
                 } else {
                     (
@@ -849,6 +858,7 @@ impl P2pClient {
                         "Unknown".to_string(),
                         "Unknown".to_string(),
                         "Unknown".to_string(),
+                        libp2p::PeerId::random(),
                     )
                 }
             } else {
@@ -857,6 +867,7 @@ impl P2pClient {
                     "Unknown".to_string(),
                     "Unknown".to_string(),
                     "Unknown".to_string(),
+                    libp2p::PeerId::random(),
                 )
             };
 
@@ -864,6 +875,7 @@ impl P2pClient {
             download_id: actual_download_id,
             filename,
             share_code,
+            from_peer_id,
             from_nickname,
             path: output_path.to_path_buf(),
         });

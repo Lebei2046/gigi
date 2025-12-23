@@ -32,4 +32,5 @@ mime_guess = "2.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 base64 = "0.22"
+tauri-plugin-dialog = "2"
 

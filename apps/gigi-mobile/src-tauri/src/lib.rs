@@ -49,7 +49,7 @@ impl From<P2pFileInfo> for FileInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadProgress {
-    pub file_id: String,
+    pub download_id: String,
     pub progress: f32,
     pub speed: u64,
 }
@@ -128,6 +128,10 @@ impl AppState {
 
     pub fn with_download_folder(download_folder: &str) -> Self {
         let base_path = PathBuf::from(download_folder);
+
+        // Create downloads directory if it doesn't exist
+        fs::create_dir_all(&base_path).ok();
+
         Self {
             p2p_client: Arc::new(Mutex::new(None)),
             event_receiver: Arc::new(Mutex::new(None)),
@@ -570,71 +574,107 @@ async fn messaging_get_active_downloads(
 }
 
 #[tauri::command]
-async fn messaging_send_image_message(
+async fn messaging_send_image_message_with_path(
     nickname: &str,
-    image_data: Vec<u8>,
-    filename: &str,
+    file_path: &str,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    info!(
+        "🎯 messaging_send_image_message_with_path called with nickname: {}, file_path: {}",
+        nickname, file_path
+    );
+
     let mut client_guard = state.p2p_client.lock().await;
     if let Some(client) = client_guard.as_mut() {
-        // Create a temporary file to store the image
-        let temp_path = std::env::temp_dir().join(filename);
+        let path = PathBuf::from(file_path);
 
-        // Write the image data to temporary file
-        tokio::fs::write(&temp_path, image_data)
-            .await
-            .map_err(|e| format!("Failed to write temporary image file: {}", e))?;
+        // Verify file exists
+        if !path.exists() {
+            error!("❌ File does not exist: {}", file_path);
+            return Err("File does not exist".to_string());
+        }
 
+        info!("✅ File exists, reading image data...");
+        // Read image data and convert to base64 for immediate display
+        let image_data =
+            fs::read(&path).map_err(|e| format!("Failed to read image file: {}", e))?;
+        let base64_data = base64::engine::general_purpose::STANDARD.encode(&image_data);
+        info!(
+            "✅ Successfully converted image to base64, size: {} bytes",
+            image_data.len()
+        );
+
+        info!("🔄 Sending image via P2P...");
         // Send the image using existing P2P functionality
         client
-            .send_direct_image(nickname, &temp_path)
+            .send_direct_image(nickname, &path)
+            .await
             .map_err(|e| format!("Failed to send image: {}", e))?;
+        info!("✅ Image sent successfully");
 
-        // Clean up temporary file
-        tokio::fs::remove_file(&temp_path).await.ok(); // Ignore cleanup errors
-
-        Ok(uuid::Uuid::new_v4().to_string())
+        // Return message ID and base64 data separated by a delimiter
+        let message_id = uuid::Uuid::new_v4().to_string();
+        info!(
+            "🎯 Returning response: {}|base64_data({} bytes)",
+            message_id,
+            base64_data.len()
+        );
+        Ok(format!("{}|{}", message_id, base64_data))
     } else {
+        error!("❌ P2P client not initialized");
         Err("P2P client not initialized".to_string())
     }
 }
 
 #[tauri::command]
-async fn messaging_send_group_image_message(
+async fn messaging_send_group_image_message_with_path(
     group_id: &str,
-    image_data: Vec<u8>,
-    filename: &str,
+    file_path: &str,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    info!(
+        "🎯 messaging_send_group_image_message_with_path called with group_id: {}, file_path: {}",
+        group_id, file_path
+    );
+
     let mut client_guard = state.p2p_client.lock().await;
     if let Some(client) = client_guard.as_mut() {
-        // Create a temporary file to store the image
-        let temp_path = std::env::temp_dir().join(filename);
+        let path = PathBuf::from(file_path);
 
-        // Write the image data to temporary file
-        tokio::fs::write(&temp_path, image_data)
-            .await
-            .map_err(|e| format!("Failed to write temporary image file: {}", e))?;
+        // Verify file exists
+        if !path.exists() {
+            error!("❌ File does not exist: {}", file_path);
+            return Err("File does not exist".to_string());
+        }
 
-        // For now, we'll send the image as a file share in the group
-        // This could be enhanced later to support direct group image messages
-        let share_code = client
-            .share_file(&temp_path)
-            .await
-            .map_err(|e| format!("Failed to share image in group: {}", e))?;
+        info!("✅ File exists, reading image data...");
+        // Read image data and convert to base64 for immediate display
+        let image_data =
+            fs::read(&path).map_err(|e| format!("Failed to read image file: {}", e))?;
+        let base64_data = base64::engine::general_purpose::STANDARD.encode(&image_data);
+        info!(
+            "✅ Successfully converted group image to base64, size: {} bytes",
+            image_data.len()
+        );
 
-        // Send a message indicating an image was shared
-        let image_message = format!("📷 Shared image: {} (Code: {})", filename, share_code);
+        info!("🔄 Sending group image via P2P...");
+        // Send the image using the new group image method
         client
-            .send_group_message(group_id, image_message)
-            .map_err(|e| format!("Failed to send group image message: {}", e))?;
+            .send_group_image(group_id, &path)
+            .await
+            .map_err(|e| format!("Failed to send group image: {}", e))?;
+        info!("✅ Group image sent successfully");
 
-        // Clean up temporary file
-        tokio::fs::remove_file(&temp_path).await.ok(); // Ignore cleanup errors
-
-        Ok(share_code)
+        // Return message ID and base64 data separated by a delimiter
+        let message_id = uuid::Uuid::new_v4().to_string();
+        info!(
+            "🎯 Returning group response: {}|base64_data({} bytes)",
+            message_id,
+            base64_data.len()
+        );
+        Ok(format!("{}|{}", message_id, base64_data))
     } else {
+        error!("❌ P2P client not initialized");
         Err("P2P client not initialized".to_string())
     }
 }
@@ -686,6 +726,33 @@ async fn messaging_save_shared_files(state: State<'_, AppState>) -> Result<(), S
         .map_err(|e| format!("Failed to save shared files: {}", e))
 }
 
+#[tauri::command]
+async fn messaging_get_image_data(file_path: &str) -> Result<String, String> {
+    let path = PathBuf::from(file_path);
+
+    // Verify file exists and is an image
+    if !path.exists() {
+        return Err("File does not exist".to_string());
+    }
+
+    // Check if it's an image file
+    let file_type = mime_guess::from_path(&path)
+        .first_or_octet_stream()
+        .to_string();
+
+    if !file_type.starts_with("image/") {
+        return Err("File is not an image".to_string());
+    }
+
+    // Read image data and convert to base64
+    let image_data = fs::read(&path).map_err(|e| format!("Failed to read image file: {}", e))?;
+
+    let base64_data = base64::engine::general_purpose::STANDARD.encode(&image_data);
+    let data_url = format!("data:{};base64,{}", file_type, base64_data);
+
+    Ok(data_url)
+}
+
 // Event handler
 async fn handle_p2p_event_with_fields(
     event: P2pEvent,
@@ -730,6 +797,85 @@ async fn handle_p2p_event_with_fields(
                 }),
             )?;
         }
+        P2pEvent::DirectFileShareMessage {
+            from,
+            from_nickname,
+            share_code,
+            filename,
+            file_size,
+            file_type,
+        } => {
+            // Automatically download the image when receiving a file share message
+            info!(
+                "Received direct file share message from {} ({}) for file {} with share code {}",
+                from_nickname, from, filename, share_code
+            );
+
+            // Check if it's an image file
+            if file_type.starts_with("image/") {
+                info!("Auto-downloading image file: {}", filename);
+                if let Some(client) = _p2p_client.lock().await.as_mut() {
+                    match client.download_file(&from_nickname, &share_code) {
+                        Ok(()) => {
+                            info!("Started auto-download for image: {}", filename);
+                            // Emit image-message-received event so UI can show the image
+                            app_handle.emit(
+                                "image-message-received",
+                                &json!({
+                                    "from_peer_id": from.to_string(),
+                                    "from_nickname": from_nickname,
+                                    "share_code": share_code,
+                                    "filename": filename,
+                                    "file_size": file_size,
+                                    "file_type": file_type,
+                                    "timestamp": std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)?
+                                        .as_secs(),
+                                }),
+                            )?;
+                        }
+                        Err(e) => {
+                            error!(
+                                "Failed to start auto-download for image {}: {}",
+                                filename, e
+                            );
+                            // Still emit the event so UI can show error
+                            app_handle.emit(
+                                "image-message-received",
+                                &json!({
+                                    "from_peer_id": from.to_string(),
+                                    "from_nickname": from_nickname,
+                                    "share_code": share_code,
+                                    "filename": filename,
+                                    "file_size": file_size,
+                                    "file_type": file_type,
+                                    "timestamp": std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)?
+                                        .as_secs(),
+                                    "download_error": Some(format!("Failed to download: {}", e)),
+                                }),
+                            )?;
+                        }
+                    }
+                }
+            } else {
+                // For non-image files, just emit the event without downloading
+                app_handle.emit(
+                    "file-message-received",
+                    &json!({
+                        "from_peer_id": from.to_string(),
+                        "from_nickname": from_nickname,
+                        "share_code": share_code,
+                        "filename": filename,
+                        "file_size": file_size,
+                        "file_type": file_type,
+                        "timestamp": std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)?
+                            .as_secs(),
+                    }),
+                )?;
+            }
+        }
         P2pEvent::DirectMessage {
             from,
             from_nickname,
@@ -746,49 +892,7 @@ async fn handle_p2p_event_with_fields(
             };
             app_handle.emit("message-received", &msg)?;
         }
-        P2pEvent::DirectImageMessage {
-            from,
-            from_nickname,
-            filename,
-            data,
-        } => {
-            info!(
-                "Received direct image from {} ({}): {} ({} bytes)",
-                from_nickname,
-                from,
-                filename,
-                data.len()
-            );
 
-            // Create a unique image ID
-            let image_id = uuid::Uuid::new_v4().to_string();
-
-            // Convert image data to base64 for transmission to frontend
-            let mime_type = mime_guess::from_path(&filename)
-                .first_or_octet_stream()
-                .to_string();
-            let data_url = format!(
-                "data:{};base64,{}",
-                mime_type,
-                base64::prelude::BASE64_STANDARD.encode(&data)
-            );
-
-            // Send as a special image message
-            let msg = json!({
-                "id": uuid::Uuid::new_v4().to_string(),
-                "from_peer_id": from.to_string(),
-                "from_nickname": from_nickname,
-                "content": format!("📷 Image: {}", filename),
-                "timestamp": std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)?
-                    .as_secs(),
-                "messageType": "image",
-                "imageId": image_id,
-                "imageData": data_url,
-                "filename": filename
-            });
-            app_handle.emit("image-message-received", &msg)?;
-        }
         P2pEvent::DirectGroupShareMessage {
             from,
             from_nickname,
@@ -807,6 +911,73 @@ async fn handle_p2p_event_with_fields(
                         .as_secs(),
                 }),
             )?;
+        }
+        P2pEvent::GroupFileShareMessage {
+            from,
+            from_nickname,
+            group,
+            share_code,
+            filename,
+            file_size,
+            file_type,
+            message: _,
+        } => {
+            info!(
+                "Received group file share message from {} ({}) for file {} in group {} with share code {}",
+                from_nickname, from, filename, group, share_code
+            );
+
+            // Check if it's an image file
+            if file_type.starts_with("image/") {
+                info!("Auto-downloading group image file: {}", filename);
+                if let Some(client) = _p2p_client.lock().await.as_mut() {
+                    match client.download_file(&from_nickname, &share_code) {
+                        Ok(()) => {
+                            info!("Started auto-download for group image: {}", filename);
+                        }
+                        Err(e) => {
+                            error!(
+                                "Failed to start auto-download for group image {}: {}",
+                                filename, e
+                            );
+                            // Still emit the event so UI can show error
+                            app_handle.emit(
+                                "group-image-message-received",
+                                &json!({
+                                    "from_peer_id": from.to_string(),
+                                    "from_nickname": from_nickname,
+                                    "group_id": group,
+                                    "share_code": share_code,
+                                    "filename": filename,
+                                    "file_size": file_size,
+                                    "file_type": file_type,
+                                    "timestamp": std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)?
+                                        .as_secs(),
+                                    "download_error": Some(format!("Failed to download: {}", e)),
+                                }),
+                            )?;
+                        }
+                    }
+                }
+            } else {
+                // For non-image files, just emit the event without downloading
+                app_handle.emit(
+                    "group-file-message-received",
+                    &json!({
+                        "from_peer_id": from.to_string(),
+                        "from_nickname": from_nickname,
+                        "group_id": group,
+                        "share_code": share_code,
+                        "filename": filename,
+                        "file_size": file_size,
+                        "file_type": file_type,
+                        "timestamp": std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)?
+                            .as_secs(),
+                    }),
+                )?;
+            }
         }
         P2pEvent::GroupMessage {
             from,
@@ -839,53 +1010,7 @@ async fn handle_p2p_event_with_fields(
             app_handle.emit("group-message", &msg)?;
             info!("'group-message' event emitted successfully");
         }
-        P2pEvent::GroupImageMessage {
-            from,
-            from_nickname,
-            group,
-            filename,
-            data,
-            message: _,
-        } => {
-            info!(
-                "Received group image from {} ({}): {} in group {} ({} bytes)",
-                from_nickname,
-                from,
-                filename,
-                group,
-                data.len()
-            );
 
-            // Create a unique image ID
-            let image_id = uuid::Uuid::new_v4().to_string();
-
-            // Convert image data to base64 for transmission to frontend
-            let mime_type = mime_guess::from_path(&filename)
-                .first_or_octet_stream()
-                .to_string();
-            let data_url = format!(
-                "data:{};base64,{}",
-                mime_type,
-                base64::prelude::BASE64_STANDARD.encode(&data)
-            );
-
-            // Send as a special group image message
-            let msg = json!({
-                "id": uuid::Uuid::new_v4().to_string(),
-                "group_id": group,
-                "from_peer_id": from.to_string(),
-                "from_nickname": from_nickname,
-                "content": format!("📷 Image: {}", filename),
-                "timestamp": std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)?
-                    .as_secs(),
-                "messageType": "image",
-                "imageId": image_id,
-                "imageData": data_url,
-                "filename": filename
-            });
-            app_handle.emit("group-image-message-received", &msg)?;
-        }
         P2pEvent::FileShareRequest {
             from,
             from_nickname,
@@ -905,48 +1030,107 @@ async fn handle_p2p_event_with_fields(
             )?;
         }
         P2pEvent::FileDownloadProgress {
-            file_id,
+            download_id,
+            filename,
+            share_code,
+            from_peer_id,
+            from_nickname,
             downloaded_chunks,
             total_chunks,
         } => {
             let progress = (downloaded_chunks as f32 / total_chunks as f32) * 100.0;
             let download_progress = DownloadProgress {
-                file_id: file_id.clone(),
+                download_id: download_id.clone(),
                 progress,
                 speed: 0, // TODO: Calculate speed
             };
 
             {
                 let mut downloads_guard = active_downloads.lock().await;
-                downloads_guard.insert(file_id.clone(), download_progress.clone());
+                downloads_guard.insert(download_id.clone(), download_progress.clone());
             }
 
-            app_handle.emit("download-progress", &download_progress)?;
+            // Emit progress with all required fields for frontend
+            app_handle.emit(
+                "file-download-progress",
+                &json!({
+                    "download_id": download_id,
+                    "filename": filename,
+                    "share_code": share_code,
+                    "from_peer_id": from_peer_id.to_string(),
+                    "from_nickname": from_nickname,
+                    "progress_percent": progress,
+                    "speed": 0 // TODO: Calculate actual speed
+                }),
+            )?;
         }
-        P2pEvent::FileDownloadCompleted { file_id, path } => {
+        P2pEvent::FileDownloadCompleted {
+            download_id,
+            filename,
+            share_code,
+            from_peer_id,
+            from_nickname,
+            path,
+        } => {
             {
                 let mut downloads_guard = active_downloads.lock().await;
-                downloads_guard.remove(&file_id);
+                downloads_guard.remove(&download_id);
             }
 
             app_handle.emit(
-                "download-completed",
+                "file-download-completed",
                 &json!({
-                    "file_id": file_id,
+                    "download_id": download_id,
+                    "filename": filename,
+                    "share_code": share_code,
+                    "from_peer_id": from_peer_id.to_string(),
+                    "from_nickname": from_nickname,
                     "path": path.to_string_lossy()
                 }),
             )?;
         }
-        P2pEvent::FileDownloadFailed { file_id, error } => {
+        P2pEvent::FileDownloadStarted {
+            from,
+            from_nickname,
+            filename,
+        } => {
+            info!(
+                "Download started for {} from {} ({})",
+                filename, from_nickname, from
+            );
+            app_handle.emit(
+                "file-download-started",
+                &json!({
+                    "from_peer_id": from.to_string(),
+                    "from_nickname": from_nickname,
+                    "filename": filename,
+                    "timestamp": std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)?
+                        .as_secs(),
+                }),
+            )?;
+        }
+        P2pEvent::FileDownloadFailed {
+            download_id,
+            filename,
+            share_code,
+            from_peer_id,
+            from_nickname,
+            error,
+        } => {
             {
                 let mut downloads_guard = active_downloads.lock().await;
-                downloads_guard.remove(&file_id);
+                downloads_guard.remove(&download_id);
             }
 
             app_handle.emit(
-                "download-failed",
+                "file-download-failed",
                 &json!({
-                    "file_id": file_id,
+                    "download_id": download_id,
+                    "filename": filename,
+                    "share_code": share_code,
+                    "from_peer_id": from_peer_id.to_string(),
+                    "from_nickname": from_nickname,
                     "error": error
                 }),
             )?;
@@ -1114,6 +1298,7 @@ pub fn run() {
     let app_state = AppState::default();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(app_state)
         .setup(|app| {
@@ -1135,8 +1320,8 @@ pub fn run() {
             messaging_send_message,
             messaging_send_message_to_nickname,
             messaging_send_direct_share_group_message,
-            messaging_send_image_message,
-            messaging_send_group_image_message,
+            messaging_send_image_message_with_path,
+            messaging_send_group_image_message_with_path,
             messaging_get_peers,
             messaging_set_nickname,
             messaging_join_group,
@@ -1148,6 +1333,7 @@ pub fn run() {
             messaging_get_shared_files,
             messaging_remove_shared_file,
             messaging_save_shared_files,
+            messaging_get_image_data,
             messaging_get_public_key,
             messaging_get_active_downloads,
             messaging_update_config,

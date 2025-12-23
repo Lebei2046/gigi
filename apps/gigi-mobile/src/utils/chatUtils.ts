@@ -20,8 +20,8 @@ function ensureMilliseconds(timestamp: number): number {
 /**
  * Check if a date string represents an invalid timestamp (like 1970 dates)
  */
-function isInvalidDateString(dateString: string): boolean {
-  if (!dateString) return false
+function isInvalidDateString(dateString: any): boolean {
+  if (!dateString || typeof dateString !== 'string') return false
   return dateString.includes('1970') || dateString.includes('1970/1/21')
 }
 
@@ -99,11 +99,6 @@ export async function resetUnreadCount(chatId: string): Promise<void> {
     if (existingChat) {
       const previousCount = existingChat.unreadCount || 0
 
-      // Always log the reset attempt (key for debugging)
-      console.log(
-        `🔄 Resetting unread count for chat ${chatId} (${existingChat.name}) from ${previousCount} to 0`
-      )
-
       await db.chats.update(chatId, {
         unreadCount: 0,
       })
@@ -115,14 +110,7 @@ export async function resetUnreadCount(chatId: string): Promise<void> {
             detail: { chatId, previousCount: 0 },
           })
         )
-        console.log(`✅ Dispatched unreadCountReset event for ${chatId}`)
-      } else {
-        console.log(
-          `ℹ️ Chat ${chatId} already had 0 unread count, no event dispatched`
-        )
       }
-    } else {
-      console.log(`⚠️ No chat found with ID ${chatId} to reset unread count`)
     }
   } catch (error) {
     console.error('Failed to reset unread count:', error)
@@ -222,13 +210,6 @@ export async function updateLatestMessage(
         )
       } else if (isOutgoing) {
         newUnreadCount = 0
-        console.log(
-          `📉 Resetting unread count for outgoing message ${chatId} (${existingChat.name}) to 0`
-        )
-      } else {
-        console.log(
-          `➡️ Keeping unread count unchanged for ${chatId} (${existingChat.name}) at ${newUnreadCount}`
-        )
       }
 
       await db.chats.update(chatId, {

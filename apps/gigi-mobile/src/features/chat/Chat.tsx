@@ -79,13 +79,6 @@ export default function Chat() {
       const lastUnreadCountsStr = JSON.stringify(lastUnreadCounts.current)
       const currentCountsStr = JSON.stringify(currentUnreadCounts)
 
-      console.log('🔍 Unread counts check:', {
-        totalUnreadChats: unreadChats.length,
-        currentCounts: currentUnreadCounts,
-        hasChanged: lastUnreadCountsStr !== currentCountsStr,
-        caller: new Error().stack?.split('\n')[2]?.trim(), // Who called this?
-      })
-
       if (
         currentUnreadCounts.length > 0 &&
         lastUnreadCountsStr !== currentCountsStr
@@ -113,8 +106,6 @@ export default function Chat() {
         })
 
         lastUnreadCounts.current = currentUnreadCounts
-      } else if (currentUnreadCounts.length === 0) {
-        console.log('✅ No unread messages found')
       }
     } catch (error) {
       console.error('Failed to load chats:', error)
@@ -209,7 +200,6 @@ export default function Chat() {
 
     // Listen for custom unread count reset events
     const handleUnreadCountReset = (event?: CustomEvent) => {
-      console.log('🔄 Unread count reset event received, refreshing chats...')
       if (event?.detail) {
         console.log('📊 Event details:', event.detail)
       }
@@ -489,9 +479,35 @@ export default function Chat() {
 
         const handleGroupImageMessageReceived = (messageData: any) => {
           // Update latest message for chat list display
+          const messageText = messageData.download_error
+            ? `❌ Image: ${messageData.filename}`
+            : `⬇️ Image: ${messageData.filename}`
+
           dispatch(
             updateGroupMessage({
               groupId: messageData.group_id,
+              lastMessage: messageText,
+              timestamp: messageData.timestamp,
+            })
+          )
+        }
+
+        const handleFileMessageReceived = (messageData: any) => {
+          // Update latest message for chat list display
+          dispatch(
+            updateMessage({
+              peerId: messageData.from_peer_id,
+              lastMessage: `📎 File: ${messageData.filename}`,
+              timestamp: messageData.timestamp,
+            })
+          )
+        }
+
+        const handleFileDownloadCompleted = (messageData: any) => {
+          // Update the message when download completes
+          dispatch(
+            updateMessage({
+              peerId: messageData.from_nickname,
               lastMessage: `📷 Image: ${messageData.filename}`,
               timestamp: messageData.timestamp,
             })
@@ -502,6 +518,11 @@ export default function Chat() {
         MessagingEvents.on(
           'group-image-message-received',
           handleGroupImageMessageReceived
+        )
+        MessagingEvents.on('file-message-received', handleFileMessageReceived)
+        MessagingEvents.on(
+          'file-download-completed',
+          handleFileDownloadCompleted
         )
 
         // Clean up on unmount
@@ -519,6 +540,14 @@ export default function Chat() {
             MessagingEvents.off(
               'group-image-message-received',
               handleGroupImageMessageReceived
+            )
+            MessagingEvents.off(
+              'file-message-received',
+              handleFileMessageReceived
+            )
+            MessagingEvents.off(
+              'file-download-completed',
+              handleFileDownloadCompleted
             )
             console.log('🧹 Cleaned up Chat event listeners')
           } catch (error) {

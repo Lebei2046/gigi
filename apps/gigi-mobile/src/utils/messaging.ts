@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 
 // Types matching the Rust backend
 export interface Peer {
@@ -36,6 +37,63 @@ export interface GroupShareMessage {
   timestamp: number
 }
 
+export interface ImageMessageReceived {
+  from_peer_id: string
+  from_nickname: string
+  share_code: string
+  filename: string
+  file_size: number
+  file_type: string
+  timestamp: number
+  download_error?: string
+}
+
+export interface FileMessageReceived {
+  from_peer_id: string
+  from_nickname: string
+  share_code: string
+  filename: string
+  file_size: number
+  file_type: string
+  timestamp: number
+}
+
+export interface FileDownloadStarted {
+  from_peer_id: string
+  from_nickname: string
+  filename: string
+  timestamp: number
+}
+
+export interface FileDownloadProgress {
+  download_id: string
+  filename: string
+  share_code: string
+  from_nickname: string
+  downloaded_chunks: number
+  total_chunks: number
+  progress_percent: number
+  timestamp: number
+}
+
+export interface FileDownloadCompleted {
+  download_id: string
+  filename: string
+  share_code: string
+  from_nickname: string
+  path: string
+  timestamp: number
+}
+
+export interface FileDownloadFailed {
+  download_id: string
+  filename: string
+  share_code: string
+  from_nickname: string
+  error: string
+  timestamp: number
+}
+
 export interface FileInfo {
   id: string
   name: string
@@ -45,7 +103,7 @@ export interface FileInfo {
 }
 
 export interface DownloadProgress {
-  file_id: string
+  download_id: string
   progress: number
   speed: number
 }
@@ -117,13 +175,7 @@ export class MessagingClient {
     groupId: string,
     message: string
   ): Promise<string> {
-    console.log('🚀 MessagingClient.sendGroupMessage called:')
-    console.log('   - Group ID:', groupId)
-    console.log('   - Message:', message)
-
-    const result = invoke('messaging_send_group_message', { groupId, message })
-    console.log('📤 invoke() called, awaiting result...')
-    return result
+    return invoke('messaging_send_group_message', { groupId, message })
   }
 
   // Share a file
@@ -195,36 +247,60 @@ export class MessagingClient {
     return invoke('messaging_get_config')
   }
 
-  // Send image message
-  static async sendImageMessage(
-    nickname: string,
-    imageFile: File
-  ): Promise<string> {
-    // Convert File to Uint8Array
-    const arrayBuffer = await imageFile.arrayBuffer()
-    const uint8Array = new Uint8Array(arrayBuffer)
+  // Select image file using dialog
+  static async selectImageFile(): Promise<string | null> {
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        filters: [
+          {
+            name: 'Image Files',
+            extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
+          },
+        ],
+      })
 
-    return invoke('messaging_send_image_message', {
-      nickname,
-      imageData: Array.from(uint8Array), // Convert to regular array for Tauri
-      filename: imageFile.name,
-    })
+      return selected || null
+    } catch (error) {
+      console.error('Failed to open file dialog:', error)
+      return null
+    }
   }
 
-  // Send group image message
-  static async sendGroupImageMessage(
-    groupId: string,
-    imageFile: File
-  ): Promise<string> {
-    // Convert File to Uint8Array
-    const arrayBuffer = await imageFile.arrayBuffer()
-    const uint8Array = new Uint8Array(arrayBuffer)
-
-    return invoke('messaging_send_group_image_message', {
-      groupId,
-      imageData: Array.from(uint8Array), // Convert to regular array for Tauri
-      filename: imageFile.name,
+  // Send image message using file path
+  static async sendImageMessageWithPath(
+    nickname: string,
+    filePath: string
+  ): Promise<{ messageId: string; imageData: string }> {
+    const response = await invoke('messaging_send_image_message_with_path', {
+      nickname,
+      filePath,
     })
+
+    // Parse the response to extract message ID and base64 image data
+    const parts = response.split('|')
+    const [messageId, imageData] = parts
+    return { messageId, imageData }
+  }
+
+  // Send group image message using file path
+  static async sendGroupImageMessageWithPath(
+    groupId: string,
+    filePath: string
+  ): Promise<{ messageId: string; imageData: string }> {
+    const response = await invoke(
+      'messaging_send_group_image_message_with_path',
+      {
+        groupId,
+        filePath,
+      }
+    )
+
+    // Parse the response to extract message ID and base64 image data
+    const parts = response.split('|')
+    const [messageId, imageData] = parts
+    return { messageId, imageData }
   }
 
   // Utility function to try get peer ID from private key
@@ -240,6 +316,11 @@ export class MessagingClient {
   // Emit current P2P state (for catching up on missed events)
   static async emitCurrentState(): Promise<void> {
     return invoke('emit_current_state')
+  }
+
+  // Get image data from local file path
+  static async getImageData(filePath: string): Promise<string> {
+    return invoke('messaging_get_image_data', { filePath })
   }
 
   // Get message history with a peer
@@ -270,7 +351,6 @@ export class MessagingEvents {
       // Start listening to Tauri events
       import('@tauri-apps/api/event')
         .then(({ listen }) => {
-          console.log(`🎯 Starting Tauri listener for: ${eventType}`)
           listen(eventType, event => {
             const callbacks = this.listeners.get(eventType)
             if (callbacks) {

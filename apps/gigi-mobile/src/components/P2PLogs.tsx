@@ -22,12 +22,9 @@ export default function P2PLogs({ logs, addLog, clearLogs }: P2PLogsProps) {
   useEffect(() => {
     // Prevent setting up listeners multiple times
     if (listenersSetupRef.current) {
-      console.log('⚠️ P2PLogs listeners already set up, skipping...')
       return
     }
     listenersSetupRef.current = true
-
-    console.log('🚀 Setting up P2PLogs listeners for the first time')
 
     // Listen to various P2P events
     const events = [
@@ -52,7 +49,6 @@ export default function P2PLogs({ logs, addLog, clearLogs }: P2PLogsProps) {
     // Set up event listeners
     events.forEach(({ name, type }) => {
       MessagingEvents.on(name, data => {
-        console.log(`✅ Frontend received event: ${name}`, data) // Debug log
         addLog(name, data, type)
       })
     })
@@ -64,18 +60,14 @@ export default function P2PLogs({ logs, addLog, clearLogs }: P2PLogsProps) {
 
     // Immediately request current state on component mount
     const fetchCurrentState = async () => {
-      console.log('🔄 fetchCurrentState called')
       try {
         const { MessagingClient } = await import('@/utils/messaging')
 
         // First, emit current state to trigger any missed events
-        console.log('📤 Calling emitCurrentState...')
         await MessagingClient.emitCurrentState()
-        console.log('✅ emitCurrentState completed')
 
         // Then get current peers to populate logs if they exist
         const peers = await MessagingClient.getPeers()
-        console.log('📋 Current peers on mount:', peers)
 
         if (peers.length > 0) {
           peers.forEach(peer => {
