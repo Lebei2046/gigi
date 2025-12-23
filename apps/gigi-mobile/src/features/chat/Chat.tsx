@@ -35,6 +35,7 @@ import {
   updateChatInfo,
   cleanupInvalidTimestamps,
   ensureChatEntriesForGroups,
+  ensureMilliseconds,
 } from '@/utils/chatUtils'
 import type { Chat, Group } from '@/models/db'
 
@@ -360,10 +361,9 @@ export default function Chat() {
           }
 
           // Convert timestamp to milliseconds if needed, otherwise use current time
-          const timestampMs =
-            message.timestamp && message.timestamp < 1000000000000
-              ? message.timestamp * 1000
-              : message.timestamp || Date.now()
+          const timestampMs = message.timestamp
+            ? ensureMilliseconds(message.timestamp)
+            : Date.now()
 
           // Update in IndexedDB first - this is the single source of truth
           updateLatestMessage(
@@ -426,10 +426,9 @@ export default function Chat() {
           }
 
           // Convert timestamp to milliseconds if needed, otherwise use current time
-          const timestampMs =
-            message.timestamp && message.timestamp < 1000000000000
-              ? message.timestamp * 1000
-              : message.timestamp || Date.now()
+          const timestampMs = message.timestamp
+            ? ensureMilliseconds(message.timestamp)
+            : Date.now()
 
           // Update in IndexedDB first - this is single source of truth
           updateLatestMessage(
@@ -633,7 +632,7 @@ export default function Chat() {
         id: shareMessage.group_id,
         name: shareMessage.group_name,
         joined: true, // true = invited member who joined the group
-        createdAt: new Date(shareMessage.timestamp * 1000),
+        createdAt: new Date(ensureMilliseconds(shareMessage.timestamp)),
       })
 
       // Remove from notifications

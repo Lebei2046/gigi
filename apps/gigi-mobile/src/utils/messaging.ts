@@ -157,7 +157,7 @@ export class MessagingClient {
 
   // Get connected peers
   static async getPeers(): Promise<Peer[]> {
-    return invoke('messaging_get_peers')
+    return invoke<Peer[]>('messaging_get_peers')
   }
 
   // Set nickname
@@ -224,27 +224,27 @@ export class MessagingClient {
 
   // Get current peer ID
   static async getPeerId(): Promise<string> {
-    return invoke('get_peer_id')
+    return invoke<string>('get_peer_id')
   }
 
   // Get public key
   static async getPublicKey(): Promise<string> {
-    return invoke('messaging_get_public_key')
+    return invoke<string>('messaging_get_public_key')
   }
 
   // Get active downloads
   static async getActiveDownloads(): Promise<DownloadProgress[]> {
-    return invoke('messaging_get_active_downloads')
+    return invoke<DownloadProgress[]>('messaging_get_active_downloads')
   }
 
   // Update configuration
   static async updateConfig(config: Config): Promise<void> {
-    return invoke('messaging_update_config', { config })
+    return invoke<void>('messaging_update_config', { config })
   }
 
   // Get current configuration
   static async getConfig(): Promise<Config> {
-    return invoke('messaging_get_config')
+    return invoke<Config>('messaging_get_config')
   }
 
   // Select image file using dialog
@@ -273,10 +273,13 @@ export class MessagingClient {
     nickname: string,
     filePath: string
   ): Promise<{ messageId: string; imageData: string }> {
-    const response = await invoke('messaging_send_image_message_with_path', {
-      nickname,
-      filePath,
-    })
+    const response = await invoke<string>(
+      'messaging_send_image_message_with_path',
+      {
+        nickname,
+        filePath,
+      }
+    )
 
     // Parse the response to extract message ID and base64 image data
     const parts = response.split('|')
@@ -289,7 +292,7 @@ export class MessagingClient {
     groupId: string,
     filePath: string
   ): Promise<{ messageId: string; imageData: string }> {
-    const response = await invoke(
+    const response = await invoke<string>(
       'messaging_send_group_image_message_with_path',
       {
         groupId,
@@ -320,12 +323,12 @@ export class MessagingClient {
 
   // Get image data from local file path
   static async getImageData(filePath: string): Promise<string> {
-    return invoke('messaging_get_image_data', { filePath })
+    return invoke<string>('messaging_get_image_data', { filePath })
   }
 
   // Get message history with a peer
   static async getMessageHistory(peerId: string): Promise<Message[]> {
-    return invoke('messaging_get_message_history', { peerId })
+    return invoke<Message[]>('messaging_get_message_history', { peerId })
   }
 }
 

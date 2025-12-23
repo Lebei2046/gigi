@@ -9,12 +9,20 @@ import type { Chat, Group } from '@/models/db'
  * Convert timestamp to milliseconds if it's in seconds
  * Backend might send timestamps in seconds, but JavaScript Date expects milliseconds
  */
-function ensureMilliseconds(timestamp: number): number {
+export function ensureMilliseconds(timestamp: number): number {
   // If timestamp is less than year 2000 (about 946684800000), assume it's in seconds
   if (timestamp < 1000000000000) {
     return timestamp * 1000
   }
   return timestamp
+}
+
+/**
+ * Check if a timestamp represents a valid date (after year 2000)
+ * Helps identify invalid timestamps like 1970 dates
+ */
+export function isValidTimestamp(timestamp: number | undefined): boolean {
+  return !!(timestamp && timestamp > 1000000000000)
 }
 
 /**
@@ -36,13 +44,10 @@ export async function cleanupInvalidTimestamps(): Promise<void> {
     for (const chat of allChats) {
       if (chat.lastMessageTime && isInvalidDateString(chat.lastMessageTime)) {
         // If there's a valid timestamp, use it to recalculate the time
-        if (
-          chat.lastMessageTimestamp &&
-          chat.lastMessageTimestamp > 1000000000000
-        ) {
+        if (isValidTimestamp(chat.lastMessageTimestamp)) {
           await db.chats.update(chat.id, {
             lastMessageTime: new Date(
-              chat.lastMessageTimestamp
+              chat.lastMessageTimestamp!
             ).toLocaleString(),
           })
           updatedCount++

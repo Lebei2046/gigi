@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type { Peer, GroupShareMessage } from '@/utils/messaging'
-import type { Chat, Group } from '@/models/db'
+import type { Chat } from '@/models/db'
 import { getAllChats, getAllGroups, updateChatInfo } from '@/utils/chatUtils'
 import { MessagingClient } from '@/utils/messaging'
 
@@ -109,7 +109,7 @@ export const clearChatMessagesAsync = createAsyncThunk(
     localStorage.removeItem(historyKey)
 
     // Reset chat info in IndexedDB
-    await updateChatInfo(chatId, '', '', 0, false, isGroupChat)
+    await updateChatInfo(chatId, '', '', 0, isGroupChat)
 
     return { chatId, isGroupChat }
   }
@@ -280,14 +280,14 @@ const chatSlice = createSlice({
         })
         state.latestMessages = messagesFromChats
       })
-      .addCase(loadChatsAsync.rejected, (state, action) => {
+      .addCase(loadChatsAsync.rejected, (_state, action) => {
         console.error('Failed to load chats:', action.error)
       })
 
       .addCase(loadGroupsAsync.fulfilled, (state, action) => {
         state.groups = action.payload
       })
-      .addCase(loadGroupsAsync.rejected, (state, action) => {
+      .addCase(loadGroupsAsync.rejected, (_state, action) => {
         console.error('Failed to load groups:', action.error)
       })
 
@@ -316,7 +316,7 @@ const chatSlice = createSlice({
           state.chats[chatIndex].unreadCount = 0
         }
       })
-      .addCase(clearChatMessagesAsync.rejected, (state, action) => {
+      .addCase(clearChatMessagesAsync.rejected, (_state, action) => {
         console.error('Failed to clear chat messages:', action.error)
       })
   },

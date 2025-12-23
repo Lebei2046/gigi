@@ -21,7 +21,7 @@ import {
   generateMessageId,
   type Message,
 } from '@/store/chatRoomSlice'
-import { updateLatestMessage } from '@/utils/chatUtils'
+import { updateLatestMessage, ensureMilliseconds } from '@/utils/chatUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft as BackIcon } from 'lucide-react'
@@ -169,9 +169,7 @@ export default function ChatRoom() {
           updateLatestMessage(
             peer!.id,
             message.content,
-            message.timestamp < 1000000000000
-              ? message.timestamp * 1000
-              : message.timestamp,
+            ensureMilliseconds(message.timestamp),
             false, // Incoming message
             false,
             true // Increment unread for incoming messages
@@ -204,9 +202,7 @@ export default function ChatRoom() {
           updateLatestMessage(
             group!.id,
             message.content,
-            message.timestamp < 1000000000000
-              ? message.timestamp * 1000
-              : message.timestamp,
+            ensureMilliseconds(message.timestamp),
             false, // Incoming message
             true,
             true // Increment unread for incoming messages
@@ -244,9 +240,7 @@ export default function ChatRoom() {
               updateLatestMessage(
                 message.group_id,
                 message.content,
-                message.timestamp < 1000000000000
-                  ? message.timestamp * 1000
-                  : message.timestamp,
+                ensureMilliseconds(message.timestamp),
                 false, // Incoming message
                 true, // Group message
                 true // Increment unread
@@ -271,9 +265,7 @@ export default function ChatRoom() {
               updateLatestMessage(
                 message.from_peer_id,
                 message.content,
-                message.timestamp < 1000000000000
-                  ? message.timestamp * 1000
-                  : message.timestamp,
+                ensureMilliseconds(message.timestamp),
                 false, // Incoming message
                 false, // Direct message
                 true // Increment unread

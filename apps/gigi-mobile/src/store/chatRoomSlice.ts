@@ -7,6 +7,7 @@ import {
   updateChatInfo,
   resetUnreadCount,
   getGroup,
+  ensureMilliseconds,
 } from '@/utils/chatUtils'
 import { MessagingClient } from '@/utils/messaging'
 
@@ -16,6 +17,18 @@ interface SerializableGroup {
   name: string
   joined: boolean
   createdAt: string
+}
+
+// Helper function to convert Group to SerializableGroup
+function toSerializableGroup(group: Group | null): SerializableGroup | null {
+  if (!group) return null
+
+  return {
+    id: group.id,
+    name: group.name,
+    joined: group.joined,
+    createdAt: group.createdAt.toISOString(),
+  }
 }
 
 // Generate unique IDs to prevent collisions
@@ -85,7 +98,7 @@ export const initializeChatRoomAsync = createAsyncThunk(
 
     if (!peer) {
       // Check if this is a group by looking up the group in database
-      group = await getGroup(id)
+      group = (await getGroup(id)) || null
       if (group) {
         isGroupChat = true
         chatPeer = null
@@ -107,12 +120,7 @@ export const initializeChatRoomAsync = createAsyncThunk(
 
     return {
       peer: chatPeer,
-      group: group
-        ? {
-            ...group,
-            createdAt: group.createdAt.toISOString(),
-          }
-        : null,
+      group: toSerializableGroup(group),
       isGroupChat,
       chatId: isGroupChat ? group?.id || null : chatPeer?.id || null,
       chatName: isGroupChat ? group?.name || null : chatPeer?.nickname || null,
@@ -138,10 +146,7 @@ export const loadMessageHistoryAsync = createAsyncThunk(
         // Batch process timestamps for better performance
         const normalizedHistory = history.map((msg: any) => ({
           ...msg,
-          timestamp:
-            msg.timestamp < 1000000000000
-              ? msg.timestamp * 1000
-              : msg.timestamp,
+          timestamp: ensureMilliseconds(msg.timestamp),
           isGroup: isGroupChat,
         }))
 
@@ -179,7 +184,7 @@ export const initializeChatInfoAsync = createAsyncThunk(
     const existingChat = await getChatInfo(chatId)
     if (!existingChat) {
       // Only create new chat entry if it doesn't exist
-      await updateChatInfo(chatId, chatName, '', Date.now(), false, isGroupChat)
+      await updateChatInfo(chatId, chatName, '', Date.now(), isGroupChat)
     } else if (!unreadResetDone) {
       // Reset unread count when user opens the chat (only once)
 
@@ -235,7 +240,7 @@ const chatRoomSlice = createSlice({
     },
 
     setGroup: (state, action: PayloadAction<Group | null>) => {
-      state.group = action.payload
+      state.group = toSerializableGroup(action.payload)
     },
 
     setIsGroupChat: (state, action: PayloadAction<boolean>) => {
@@ -295,7 +300,7 @@ const chatRoomSlice = createSlice({
         from_peer_id,
         from_nickname,
         content,
-        timestamp: timestamp < 1000000000000 ? timestamp * 1000 : timestamp,
+        timestamp: ensureMilliseconds(timestamp),
         isOutgoing: false,
         isGroup: false,
       }
@@ -323,7 +328,7 @@ const chatRoomSlice = createSlice({
         from_peer_id,
         from_nickname,
         content,
-        timestamp: timestamp < 1000000000000 ? timestamp * 1000 : timestamp,
+        timestamp: ensureMilliseconds(timestamp),
         isOutgoing: false,
         isGroup: true,
       }
@@ -402,7 +407,7 @@ const chatRoomSlice = createSlice({
       })
 
       // Initialize chat info
-      .addCase(initializeChatInfoAsync.fulfilled, (state, action) => {
+      .addCase(initializeChatInfoAsync.fulfilled, (state, _action) => {
         state.unreadResetDone = true
       })
       .addCase(initializeChatInfoAsync.rejected, (state, action) => {
@@ -414,7 +419,7 @@ const chatRoomSlice = createSlice({
         state.sending = true
         state.error = null
       })
-      .addCase(sendMessageAsync.fulfilled, (state, action) => {
+      .addCase(sendMessageAsync.fulfilled, (state, _action) => {
         state.sending = false
         state.newMessage = ''
       })
