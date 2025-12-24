@@ -1,14 +1,14 @@
 # Gigi P2P
 
-A comprehensive peer-to-peer networking library built on libp2p, supporting direct messaging, group messaging, file sharing, and image transfers.
+A comprehensive peer-to-peer networking library built on libp2p, supporting direct messaging, group messaging, and unified file sharing for all file types.
 
 ## Features
 
 - 🌐 **Peer Discovery**: Automatic peer discovery via mDNS
-- 💬 **Direct Messaging**: Send messages and images directly to peers
+- 💬 **Direct Messaging**: Send messages and files directly to peers
 - 📢 **Group Messaging**: Join groups and broadcast messages
-- 📁 **File Sharing**: Share files with unique share codes
-- 🖼️ **Image Transfer**: Send and receive images directly or in groups
+- 📁 **Universal File Sharing**: Share any file type with unique share codes
+- 🖼️ **Image Messaging**: Optimized image handling with preview capabilities
 - 🔍 **Nicknames**: Human-readable peer identification
 - ⬇️ **Chunked Downloads**: Large files downloaded with real-time progress tracking
 - ✅ **Integrity Verification**: SHA256 hash verification for all file transfers
@@ -58,8 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             P2pEvent::GroupMessage { from_nickname, group, message } => {
                 println!("[{}] {}: {}", group, from_nickname, message);
             }
-            P2pEvent::GroupImageMessage { from_nickname, group, filename, .. } => {
-                println!("[{}] {}: Shared image: {}", group, from_nickname, filename);
+            P2pEvent::GroupFileShareMessage { from_nickname, group, filename, .. } => {
+                println!("[{}] {}: Shared file: {}", group, from_nickname, filename);
             }
             P2pEvent::FileDownloadCompleted { file_id, path } => {
                 println!("Download complete: {} -> {}", file_id, path.display());
@@ -91,11 +91,11 @@ Chat commands:
 - `help` or `?` - Show available commands
 - `peers` - List connected peers
 - `send <nickname> <message>` - Send direct message
-- `send-image <nickname> <path>` - Send image
+- `send-file <nickname> <path>` - Send any file
 - `join <group>` - Join a group
 - `leave <group>` - Leave a group
 - `send-group <group> <message>` - Send group message
-- `send-group-image <group> <path>` - Send image to group
+- `send-group-file <group> <path>` - Send file to group
 - `share <file-path>` - Share a file (generates unique share code)
 - `unshare <share-code>` - Remove shared file record
 - `files` - List shared files
@@ -113,11 +113,11 @@ The main client for P2P networking.
 - `new(keypair, nickname, download_dir)` - Create a new client
 - `start_listening(address)` - Start listening on an address
 - `send_direct_message(nickname, message)` - Send a direct message
-- `send_direct_image(nickname, image_path)` - Send an image
+- `send_direct_file(nickname, file_path)` - Send any file (supports images, documents, etc.)
 - `join_group(group_name)` - Join a group
 - `leave_group(group_name)` - Leave a group
 - `send_group_message(group_name, message)` - Send group message
-- `send_group_image(group_name, image_path)` - Send image to group (async)
+- `send_group_file(group_name, file_path)` - Send file to group (async)
 - `share_file(file_path)` - Share a file (returns share code)
 - `unshare_file(share_code)` - Remove shared file record
 - `download_file(nickname, share_code)` - Download a shared file
@@ -131,9 +131,9 @@ All P2P events are emitted through the event receiver:
 - `PeerDiscovered` - New peer discovered
 - `PeerExpired` - Peer disconnected
 - `DirectMessage` - Received direct message
-- `DirectImageMessage` - Received direct image
+- `FileShareMessage` - Received file share (supports all file types)
 - `GroupMessage` - Received group message
-- `GroupImageMessage` - Received group image
+- `GroupFileShareMessage` - Received group file share (supports all file types)
 - `FileShareRequest` - File share offer received
 - `FileShared` - File successfully shared
 - `FileRevoked` - File share revoked
@@ -158,11 +158,17 @@ The library uses a unified `NetworkBehaviour` that combines:
 
 ### Protocols:
 - `/nickname/1.0.0` - Nickname exchange
-- `/direct/1.0.0` - Direct messaging
-- `/file/1.0.0` - File transfer operations
+- `/direct/1.0.0` - Direct messaging and file sharing (uses `DirectMessage::FileShare`)
+- `/file/1.0.0` - File download operations and chunk requests
 - GossipSub topics for group messaging
 
-All P2P functionality is integrated into a single behavior, avoiding the complexity of multiple modular packages.
+### Unified Message Types:
+The `DirectMessage` enum handles all communication types:
+- `Text` - Plain text messages
+- `FileShare` - Universal file sharing (used for images, documents, videos, etc.)
+- `ShareGroup` - Group invitation messages
+
+All P2P functionality is integrated into a single behavior, with file sharing and image messaging using the same underlying protocol.
 
 ## File Sharing
 
@@ -191,15 +197,24 @@ Files are shared using a unique share code system:
 
 Files are automatically saved to the configured download directory and verified for integrity.
 
-## Image Support
+## File Support
 
-The library supports seamless image sharing:
-- **Direct images** - Send/receive images directly to peers
-- **Group images** - Share images in group chats via download links
-- **Automatic conversion** - Images converted to shareable formats
-- **Size limits** - Group images use file sharing to avoid message size limits
+The library supports universal file sharing:
+- **Universal Support** - Send/receive any file type (images, documents, videos, archives, etc.)
+- **Image Optimizations** - Images receive special treatment with preview capabilities in frontend
+- **Automatic Detection** - MIME type detection for proper handling
+- **Size optimization** - Large files automatically use chunked transfer for efficiency
 
-Supported formats: PNG, JPEG, GIF, WebP, BMP, ICO, TIFF
+**Supported formats**: All file types are supported
+- **Images**: PNG, JPEG, GIF, WebP, BMP, ICO, TIFF, etc.
+- **Documents**: PDF, DOC, TXT, ODT, etc.
+- **Videos**: MP4, AVI, MOV, MKV, etc.
+- **Archives**: ZIP, RAR, TAR, 7Z, etc.
+- **Others**: Any file format can be shared
+
+**Frontend Differentiation**: 
+- `image/*` MIME types get optimized image messaging flow with previews
+- Other file types use traditional file sharing approach
 
 ## Testing
 
@@ -224,6 +239,13 @@ cargo test --package gigi-p2p
 
 ## Recent Improvements
 
+### Unified File Sharing Architecture
+- ✅ **Renamed Image Methods** - `send_direct_image` → `send_direct_file` for clarity
+- ✅ **Universal File Support** - Same backend methods handle images, documents, videos, etc.
+- ✅ **Simplified Protocol** - All file types use `DirectMessage::FileShare` 
+- ✅ **MIME Type Detection** - Frontend determines handling based on file type
+- ✅ **Streamlined Commands** - Updated Tauri bindings to reflect generic nature
+
 ### File Download Enhancements
 - ✅ **Fixed Download Initiation** - Downloads now start immediately when requested
 - ✅ **Added Progress Events** - Real-time download progress with percentage indicators
@@ -237,6 +259,17 @@ cargo test --package gigi-p2p
 - ✅ **Improved Error Messages** - Clear feedback for all operations
 
 The download functionality now provides immediate feedback and detailed progress tracking, making file transfers more reliable and user-friendly.
+
+## Unified File Sharing Architecture
+
+The library now provides a **unified approach to file sharing**:
+
+1. **Single Backend Methods**: `send_direct_file()` and `send_group_file()` handle ALL file types
+2. **MIME Type Detection**: Backend automatically detects file types and includes MIME information
+3. **Frontend Differentiation**: Frontend decides UX based on MIME type (`image/*` gets preview, others get traditional download)
+4. **Unified Protocol**: All file sharing uses the same `DirectMessage::FileShare` message type
+
+This approach simplifies the codebase while maintaining flexibility for different user experiences based on file content.
 
 ## License
 

@@ -26,7 +26,7 @@ pub struct SendMessageArgs {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SendImageArgs {
+pub struct SendFileArgs {
     nickname: String,
     image_path: String,
 }
@@ -169,12 +169,12 @@ async fn send_direct_message(app: AppHandle, args: SendMessageArgs) -> Result<()
 }
 
 #[tauri::command]
-async fn send_direct_image(app: AppHandle, args: SendImageArgs) -> Result<(), String> {
+async fn send_direct_file(app: AppHandle, args: SendFileArgs) -> Result<(), String> {
     let client_wrapper = app.state::<P2pClientWrapper>();
     let mut client_guard = client_wrapper.lock().await;
     match client_guard.as_mut() {
         Some(client) => client
-            .send_direct_image(&args.nickname, &PathBuf::from(args.image_path))
+            .send_direct_file(&args.nickname, &PathBuf::from(args.image_path))
             .map_err(|e| e.to_string()),
         None => Err("P2P client not initialized".to_string()),
     }
@@ -255,7 +255,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initialize_p2p,
             send_direct_message,
-            send_direct_image,
+            send_direct_file,
             join_group,
             send_group_message,
             list_peers,

@@ -574,13 +574,13 @@ async fn messaging_get_active_downloads(
 }
 
 #[tauri::command]
-async fn messaging_send_image_message_with_path(
+async fn messaging_send_file_message_with_path(
     nickname: &str,
     file_path: &str,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     info!(
-        "🎯 messaging_send_image_message_with_path called with nickname: {}, file_path: {}",
+        "🎯 messaging_send_file_message_with_path called with nickname: {}, file_path: {}",
         nickname, file_path
     );
 
@@ -607,7 +607,7 @@ async fn messaging_send_image_message_with_path(
         info!("🔄 Sending image via P2P...");
         // Send the image using existing P2P functionality
         client
-            .send_direct_image(nickname, &path)
+            .send_direct_file(nickname, &path)
             .await
             .map_err(|e| format!("Failed to send image: {}", e))?;
         info!("✅ Image sent successfully");
@@ -627,13 +627,13 @@ async fn messaging_send_image_message_with_path(
 }
 
 #[tauri::command]
-async fn messaging_send_group_image_message_with_path(
+async fn messaging_send_group_file_message_with_path(
     group_id: &str,
     file_path: &str,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     info!(
-        "🎯 messaging_send_group_image_message_with_path called with group_id: {}, file_path: {}",
+        "🎯 messaging_send_group_file_message_with_path called with group_id: {}, file_path: {}",
         group_id, file_path
     );
 
@@ -660,7 +660,7 @@ async fn messaging_send_group_image_message_with_path(
         info!("🔄 Sending group image via P2P...");
         // Send the image using the new group image method
         client
-            .send_group_image(group_id, &path)
+            .send_group_file(group_id, &path)
             .await
             .map_err(|e| format!("Failed to send group image: {}", e))?;
         info!("✅ Group image sent successfully");
@@ -1320,8 +1320,8 @@ pub fn run() {
             messaging_send_message,
             messaging_send_message_to_nickname,
             messaging_send_direct_share_group_message,
-            messaging_send_image_message_with_path,
-            messaging_send_group_image_message_with_path,
+            messaging_send_file_message_with_path,
+            messaging_send_group_file_message_with_path,
             messaging_get_peers,
             messaging_set_nickname,
             messaging_join_group,

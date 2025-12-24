@@ -268,13 +268,13 @@ export class MessagingClient {
     }
   }
 
-  // Send image message using file path
-  static async sendImageMessageWithPath(
+  // Send file message using file path
+  static async sendFileMessageWithPath(
     nickname: string,
     filePath: string
   ): Promise<{ messageId: string; imageData: string }> {
     const response = await invoke<string>(
-      'messaging_send_image_message_with_path',
+      'messaging_send_file_message_with_path',
       {
         nickname,
         filePath,
@@ -287,13 +287,13 @@ export class MessagingClient {
     return { messageId, imageData }
   }
 
-  // Send group image message using file path
-  static async sendGroupImageMessageWithPath(
+  // Send group file message using file path
+  static async sendGroupFileMessageWithPath(
     groupId: string,
     filePath: string
   ): Promise<{ messageId: string; imageData: string }> {
     const response = await invoke<string>(
-      'messaging_send_group_image_message_with_path',
+      'messaging_send_group_file_message_with_path',
       {
         groupId,
         filePath,

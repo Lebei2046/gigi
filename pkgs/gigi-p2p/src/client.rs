@@ -1016,23 +1016,23 @@ impl P2pClient {
         Ok(())
     }
 
-    /// Send image to peer using file sharing
-    pub async fn send_direct_image(&mut self, nickname: &str, image_path: &Path) -> Result<()> {
+    /// Send file to peer using file sharing
+    pub async fn send_direct_file(&mut self, nickname: &str, file_path: &Path) -> Result<()> {
         let peer_id = *self
             .nickname_to_peer
             .get(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
-        // 1. Add image to file sharing system
-        let share_code = self.file_manager.share_file(image_path).await?;
+        // 1. Add file to file sharing system
+        let share_code = self.file_manager.share_file(file_path).await?;
         let shared_file = self
             .file_manager
             .shared_files
             .get(&share_code)
-            .ok_or_else(|| P2pError::FileNotFound(image_path.to_path_buf()))?;
+            .ok_or_else(|| P2pError::FileNotFound(file_path.to_path_buf()))?;
 
         // 2. Detect file type
-        let file_type = mime_guess::from_path(image_path)
+        let file_type = mime_guess::from_path(file_path)
             .first_or_octet_stream()
             .to_string();
 
@@ -1150,8 +1150,8 @@ impl P2pClient {
         Ok(())
     }
 
-    /// Send image to group using file sharing
-    pub async fn send_group_image(&mut self, group_name: &str, image_path: &Path) -> Result<()> {
+    /// Send file to group using file sharing
+    pub async fn send_group_file(&mut self, group_name: &str, file_path: &Path) -> Result<()> {
         let group_topic = {
             let group = self
                 .groups
@@ -1161,23 +1161,23 @@ impl P2pClient {
         };
 
         // 1. Share the file to get a share code
-        let share_code = self.file_manager.share_file(image_path).await?;
+        let share_code = self.file_manager.share_file(file_path).await?;
         let shared_file = self
             .file_manager
             .shared_files
             .get(&share_code)
-            .ok_or_else(|| P2pError::FileNotFound(image_path.to_path_buf()))?;
+            .ok_or_else(|| P2pError::FileNotFound(file_path.to_path_buf()))?;
 
         let filename = shared_file.info.name.clone();
         let file_size = shared_file.info.size;
-        let file_type = mime_guess::from_path(image_path)
+        let file_type = mime_guess::from_path(file_path)
             .first_or_octet_stream()
             .to_string();
 
         // 2. Send message with file share information
         let group_message = GroupMessage {
             sender_nickname: self.local_nickname.clone(),
-            content: format!("Shared image: {}", filename),
+            content: format!("Shared file: {}", filename),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?
                 .as_secs(),

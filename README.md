@@ -138,7 +138,7 @@ Both applications feature:
 # Clone the repository
 git clone https://gitee.com/gigi-w/gigi.git
 # Or
-git clonehttps://github.com/Lebei2046/gigi.git
+git clone https://github.com/Lebei2046/gigi.git
 cd gigi
 
 # Install JavaScript/TypeScript dependencies

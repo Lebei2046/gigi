@@ -538,9 +538,9 @@ export default function ChatRoom() {
         // Dispatch via Redux
         dispatch(addImageMessage(imageMessage))
 
-        // Send image using file path and get response with image data
+        // Send file using file path and get response with image data
         try {
-          const response = await MessagingClient.sendGroupImageMessageWithPath(
+          const response = await MessagingClient.sendGroupFileMessageWithPath(
             group!.id,
             filePath
           )
@@ -592,9 +592,9 @@ export default function ChatRoom() {
         // Dispatch via Redux
         dispatch(addImageMessage(imageMessage))
 
-        // Send image using file path and get response with image data
+        // Send file using file path and get response with image data
         try {
-          const response = await MessagingClient.sendImageMessageWithPath(
+          const response = await MessagingClient.sendFileMessageWithPath(
             peer!.nickname,
             filePath
           )

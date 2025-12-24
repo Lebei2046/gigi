@@ -29,21 +29,21 @@ struct Args {
 
 fn show_help() {
     println!("\n📖 Available Commands:");
-    println!("  ┌─────────────────────────────────────────────────┐");
+    println!("  ┌──────────────────────────────────────────────────┐");
     println!("  │  help, ?, h              Show this help          │");
-    println!("  │  peers, p                 List connected peers    │");
+    println!("  │  peers, p                 List connected peers   │");
     println!("  │  send <nick> <msg>       Send direct message     │");
-    println!("  │  send-image <nick> <path> Send image file        │");
+    println!("  │  send-file <nick> <path> Send any file           │");
     println!("  │  join <group>            Join a group            │");
     println!("  │  leave <group>           Leave a group           │");
     println!("  │  send-group <grp> <msg>  Send to group           │");
-    println!("  │  send-group-image <grp> <path> Send group image   │");
+    println!("  │  send-group-file <grp> <path> Send group file    │");
     println!("  │  share <path>            Share a file            │");
     println!("  │  unshare <code>          Unshare a file          │");
     println!("  │  files, f                List shared files       │");
     println!("  │  download <nick> <code>  Download shared file    │");
     println!("  │  quit, exit, q           Exit the chat           │");
-    println!("  └─────────────────────────────────────────────────┘");
+    println!("  └──────────────────────────────────────────────────┘");
     println!("\n💡 Tips:");
     println!("  • Commands can be abbreviated (e.g., 's' for 'send')");
     println!("  • Use Ctrl+C to force quit");
@@ -202,6 +202,7 @@ async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pC
             filename,
             share_code: _,
             from_nickname,
+            from_peer_id: _,
             downloaded_chunks,
             total_chunks,
         } => {
@@ -216,6 +217,7 @@ async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pC
             filename,
             share_code: _,
             from_nickname,
+            from_peer_id: _,
             path,
         } => {
             println!(
@@ -260,6 +262,7 @@ async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pC
             filename,
             share_code: _,
             from_nickname,
+            from_peer_id: _,
             error,
         } => {
             error!(
@@ -329,31 +332,31 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                 }
             }
         }
-        "send-image" | "si" => {
+        "send-file" | "sf" => {
             if parts.len() < 3 {
-                println!("❌ Usage: send-image <nickname> <image-path>");
+                println!("❌ Usage: send-file <nickname> <file-path>");
             } else {
                 let nickname = parts[1];
-                let image_path = parts[2];
+                let file_path = parts[2];
                 info!(
                     to_nickname = %nickname,
-                    image_path = %image_path,
-                    "Sending direct image"
+                    file_path = %file_path,
+                    "Sending direct file"
                 );
                 match client
-                    .send_direct_image(nickname, &PathBuf::from(image_path))
+                    .send_direct_file(nickname, &PathBuf::from(file_path))
                     .await
                 {
                     Ok(()) => {
-                        println!("✅ Image sent to {}", nickname);
-                        debug!("Direct image sent successfully");
+                        println!("✅ File sent to {}", nickname);
+                        debug!("Direct file sent successfully");
                     }
                     Err(e) => {
                         error!(
                             to_nickname = %nickname,
-                            image_path = %image_path,
+                            file_path = %file_path,
                             error = %e,
-                            "Failed to send direct image"
+                            "Failed to send direct file"
                         );
                         println!("❌ Failed to send image: {}", e);
                     }
@@ -405,18 +408,18 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                 }
             }
         }
-        "send-group-image" | "sgi" => {
+        "send-group-file" | "sgf" => {
             if parts.len() < 3 {
-                println!("❌ Usage: send-group-image <group> <image-path>");
+                println!("❌ Usage: send-group-file <group> <file-path>");
             } else {
                 let group = parts[1];
-                let image_path = parts[2];
+                let file_path = parts[2];
                 match client
-                    .send_group_image(group, &PathBuf::from(image_path))
+                    .send_group_file(group, &PathBuf::from(file_path))
                     .await
                 {
-                    Ok(()) => println!("✅ Image sent to group: {}", group),
-                    Err(e) => println!("❌ Failed to send image to group: {}", e),
+                    Ok(()) => println!("✅ File sent to group: {}", group),
+                    Err(e) => println!("❌ Failed to send file to group: {}", e),
                 }
             }
         }
