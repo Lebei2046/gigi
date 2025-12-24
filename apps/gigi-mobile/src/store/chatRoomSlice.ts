@@ -47,10 +47,15 @@ export interface Message {
   timestamp: number
   isOutgoing: boolean
   isGroup?: boolean
-  messageType?: 'text' | 'image'
+  messageType?: 'text' | 'image' | 'file'
   imageId?: string
   imageData?: string
   filename?: string
+  fileSize?: number
+  fileType?: string
+  shareCode?: string
+  isDownloading?: boolean
+  downloadProgress?: number
 }
 
 export interface ChatRoomState {
@@ -343,14 +348,20 @@ const chatRoomSlice = createSlice({
         content?: string
         imageData?: string
         newId?: string
+        isDownloading?: boolean
+        downloadProgress?: number
       }>
     ) => {
-      const { id, content, imageData, newId } = action.payload
+      const { id, content, imageData, newId, isDownloading, downloadProgress } =
+        action.payload
       const message = state.messages.find(msg => msg.id === id)
       if (message) {
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData
         if (newId !== undefined) message.id = newId
+        if (isDownloading !== undefined) message.isDownloading = isDownloading
+        if (downloadProgress !== undefined)
+          message.downloadProgress = downloadProgress
       }
     },
 
@@ -361,14 +372,20 @@ const chatRoomSlice = createSlice({
         content?: string
         imageData?: string
         newId?: string
+        isDownloading?: boolean
+        downloadProgress?: number
       }>
     ) => {
-      const { id, content, imageData, newId } = action.payload
+      const { id, content, imageData, newId, isDownloading, downloadProgress } =
+        action.payload
       const message = state.messages.find(msg => msg.id === id)
       if (message) {
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData
         if (newId !== undefined) message.id = newId
+        if (isDownloading !== undefined) message.isDownloading = isDownloading
+        if (downloadProgress !== undefined)
+          message.downloadProgress = downloadProgress
       }
     },
 

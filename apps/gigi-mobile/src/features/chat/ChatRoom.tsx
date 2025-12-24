@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft as BackIcon } from 'lucide-react'
 import { formatShortPeerId } from '@/utils/peerUtils'
+import FileMessageBubble from '@/components/FileMessageBubble'
 
 export default function ChatRoom() {
   const navigate = useNavigate()
@@ -33,7 +34,7 @@ export default function ChatRoom() {
   const { id } = useParams<{ id: string }>()
   const dispatch = useAppDispatch()
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const saveTimeoutRef = useRef<NodeJS.Timeout>()
+  const saveTimeoutRef = useRef<number | null>(null)
   const sentMessagesRef = useRef<Set<string>>(new Set())
 
   // Redux state
@@ -46,7 +47,6 @@ export default function ChatRoom() {
     sending,
     isGroupChat,
     unreadResetDone,
-    error,
     chatId,
     chatName,
   } = useAppSelector(state => state.chatRoom)
@@ -317,6 +317,44 @@ export default function ChatRoom() {
       }
     }
 
+    // Listen for file messages
+    const handleFileMessageReceived = (messageData: any) => {
+      console.log('📁 File message received:', {
+        messageData,
+        chatId,
+        peerId: peer?.id,
+        from_peer_id: messageData.from_peer_id,
+        isGroupChat,
+        shouldProcess:
+          chatId && messageData.from_peer_id === chatId && !isGroupChat,
+      })
+
+      if (chatId && messageData.from_peer_id === chatId && !isGroupChat) {
+        const fileMessage: Message = {
+          id: messageData.share_code, // Use share_code as ID
+          from_peer_id: messageData.from_peer_id,
+          from_nickname: messageData.from_nickname,
+          content: messageData.download_error
+            ? `❌ File: ${messageData.filename} (Download failed)`
+            : `📄 File: ${messageData.filename}`,
+          timestamp: messageData.timestamp,
+          isOutgoing: false,
+          isGroup: false,
+          messageType: 'file',
+          shareCode: messageData.share_code,
+          filename: messageData.filename,
+          fileSize: messageData.file_size,
+          fileType: messageData.file_type,
+          isDownloading: false, // Don't auto-download, let user click to download
+          downloadProgress: 0,
+        }
+        console.log('📨 Adding file message to ChatRoom:', fileMessage)
+        dispatch(addMessage(fileMessage))
+      } else {
+        console.log('❌ File message not added to ChatRoom (condition failed)')
+      }
+    }
+
     // Listen for group image messages
     const handleGroupImageMessageReceived = (messageData: any) => {
       if (chatId && messageData.group_id === chatId && isGroupChat) {
@@ -339,107 +377,206 @@ export default function ChatRoom() {
       }
     }
 
+    // Listen for group file messages
+    const handleGroupFileMessageReceived = (messageData: any) => {
+      if (chatId && messageData.group_id === chatId && isGroupChat) {
+        const fileMessage: Message = {
+          id: messageData.share_code, // Use share_code as ID
+          from_peer_id: messageData.from_peer_id,
+          from_nickname: messageData.from_nickname,
+          content: messageData.download_error
+            ? `❌ File: ${messageData.filename} (Download failed)`
+            : `⬇️ File: ${messageData.filename} (Downloading...)`,
+          timestamp: messageData.timestamp,
+          isOutgoing: false,
+          isGroup: true,
+          messageType: 'file',
+          shareCode: messageData.share_code,
+          filename: messageData.filename,
+          fileSize: messageData.file_size,
+          fileType: messageData.file_type,
+          isDownloading: !messageData.download_error,
+          downloadProgress: 0,
+        }
+        dispatch(addGroupImageMessage(fileMessage))
+      }
+    }
+
     // Listen for file download events
     const handleFileDownloadStarted = (data: any) => {
-      // This event is now handled automatically by the auto-download in DirectFileShareMessage handler
-      // No need to update message here since it's already created with downloading status
+      // Update UI to show downloading has started (for auto-downloaded files)
+      const updateFields = {
+        id: data.share_code,
+        isDownloading: true,
+        downloadProgress: 0,
+      }
+
+      if (isGroupChat) {
+        dispatch(updateGroupMessage(updateFields))
+      } else if (!isGroupChat && data.from_peer_id === chatId) {
+        dispatch(updateMessage(updateFields))
+      }
     }
 
     const handleFileDownloadProgress = (data: any) => {
       // Update message content with progress
       const progressText = `⬇️ Downloading ${data.filename}: ${data.progress_percent.toFixed(1)}%`
 
+      const updateFields = {
+        id: data.share_code,
+        content: progressText,
+        downloadProgress: data.progress_percent,
+        isDownloading: data.progress_percent < 100,
+      }
+
       if (isGroupChat) {
-        dispatch(
-          updateGroupMessage({
-            id: data.share_code,
-            content: progressText,
-          })
-        )
+        dispatch(updateGroupMessage(updateFields))
       } else if (!isGroupChat && data.from_peer_id === chatId) {
-        dispatch(
-          updateMessage({
-            id: data.share_code,
-            content: progressText,
-          })
-        )
+        dispatch(updateMessage(updateFields))
       }
     }
 
     const handleFileDownloadCompleted = async (data: any) => {
-      try {
-        // Convert local file to base64 for display
-        const imageData = await MessagingClient.getImageData(data.path)
+      // Extract actual filename from path if data.filename is wrong
+      const actualFilename =
+        data.filename === 'Loading...' || data.filename.includes('...')
+          ? data.path.split(/[\\/]/).pop() || data.filename
+          : data.filename
 
-        // Extract actual filename from path if data.filename is wrong
-        const actualFilename =
-          data.filename === 'Loading...' || data.filename.includes('...')
-            ? data.path.split(/[\\/]/).pop() || data.filename
-            : data.filename
+      // Determine if it's an image file
+      const isImage =
+        data.file_type?.startsWith('image/') ||
+        /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(actualFilename)
 
-        const updatedMessage: Partial<Message> = {
-          content: `📷 Image: ${actualFilename}`,
-          imageData, // Base64 data URL
+      let updatedMessage: Partial<Message> = {
+        isDownloading: false,
+        downloadProgress: 100,
+      }
+
+      if (isImage) {
+        try {
+          // Convert local file to base64 for display
+          const imageData = await MessagingClient.getImageData(data.path)
+
+          updatedMessage = {
+            ...updatedMessage,
+            content: `📷 Image: ${actualFilename}`,
+            imageData, // Base64 data URL
+          }
+        } catch (error) {
+          console.error('Failed to convert downloaded image to base64:', error)
+          // Fallback to file path if conversion fails
+          updatedMessage = {
+            ...updatedMessage,
+            content: `📷 Image: ${actualFilename}`,
+            imageData: `file://${data.path}`,
+          }
         }
-
-        if (isGroupChat) {
-          dispatch(
-            updateGroupMessage({
-              id: data.share_code,
-              ...updatedMessage,
-            })
-          )
-        } else if (!isGroupChat && data.from_peer_id === chatId) {
-          dispatch(
-            updateMessage({
-              id: data.share_code,
-              ...updatedMessage,
-            })
-          )
-        }
-      } catch (error) {
-        console.error('Failed to convert downloaded image to base64:', error)
-        // Fallback to file path if conversion fails
-        const fallbackMessage: Partial<Message> = {
-          content: `📷 Image: ${data.filename}`,
-          imageData: `file://${data.path}`,
-        }
-
-        if (isGroupChat) {
-          dispatch(
-            updateGroupMessage({
-              id: data.share_code,
-              ...fallbackMessage,
-            })
-          )
-        } else if (!isGroupChat && data.from_peer_id === chatId) {
-          dispatch(
-            updateMessage({
-              id: data.share_code,
-              ...fallbackMessage,
-            })
-          )
+      } else {
+        // For non-image files, just mark as completed
+        const fileIcon = getFileIcon(data.file_type, actualFilename)
+        updatedMessage = {
+          ...updatedMessage,
+          content: `${fileIcon} File: ${actualFilename} (Downloaded)`,
         }
       }
-    }
-
-    const handleFileDownloadFailed = (data: any) => {
-      const errorMessage = `❌ Image: ${data.filename} (Download failed: ${data.error})`
 
       if (isGroupChat) {
         dispatch(
           updateGroupMessage({
             id: data.share_code,
-            content: errorMessage,
+            ...updatedMessage,
           })
         )
       } else if (!isGroupChat && data.from_peer_id === chatId) {
         dispatch(
           updateMessage({
             id: data.share_code,
-            content: errorMessage,
+            ...updatedMessage,
           })
         )
+      }
+    }
+
+    // Helper function to get file icon (copied from FileMessageBubble)
+    const getFileIcon = (fileType?: string, filename?: string) => {
+      if (!fileType && !filename) return '📎'
+
+      const type = fileType?.toLowerCase() || ''
+      const ext = filename?.split('.').pop()?.toLowerCase() || ''
+
+      // Images
+      if (
+        type.startsWith('image/') ||
+        ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].includes(ext)
+      ) {
+        return '🖼️'
+      }
+
+      // Videos
+      if (
+        type.startsWith('video/') ||
+        ['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(ext)
+      ) {
+        return '🎬'
+      }
+
+      // Audio
+      if (
+        type.startsWith('audio/') ||
+        ['mp3', 'wav', 'flac', 'aac', 'ogg'].includes(ext)
+      ) {
+        return '🎵'
+      }
+
+      // Documents
+      if (['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext)) {
+        return '📄'
+      }
+
+      // Archives
+      if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+        return '📦'
+      }
+
+      // Code files (like Cargo.toml)
+      if (
+        [
+          'toml',
+          'json',
+          'js',
+          'ts',
+          'jsx',
+          'tsx',
+          'css',
+          'html',
+          'xml',
+          'yaml',
+          'yml',
+        ].includes(ext)
+      ) {
+        return '📝'
+      }
+
+      // Default
+      return '📎'
+    }
+
+    const handleFileDownloadFailed = (data: any) => {
+      const fileIcon = getFileIcon(data.file_type, data.filename)
+      const errorMessage = `❌ ${fileIcon} File: ${data.filename} (Download failed: ${data.error})`
+
+      const updateFields = {
+        id: data.share_code,
+        content: errorMessage,
+        isDownloading: false,
+        downloadProgress: undefined,
+      }
+
+      if (isGroupChat) {
+        dispatch(updateGroupMessage(updateFields))
+      } else if (!isGroupChat && data.from_peer_id === chatId) {
+        dispatch(updateMessage(updateFields))
       }
     }
 
@@ -447,6 +584,13 @@ export default function ChatRoom() {
     MessagingEvents.on(
       'group-image-message-received',
       handleGroupImageMessageReceived
+    )
+
+    // Register file message listeners
+    MessagingEvents.on('file-message-received', handleFileMessageReceived)
+    MessagingEvents.on(
+      'group-file-message-received',
+      handleGroupFileMessageReceived
     )
 
     // Register download event listeners
@@ -462,6 +606,11 @@ export default function ChatRoom() {
       MessagingEvents.off(
         'group-image-message-received',
         handleGroupImageMessageReceived
+      )
+      MessagingEvents.off('file-message-received', handleFileMessageReceived)
+      MessagingEvents.off(
+        'group-file-message-received',
+        handleGroupFileMessageReceived
       )
       MessagingEvents.off('file-download-started', handleFileDownloadStarted)
       MessagingEvents.off('file-download-progress', handleFileDownloadProgress)
@@ -632,6 +781,209 @@ export default function ChatRoom() {
     }
   }
 
+  const handleFileSelectWithDialog = async () => {
+    if (!isGroupChat && !peer) return
+    if (isGroupChat && !group) return
+
+    try {
+      // Use dialog to select any file
+      const filePath = await MessagingClient.selectAnyFile()
+      if (!filePath) {
+        return // User cancelled the dialog
+      }
+
+      const timestamp = Date.now()
+      const fileInfo = await MessagingClient.getFileInfo(filePath)
+
+      // Add file message to local state immediately for optimistic UI
+      if (isGroupChat) {
+        const fileMessage: Message = {
+          id: generateMessageId(),
+          from_peer_id: 'me',
+          from_nickname: 'Me',
+          content: `📎 File: ${fileInfo.name} (Processing...)`,
+          timestamp,
+          isOutgoing: true,
+          isGroup: true,
+          messageType: 'file',
+          filename: fileInfo.name,
+          fileSize: fileInfo.size,
+          fileType: fileInfo.type,
+          isDownloading: false,
+          downloadProgress: 0,
+        }
+
+        // Track this message to avoid duplicates
+        sentMessagesRef.current.add(fileMessage.id)
+        // Dispatch via Redux
+        dispatch(addMessage(fileMessage))
+
+        // Send file using file path
+        try {
+          const response = await MessagingClient.sendFileMessageWithPath(
+            peer!.nickname,
+            filePath
+          )
+
+          // Update message with the returned message ID
+          const updatedMessage: Message = {
+            ...fileMessage,
+            id: response.messageId,
+            content: `📎 File: ${fileInfo.name}`,
+          }
+
+          // Update message in store
+          dispatch(
+            updateMessage({
+              id: fileMessage.id,
+              content: updatedMessage.content,
+              newId: updatedMessage.id,
+            })
+          )
+        } catch (error) {
+          console.error('❌ Failed to send group file:', error)
+          // Update message to show error
+          dispatch(
+            updateMessage({
+              id: fileMessage.id,
+              content: `❌ File: ${fileInfo.name} (Failed to send)`,
+            })
+          )
+        }
+      } else {
+        const fileMessage: Message = {
+          id: generateMessageId(),
+          from_peer_id: peer!.id,
+          from_nickname: peer!.nickname,
+          content: `📎 File: ${fileInfo.name} (Processing...)`,
+          timestamp,
+          isOutgoing: true,
+          isGroup: false,
+          messageType: 'file',
+          filename: fileInfo.name,
+          fileSize: fileInfo.size,
+          fileType: fileInfo.type,
+          isDownloading: false,
+          downloadProgress: 0,
+        }
+
+        // Track this message to avoid duplicates
+        sentMessagesRef.current.add(fileMessage.id)
+        // Dispatch via Redux
+        dispatch(addMessage(fileMessage))
+
+        // Send file using file path
+        try {
+          const response = await MessagingClient.sendFileMessageWithPath(
+            peer!.nickname,
+            filePath
+          )
+
+          // Update message with the returned message ID
+          const updatedMessage: Message = {
+            ...fileMessage,
+            id: response.messageId,
+            content: `📎 File: ${fileInfo.name}`,
+          }
+
+          // Update message in store
+          dispatch(
+            updateMessage({
+              id: fileMessage.id,
+              content: updatedMessage.content,
+              newId: updatedMessage.id,
+            })
+          )
+        } catch (error) {
+          console.error('❌ Failed to send direct file:', error)
+          // Update message to show error
+          dispatch(
+            updateMessage({
+              id: fileMessage.id,
+              content: `❌ File: ${fileInfo.name} (Failed to send)`,
+            })
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send file:', error)
+    }
+  }
+
+  const handleFileDownloadRequest = async (
+    shareCode: string,
+    filename: string
+  ) => {
+    console.log('🔍 handleFileDownloadRequest called:', {
+      shareCode,
+      filename,
+      peer: peer ? `${peer.nickname} (${peer.id})` : 'null',
+      isGroupChat,
+    })
+
+    if (!peer) {
+      console.error('❌ No peer found, cannot download file')
+      return
+    }
+
+    try {
+      console.log(
+        `🎯 Requesting download for file: ${filename} with share code: ${shareCode}`
+      )
+
+      // Update UI to show downloading state immediately
+      const updateAction = isGroupChat
+        ? updateGroupMessage({
+            id: shareCode,
+            isDownloading: true,
+            downloadProgress: 0,
+          })
+        : updateMessage({
+            id: shareCode,
+            isDownloading: true,
+            downloadProgress: 0,
+          })
+
+      dispatch(updateAction)
+
+      // Request file download from peer
+      console.log('📞 Calling MessagingClient.requestFileFromNickname...')
+      await MessagingClient.requestFileFromNickname(peer.nickname, shareCode)
+      console.log('✅ requestFileFromNickname completed successfully')
+
+      dispatch(
+        addLog({
+          event: 'file_download_requested',
+          data: `Requested download of ${filename} from ${peer.nickname}`,
+          type: 'info',
+        })
+      )
+    } catch (error) {
+      console.error('❌ Failed to request file download:', error)
+
+      // Reset downloading state on error
+      const resetAction = isGroupChat
+        ? updateGroupMessage({
+            id: shareCode,
+            isDownloading: false,
+          })
+        : updateMessage({
+            id: shareCode,
+            isDownloading: false,
+          })
+
+      dispatch(resetAction)
+
+      dispatch(
+        addLog({
+          event: 'file_download_request_failed',
+          data: `Failed to request download of ${filename}: ${error}`,
+          type: 'error',
+        })
+      )
+    }
+  }
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return
     if (!isGroupChat && !peer) return
@@ -718,7 +1070,7 @@ export default function ChatRoom() {
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
@@ -773,8 +1125,8 @@ export default function ChatRoom() {
           </h2>
           <p className="text-sm text-gray-500">
             {isGroupChat
-              ? `Group • ${formatShortPeerId(chatId)}`
-              : `Direct • ${formatShortPeerId(chatId)}`}
+              ? `Group • ${chatId ? formatShortPeerId(chatId) : 'N/A'}`
+              : `Direct • ${chatId ? formatShortPeerId(chatId) : 'N/A'}`}
           </p>
         </div>
       </div>
@@ -826,6 +1178,11 @@ export default function ChatRoom() {
                       )}
                       <p className="text-sm break-words">{message.content}</p>
                     </div>
+                  ) : message.messageType === 'file' ? (
+                    <FileMessageBubble
+                      message={message}
+                      onDownloadRequest={handleFileDownloadRequest}
+                    />
                   ) : (
                     <p className="text-sm break-words">{message.content}</p>
                   )}
@@ -846,6 +1203,17 @@ export default function ChatRoom() {
       {/* Message Input */}
       <div className="border-t bg-white p-4">
         <div className="flex gap-2">
+          {/* File upload button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFileSelectWithDialog}
+            disabled={sending}
+            title="Select any file"
+          >
+            📎
+          </Button>
+
           {/* Image upload button */}
           <Button
             variant="outline"
@@ -860,7 +1228,7 @@ export default function ChatRoom() {
           <Input
             value={newMessage}
             onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder={
               isGroupChat
                 ? `Message ${group?.name}...`

@@ -21,7 +21,6 @@ import {
   setComponentError,
   updateDirectMessage,
   updateGroupMessage,
-  clearChatMessages,
 } from '@/store/chatSlice'
 import { clearMessages } from '@/store/chatRoomSlice'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -200,14 +199,18 @@ export default function Chat() {
     window.addEventListener('popstate', handleRouteChange)
 
     // Listen for custom unread count reset events
-    const handleUnreadCountReset = (event?: CustomEvent) => {
-      if (event?.detail) {
-        console.log('📊 Event details:', event.detail)
+    const handleUnreadCountReset = (event: Event) => {
+      const customEvent = event as CustomEvent
+      if (customEvent?.detail) {
+        console.log('📊 Event details:', customEvent.detail)
       }
       loadChats()
       loadGroups()
     }
-    window.addEventListener('unreadCountReset', handleUnreadCountReset)
+    window.addEventListener(
+      'unreadCountReset',
+      handleUnreadCountReset as EventListener
+    )
 
     return () => {
       clearInterval(refreshInterval)
@@ -469,8 +472,8 @@ export default function Chat() {
           // Update latest message for chat list display
           dispatch(
             updateDirectMessage({
-              peerId: messageData.from_peer_id,
-              lastMessage: `📷 Image: ${messageData.filename}`,
+              from_peer_id: messageData.from_peer_id,
+              content: `📷 Image: ${messageData.filename}`,
               timestamp: messageData.timestamp,
             })
           )
@@ -484,8 +487,8 @@ export default function Chat() {
 
           dispatch(
             updateGroupMessage({
-              groupId: messageData.group_id,
-              lastMessage: messageText,
+              group_id: messageData.group_id,
+              content: messageText,
               timestamp: messageData.timestamp,
             })
           )
@@ -494,9 +497,9 @@ export default function Chat() {
         const handleFileMessageReceived = (messageData: any) => {
           // Update latest message for chat list display
           dispatch(
-            updateMessage({
-              peerId: messageData.from_peer_id,
-              lastMessage: `📎 File: ${messageData.filename}`,
+            updateDirectMessage({
+              from_peer_id: messageData.from_peer_id,
+              content: `📎 File: ${messageData.filename}`,
               timestamp: messageData.timestamp,
             })
           )
@@ -505,9 +508,9 @@ export default function Chat() {
         const handleFileDownloadCompleted = (messageData: any) => {
           // Update the message when download completes
           dispatch(
-            updateMessage({
-              peerId: messageData.from_nickname,
-              lastMessage: `📷 Image: ${messageData.filename}`,
+            updateDirectMessage({
+              from_peer_id: messageData.from_nickname,
+              content: `📷 Image: ${messageData.filename}`,
               timestamp: messageData.timestamp,
             })
           )
@@ -566,13 +569,9 @@ export default function Chat() {
 
   // Group sharing functions
   const handleShareGroup = (group: Group) => {
-    // Convert to Redux-compatible format
     const reduxGroup = {
       ...group,
-      createdAt:
-        group.createdAt instanceof Date
-          ? group.createdAt.toISOString()
-          : group.createdAt,
+      createdAt: group.createdAt.toISOString(), // Convert Date to string for Redux
     }
     dispatch(setSelectedGroup(reduxGroup))
     dispatch(setShowShareDrawer(true))

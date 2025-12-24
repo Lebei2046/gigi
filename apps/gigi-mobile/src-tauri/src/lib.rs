@@ -528,13 +528,29 @@ async fn messaging_request_file_from_nickname(
     share_code: &str,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    info!(
+        "📥 File download request: nickname={}, share_code={}",
+        nickname, share_code
+    );
+
     let mut client_guard = state.p2p_client.lock().await;
     if let Some(client) = client_guard.as_mut() {
-        client
-            .download_file(nickname, share_code)
-            .map_err(|e| format!("Failed to request file: {}", e))?;
-        Ok(uuid::Uuid::new_v4().to_string())
+        match client.download_file(nickname, share_code) {
+            Ok(()) => {
+                let download_id = uuid::Uuid::new_v4().to_string();
+                info!(
+                    "✅ Download request sent successfully: download_id={}",
+                    download_id
+                );
+                Ok(download_id)
+            }
+            Err(e) => {
+                error!("❌ Failed to request file: {}", e);
+                Err(format!("Failed to request file: {}", e))
+            }
+        }
     } else {
+        error!("❌ P2P client not initialized");
         Err("P2P client not initialized".to_string())
     }
 }
@@ -751,6 +767,65 @@ async fn messaging_get_image_data(file_path: &str) -> Result<String, String> {
     let data_url = format!("data:{};base64,{}", file_type, base64_data);
 
     Ok(data_url)
+}
+
+#[tauri::command]
+async fn messaging_select_any_file(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    match app
+        .dialog()
+        .file()
+        .set_title("Select File")
+        .add_filter("All Files", &["*"])
+        .add_filter("Documents", &["pdf", "doc", "docx", "txt", "rtf"])
+        .add_filter("Images", &["png", "jpg", "jpeg", "gif", "bmp", "webp"])
+        .add_filter("Videos", &["mp4", "avi", "mov", "mkv", "webm"])
+        .add_filter("Audio", &["mp3", "wav", "flac", "aac", "ogg"])
+        .add_filter("Archives", &["zip", "rar", "7z", "tar", "gz"])
+        .blocking_pick_file()
+    {
+        Some(path) => {
+            info!("User selected file: {}", path);
+            Ok(Some(path.to_string()))
+        }
+        None => {
+            info!("User cancelled file selection");
+            Ok(None)
+        }
+    }
+}
+
+#[tauri::command]
+async fn messaging_get_file_info(file_path: &str) -> Result<FileInfo, String> {
+    let path = PathBuf::from(file_path);
+
+    // Verify file exists
+    if !path.exists() {
+        return Err("File does not exist".to_string());
+    }
+
+    // Get file metadata
+    let metadata =
+        fs::metadata(&path).map_err(|e| format!("Failed to get file metadata: {}", e))?;
+
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let mime_type = mime_guess::from_path(&path)
+        .first_or_octet_stream()
+        .to_string();
+
+    Ok(FileInfo {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: file_name,
+        size: metadata.len(),
+        mime_type,
+        peer_id: "".to_string(), // Will be set when sharing
+    })
 }
 
 // Event handler
@@ -1334,6 +1409,8 @@ pub fn run() {
             messaging_remove_shared_file,
             messaging_save_shared_files,
             messaging_get_image_data,
+            messaging_get_file_info,
+            messaging_select_any_file,
             messaging_get_public_key,
             messaging_get_active_downloads,
             messaging_update_config,

@@ -14,10 +14,15 @@ export interface Message {
   from_nickname: string
   content: string
   timestamp: number
-  messageType?: 'text' | 'image'
+  messageType?: 'text' | 'image' | 'file'
   imageId?: string
   imageData?: string
   filename?: string
+  fileSize?: number
+  fileType?: string
+  shareCode?: string
+  isDownloading?: boolean
+  downloadProgress?: number
 }
 
 export interface GroupMessage {
@@ -266,6 +271,120 @@ export class MessagingClient {
       console.error('Failed to open file dialog:', error)
       return null
     }
+  }
+
+  // Select any file using dialog
+  static async selectAnyFile(): Promise<string | null> {
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        filters: [
+          {
+            name: 'All Files',
+            extensions: ['*'],
+          },
+          {
+            name: 'Documents',
+            extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf'],
+          },
+          {
+            name: 'Images',
+            extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
+          },
+          {
+            name: 'Videos',
+            extensions: ['mp4', 'avi', 'mov', 'mkv', 'webm'],
+          },
+          {
+            name: 'Audio',
+            extensions: ['mp3', 'wav', 'flac', 'aac', 'ogg'],
+          },
+          {
+            name: 'Archives',
+            extensions: ['zip', 'rar', '7z', 'tar', 'gz'],
+          },
+        ],
+      })
+
+      return selected || null
+    } catch (error) {
+      console.error('Failed to open file dialog:', error)
+      return null
+    }
+  }
+
+  // Get file info from path - using backend Rust function
+  static async getFileInfo(
+    filePath: string
+  ): Promise<{ name: string; size: number; type: string }> {
+    try {
+      const response = await invoke<{
+        name: string
+        size: number
+        mime_type: string
+      }>('messaging_get_file_info', { filePath })
+      return {
+        name: response.name,
+        size: response.size,
+        type: response.mime_type,
+      }
+    } catch (error) {
+      console.error('Failed to get file info:', error)
+      // Fallback - simple extraction from path
+      const fileName = filePath.split(/[\\/]/).pop() || 'unknown'
+      const ext = fileName.split('.').pop()?.toLowerCase() || ''
+      const mimeType = this.getMimeTypeFromExtension(ext)
+
+      return {
+        name: fileName,
+        size: 0,
+        type: mimeType,
+      }
+    }
+  }
+
+  // Simple MIME type detection
+  private static getMimeTypeFromExtension(ext: string): string {
+    const mimeTypes: { [key: string]: string } = {
+      // Images
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      bmp: 'image/bmp',
+      webp: 'image/webp',
+
+      // Videos
+      mp4: 'video/mp4',
+      avi: 'video/x-msvideo',
+      mov: 'video/quicktime',
+      mkv: 'video/x-matroska',
+      webm: 'video/webm',
+
+      // Audio
+      mp3: 'audio/mpeg',
+      wav: 'audio/wav',
+      flac: 'audio/flac',
+      aac: 'audio/aac',
+      ogg: 'audio/ogg',
+
+      // Documents
+      pdf: 'application/pdf',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      txt: 'text/plain',
+      rtf: 'application/rtf',
+
+      // Archives
+      zip: 'application/zip',
+      rar: 'application/x-rar-compressed',
+      '7z': 'application/x-7z-compressed',
+      tar: 'application/x-tar',
+      gz: 'application/gzip',
+    }
+
+    return mimeTypes[ext] || 'application/octet-stream'
   }
 
   // Send file message using file path
