@@ -12,14 +12,12 @@ use serde::{Deserialize, Serialize};
 /// Nickname exchange messages
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NicknameRequest {
-    GetNickname,
     AnnounceNickname { nickname: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NicknameResponse {
-    Nickname { peer_id: String, nickname: String },
-    Ack,
+    Ack { nickname: String },
     Error(String),
 }
 

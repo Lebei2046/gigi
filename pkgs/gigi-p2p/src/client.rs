@@ -235,13 +235,11 @@ impl P2pClient {
                     request, channel, ..
                 } => {
                     let response = match request {
-                        NicknameRequest::GetNickname => NicknameResponse::Nickname {
-                            peer_id: self.swarm.local_peer_id().to_string(),
-                            nickname: self.local_nickname.clone(),
-                        },
                         NicknameRequest::AnnounceNickname { nickname } => {
                             self.update_peer_nickname(peer, nickname.clone());
-                            NicknameResponse::Ack
+                            NicknameResponse::Ack {
+                                nickname: self.local_nickname.clone(),
+                            }
                         }
                     };
                     debug!("Sending nickname response to {}: {:?}", peer, response);
@@ -253,8 +251,16 @@ impl P2pClient {
                 }
                 request_response::Message::Response { response, .. } => {
                     debug!("Received nickname response from {}: {:?}", peer, response);
-                    if let NicknameResponse::Nickname { nickname, .. } = response {
-                        self.update_peer_nickname(peer, nickname);
+                    // Handle Ack or Error responses
+                    match response {
+                        super::behaviour::NicknameResponse::Ack { nickname } => {
+                            debug!("Peer {} acknowledged our nickname announcement with their nickname: {}", peer, nickname);
+                            // Update peer with their nickname from the Ack response
+                            self.update_peer_nickname(peer, nickname);
+                        }
+                        super::behaviour::NicknameResponse::Error(error) => {
+                            warn!("Peer {} reported nickname error: {}", peer, error);
+                        }
                     }
                 }
             }
@@ -887,13 +893,6 @@ impl P2pClient {
             let nickname = peer_id.to_string(); // Default nickname
 
             self.nickname_to_peer.insert(nickname.clone(), peer_id);
-
-            // Request nickname from peer
-            debug!("Sending GetNickname request to {}", peer_id);
-            self.swarm
-                .behaviour_mut()
-                .nickname
-                .send_request(&peer_id, NicknameRequest::GetNickname);
 
             // Announce our nickname
             debug!(
