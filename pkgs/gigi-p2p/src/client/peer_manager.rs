@@ -1,0 +1,234 @@
+//! Peer management functionality
+
+use anyhow::Result;
+use libp2p::{multiaddr::Multiaddr, PeerId, Swarm};
+use std::collections::HashMap;
+use std::time::Instant;
+use tracing::debug;
+
+use crate::behaviour::{NicknameRequest, UnifiedBehaviour};
+use crate::error::P2pError;
+use crate::events::{P2pEvent, PeerInfo};
+
+/// Peer management functionality
+pub struct PeerManager {
+    peers: HashMap<PeerId, PeerInfo>,
+    nickname_to_peer: HashMap<String, PeerId>,
+}
+
+impl PeerManager {
+    /// Create a new peer manager
+    pub fn new() -> Self {
+        Self {
+            peers: HashMap::new(),
+            nickname_to_peer: HashMap::new(),
+        }
+    }
+
+    /// Handle peer discovery
+    pub fn handle_peer_discovered(
+        &mut self,
+        peer_id: PeerId,
+        addr: Multiaddr,
+        swarm: &mut Swarm<UnifiedBehaviour>,
+        local_nickname: &str,
+        event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
+    ) -> Result<()> {
+        if !self.peers.contains_key(&peer_id) {
+            let nickname = peer_id.to_string(); // Default nickname
+
+            self.nickname_to_peer.insert(nickname.clone(), peer_id);
+
+            // Announce our nickname
+            debug!(
+                "Sending AnnounceNickname request to {} as {}",
+                peer_id, local_nickname
+            );
+            swarm.behaviour_mut().nickname.send_request(
+                &peer_id,
+                NicknameRequest::AnnounceNickname {
+                    nickname: local_nickname.to_string(),
+                },
+            );
+
+            let _ = event_sender.unbounded_send(P2pEvent::PeerDiscovered {
+                peer_id,
+                nickname: nickname.clone(),
+                address: addr.clone(),
+            });
+
+            let peer_info = PeerInfo {
+                peer_id,
+                nickname,
+                addresses: vec![addr],
+                last_seen: Instant::now(),
+                connected: false,
+            };
+
+            self.peers.insert(peer_id, peer_info);
+        }
+        Ok(())
+    }
+
+    /// Handle peer expiration
+    pub fn handle_peer_expired(
+        &mut self,
+        peer_id: PeerId,
+        event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
+    ) -> Result<()> {
+        if let Some(peer) = self.peers.remove(&peer_id) {
+            self.nickname_to_peer.remove(&peer.nickname);
+
+            let _ = event_sender.unbounded_send(P2pEvent::PeerExpired {
+                peer_id,
+                nickname: peer.nickname,
+            });
+        }
+        Ok(())
+    }
+
+    /// Update peer nickname
+    pub fn update_peer_nickname(
+        &mut self,
+        peer_id: PeerId,
+        nickname: String,
+        event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
+    ) {
+        if let Some(peer) = self.peers.get_mut(&peer_id) {
+            let old_nickname = peer.nickname.clone();
+            if old_nickname != nickname {
+                self.nickname_to_peer.remove(&old_nickname);
+                self.nickname_to_peer.insert(nickname.clone(), peer_id);
+                peer.nickname = nickname.clone();
+
+                let _ =
+                    event_sender.unbounded_send(P2pEvent::NicknameUpdated { peer_id, nickname });
+            }
+        }
+    }
+
+    /// Get peer by nickname
+    pub fn get_peer_by_nickname(&self, nickname: &str) -> Result<&PeerInfo> {
+        let peer_id = *self
+            .nickname_to_peer
+            .get(nickname)
+            .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
+        self.peers
+            .get(&peer_id)
+            .ok_or_else(|| P2pError::PeerNotFound(peer_id).into())
+    }
+
+    /// Get peer nickname
+    pub fn get_peer_nickname(&self, peer_id: &PeerId) -> Result<String> {
+        self.peers
+            .get(peer_id)
+            .map(|p| p.nickname.clone())
+            .ok_or_else(|| P2pError::PeerNotFound(*peer_id).into())
+    }
+
+    /// Get peer info
+    pub fn get_peer(&self, peer_id: &PeerId) -> Option<&PeerInfo> {
+        self.peers.get(peer_id)
+    }
+
+    /// Get peer info by nickname
+    pub fn get_peer_id_by_nickname(&self, nickname: &str) -> Option<PeerId> {
+        self.nickname_to_peer.get(nickname).copied()
+    }
+
+    /// Remove a peer from the peer list
+    pub fn remove_peer(&mut self, peer_id: &PeerId) {
+        if let Some(peer) = self.peers.remove(peer_id) {
+            self.nickname_to_peer.remove(&peer.nickname);
+        }
+    }
+
+    /// Gracefully shutdown all peers and notify
+    pub fn shutdown(
+        &mut self,
+        event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
+    ) -> Result<()> {
+        // Close all connections and notify peers
+        let connected_peers: Vec<PeerId> = self.peers.keys().copied().collect();
+        for peer_id in connected_peers {
+            if let Some(peer) = self.peers.remove(&peer_id) {
+                self.nickname_to_peer.remove(&peer.nickname);
+                let _ = event_sender.unbounded_send(P2pEvent::Disconnected {
+                    peer_id,
+                    nickname: peer.nickname.clone(),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// List all discovered peers
+    pub fn list_peers(&self) -> Vec<&PeerInfo> {
+        self.peers.values().collect()
+    }
+
+    /// Handle peer connection established
+    pub fn handle_connection_established(
+        &mut self,
+        peer_id: PeerId,
+        event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
+    ) {
+        if let Some(peer) = self.peers.get_mut(&peer_id) {
+            peer.connected = true;
+            peer.last_seen = Instant::now();
+
+            let _ = event_sender.unbounded_send(P2pEvent::Connected {
+                peer_id,
+                nickname: peer.nickname.clone(),
+            });
+        }
+    }
+
+    /// Handle peer connection closed
+    pub fn handle_connection_closed(
+        &mut self,
+        peer_id: PeerId,
+        event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
+    ) {
+        if let Some(peer) = self.peers.remove(&peer_id) {
+            self.nickname_to_peer.remove(&peer.nickname);
+
+            let _ = event_sender.unbounded_send(P2pEvent::Disconnected {
+                peer_id,
+                nickname: peer.nickname.clone(),
+            });
+        }
+    }
+
+    /// Get peers count
+    pub fn peers_count(&self) -> usize {
+        self.peers.len()
+    }
+
+    /// Get connected peers count
+    pub fn connected_peers_count(&self) -> usize {
+        self.peers.values().filter(|p| p.connected).count()
+    }
+
+    /// Get all connected peers
+    pub fn get_connected_peers(&self) -> Vec<&PeerInfo> {
+        self.peers.values().filter(|p| p.connected).collect()
+    }
+
+    /// Check if peer exists
+    pub fn has_peer(&self, peer_id: &PeerId) -> bool {
+        self.peers.contains_key(peer_id)
+    }
+
+    /// Check if nickname exists
+    pub fn has_nickname(&self, nickname: &str) -> bool {
+        self.nickname_to_peer.contains_key(nickname)
+    }
+}
+
+impl Default for PeerManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}

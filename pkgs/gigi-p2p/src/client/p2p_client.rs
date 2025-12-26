@@ -12,12 +12,13 @@ use libp2p::{
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tracing::{debug, error, info, instrument, warn};
 
 use super::{
     file_transfer::{FileTransferManager, CHUNK_SIZE},
     group_manager::GroupManager,
+    peer_manager::PeerManager,
 };
 use crate::behaviour::{
     create_gossipsub_behaviour, create_gossipsub_config, DirectMessage, FileTransferRequest,
@@ -32,8 +33,7 @@ pub struct P2pClient {
     local_nickname: String,
 
     // Peer management
-    peers: HashMap<PeerId, PeerInfo>,
-    nickname_to_peer: HashMap<String, PeerId>,
+    peer_manager: PeerManager,
 
     // Group management
     group_manager: GroupManager,
@@ -129,8 +129,7 @@ impl P2pClient {
         let mut client = Self {
             swarm,
             local_nickname: nickname,
-            peers: HashMap::new(),
-            nickname_to_peer: HashMap::new(),
+            peer_manager: PeerManager::new(),
             group_manager: GroupManager::new(),
             file_manager,
             active_downloads: HashMap::new(),
@@ -170,21 +169,12 @@ impl P2pClient {
                 self.send_event(P2pEvent::ListeningOn { address });
             }
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                if let Some(peer) = self.peers.get(&peer_id) {
-                    self.send_event(P2pEvent::Connected {
-                        peer_id,
-                        nickname: peer.nickname.clone(),
-                    });
-                }
+                self.peer_manager
+                    .handle_connection_established(peer_id, &mut self.event_sender);
             }
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                if let Some(peer) = self.peers.remove(&peer_id) {
-                    self.nickname_to_peer.remove(&peer.nickname);
-                    self.send_event(P2pEvent::Disconnected {
-                        peer_id,
-                        nickname: peer.nickname.clone(),
-                    });
-                }
+                self.peer_manager
+                    .handle_connection_closed(peer_id, &mut self.event_sender);
             }
             _ => {}
         }
@@ -212,13 +202,20 @@ impl P2pClient {
                 info!("mDNS discovered {} peers", list.len());
                 for (peer_id, addr) in list {
                     debug!("Found peer: {} at {}", peer_id, addr);
-                    self.handle_peer_discovered(peer_id, addr)?;
+                    self.peer_manager.handle_peer_discovered(
+                        peer_id,
+                        addr,
+                        &mut self.swarm,
+                        &self.local_nickname,
+                        &mut self.event_sender,
+                    )?;
                 }
             }
             mdns::Event::Expired(list) => {
                 info!("mDNS expired {} peers", list.len());
                 for (peer_id, _addr) in list {
-                    self.handle_peer_expired(peer_id)?;
+                    self.peer_manager
+                        .handle_peer_expired(peer_id, &mut self.event_sender)?;
                 }
             }
         }
@@ -239,7 +236,11 @@ impl P2pClient {
                 } => {
                     let response = match request {
                         NicknameRequest::AnnounceNickname { nickname } => {
-                            self.update_peer_nickname(peer, nickname.clone());
+                            self.peer_manager.update_peer_nickname(
+                                peer,
+                                nickname.clone(),
+                                &mut self.event_sender,
+                            );
                             NicknameResponse::Ack {
                                 nickname: self.local_nickname.clone(),
                             }
@@ -259,7 +260,11 @@ impl P2pClient {
                         crate::behaviour::NicknameResponse::Ack { nickname } => {
                             debug!("Peer {} acknowledged our nickname announcement with their nickname: {}", peer, nickname);
                             // Update peer with their nickname from the Ack response
-                            self.update_peer_nickname(peer, nickname);
+                            self.peer_manager.update_peer_nickname(
+                                peer,
+                                nickname,
+                                &mut self.event_sender,
+                            );
                         }
                         crate::behaviour::NicknameResponse::Error(error) => {
                             warn!("Peer {} reported nickname error: {}", peer, error);
@@ -285,7 +290,7 @@ impl P2pClient {
             ..
         } = event
         {
-            let nickname = self.get_peer_nickname(&peer)?;
+            let nickname = self.peer_manager.get_peer_nickname(&peer)?;
             match request {
                 DirectMessage::Text { message } => {
                     self.send_event(P2pEvent::DirectMessage {
@@ -333,8 +338,15 @@ impl P2pClient {
 
     /// Handle gossipsub events
     fn handle_gossipsub_event(&mut self, event: libp2p::gossipsub::Event) -> Result<()> {
+        // Convert PeerInfo references to owned PeerInfo values for GroupManager
+        let peers: HashMap<PeerId, PeerInfo> = self
+            .peer_manager
+            .list_peers()
+            .into_iter()
+            .map(|peer| (peer.peer_id, peer.clone()))
+            .collect();
         self.group_manager
-            .handle_gossipsub_event(event, &self.peers, &mut self.event_sender)
+            .handle_gossipsub_event(event, &peers, &mut self.event_sender)
     }
 
     /// Handle file transfer events with chunked file support
@@ -411,8 +423,8 @@ impl P2pClient {
 
                             // Find and update the active download entry
                             let from_nickname = self
-                                .peers
-                                .get(&peer)
+                                .peer_manager
+                                .get_peer(&peer)
                                 .map(|p| p.nickname.clone())
                                 .unwrap_or_else(|| peer.to_string());
 
@@ -822,124 +834,61 @@ impl P2pClient {
         });
     }
 
-    /// Handle peer discovery
-    pub fn handle_peer_discovered(&mut self, peer_id: PeerId, addr: Multiaddr) -> Result<()> {
-        if !self.peers.contains_key(&peer_id) {
-            let nickname = peer_id.to_string(); // Default nickname
-
-            self.nickname_to_peer.insert(nickname.clone(), peer_id);
-
-            // Announce our nickname
-            debug!(
-                "Sending AnnounceNickname request to {} as {}",
-                peer_id, self.local_nickname
-            );
-            self.swarm.behaviour_mut().nickname.send_request(
-                &peer_id,
-                NicknameRequest::AnnounceNickname {
-                    nickname: self.local_nickname.clone(),
-                },
-            );
-
-            self.send_event(P2pEvent::PeerDiscovered {
-                peer_id,
-                nickname: nickname.clone(),
-                address: addr.clone(),
-            });
-
-            let peer_info = PeerInfo {
-                peer_id,
-                nickname,
-                addresses: vec![addr],
-                last_seen: Instant::now(),
-                connected: false,
-            };
-
-            self.peers.insert(peer_id, peer_info);
-        }
-        Ok(())
-    }
-
-    /// Handle peer expiration
-    fn handle_peer_expired(&mut self, peer_id: PeerId) -> Result<()> {
-        if let Some(peer) = self.peers.remove(&peer_id) {
-            self.nickname_to_peer.remove(&peer.nickname);
-
-            self.send_event(P2pEvent::PeerExpired {
-                peer_id,
-                nickname: peer.nickname,
-            });
-        }
-        Ok(())
-    }
-
-    /// Update peer nickname
-    pub fn update_peer_nickname(&mut self, peer_id: PeerId, nickname: String) {
-        if let Some(peer) = self.peers.get_mut(&peer_id) {
-            let old_nickname = peer.nickname.clone();
-            if old_nickname != nickname {
-                self.nickname_to_peer.remove(&old_nickname);
-                self.nickname_to_peer.insert(nickname.clone(), peer_id);
-                peer.nickname = nickname.clone();
-
-                self.send_event(P2pEvent::NicknameUpdated { peer_id, nickname });
-            }
-        }
-    }
-
     /// Get peer by nickname
     pub fn get_peer_by_nickname(&self, nickname: &str) -> Result<&PeerInfo> {
-        let peer_id = *self
-            .nickname_to_peer
-            .get(nickname)
-            .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
-        self.peers
-            .get(&peer_id)
-            .ok_or_else(|| P2pError::PeerNotFound(peer_id).into())
+        self.peer_manager.get_peer_by_nickname(nickname)
     }
 
     /// Get peer nickname
     pub fn get_peer_nickname(&self, peer_id: &PeerId) -> Result<String> {
-        self.peers
-            .get(peer_id)
-            .map(|p| p.nickname.clone())
-            .ok_or_else(|| P2pError::PeerNotFound(*peer_id).into())
+        self.peer_manager.get_peer_nickname(peer_id)
+    }
+
+    /// Get peer info
+    pub fn get_peer(&self, peer_id: &PeerId) -> Option<&PeerInfo> {
+        self.peer_manager.get_peer(peer_id)
+    }
+
+    /// Get peer ID by nickname
+    pub fn get_peer_id_by_nickname(&self, nickname: &str) -> Option<PeerId> {
+        self.peer_manager.get_peer_id_by_nickname(nickname)
     }
 
     /// Remove a peer from the peer list
     pub fn remove_peer(&mut self, peer_id: &PeerId) {
-        if let Some(peer) = self.peers.remove(peer_id) {
-            self.nickname_to_peer.remove(&peer.nickname);
-        }
+        self.peer_manager.remove_peer(peer_id);
     }
 
     /// Gracefully shutdown the client and notify all peers
     pub fn shutdown(&mut self) -> Result<()> {
-        // Close all connections and notify peers
-        let connected_peers: Vec<PeerId> = self.peers.keys().copied().collect();
-        for peer_id in connected_peers {
-            if let Some(peer) = self.peers.remove(&peer_id) {
-                self.nickname_to_peer.remove(&peer.nickname);
-                self.send_event(P2pEvent::Disconnected {
-                    peer_id,
-                    nickname: peer.nickname.clone(),
-                });
-            }
-        }
-
-        Ok(())
+        self.peer_manager.shutdown(&mut self.event_sender)
     }
 
     /// List all discovered peers
     pub fn list_peers(&self) -> Vec<&PeerInfo> {
-        self.peers.values().collect()
+        self.peer_manager.list_peers()
+    }
+
+    /// Get all connected peers
+    pub fn get_connected_peers(&self) -> Vec<&PeerInfo> {
+        self.peer_manager.get_connected_peers()
+    }
+
+    /// Get peers count
+    pub fn peers_count(&self) -> usize {
+        self.peer_manager.peers_count()
+    }
+
+    /// Get connected peers count
+    pub fn connected_peers_count(&self) -> usize {
+        self.peer_manager.connected_peers_count()
     }
 
     /// Send direct message to peer
     pub fn send_direct_message(&mut self, nickname: &str, message: String) -> Result<()> {
-        let peer_id = *self
-            .nickname_to_peer
-            .get(nickname)
+        let peer_id = self
+            .peer_manager
+            .get_peer_id_by_nickname(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
         self.swarm
@@ -952,9 +901,9 @@ impl P2pClient {
 
     /// Send file to peer using file sharing
     pub async fn send_direct_file(&mut self, nickname: &str, file_path: &Path) -> Result<()> {
-        let peer_id = *self
-            .nickname_to_peer
-            .get(nickname)
+        let peer_id = self
+            .peer_manager
+            .get_peer_id_by_nickname(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
         // 1. Add file to file sharing system
@@ -991,9 +940,9 @@ impl P2pClient {
         group_id: String,
         group_name: String,
     ) -> Result<()> {
-        let peer_id = *self
-            .nickname_to_peer
-            .get(nickname)
+        let peer_id = self
+            .peer_manager
+            .get_peer_id_by_nickname(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
         self.swarm.behaviour_mut().direct_msg.send_request(
@@ -1071,9 +1020,9 @@ impl P2pClient {
 
     /// Download file from peer
     pub fn download_file(&mut self, nickname: &str, share_code: &str) -> Result<()> {
-        let peer_id = *self
-            .nickname_to_peer
-            .get(nickname)
+        let peer_id = self
+            .peer_manager
+            .get_peer_id_by_nickname(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
         // Track download request with temporary entry
