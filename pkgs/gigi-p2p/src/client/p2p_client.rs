@@ -15,13 +15,13 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, instrument, warn};
 
-use super::behaviour::{
+use super::file_transfer::{FileTransferManager, CHUNK_SIZE};
+use crate::behaviour::{
     create_gossipsub_behaviour, create_gossipsub_config, DirectMessage, FileTransferRequest,
     NicknameRequest, UnifiedBehaviour, UnifiedEvent,
 };
-use super::error::P2pError;
-use super::events::{ActiveDownload, ChunkInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo};
-use super::file_transfer::{FileTransferManager, CHUNK_SIZE};
+use crate::error::P2pError;
+use crate::events::{ActiveDownload, ChunkInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo};
 
 /// Main P2P client
 pub struct P2pClient {
@@ -225,9 +225,9 @@ impl P2pClient {
     /// Handle nickname events
     fn handle_nickname_event(
         &mut self,
-        event: request_response::Event<NicknameRequest, super::behaviour::NicknameResponse>,
+        event: request_response::Event<NicknameRequest, crate::behaviour::NicknameResponse>,
     ) -> Result<()> {
-        use super::behaviour::NicknameResponse;
+        use crate::behaviour::NicknameResponse;
 
         if let request_response::Event::Message { message, peer, .. } = event {
             match message {
@@ -253,12 +253,12 @@ impl P2pClient {
                     debug!("Received nickname response from {}: {:?}", peer, response);
                     // Handle Ack or Error responses
                     match response {
-                        super::behaviour::NicknameResponse::Ack { nickname } => {
+                        crate::behaviour::NicknameResponse::Ack { nickname } => {
                             debug!("Peer {} acknowledged our nickname announcement with their nickname: {}", peer, nickname);
                             // Update peer with their nickname from the Ack response
                             self.update_peer_nickname(peer, nickname);
                         }
-                        super::behaviour::NicknameResponse::Error(error) => {
+                        crate::behaviour::NicknameResponse::Error(error) => {
                             warn!("Peer {} reported nickname error: {}", peer, error);
                         }
                     }
@@ -271,7 +271,7 @@ impl P2pClient {
     /// Handle direct message events
     fn handle_direct_message_event(
         &mut self,
-        event: request_response::Event<DirectMessage, super::behaviour::DirectResponse>,
+        event: request_response::Event<DirectMessage, crate::behaviour::DirectResponse>,
     ) -> Result<()> {
         if let request_response::Event::Message {
             message:
@@ -323,7 +323,7 @@ impl P2pClient {
                 .swarm
                 .behaviour_mut()
                 .direct_msg
-                .send_response(channel, super::behaviour::DirectResponse::Ack);
+                .send_response(channel, crate::behaviour::DirectResponse::Ack);
         }
         Ok(())
     }
@@ -405,7 +405,7 @@ impl P2pClient {
     /// Handle file transfer events with chunked file support
     fn handle_file_transfer_event(
         &mut self,
-        event: request_response::Event<FileTransferRequest, super::behaviour::FileTransferResponse>,
+        event: request_response::Event<FileTransferRequest, crate::behaviour::FileTransferResponse>,
     ) -> Result<()> {
         if let request_response::Event::Message { message, peer, .. } = event {
             match message {
@@ -420,7 +420,7 @@ impl P2pClient {
                                 .get(&file_id)
                                 .filter(|f| !f.revoked)
                                 .map(|f| f.info.clone());
-                            super::behaviour::FileTransferResponse::FileInfo(info)
+                            crate::behaviour::FileTransferResponse::FileInfo(info)
                         }
                         FileTransferRequest::GetChunk(file_id, chunk_index) => {
                             if let Some(shared_file) = self.file_manager.shared_files.get(&file_id)
@@ -431,20 +431,20 @@ impl P2pClient {
                                         chunk_index,
                                         &file_id,
                                     ) {
-                                        Ok(chunk) => super::behaviour::FileTransferResponse::Chunk(
+                                        Ok(chunk) => crate::behaviour::FileTransferResponse::Chunk(
                                             Some(chunk),
                                         ),
-                                        Err(_) => super::behaviour::FileTransferResponse::Error(
+                                        Err(_) => crate::behaviour::FileTransferResponse::Error(
                                             "Failed to read chunk".to_string(),
                                         ),
                                     }
                                 } else {
-                                    super::behaviour::FileTransferResponse::Error(
+                                    crate::behaviour::FileTransferResponse::Error(
                                         "File has been revoked".to_string(),
                                     )
                                 }
                             } else {
-                                super::behaviour::FileTransferResponse::Chunk(None)
+                                crate::behaviour::FileTransferResponse::Chunk(None)
                             }
                         }
                         FileTransferRequest::ListFiles => {
@@ -455,7 +455,7 @@ impl P2pClient {
                                 .filter(|f| !f.revoked)
                                 .map(|f| f.info.clone())
                                 .collect();
-                            super::behaviour::FileTransferResponse::FileList(files)
+                            crate::behaviour::FileTransferResponse::FileList(files)
                         }
                     };
                     let _ = self
@@ -466,7 +466,7 @@ impl P2pClient {
                 }
                 request_response::Message::Response { response, .. } => {
                     match response {
-                        super::behaviour::FileTransferResponse::FileInfo(Some(info)) => {
+                        crate::behaviour::FileTransferResponse::FileInfo(Some(info)) => {
                             // Start download when we receive file info
                             self.file_manager.start_download(peer, info.clone())?;
                             self.send_event(P2pEvent::FileInfoReceived {
@@ -539,7 +539,7 @@ impl P2pClient {
                                     );
                             }
                         }
-                        super::behaviour::FileTransferResponse::FileInfo(None) => {
+                        crate::behaviour::FileTransferResponse::FileInfo(None) => {
                             // File not found - send error event
                             self.send_event(P2pEvent::FileDownloadFailed {
                                 download_id: "unknown".to_string(),
@@ -550,7 +550,7 @@ impl P2pClient {
                                 error: "File not found".to_string(),
                             });
                         }
-                        super::behaviour::FileTransferResponse::Chunk(Some(chunk)) => {
+                        crate::behaviour::FileTransferResponse::Chunk(Some(chunk)) => {
                             self.handle_chunk_received(
                                 peer,
                                 chunk.file_id.clone(), // Still use file_id for chunk requests (different concept)
@@ -558,13 +558,13 @@ impl P2pClient {
                                 chunk,
                             )?;
                         }
-                        super::behaviour::FileTransferResponse::Chunk(None) => {
+                        crate::behaviour::FileTransferResponse::Chunk(None) => {
                             // Chunk not found
                         }
-                        super::behaviour::FileTransferResponse::FileList(files) => {
+                        crate::behaviour::FileTransferResponse::FileList(files) => {
                             self.send_event(P2pEvent::FileListReceived { from: peer, files });
                         }
-                        super::behaviour::FileTransferResponse::Error(error) => {
+                        crate::behaviour::FileTransferResponse::Error(error) => {
                             self.send_event(P2pEvent::Error(error));
                         }
                     }
@@ -1204,7 +1204,7 @@ impl P2pClient {
     }
 
     /// List shared files
-    pub fn list_shared_files(&self) -> Vec<&super::events::SharedFile> {
+    pub fn list_shared_files(&self) -> Vec<&crate::events::SharedFile> {
         self.file_manager.list_shared_files()
     }
 

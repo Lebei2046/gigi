@@ -12,15 +12,14 @@ use std::time::Instant;
 use tokio::fs;
 use tracing::info;
 
-use super::error::P2pError;
-use super::events::{ChunkInfo, FileInfo, SharedFile};
+use crate::error::P2pError;
+use crate::events::{ChunkInfo, FileInfo, SharedFile};
 
 /// Constants for chunked file transfer
 pub const CHUNK_SIZE: usize = 256 * 1024; // 256KB chunks for better performance
 
 /// Downloading file information
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct DownloadingFile {
     pub info: FileInfo,
     pub output_path: PathBuf,
@@ -32,24 +31,10 @@ pub struct DownloadingFile {
     pub peer_id: PeerId,
 }
 
-/// Download info for tracking active downloads
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct DownloadInfo {
-    pub peer_id: PeerId,
-    pub filename: String,
-    pub share_code: String,
-    pub expected_hash: String,
-    pub temp_path: PathBuf,
-    pub final_path: PathBuf,
-    pub started_at: Instant,
-}
-
 /// File transfer manager
 pub struct FileTransferManager {
     pub shared_files: HashMap<String, SharedFile>,
     pub downloading_files: HashMap<String, DownloadingFile>,
-    pub active_downloads: HashMap<String, DownloadInfo>,
     pub output_directory: PathBuf,
     pub shared_file_path: PathBuf,
 }
@@ -59,7 +44,6 @@ impl FileTransferManager {
         Self {
             shared_files: HashMap::new(),
             downloading_files: HashMap::new(),
-            active_downloads: HashMap::new(),
             output_directory,
             shared_file_path,
         }

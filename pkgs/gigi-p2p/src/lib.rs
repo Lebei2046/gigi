@@ -12,7 +12,6 @@ pub mod behaviour;
 pub mod client;
 pub mod error;
 pub mod events;
-pub mod file_transfer;
 
 /// Initialize tracing subscriber for the library
 ///
@@ -47,11 +46,11 @@ pub fn init_tracing_with_level(level: tracing::Level) {
 
 // Re-export public API
 pub use client::P2pClient;
+pub use client::CHUNK_SIZE;
 pub use error::P2pError;
 pub use events::{
     ActiveDownload, ChunkInfo, FileInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo, SharedFile,
 };
-pub use file_transfer::CHUNK_SIZE;
 
 /// Re-export commonly used libp2p types for convenience
 pub use libp2p::{identity::Keypair, Multiaddr, PeerId};
