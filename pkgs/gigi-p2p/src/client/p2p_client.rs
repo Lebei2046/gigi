@@ -15,13 +15,16 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, instrument, warn};
 
-use super::file_transfer::{FileTransferManager, CHUNK_SIZE};
+use super::{
+    file_transfer::{FileTransferManager, CHUNK_SIZE},
+    group_manager::GroupManager,
+};
 use crate::behaviour::{
     create_gossipsub_behaviour, create_gossipsub_config, DirectMessage, FileTransferRequest,
     NicknameRequest, UnifiedBehaviour, UnifiedEvent,
 };
 use crate::error::P2pError;
-use crate::events::{ActiveDownload, ChunkInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo};
+use crate::events::{ActiveDownload, ChunkInfo, GroupInfo, P2pEvent, PeerInfo};
 
 /// Main P2P client
 pub struct P2pClient {
@@ -33,7 +36,7 @@ pub struct P2pClient {
     nickname_to_peer: HashMap<String, PeerId>,
 
     // Group management
-    groups: HashMap<String, GroupInfo>,
+    group_manager: GroupManager,
 
     // File sharing
     file_manager: FileTransferManager,
@@ -128,7 +131,7 @@ impl P2pClient {
             local_nickname: nickname,
             peers: HashMap::new(),
             nickname_to_peer: HashMap::new(),
-            groups: HashMap::new(),
+            group_manager: GroupManager::new(),
             file_manager,
             active_downloads: HashMap::new(),
             download_share_codes: HashMap::new(),
@@ -330,76 +333,8 @@ impl P2pClient {
 
     /// Handle gossipsub events
     fn handle_gossipsub_event(&mut self, event: libp2p::gossipsub::Event) -> Result<()> {
-        match event {
-            libp2p::gossipsub::Event::Message {
-                propagation_source: peer_id,
-                message,
-                ..
-            } => {
-                debug!("Raw gossipsub message received from: {}", peer_id);
-                debug!("Topic: {}", message.topic);
-                debug!("Data length: {} bytes", message.data.len());
-
-                if let Ok(group_message) = serde_json::from_slice::<GroupMessage>(&message.data) {
-                    let group_name = message.topic.to_string();
-                    let nickname = self.get_peer_nickname(&peer_id)?;
-
-                    debug!("Parsed group message successfully:");
-                    debug!("   - From: {} ({})", nickname, peer_id);
-                    debug!("   - Group: {}", group_name);
-                    debug!("   - Content: {}", group_message.content);
-                    debug!("   - Timestamp: {}", group_message.timestamp);
-
-                    if group_message.has_file_share {
-                        if let (
-                            Some(share_code),
-                            Some(filename),
-                            Some(file_size),
-                            Some(file_type),
-                        ) = (
-                            group_message.share_code,
-                            group_message.filename,
-                            group_message.file_size,
-                            group_message.file_type,
-                        ) {
-                            self.send_event(P2pEvent::GroupFileShareMessage {
-                                from: peer_id,
-                                from_nickname: nickname,
-                                group: group_name,
-                                share_code,
-                                filename,
-                                file_size,
-                                file_type,
-                                message: group_message.content.clone(),
-                            });
-                        }
-                    } else {
-                        let group_name_clone = group_name.clone();
-                        self.send_event(P2pEvent::GroupMessage {
-                            from: peer_id,
-                            from_nickname: nickname,
-                            group: group_name,
-                            message: group_message.content,
-                        });
-                        debug!("Emitted GroupMessage event for group: {}", group_name_clone);
-                    }
-                } else {
-                    warn!("Failed to parse group message from gossipsub data");
-                    debug!("Raw data: {:?}", String::from_utf8(message.data));
-                }
-            }
-            libp2p::gossipsub::Event::Subscribed { topic, .. } => {
-                let group_name = topic.to_string();
-                info!("Successfully subscribed to group topic: {}", group_name);
-                self.send_event(P2pEvent::GroupJoined { group: group_name });
-            }
-            libp2p::gossipsub::Event::Unsubscribed { topic, .. } => {
-                let group_name = topic.to_string();
-                self.send_event(P2pEvent::GroupLeft { group: group_name });
-            }
-            _ => {}
-        }
-        Ok(())
+        self.group_manager
+            .handle_gossipsub_event(event, &self.peers, &mut self.event_sender)
     }
 
     /// Handle file transfer events with chunked file support
@@ -1074,128 +1009,37 @@ impl P2pClient {
     }
 
     /// Join a group
-    #[instrument(skip(self))]
     pub fn join_group(&mut self, group_name: &str) -> Result<()> {
-        info!("Joining group: {}", group_name);
-        use libp2p::gossipsub::IdentTopic;
-        let topic = IdentTopic::new(group_name);
-
-        // Check if already subscribed
-        if self.groups.contains_key(group_name) {
-            warn!("Already subscribed to group: {}", group_name);
-            return Ok(());
-        }
-
-        self.swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-
-        let group_info = GroupInfo {
-            name: group_name.to_string(),
-            topic,
-            joined_at: chrono::Utc::now(),
-        };
-
-        self.groups.insert(group_name.to_string(), group_info);
-        info!("Successfully joined group: {}", group_name);
-
-        Ok(())
+        self.group_manager
+            .join_group(&mut self.swarm, group_name, &mut self.event_sender)
     }
 
     /// Leave a group
     pub fn leave_group(&mut self, group_name: &str) -> Result<()> {
-        if let Some(group) = self.groups.remove(group_name) {
-            self.swarm
-                .behaviour_mut()
-                .gossipsub
-                .unsubscribe(&group.topic);
-        } else {
-            return Err(P2pError::GroupNotFound(group_name.to_string()).into());
-        }
-
-        Ok(())
+        self.group_manager.leave_group(&mut self.swarm, group_name)
     }
 
     /// Send message to group
-    #[instrument(skip(self, message))]
     pub fn send_group_message(&mut self, group_name: &str, message: String) -> Result<()> {
-        debug!("Sending group message to: {}", group_name);
-
-        let group = self
-            .groups
-            .get(group_name)
-            .ok_or_else(|| P2pError::GroupNotFound(group_name.to_string()))?;
-
-        let group_message = GroupMessage {
-            sender_nickname: self.local_nickname.clone(),
-            content: message,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or(Duration::from_secs(0))
-                .as_secs(),
-            has_file_share: false,
-            share_code: None,
-            filename: None,
-            file_size: None,
-            file_type: None,
-        };
-
-        let data = serde_json::to_vec(&group_message)?;
-
-        self.swarm
-            .behaviour_mut()
-            .gossipsub
-            .publish(group.topic.clone(), data)?;
-
-        debug!("Group message published successfully");
-        Ok(())
+        self.group_manager.send_group_message(
+            &mut self.swarm,
+            group_name,
+            message,
+            &self.local_nickname,
+        )
     }
 
     /// Send file to group using file sharing
     pub async fn send_group_file(&mut self, group_name: &str, file_path: &Path) -> Result<()> {
-        let group_topic = {
-            let group = self
-                .groups
-                .get(group_name)
-                .ok_or_else(|| P2pError::GroupNotFound(group_name.to_string()))?;
-            group.topic.clone()
-        };
-
-        // 1. Share the file to get a share code
-        let share_code = self.file_manager.share_file(file_path).await?;
-        let shared_file = self
-            .file_manager
-            .shared_files
-            .get(&share_code)
-            .ok_or_else(|| P2pError::FileNotFound(file_path.to_path_buf()))?;
-
-        let filename = shared_file.info.name.clone();
-        let file_size = shared_file.info.size;
-        let file_type = mime_guess::from_path(file_path)
-            .first_or_octet_stream()
-            .to_string();
-
-        // 2. Send message with file share information
-        let group_message = GroupMessage {
-            sender_nickname: self.local_nickname.clone(),
-            content: format!("Shared file: {}", filename),
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_secs(),
-            has_file_share: true,
-            share_code: Some(shared_file.share_code.clone()),
-            filename: Some(filename),
-            file_size: Some(file_size),
-            file_type: Some(file_type),
-        };
-
-        let msg_data = serde_json::to_vec(&group_message)?;
-
-        self.swarm
-            .behaviour_mut()
-            .gossipsub
-            .publish(group_topic, msg_data)?;
-
-        debug!("Group image message published successfully");
-        Ok(())
+        self.group_manager
+            .send_group_file(
+                &mut self.swarm,
+                group_name,
+                file_path,
+                &mut self.file_manager,
+                &self.local_nickname,
+            )
+            .await
     }
 
     /// Share a file
@@ -1286,7 +1130,7 @@ impl P2pClient {
 
     /// Get joined groups
     pub fn list_groups(&self) -> Vec<&GroupInfo> {
-        self.groups.values().collect()
+        self.group_manager.list_groups()
     }
 
     // ===== Active Download Tracking Methods for Mobile Apps =====
