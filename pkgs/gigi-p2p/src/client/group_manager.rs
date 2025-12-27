@@ -116,7 +116,7 @@ impl GroupManager {
         swarm: &mut Swarm<UnifiedBehaviour>,
         group_name: &str,
         file_path: &std::path::Path,
-        file_manager: &mut super::file_transfer::FileTransferManager,
+        file_manager: &mut super::file_sharing::FileSharingManager,
         local_nickname: &str,
     ) -> Result<()> {
         let group_topic = {

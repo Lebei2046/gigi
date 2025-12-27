@@ -46,16 +46,16 @@ pub enum DirectResponse {
     Error(String),
 }
 
-/// File transfer messages
+/// File sharing messages
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum FileTransferRequest {
+pub enum FileSharingRequest {
     GetFileInfo(String),
     GetChunk(String, usize),
     ListFiles,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum FileTransferResponse {
+pub enum FileSharingResponse {
     FileInfo(Option<super::events::FileInfo>),
     Chunk(Option<super::events::ChunkInfo>),
     FileList(Vec<super::events::FileInfo>),
@@ -70,7 +70,7 @@ pub struct UnifiedBehaviour {
     pub nickname: request_response::cbor::Behaviour<NicknameRequest, NicknameResponse>,
     pub direct_msg: request_response::cbor::Behaviour<DirectMessage, DirectResponse>,
     pub gossipsub: gossipsub::Behaviour,
-    pub file_transfer: request_response::cbor::Behaviour<FileTransferRequest, FileTransferResponse>,
+    pub file_sharing: request_response::cbor::Behaviour<FileSharingRequest, FileSharingResponse>,
 }
 
 /// Unified event from network behaviour
@@ -80,7 +80,7 @@ pub enum UnifiedEvent {
     Nickname(request_response::Event<NicknameRequest, NicknameResponse>),
     DirectMessage(request_response::Event<DirectMessage, DirectResponse>),
     Gossipsub(gossipsub::Event),
-    FileTransfer(request_response::Event<FileTransferRequest, FileTransferResponse>),
+    FileSharing(request_response::Event<FileSharingRequest, FileSharingResponse>),
 }
 
 impl From<mdns::Event> for UnifiedEvent {
@@ -107,9 +107,9 @@ impl From<gossipsub::Event> for UnifiedEvent {
     }
 }
 
-impl From<request_response::Event<FileTransferRequest, FileTransferResponse>> for UnifiedEvent {
-    fn from(event: request_response::Event<FileTransferRequest, FileTransferResponse>) -> Self {
-        Self::FileTransfer(event)
+impl From<request_response::Event<FileSharingRequest, FileSharingResponse>> for UnifiedEvent {
+    fn from(event: request_response::Event<FileSharingRequest, FileSharingResponse>) -> Self {
+        Self::FileSharing(event)
     }
 }
 

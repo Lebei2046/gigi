@@ -1,4 +1,4 @@
-//! File transfer functionality
+//! File sharing functionality
 
 use anyhow::Result;
 use blake3::Hasher;
@@ -15,7 +15,7 @@ use tracing::info;
 use crate::error::P2pError;
 use crate::events::{ChunkInfo, FileInfo, SharedFile};
 
-/// Constants for chunked file transfer
+/// Constants for chunked file sharing
 pub const CHUNK_SIZE: usize = 256 * 1024; // 256KB chunks for better performance
 
 /// Downloading file information
@@ -31,15 +31,15 @@ pub struct DownloadingFile {
     pub peer_id: PeerId,
 }
 
-/// File transfer manager
-pub struct FileTransferManager {
+/// File sharing manager
+pub struct FileSharingManager {
     pub shared_files: HashMap<String, SharedFile>,
     pub downloading_files: HashMap<String, DownloadingFile>,
     pub output_directory: PathBuf,
     pub shared_file_path: PathBuf,
 }
 
-impl FileTransferManager {
+impl FileSharingManager {
     pub fn new(output_directory: PathBuf, shared_file_path: PathBuf) -> Self {
         Self {
             shared_files: HashMap::new(),
