@@ -1926,7 +1926,6 @@ dependencies = [
  "console",
  "crossterm",
  "futures",
- "humantime",
  "indicatif",
  "libp2p 0.56.0",
  "mime_guess",
@@ -1935,7 +1934,6 @@ dependencies = [
  "sha2",
  "thiserror 2.0.17",
  "tokio",
- "tokio-util",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -2295,12 +2293,6 @@ name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
-
-[[package]]
-name = "humantime"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135b12329e5e3ce057a9f972339ea52bc954fe1e9358ef27f95e89716fbc5424"
 
 [[package]]
 name = "hyper"

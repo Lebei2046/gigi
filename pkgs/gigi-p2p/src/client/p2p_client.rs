@@ -16,6 +16,7 @@ use std::time::Duration;
 use tracing::{debug, error, info, instrument, warn};
 
 use super::{
+    download_manager::DownloadManager,
     file_transfer::{FileTransferManager, CHUNK_SIZE},
     group_manager::GroupManager,
     peer_manager::PeerManager,
@@ -41,9 +42,8 @@ pub struct P2pClient {
     // File sharing
     file_manager: FileTransferManager,
 
-    // Active download tracking for mobile apps
-    active_downloads: HashMap<String, ActiveDownload>,
-    download_share_codes: HashMap<String, String>, // download_id -> share_code mapping
+    // Download management
+    download_manager: DownloadManager,
 
     // Event handling
     event_sender: mpsc::UnboundedSender<P2pEvent>,
@@ -132,8 +132,7 @@ impl P2pClient {
             peer_manager: PeerManager::new(),
             group_manager: GroupManager::new(),
             file_manager,
-            active_downloads: HashMap::new(),
-            download_share_codes: HashMap::new(),
+            download_manager: DownloadManager::new(),
             event_sender,
         };
 
@@ -430,43 +429,37 @@ impl P2pClient {
 
                             // Find the share code from pending downloads or use file_id as fallback
                             let share_code = self
+                                .download_manager
                                 .find_share_code_for_file(&info.id)
                                 .unwrap_or_else(|| info.id.clone());
 
-                            // Create unique download_id for this specific download
-                            let download_id = format!(
-                                "dl_{}_{}_{}",
-                                info.id,
-                                peer,
-                                std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_secs()
-                            );
+                            // Find the pending download to update it with proper info
+                            let pending_download_id = self
+                                .download_manager
+                                .get_download_by_share_code(&share_code)
+                                .map(|download| download.download_id.clone())
+                                .unwrap_or_else(|| {
+                                    format!(
+                                        "pending_{}_{}",
+                                        share_code,
+                                        std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_secs()
+                                    )
+                                });
 
-                            // Store share code mapping
-                            self.download_share_codes
-                                .insert(download_id.clone(), share_code.clone());
+                            // Update the pending download with proper file info using DownloadManager
+                            let _final_download_id =
+                                self.download_manager.update_download_with_file_info(
+                                    &pending_download_id,
+                                    info.name.clone(),
+                                    info.chunk_count,
+                                    peer,
+                                    from_nickname.clone(),
+                                )?;
 
-                            // Update or create active download entry
-                            let active_download = ActiveDownload {
-                                download_id: download_id.clone(),
-                                filename: info.name.clone(),
-                                share_code: share_code.clone(),
-                                from_peer_id: peer,
-                                from_nickname: from_nickname.clone(),
-                                total_chunks: info.chunk_count,
-                                downloaded_chunks: 0,
-                                started_at: std::time::Instant::now(),
-                                completed: false,
-                                failed: false,
-                                error_message: None,
-                                final_path: None,
-                            };
-                            self.active_downloads
-                                .insert(download_id.clone(), active_download);
-
-                            // Send download started event
+                            // Send download started event with correct filename
                             self.send_event(P2pEvent::FileDownloadStarted {
                                 from: peer,
                                 from_nickname: from_nickname,
@@ -636,9 +629,8 @@ impl P2pClient {
 
         // Update active download progress
         if let Some(download_id) = download_id {
-            if let Some(active_download) = self.active_downloads.get_mut(download_id) {
-                active_download.downloaded_chunks = downloaded_count;
-            }
+            self.download_manager
+                .update_download_progress(download_id, downloaded_count);
         }
 
         // Send progress event
@@ -710,55 +702,20 @@ impl P2pClient {
         &self,
         download_id: &Option<String>,
     ) -> (String, String, String, String, libp2p::PeerId) {
-        if let Some(download_id) = download_id {
-            if let Some(active_download) = self.active_downloads.get(download_id) {
-                (
-                    active_download.download_id.clone(),
-                    active_download.filename.clone(),
-                    active_download.share_code.clone(),
-                    active_download.from_nickname.clone(),
-                    active_download.from_peer_id,
-                )
-            } else {
-                (
-                    download_id.clone(),
-                    "Unknown".to_string(),
-                    "Unknown".to_string(),
-                    "Unknown".to_string(),
-                    libp2p::PeerId::random(),
-                )
-            }
-        } else {
-            (
-                "unknown".to_string(),
-                "Unknown".to_string(),
-                "Unknown".to_string(),
-                "Unknown".to_string(),
-                libp2p::PeerId::random(),
-            )
-        }
+        self.download_manager
+            .get_download_info_for_event(download_id)
     }
 
     /// Send download failed event
     fn send_download_failed_event(&mut self, download_id: &str, error: String) {
-        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) =
-            if let Some(active_download) = self.active_downloads.get(download_id) {
-                (
-                    active_download.download_id.clone(),
-                    active_download.filename.clone(),
-                    active_download.share_code.clone(),
-                    active_download.from_nickname.clone(),
-                    active_download.from_peer_id,
-                )
-            } else {
-                (
-                    download_id.to_string(),
-                    "Unknown".to_string(),
-                    "Unknown".to_string(),
-                    "Unknown".to_string(),
-                    libp2p::PeerId::random(),
-                )
-            };
+        // Mark as failed in download manager first
+        self.download_manager
+            .fail_download(download_id, error.clone());
+
+        // Get info for the event from download manager
+        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) = self
+            .download_manager
+            .get_download_info_for_event(&Some(download_id.to_string()));
 
         self.send_event(P2pEvent::FileDownloadFailed {
             download_id: actual_download_id,
@@ -795,15 +752,19 @@ impl P2pClient {
     fn send_download_completed_event(&mut self, download_id: &Option<String>, output_path: &Path) {
         let (actual_download_id, filename, share_code, from_nickname, from_peer_id) =
             if let Some(download_id) = download_id {
-                if let Some(mut active_download) = self.active_downloads.remove(download_id) {
-                    active_download.completed = true;
-                    active_download.final_path = Some(output_path.to_path_buf());
+                // Mark as completed in download manager first
+                let completed_download = self
+                    .download_manager
+                    .complete_download(download_id, output_path.to_path_buf());
+
+                // Get the info for the event
+                if let Some(completed_download) = completed_download {
                     (
-                        active_download.download_id,
-                        active_download.filename,
-                        active_download.share_code,
-                        active_download.from_nickname,
-                        active_download.from_peer_id,
+                        completed_download.download_id.clone(),
+                        completed_download.filename.clone(),
+                        completed_download.share_code.clone(),
+                        completed_download.from_nickname.clone(),
+                        completed_download.from_peer_id,
                     )
                 } else {
                     (
@@ -1025,31 +986,13 @@ impl P2pClient {
             .get_peer_id_by_nickname(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
-        // Track download request with temporary entry
-        let temp_download_id = format!(
-            "pending_{}_{}",
-            share_code,
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
+        // Track download request with DownloadManager
+        let _temp_download_id = self.download_manager.start_download(
+            peer_id,
+            nickname.to_string(),
+            share_code.to_string(),
+            None, // filename will be updated when file info arrives
         );
-        let active_download = ActiveDownload {
-            download_id: temp_download_id.clone(),
-            filename: "Loading...".to_string(), // Will be updated when file info arrives
-            share_code: share_code.to_string(),
-            from_peer_id: peer_id,
-            from_nickname: nickname.to_string(),
-            total_chunks: 0,
-            downloaded_chunks: 0,
-            started_at: std::time::Instant::now(),
-            completed: false,
-            failed: false,
-            error_message: None,
-            final_path: None,
-        };
-        self.active_downloads
-            .insert(temp_download_id.clone(), active_download);
 
         // First request file info
         let _request_id = self.swarm.behaviour_mut().file_transfer.send_request(
@@ -1086,72 +1029,36 @@ impl P2pClient {
 
     /// Get all active downloads
     pub fn get_active_downloads(&self) -> Vec<&ActiveDownload> {
-        self.active_downloads.values().collect()
+        self.download_manager.get_active_downloads()
     }
 
     /// Get active download by download_id
     pub fn get_active_download(&self, download_id: &str) -> Option<&ActiveDownload> {
-        self.active_downloads.get(download_id)
+        self.download_manager.get_active_download(download_id)
     }
 
     /// Get active download by share code
     pub fn get_download_by_share_code(&self, share_code: &str) -> Option<&ActiveDownload> {
-        self.active_downloads
-            .values()
-            .find(|download| download.share_code == share_code)
+        self.download_manager.get_download_by_share_code(share_code)
     }
 
     /// Remove completed or failed downloads (cleanup)
     pub fn cleanup_downloads(&mut self) {
-        self.active_downloads
-            .retain(|_, download| !download.completed && !download.failed);
-    }
-
-    /// Helper to find share code for a download (looks in pending downloads first)
-    fn find_share_code_for_file(&self, file_id: &str) -> Option<String> {
-        // First check if we have it mapped
-        if let Some(share_code) = self.download_share_codes.get(file_id) {
-            return Some(share_code.clone());
-        }
-
-        // Look for pending downloads with this file_id pattern
-        self.active_downloads
-            .values()
-            .find(|download| {
-                download.download_id.contains(file_id)
-                    || download.download_id.starts_with("pending_")
-            })
-            .map(|download| download.share_code.clone())
+        self.download_manager.cleanup_downloads();
     }
 
     /// Helper to find download_id by file_id
     fn find_download_id_by_file_id(&self, file_id: &str) -> Option<String> {
-        // Look through active downloads to find the one with this file_id
-        self.active_downloads
-            .values()
-            .find(|download| download.download_id.contains(file_id))
-            .map(|download| download.download_id.clone())
+        self.download_manager.find_download_id_by_file_id(file_id)
     }
 
     /// Get downloads from a specific peer
     pub fn get_downloads_from_peer(&self, peer_nickname: &str) -> Vec<&ActiveDownload> {
-        self.active_downloads
-            .values()
-            .filter(|download| download.from_nickname == peer_nickname)
-            .collect()
+        self.download_manager.get_downloads_from_peer(peer_nickname)
     }
 
     /// Get completed downloads (useful for UI history)
     pub fn get_recent_downloads(&self, limit: usize) -> Vec<&ActiveDownload> {
-        let mut downloads: Vec<&ActiveDownload> = self
-            .active_downloads
-            .values()
-            .filter(|download| download.completed || download.failed)
-            .collect();
-
-        // Sort by started time (most recent first)
-        downloads.sort_by(|a, b| b.started_at.cmp(&a.started_at));
-        downloads.truncate(limit);
-        downloads
+        self.download_manager.get_recent_downloads(limit)
     }
 }

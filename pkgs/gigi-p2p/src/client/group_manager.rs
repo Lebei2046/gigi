@@ -170,21 +170,6 @@ impl GroupManager {
         self.groups.values().collect()
     }
 
-    /// Get group by name
-    pub fn get_group(&self, group_name: &str) -> Option<&GroupInfo> {
-        self.groups.get(group_name)
-    }
-
-    /// Check if group exists
-    pub fn has_group(&self, group_name: &str) -> bool {
-        self.groups.contains_key(group_name)
-    }
-
-    /// Get groups count
-    pub fn groups_count(&self) -> usize {
-        self.groups.len()
-    }
-
     /// Handle gossipsub events related to groups
     pub fn handle_gossipsub_event(
         &mut self,

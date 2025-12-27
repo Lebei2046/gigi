@@ -215,16 +215,6 @@ impl PeerManager {
     pub fn get_connected_peers(&self) -> Vec<&PeerInfo> {
         self.peers.values().filter(|p| p.connected).collect()
     }
-
-    /// Check if peer exists
-    pub fn has_peer(&self, peer_id: &PeerId) -> bool {
-        self.peers.contains_key(peer_id)
-    }
-
-    /// Check if nickname exists
-    pub fn has_nickname(&self, nickname: &str) -> bool {
-        self.nickname_to_peer.contains_key(nickname)
-    }
 }
 
 impl Default for PeerManager {

@@ -88,13 +88,6 @@ impl FileTransferManager {
         hasher.finalize().to_hex().to_string()
     }
 
-    /// Verify downloaded file hash
-    #[allow(dead_code)]
-    pub fn verify_file_hash(&self, file_path: &Path, expected_hash: &str) -> Result<bool> {
-        let actual_hash = self.calculate_file_hash(file_path)?;
-        Ok(actual_hash == expected_hash)
-    }
-
     /// Read a chunk from a file
     pub fn read_chunk(
         &self,
