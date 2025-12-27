@@ -1,23 +1,39 @@
 //! Download management functionality for mobile apps
 
 use anyhow::Result;
+use sha2::Digest;
 use std::collections::HashMap;
+use std::io::{Read, Seek};
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::events::ActiveDownload;
+use crate::events::{ActiveDownload, FileInfo};
+
+/// Downloading file information
+#[derive(Debug, Clone)]
+pub struct DownloadingFile {
+    pub info: FileInfo,
+    pub output_path: PathBuf,
+    pub temp_path: PathBuf,
+    pub downloaded_chunks: HashMap<usize, bool>,
+}
 
 /// Download management functionality
 pub struct DownloadManager {
     active_downloads: HashMap<String, ActiveDownload>,
     download_share_codes: HashMap<String, String>, // download_id -> share_code mapping
+    downloading_files: HashMap<String, DownloadingFile>,
+    output_directory: PathBuf,
 }
 
 impl DownloadManager {
     /// Create a new download manager
-    pub fn new() -> Self {
+    pub fn new(output_directory: PathBuf) -> Self {
         Self {
             active_downloads: HashMap::new(),
             download_share_codes: HashMap::new(),
+            downloading_files: HashMap::new(),
+            output_directory,
         }
     }
 
@@ -279,10 +295,135 @@ impl DownloadManager {
             None
         }
     }
+
+    // ===== File System and Download Management Methods =====
+
+    /// Find available filename (append number if exists)
+    pub fn find_available_filename(&self, filename: &str) -> String {
+        let path = self.output_directory.join(filename);
+
+        if !path.exists() {
+            return filename.to_string();
+        }
+
+        // Extract name and extension
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+        let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+
+        for i in 1..1000 {
+            let candidate = if extension.is_empty() {
+                format!("{}_{}", stem, i)
+            } else {
+                format!("{}_{}.{}", stem, i, extension)
+            };
+
+            if !self.output_directory.join(&candidate).exists() {
+                return candidate;
+            }
+        }
+
+        // Fallback to timestamp
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        format!("{}_{}.{}", stem, timestamp, extension)
+    }
+
+    /// Start downloading a file after receiving file info
+    pub fn start_download_file(&mut self, _peer_id: libp2p::PeerId, info: FileInfo) -> Result<()> {
+        // Find available filename
+        let filename = self.find_available_filename(&info.name);
+        let output_path = self.output_directory.join(&filename);
+        let temp_path = self
+            .output_directory
+            .join(format!("{}.downloading", info.id));
+
+        // Create downloading file entry
+        let downloading_file = DownloadingFile {
+            info: info.clone(),
+            output_path: output_path.clone(),
+            temp_path: temp_path.clone(),
+            downloaded_chunks: HashMap::new(),
+        };
+
+        self.downloading_files
+            .insert(info.id.clone(), downloading_file);
+
+        Ok(())
+    }
+
+    /// Get downloading file by file ID
+    pub fn get_downloading_file(&self, file_id: &str) -> Option<&DownloadingFile> {
+        self.downloading_files.get(file_id)
+    }
+
+    /// Get downloading file by file ID (mutable)
+    pub fn get_downloading_file_mut(&mut self, file_id: &str) -> Option<&mut DownloadingFile> {
+        self.downloading_files.get_mut(file_id)
+    }
+
+    /// Remove downloading file
+    pub fn remove_downloading_file(&mut self, file_id: &str) -> Option<DownloadingFile> {
+        self.downloading_files.remove(file_id)
+    }
+
+    /// Calculate SHA256 hash of a file
+    pub fn calculate_file_hash(&self, file_path: &Path) -> Result<String> {
+        let mut file = std::fs::File::open(file_path)?;
+        let mut hasher = sha2::Sha256::new();
+        let mut buffer = [0; 8192];
+
+        loop {
+            let bytes_read = file.read(&mut buffer)?;
+            if bytes_read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..bytes_read]);
+        }
+
+        Ok(format!("{:x}", hasher.finalize()))
+    }
+
+    /// Calculate hash of data chunk
+    pub fn calculate_chunk_hash(&self, data: &[u8]) -> String {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(data);
+        hasher.finalize().to_hex().to_string()
+    }
+
+    /// Read a chunk from a shared file (for serving downloads to others)
+    pub fn read_chunk(
+        &self,
+        file_path: &Path,
+        chunk_index: usize,
+        file_id: &str,
+    ) -> Result<crate::events::ChunkInfo> {
+        use crate::events::ChunkInfo;
+
+        let mut file = std::fs::File::open(file_path)?;
+        let offset = chunk_index
+            .checked_mul(crate::client::file_sharing::CHUNK_SIZE)
+            .ok_or_else(|| anyhow::anyhow!("Chunk index overflow: {}", chunk_index))?;
+        file.seek(std::io::SeekFrom::Start(offset as u64))?;
+
+        let mut buffer = vec![0u8; crate::client::file_sharing::CHUNK_SIZE];
+        let bytes_read = file.read(&mut buffer)?;
+        buffer.truncate(bytes_read);
+
+        let hash = self.calculate_chunk_hash(&buffer);
+
+        Ok(ChunkInfo {
+            file_id: file_id.to_string(),
+            chunk_index,
+            data: buffer,
+            hash,
+        })
+    }
 }
 
 impl Default for DownloadManager {
     fn default() -> Self {
-        Self::new()
+        Self::new(std::path::PathBuf::from("./downloads"))
     }
 }

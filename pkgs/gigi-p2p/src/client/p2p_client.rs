@@ -123,8 +123,8 @@ impl P2pClient {
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
 
-        let file_manager =
-            FileSharingManager::new(output_directory.clone(), shared_file_path.clone());
+        let file_manager = FileSharingManager::new(shared_file_path.clone());
+        let download_manager = DownloadManager::new(output_directory);
 
         let mut client = Self {
             swarm,
@@ -132,7 +132,7 @@ impl P2pClient {
             peer_manager: PeerManager::new(),
             group_manager: GroupManager::new(),
             file_manager,
-            download_manager: DownloadManager::new(),
+            download_manager,
             event_sender,
         };
 
@@ -370,7 +370,7 @@ impl P2pClient {
                             if let Some(shared_file) = self.file_manager.shared_files.get(&file_id)
                             {
                                 if !shared_file.revoked {
-                                    match self.file_manager.read_chunk(
+                                    match self.download_manager.read_chunk(
                                         &shared_file.path,
                                         chunk_index,
                                         &file_id,
@@ -412,7 +412,8 @@ impl P2pClient {
                     match response {
                         crate::behaviour::FileSharingResponse::FileInfo(Some(info)) => {
                             // Start download when we receive file info
-                            self.file_manager.start_download(peer, info.clone())?;
+                            self.download_manager
+                                .start_download_file(peer, info.clone())?;
                             self.send_event(P2pEvent::FileInfoReceived {
                                 from: peer,
                                 info: info.clone(),
@@ -464,10 +465,10 @@ impl P2pClient {
                                 filename: info.name.clone(),
                             });
 
-                            // Start requesting initial chunks
+                            // Start requesting initial chunks with optimized concurrency
                             let file_id = info.id.clone();
                             let total_chunks = info.chunk_count;
-                            let initial_requests = std::cmp::min(5, total_chunks); // Start with up to 5 concurrent requests
+                            let initial_requests = std::cmp::min(10, total_chunks); // Start with up to 10 concurrent requests
 
                             for chunk_index in 0..initial_requests {
                                 let _request_id =
@@ -552,15 +553,14 @@ impl P2pClient {
 
     /// Verify chunk hash
     fn verify_chunk_hash(&self, chunk: &ChunkInfo) -> bool {
-        let calculated_hash = self.file_manager.calculate_chunk_hash(&chunk.data);
+        let calculated_hash = self.download_manager.calculate_chunk_hash(&chunk.data);
         calculated_hash == chunk.hash
     }
 
-    /// Get download info from file manager
+    /// Get download info from download manager
     fn get_download_info(&self, file_id: &str) -> Option<(usize, PathBuf)> {
-        self.file_manager
-            .downloading_files
-            .get(file_id)
+        self.download_manager
+            .get_downloading_file(file_id)
             .map(|downloading_file| {
                 (
                     downloading_file.info.chunk_count,
@@ -573,7 +573,9 @@ impl P2pClient {
     fn write_chunk_to_file(&self, temp_path: &Path, chunk_index: usize, data: &[u8]) -> Result<()> {
         use std::io::{Seek, Write};
 
-        let offset = chunk_index * CHUNK_SIZE;
+        let offset = chunk_index
+            .checked_mul(CHUNK_SIZE)
+            .ok_or_else(|| anyhow::anyhow!("Chunk index overflow: {}", chunk_index))?;
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -591,12 +593,13 @@ impl P2pClient {
         file_id: &str,
         peer: &PeerId,
         chunk_index: usize,
-        total_chunks: usize,
+        _total_chunks: usize,
         download_id: &Option<String>,
     ) -> Result<()> {
         // Update downloading file info
-        let (downloaded_count, output_path, expected_hash) =
-            if let Some(downloading_file) = self.file_manager.downloading_files.get_mut(file_id) {
+        let (downloaded_count, output_path, expected_hash, total_chunks) =
+            if let Some(downloading_file) = self.download_manager.get_downloading_file_mut(file_id)
+            {
                 downloading_file.downloaded_chunks.insert(chunk_index, true);
 
                 let downloaded_count = downloading_file
@@ -605,21 +608,42 @@ impl P2pClient {
                     .filter(|&&v| v)
                     .count();
 
-                // Request next chunk if available (sliding window)
-                if downloading_file.next_chunk_to_request < total_chunks {
-                    let next_chunk = downloading_file.next_chunk_to_request;
-                    downloading_file.next_chunk_to_request += 1;
+                let total_chunks = downloading_file.info.chunk_count;
 
-                    let _request_id = self.swarm.behaviour_mut().file_sharing.send_request(
-                        peer,
-                        FileSharingRequest::GetChunk(file_id.to_string(), next_chunk),
-                    );
+                // Optimized concurrent download strategy
+                let max_concurrent_requests: usize = 10;
+
+                // Calculate how many chunks we should have requested by now
+                let chunks_we_should_have_requested =
+                    std::cmp::min(downloaded_count + max_concurrent_requests, total_chunks);
+                let chunks_already_requested = downloading_file.downloaded_chunks.len();
+
+                // Request more chunks if needed
+                if chunks_already_requested < chunks_we_should_have_requested {
+                    let requests_to_make =
+                        chunks_we_should_have_requested - chunks_already_requested;
+
+                    let mut requested = 0;
+                    for next_chunk in 0..total_chunks {
+                        if !downloading_file.downloaded_chunks.contains_key(&next_chunk) {
+                            let _request_id = self.swarm.behaviour_mut().file_sharing.send_request(
+                                peer,
+                                FileSharingRequest::GetChunk(file_id.to_string(), next_chunk),
+                            );
+                            downloading_file.downloaded_chunks.insert(next_chunk, false); // Mark as requested (not downloaded)
+                            requested += 1;
+                            if requested >= requests_to_make {
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 (
                     downloaded_count,
                     downloading_file.output_path.clone(),
                     downloading_file.info.hash.clone(),
+                    total_chunks,
                 )
             } else {
                 return Ok(());
@@ -635,11 +659,10 @@ impl P2pClient {
         self.send_progress_event(download_id, downloaded_count, total_chunks);
 
         // Check if download is complete
-        if downloaded_count == total_chunks {
+        if downloaded_count >= total_chunks {
             let Some(temp_path) = self
-                .file_manager
-                .downloading_files
-                .get(file_id)
+                .download_manager
+                .get_downloading_file(file_id)
                 .map(|f| f.temp_path.clone())
             else {
                 return Ok(());
@@ -648,7 +671,7 @@ impl P2pClient {
             self.handle_download_complete(&temp_path, &output_path, &expected_hash, download_id)?;
 
             // Remove from downloading files
-            self.file_manager.downloading_files.remove(file_id);
+            self.download_manager.remove_downloading_file(file_id);
         }
 
         Ok(())
@@ -663,7 +686,7 @@ impl P2pClient {
         download_id: &Option<String>,
     ) -> Result<()> {
         // Verify file hash
-        match self.file_manager.calculate_file_hash(temp_path) {
+        match self.download_manager.calculate_file_hash(temp_path) {
             Ok(file_hash) => {
                 if file_hash == expected_hash {
                     // Rename temp file to final name
