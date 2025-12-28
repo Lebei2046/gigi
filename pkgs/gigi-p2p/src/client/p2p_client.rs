@@ -16,10 +16,8 @@ use std::time::Duration;
 use tracing::{debug, error, info, instrument, warn};
 
 use super::{
-    download_manager::DownloadManager,
-    file_sharing::{FileSharingManager, CHUNK_SIZE},
-    group_manager::GroupManager,
-    peer_manager::PeerManager,
+    download_manager::DownloadManager, file_sharing::FileSharingManager,
+    group_manager::GroupManager, peer_manager::PeerManager,
 };
 use crate::behaviour::{
     create_gossipsub_behaviour, create_gossipsub_config, DirectMessage, FileSharingRequest,
@@ -467,10 +465,15 @@ impl P2pClient {
 
                             // Start requesting initial chunks with optimized concurrency
                             let file_id = info.id.clone();
-                            let total_chunks = info.chunk_count;
-                            let initial_requests = std::cmp::min(10, total_chunks); // Start with up to 10 concurrent requests
+                            let initial_requests = std::cmp::min(10, info.chunk_count);
+                            let initial_chunk_indices: Vec<usize> = (0..initial_requests).collect();
 
-                            for chunk_index in 0..initial_requests {
+                            // Mark initial chunks as requested
+                            self.download_manager
+                                .mark_chunks_requested(&file_id, &initial_chunk_indices)?;
+
+                            // Send initial requests
+                            for chunk_index in initial_chunk_indices {
                                 let _request_id =
                                     self.swarm.behaviour_mut().file_sharing.send_request(
                                         &peer,
@@ -521,157 +524,73 @@ impl P2pClient {
         chunk_index: usize,
         chunk: ChunkInfo,
     ) -> Result<()> {
-        // Find the download_id for this file_id
+        // Find download_id for this file_id
         let download_id = self.find_download_id_by_file_id(&file_id);
 
-        // Verify chunk hash
-        if !self.verify_chunk_hash(&chunk) {
-            self.send_download_failed_event(
-                download_id.as_deref().unwrap_or("unknown"),
-                format!("Chunk {} hash mismatch", chunk_index),
-            );
-            return Ok(());
-        }
+        // Process chunk through DownloadManager
+        match self
+            .download_manager
+            .process_received_chunk(&file_id, chunk_index, &chunk)?
+        {
+            super::download_manager::ChunkProcessResult::Success {
+                downloaded_count,
+                total_chunks,
+                is_complete,
+                output_path,
+                temp_path,
+                expected_hash,
+            } => {
+                // Update active download progress
+                if let Some(download_id) = &download_id {
+                    self.download_manager
+                        .update_download_progress(download_id, downloaded_count);
+                }
 
-        // Extract necessary data before mutable borrow
-        let Some((total_chunks, temp_path)) = self.get_download_info(&file_id) else {
-            return Ok(());
-        };
+                // Send progress event
+                self.send_progress_event(&download_id, downloaded_count, total_chunks);
 
-        // Write chunk to temp file
-        if let Err(e) = self.write_chunk_to_file(&temp_path, chunk_index, &chunk.data) {
-            self.send_download_failed_event(
-                download_id.as_deref().unwrap_or("unknown"),
-                format!("Failed to write chunk: {}", e),
-            );
-            return Ok(());
-        }
+                // Check if download is complete
+                if is_complete {
+                    self.handle_download_complete(
+                        &temp_path,
+                        &output_path,
+                        &expected_hash,
+                        &download_id,
+                    )?;
+                    // Remove from downloading files
+                    self.download_manager.remove_downloading_file(&file_id);
+                } else {
+                    // Get next chunks to request
+                    if let Some(next_chunks) = self
+                        .download_manager
+                        .get_next_chunks_to_request(&file_id, 10)
+                    {
+                        // Mark them as requested
+                        self.download_manager
+                            .mark_chunks_requested(&file_id, &next_chunks)?;
 
-        // Update download progress
-        self.update_download_progress(&file_id, &peer, chunk_index, total_chunks, &download_id)
-    }
-
-    /// Verify chunk hash
-    fn verify_chunk_hash(&self, chunk: &ChunkInfo) -> bool {
-        let calculated_hash = self.download_manager.calculate_chunk_hash(&chunk.data);
-        calculated_hash == chunk.hash
-    }
-
-    /// Get download info from download manager
-    fn get_download_info(&self, file_id: &str) -> Option<(usize, PathBuf)> {
-        self.download_manager
-            .get_downloading_file(file_id)
-            .map(|downloading_file| {
-                (
-                    downloading_file.info.chunk_count,
-                    downloading_file.temp_path.clone(),
-                )
-            })
-    }
-
-    /// Write chunk data to file at specific offset
-    fn write_chunk_to_file(&self, temp_path: &Path, chunk_index: usize, data: &[u8]) -> Result<()> {
-        use std::io::{Seek, Write};
-
-        let offset = chunk_index
-            .checked_mul(CHUNK_SIZE)
-            .ok_or_else(|| anyhow::anyhow!("Chunk index overflow: {}", chunk_index))?;
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(temp_path)?;
-
-        file.seek(std::io::SeekFrom::Start(offset as u64))?;
-        file.write_all(data)?;
-        file.flush()?;
-        Ok(())
-    }
-
-    /// Update download progress and handle completion
-    fn update_download_progress(
-        &mut self,
-        file_id: &str,
-        peer: &PeerId,
-        chunk_index: usize,
-        _total_chunks: usize,
-        download_id: &Option<String>,
-    ) -> Result<()> {
-        // Update downloading file info
-        let (downloaded_count, output_path, expected_hash, total_chunks) =
-            if let Some(downloading_file) = self.download_manager.get_downloading_file_mut(file_id)
-            {
-                downloading_file.downloaded_chunks.insert(chunk_index, true);
-
-                let downloaded_count = downloading_file
-                    .downloaded_chunks
-                    .values()
-                    .filter(|&&v| v)
-                    .count();
-
-                let total_chunks = downloading_file.info.chunk_count;
-
-                // Optimized concurrent download strategy
-                let max_concurrent_requests: usize = 10;
-
-                // Calculate how many chunks we should have requested by now
-                let chunks_we_should_have_requested =
-                    std::cmp::min(downloaded_count + max_concurrent_requests, total_chunks);
-                let chunks_already_requested = downloading_file.downloaded_chunks.len();
-
-                // Request more chunks if needed
-                if chunks_already_requested < chunks_we_should_have_requested {
-                    let requests_to_make =
-                        chunks_we_should_have_requested - chunks_already_requested;
-
-                    let mut requested = 0;
-                    for next_chunk in 0..total_chunks {
-                        if !downloading_file.downloaded_chunks.contains_key(&next_chunk) {
+                        // Send requests
+                        for chunk_idx in next_chunks {
                             let _request_id = self.swarm.behaviour_mut().file_sharing.send_request(
-                                peer,
-                                FileSharingRequest::GetChunk(file_id.to_string(), next_chunk),
+                                &peer,
+                                FileSharingRequest::GetChunk(file_id.clone(), chunk_idx),
                             );
-                            downloading_file.downloaded_chunks.insert(next_chunk, false); // Mark as requested (not downloaded)
-                            requested += 1;
-                            if requested >= requests_to_make {
-                                break;
-                            }
                         }
                     }
                 }
-
-                (
-                    downloaded_count,
-                    downloading_file.output_path.clone(),
-                    downloading_file.info.hash.clone(),
-                    total_chunks,
-                )
-            } else {
-                return Ok(());
-            };
-
-        // Update active download progress
-        if let Some(download_id) = download_id {
-            self.download_manager
-                .update_download_progress(download_id, downloaded_count);
-        }
-
-        // Send progress event
-        self.send_progress_event(download_id, downloaded_count, total_chunks);
-
-        // Check if download is complete
-        if downloaded_count >= total_chunks {
-            let Some(temp_path) = self
-                .download_manager
-                .get_downloading_file(file_id)
-                .map(|f| f.temp_path.clone())
-            else {
-                return Ok(());
-            };
-
-            self.handle_download_complete(&temp_path, &output_path, &expected_hash, download_id)?;
-
-            // Remove from downloading files
-            self.download_manager.remove_downloading_file(file_id);
+            }
+            super::download_manager::ChunkProcessResult::HashMismatch => {
+                self.send_download_failed_event(
+                    download_id.as_deref().unwrap_or("unknown"),
+                    format!("Chunk {} hash mismatch", chunk_index),
+                );
+            }
+            super::download_manager::ChunkProcessResult::WriteFailed(error) => {
+                self.send_download_failed_event(
+                    download_id.as_deref().unwrap_or("unknown"),
+                    format!("Failed to write chunk: {}", error),
+                );
+            }
         }
 
         Ok(())

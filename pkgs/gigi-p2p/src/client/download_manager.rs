@@ -420,6 +420,155 @@ impl DownloadManager {
             hash,
         })
     }
+
+    /// Process a received chunk - handles verification, storage, and progress tracking
+    pub fn process_received_chunk(
+        &mut self,
+        file_id: &str,
+        chunk_index: usize,
+        chunk: &crate::events::ChunkInfo,
+    ) -> Result<ChunkProcessResult> {
+        // Verify chunk hash
+        let calculated_hash = self.calculate_chunk_hash(&chunk.data);
+        if calculated_hash != chunk.hash {
+            return Ok(ChunkProcessResult::HashMismatch);
+        }
+
+        // Get downloading file info and extract needed data before borrowing
+        let (temp_path, output_path, expected_hash, total_chunks) = {
+            let downloading_file = self
+                .get_downloading_file(file_id)
+                .ok_or_else(|| anyhow::anyhow!("File not found in downloads: {}", file_id))?;
+            (
+                downloading_file.temp_path.clone(),
+                downloading_file.output_path.clone(),
+                downloading_file.info.hash.clone(),
+                downloading_file.info.chunk_count,
+            )
+        };
+
+        // Write chunk to temp file
+        if let Err(e) = self.write_chunk_to_file(&temp_path, chunk_index, &chunk.data) {
+            return Ok(ChunkProcessResult::WriteFailed(e.to_string()));
+        }
+
+        // Now get mutable reference to update progress
+        let downloading_file = self
+            .get_downloading_file_mut(file_id)
+            .ok_or_else(|| anyhow::anyhow!("File not found in downloads: {}", file_id))?;
+
+        // Mark chunk as downloaded
+        downloading_file.downloaded_chunks.insert(chunk_index, true);
+
+        // Calculate progress
+        let downloaded_count = downloading_file
+            .downloaded_chunks
+            .values()
+            .filter(|&&v| v)
+            .count();
+
+        // Check if download is complete
+        let is_complete = downloaded_count >= total_chunks;
+
+        Ok(ChunkProcessResult::Success {
+            downloaded_count,
+            total_chunks,
+            is_complete,
+            output_path,
+            temp_path,
+            expected_hash,
+        })
+    }
+
+    /// Write chunk data to file at specific offset
+    fn write_chunk_to_file(&self, temp_path: &Path, chunk_index: usize, data: &[u8]) -> Result<()> {
+        use std::io::{Seek, Write};
+
+        let offset = chunk_index
+            .checked_mul(crate::client::file_sharing::CHUNK_SIZE)
+            .ok_or_else(|| anyhow::anyhow!("Chunk index overflow: {}", chunk_index))?;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(temp_path)?;
+
+        file.seek(std::io::SeekFrom::Start(offset as u64))?;
+        file.write_all(data)?;
+        file.flush()?;
+        Ok(())
+    }
+
+    /// Get next chunks to request for maintaining optimal concurrency
+    pub fn get_next_chunks_to_request(
+        &self,
+        file_id: &str,
+        max_concurrent_requests: usize,
+    ) -> Option<Vec<usize>> {
+        let downloading_file = self.get_downloading_file(file_id)?;
+
+        let downloaded_count = downloading_file
+            .downloaded_chunks
+            .values()
+            .filter(|&&v| v)
+            .count();
+        let total_chunks = downloading_file.info.chunk_count;
+
+        // Calculate how many chunks we should have requested by now
+        let chunks_we_should_have_requested =
+            std::cmp::min(downloaded_count + max_concurrent_requests, total_chunks);
+        let chunks_already_requested = downloading_file.downloaded_chunks.len();
+
+        // Request more chunks if needed
+        if chunks_already_requested < chunks_we_should_have_requested {
+            let requests_to_make = chunks_we_should_have_requested - chunks_already_requested;
+            let mut next_chunks = Vec::new();
+
+            for next_chunk in 0..total_chunks {
+                if !downloading_file.downloaded_chunks.contains_key(&next_chunk) {
+                    next_chunks.push(next_chunk);
+                    if next_chunks.len() >= requests_to_make {
+                        break;
+                    }
+                }
+            }
+
+            if !next_chunks.is_empty() {
+                return Some(next_chunks);
+            }
+        }
+
+        None
+    }
+
+    /// Mark chunks as requested (not downloaded)
+    pub fn mark_chunks_requested(&mut self, file_id: &str, chunk_indices: &[usize]) -> Result<()> {
+        let downloading_file = self
+            .get_downloading_file_mut(file_id)
+            .ok_or_else(|| anyhow::anyhow!("File not found in downloads: {}", file_id))?;
+
+        for &chunk_index in chunk_indices {
+            downloading_file
+                .downloaded_chunks
+                .insert(chunk_index, false);
+        }
+
+        Ok(())
+    }
+}
+
+/// Result of processing a received chunk
+#[derive(Debug)]
+pub enum ChunkProcessResult {
+    Success {
+        downloaded_count: usize,
+        total_chunks: usize,
+        is_complete: bool,
+        output_path: PathBuf,
+        temp_path: PathBuf,
+        expected_hash: String,
+    },
+    HashMismatch,
+    WriteFailed(String),
 }
 
 impl Default for DownloadManager {
