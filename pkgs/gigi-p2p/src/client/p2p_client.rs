@@ -10,41 +10,41 @@ use libp2p::{
     swarm::SwarmEvent,
     PeerId, StreamProtocol,
 };
-use std::collections::HashMap;
+
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{error, instrument, warn};
 
 use super::{
-    download_manager::DownloadManager, file_sharing::FileSharingManager,
-    group_manager::GroupManager, peer_manager::PeerManager,
+    download_manager::DownloadManager, event_handler::SwarmEventHandler,
+    file_sharing::FileSharingManager, group_manager::GroupManager, peer_manager::PeerManager,
 };
 use crate::behaviour::{
     create_gossipsub_behaviour, create_gossipsub_config, DirectMessage, FileSharingRequest,
-    NicknameRequest, UnifiedBehaviour, UnifiedEvent,
+    UnifiedBehaviour, UnifiedEvent,
 };
 use crate::error::P2pError;
-use crate::events::{ActiveDownload, ChunkInfo, GroupInfo, P2pEvent, PeerInfo};
+use crate::events::{ActiveDownload, GroupInfo, P2pEvent, PeerInfo};
 
 /// Main P2P client
 pub struct P2pClient {
-    swarm: libp2p::swarm::Swarm<UnifiedBehaviour>,
-    local_nickname: String,
+    pub(super) swarm: libp2p::swarm::Swarm<UnifiedBehaviour>,
+    pub(super) local_nickname: String,
 
     // Peer management
-    peer_manager: PeerManager,
+    pub(super) peer_manager: PeerManager,
 
     // Group management
-    group_manager: GroupManager,
+    pub(super) group_manager: GroupManager,
 
     // File sharing
-    file_manager: FileSharingManager,
+    pub(super) file_manager: FileSharingManager,
 
     // Download management
-    download_manager: DownloadManager,
+    pub(super) download_manager: DownloadManager,
 
     // Event handling
-    event_sender: mpsc::UnboundedSender<P2pEvent>,
+    pub(super) event_sender: mpsc::UnboundedSender<P2pEvent>,
 }
 
 impl P2pClient {
@@ -158,581 +158,7 @@ impl P2pClient {
 
     /// Handle a single swarm event
     fn handle_event(&mut self, event: SwarmEvent<UnifiedEvent>) -> Result<()> {
-        match event {
-            SwarmEvent::Behaviour(unified_event) => {
-                self.handle_unified_event(unified_event)?;
-            }
-            SwarmEvent::NewListenAddr { address, .. } => {
-                self.send_event(P2pEvent::ListeningOn { address });
-            }
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                self.peer_manager
-                    .handle_connection_established(peer_id, &mut self.event_sender);
-            }
-            SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                self.peer_manager
-                    .handle_connection_closed(peer_id, &mut self.event_sender);
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    /// Handle unified network events
-    fn handle_unified_event(&mut self, event: UnifiedEvent) -> Result<()> {
-        match event {
-            UnifiedEvent::Mdns(mdns_event) => self.handle_mdns_event(mdns_event)?,
-            UnifiedEvent::Nickname(nickname_event) => self.handle_nickname_event(nickname_event)?,
-            UnifiedEvent::DirectMessage(dm_event) => self.handle_direct_message_event(dm_event)?,
-            UnifiedEvent::Gossipsub(gossip_event) => self.handle_gossipsub_event(gossip_event)?,
-            UnifiedEvent::FileSharing(file_event) => self.handle_file_sharing_event(file_event)?,
-        }
-        Ok(())
-    }
-
-    /// Handle mDNS events
-    fn handle_mdns_event(&mut self, event: libp2p::mdns::Event) -> Result<()> {
-        match event {
-            mdns::Event::Discovered(list) => {
-                info!("mDNS discovered {} peers", list.len());
-                for (peer_id, addr) in list {
-                    debug!("Found peer: {} at {}", peer_id, addr);
-                    self.peer_manager.handle_peer_discovered(
-                        peer_id,
-                        addr,
-                        &mut self.swarm,
-                        &self.local_nickname,
-                        &mut self.event_sender,
-                    )?;
-                }
-            }
-            mdns::Event::Expired(list) => {
-                info!("mDNS expired {} peers", list.len());
-                for (peer_id, _addr) in list {
-                    self.peer_manager
-                        .handle_peer_expired(peer_id, &mut self.event_sender)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Handle nickname events
-    fn handle_nickname_event(
-        &mut self,
-        event: request_response::Event<NicknameRequest, crate::behaviour::NicknameResponse>,
-    ) -> Result<()> {
-        use crate::behaviour::NicknameResponse;
-
-        if let request_response::Event::Message { message, peer, .. } = event {
-            match message {
-                request_response::Message::Request {
-                    request, channel, ..
-                } => {
-                    let response = match request {
-                        NicknameRequest::AnnounceNickname { nickname } => {
-                            self.peer_manager.update_peer_nickname(
-                                peer,
-                                nickname.clone(),
-                                &mut self.event_sender,
-                            );
-                            NicknameResponse::Ack {
-                                nickname: self.local_nickname.clone(),
-                            }
-                        }
-                    };
-                    debug!("Sending nickname response to {}: {:?}", peer, response);
-                    let _ = self
-                        .swarm
-                        .behaviour_mut()
-                        .nickname
-                        .send_response(channel, response);
-                }
-                request_response::Message::Response { response, .. } => {
-                    debug!("Received nickname response from {}: {:?}", peer, response);
-                    // Handle Ack or Error responses
-                    match response {
-                        crate::behaviour::NicknameResponse::Ack { nickname } => {
-                            debug!("Peer {} acknowledged our nickname announcement with their nickname: {}", peer, nickname);
-                            // Update peer with their nickname from the Ack response
-                            self.peer_manager.update_peer_nickname(
-                                peer,
-                                nickname,
-                                &mut self.event_sender,
-                            );
-                        }
-                        crate::behaviour::NicknameResponse::Error(error) => {
-                            warn!("Peer {} reported nickname error: {}", peer, error);
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Handle direct message events
-    fn handle_direct_message_event(
-        &mut self,
-        event: request_response::Event<DirectMessage, crate::behaviour::DirectResponse>,
-    ) -> Result<()> {
-        if let request_response::Event::Message {
-            message:
-                request_response::Message::Request {
-                    request, channel, ..
-                },
-            peer,
-            ..
-        } = event
-        {
-            let nickname = self.peer_manager.get_peer_nickname(&peer)?;
-            match request {
-                DirectMessage::Text { message } => {
-                    self.send_event(P2pEvent::DirectMessage {
-                        from: peer,
-                        from_nickname: nickname,
-                        message,
-                    });
-                }
-                DirectMessage::FileShare {
-                    share_code,
-                    filename,
-                    file_size,
-                    file_type,
-                } => {
-                    self.send_event(P2pEvent::DirectFileShareMessage {
-                        from: peer,
-                        from_nickname: nickname,
-                        share_code,
-                        filename,
-                        file_size,
-                        file_type,
-                    });
-                }
-                DirectMessage::ShareGroup {
-                    group_id,
-                    group_name,
-                    inviter_nickname: _,
-                } => {
-                    self.send_event(P2pEvent::DirectGroupShareMessage {
-                        from: peer,
-                        from_nickname: nickname,
-                        group_id,
-                        group_name,
-                    });
-                }
-            }
-            let _ = self
-                .swarm
-                .behaviour_mut()
-                .direct_msg
-                .send_response(channel, crate::behaviour::DirectResponse::Ack);
-        }
-        Ok(())
-    }
-
-    /// Handle gossipsub events
-    fn handle_gossipsub_event(&mut self, event: libp2p::gossipsub::Event) -> Result<()> {
-        // Convert PeerInfo references to owned PeerInfo values for GroupManager
-        let peers: HashMap<PeerId, PeerInfo> = self
-            .peer_manager
-            .list_peers()
-            .into_iter()
-            .map(|peer| (peer.peer_id, peer.clone()))
-            .collect();
-        self.group_manager
-            .handle_gossipsub_event(event, &peers, &mut self.event_sender)
-    }
-
-    /// Handle file sharing events with chunked file support
-    fn handle_file_sharing_event(
-        &mut self,
-        event: request_response::Event<FileSharingRequest, crate::behaviour::FileSharingResponse>,
-    ) -> Result<()> {
-        if let request_response::Event::Message { message, peer, .. } = event {
-            match message {
-                request_response::Message::Request {
-                    request, channel, ..
-                } => {
-                    let response = match request {
-                        FileSharingRequest::GetFileInfo(file_id) => {
-                            let info = self
-                                .file_manager
-                                .shared_files
-                                .get(&file_id)
-                                .filter(|f| !f.revoked)
-                                .map(|f| f.info.clone());
-                            crate::behaviour::FileSharingResponse::FileInfo(info)
-                        }
-                        FileSharingRequest::GetChunk(file_id, chunk_index) => {
-                            if let Some(shared_file) = self.file_manager.shared_files.get(&file_id)
-                            {
-                                if !shared_file.revoked {
-                                    match self.download_manager.read_chunk(
-                                        &shared_file.path,
-                                        chunk_index,
-                                        &file_id,
-                                    ) {
-                                        Ok(chunk) => crate::behaviour::FileSharingResponse::Chunk(
-                                            Some(chunk),
-                                        ),
-                                        Err(_) => crate::behaviour::FileSharingResponse::Error(
-                                            "Failed to read chunk".to_string(),
-                                        ),
-                                    }
-                                } else {
-                                    crate::behaviour::FileSharingResponse::Error(
-                                        "File has been revoked".to_string(),
-                                    )
-                                }
-                            } else {
-                                crate::behaviour::FileSharingResponse::Chunk(None)
-                            }
-                        }
-                        FileSharingRequest::ListFiles => {
-                            let files = self
-                                .file_manager
-                                .shared_files
-                                .values()
-                                .filter(|f| !f.revoked)
-                                .map(|f| f.info.clone())
-                                .collect();
-                            crate::behaviour::FileSharingResponse::FileList(files)
-                        }
-                    };
-                    let _ = self
-                        .swarm
-                        .behaviour_mut()
-                        .file_sharing
-                        .send_response(channel, response);
-                }
-                request_response::Message::Response { response, .. } => {
-                    match response {
-                        crate::behaviour::FileSharingResponse::FileInfo(Some(info)) => {
-                            // Start download when we receive file info
-                            self.download_manager
-                                .start_download_file(peer, info.clone())?;
-                            self.send_event(P2pEvent::FileInfoReceived {
-                                from: peer,
-                                info: info.clone(),
-                            });
-
-                            // Find and update the active download entry
-                            let from_nickname = self
-                                .peer_manager
-                                .get_peer(&peer)
-                                .map(|p| p.nickname.clone())
-                                .unwrap_or_else(|| peer.to_string());
-
-                            // Find the share code from pending downloads or use file_id as fallback
-                            let share_code = self
-                                .download_manager
-                                .find_share_code_for_file(&info.id)
-                                .unwrap_or_else(|| info.id.clone());
-
-                            // Find the pending download to update it with proper info
-                            let pending_download_id = self
-                                .download_manager
-                                .get_download_by_share_code(&share_code)
-                                .map(|download| download.download_id.clone())
-                                .unwrap_or_else(|| {
-                                    format!(
-                                        "pending_{}_{}",
-                                        share_code,
-                                        std::time::SystemTime::now()
-                                            .duration_since(std::time::UNIX_EPOCH)
-                                            .unwrap()
-                                            .as_secs()
-                                    )
-                                });
-
-                            // Update the pending download with proper file info using DownloadManager
-                            let _final_download_id =
-                                self.download_manager.update_download_with_file_info(
-                                    &pending_download_id,
-                                    info.name.clone(),
-                                    info.chunk_count,
-                                    peer,
-                                    from_nickname.clone(),
-                                )?;
-
-                            // Send download started event with correct filename
-                            self.send_event(P2pEvent::FileDownloadStarted {
-                                from: peer,
-                                from_nickname: from_nickname,
-                                filename: info.name.clone(),
-                            });
-
-                            // Start requesting initial chunks with optimized concurrency
-                            let file_id = info.id.clone();
-                            let initial_requests = std::cmp::min(10, info.chunk_count);
-                            let initial_chunk_indices: Vec<usize> = (0..initial_requests).collect();
-
-                            // Mark initial chunks as requested
-                            self.download_manager
-                                .mark_chunks_requested(&file_id, &initial_chunk_indices)?;
-
-                            // Send initial requests
-                            for chunk_index in initial_chunk_indices {
-                                let _request_id =
-                                    self.swarm.behaviour_mut().file_sharing.send_request(
-                                        &peer,
-                                        FileSharingRequest::GetChunk(file_id.clone(), chunk_index),
-                                    );
-                            }
-                        }
-                        crate::behaviour::FileSharingResponse::FileInfo(None) => {
-                            // File not found - send error event
-                            self.send_event(P2pEvent::FileDownloadFailed {
-                                download_id: "unknown".to_string(),
-                                filename: "Unknown".to_string(),
-                                share_code: "unknown".to_string(),
-                                from_peer_id: libp2p::PeerId::random(),
-                                from_nickname: "Unknown".to_string(),
-                                error: "File not found".to_string(),
-                            });
-                        }
-                        crate::behaviour::FileSharingResponse::Chunk(Some(chunk)) => {
-                            self.handle_chunk_received(
-                                peer,
-                                chunk.file_id.clone(), // Still use file_id for chunk requests (different concept)
-                                chunk.chunk_index,
-                                chunk,
-                            )?;
-                        }
-                        crate::behaviour::FileSharingResponse::Chunk(None) => {
-                            // Chunk not found
-                        }
-                        crate::behaviour::FileSharingResponse::FileList(files) => {
-                            self.send_event(P2pEvent::FileListReceived { from: peer, files });
-                        }
-                        crate::behaviour::FileSharingResponse::Error(error) => {
-                            self.send_event(P2pEvent::Error(error));
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Handle a received chunk
-    fn handle_chunk_received(
-        &mut self,
-        peer: PeerId,
-        file_id: String,
-        chunk_index: usize,
-        chunk: ChunkInfo,
-    ) -> Result<()> {
-        // Find download_id for this file_id
-        let download_id = self.find_download_id_by_file_id(&file_id);
-
-        // Process chunk through DownloadManager
-        match self
-            .download_manager
-            .process_received_chunk(&file_id, chunk_index, &chunk)?
-        {
-            super::download_manager::ChunkProcessResult::Success {
-                downloaded_count,
-                total_chunks,
-                is_complete,
-                output_path,
-                temp_path,
-                expected_hash,
-            } => {
-                // Update active download progress
-                if let Some(download_id) = &download_id {
-                    self.download_manager
-                        .update_download_progress(download_id, downloaded_count);
-                }
-
-                // Send progress event
-                self.send_progress_event(&download_id, downloaded_count, total_chunks);
-
-                // Check if download is complete
-                if is_complete {
-                    self.handle_download_complete(
-                        &temp_path,
-                        &output_path,
-                        &expected_hash,
-                        &download_id,
-                    )?;
-                    // Remove from downloading files
-                    self.download_manager.remove_downloading_file(&file_id);
-                } else {
-                    // Get next chunks to request
-                    if let Some(next_chunks) = self
-                        .download_manager
-                        .get_next_chunks_to_request(&file_id, 10)
-                    {
-                        // Mark them as requested
-                        self.download_manager
-                            .mark_chunks_requested(&file_id, &next_chunks)?;
-
-                        // Send requests
-                        for chunk_idx in next_chunks {
-                            let _request_id = self.swarm.behaviour_mut().file_sharing.send_request(
-                                &peer,
-                                FileSharingRequest::GetChunk(file_id.clone(), chunk_idx),
-                            );
-                        }
-                    }
-                }
-            }
-            super::download_manager::ChunkProcessResult::HashMismatch => {
-                self.send_download_failed_event(
-                    download_id.as_deref().unwrap_or("unknown"),
-                    format!("Chunk {} hash mismatch", chunk_index),
-                );
-            }
-            super::download_manager::ChunkProcessResult::WriteFailed(error) => {
-                self.send_download_failed_event(
-                    download_id.as_deref().unwrap_or("unknown"),
-                    format!("Failed to write chunk: {}", error),
-                );
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Handle download completion and verification
-    fn handle_download_complete(
-        &mut self,
-        temp_path: &Path,
-        output_path: &Path,
-        expected_hash: &str,
-        download_id: &Option<String>,
-    ) -> Result<()> {
-        // Verify file hash
-        match self.download_manager.calculate_file_hash(temp_path) {
-            Ok(file_hash) => {
-                if file_hash == expected_hash {
-                    // Rename temp file to final name
-                    match std::fs::rename(temp_path, output_path) {
-                        Ok(_) => {
-                            self.send_download_completed_event(download_id, output_path);
-                        }
-                        Err(e) => {
-                            self.send_download_failed_event(
-                                download_id.as_deref().unwrap_or("unknown"),
-                                format!("Failed to rename file: {}", e),
-                            );
-                        }
-                    }
-                } else {
-                    self.send_download_failed_event(
-                        download_id.as_deref().unwrap_or("unknown"),
-                        "File hash verification failed".to_string(),
-                    );
-                }
-            }
-            Err(e) => {
-                self.send_download_failed_event(
-                    download_id.as_deref().unwrap_or("unknown"),
-                    format!("Failed to calculate file hash: {}", e),
-                );
-            }
-        }
-        Ok(())
-    }
-
-    /// Helper to get download info for events
-    fn get_download_info_for_event(
-        &self,
-        download_id: &Option<String>,
-    ) -> (String, String, String, String, libp2p::PeerId) {
-        self.download_manager
-            .get_download_info_for_event(download_id)
-    }
-
-    /// Send download failed event
-    fn send_download_failed_event(&mut self, download_id: &str, error: String) {
-        // Mark as failed in download manager first
-        self.download_manager
-            .fail_download(download_id, error.clone());
-
-        // Get info for the event from download manager
-        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) = self
-            .download_manager
-            .get_download_info_for_event(&Some(download_id.to_string()));
-
-        self.send_event(P2pEvent::FileDownloadFailed {
-            download_id: actual_download_id,
-            filename,
-            share_code,
-            from_peer_id,
-            from_nickname,
-            error,
-        });
-    }
-
-    /// Send progress event
-    fn send_progress_event(
-        &mut self,
-        download_id: &Option<String>,
-        downloaded_count: usize,
-        total_chunks: usize,
-    ) {
-        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) =
-            self.get_download_info_for_event(download_id);
-
-        self.send_event(P2pEvent::FileDownloadProgress {
-            download_id: actual_download_id,
-            filename,
-            share_code,
-            from_peer_id,
-            from_nickname,
-            downloaded_chunks: downloaded_count,
-            total_chunks,
-        });
-    }
-
-    /// Send download completed event
-    fn send_download_completed_event(&mut self, download_id: &Option<String>, output_path: &Path) {
-        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) =
-            if let Some(download_id) = download_id {
-                // Mark as completed in download manager first
-                let completed_download = self
-                    .download_manager
-                    .complete_download(download_id, output_path.to_path_buf());
-
-                // Get the info for the event
-                if let Some(completed_download) = completed_download {
-                    (
-                        completed_download.download_id.clone(),
-                        completed_download.filename.clone(),
-                        completed_download.share_code.clone(),
-                        completed_download.from_nickname.clone(),
-                        completed_download.from_peer_id,
-                    )
-                } else {
-                    (
-                        download_id.clone(),
-                        "Unknown".to_string(),
-                        "Unknown".to_string(),
-                        "Unknown".to_string(),
-                        libp2p::PeerId::random(),
-                    )
-                }
-            } else {
-                (
-                    "unknown".to_string(),
-                    "Unknown".to_string(),
-                    "Unknown".to_string(),
-                    "Unknown".to_string(),
-                    libp2p::PeerId::random(),
-                )
-            };
-
-        self.send_event(P2pEvent::FileDownloadCompleted {
-            download_id: actual_download_id,
-            filename,
-            share_code,
-            from_peer_id,
-            from_nickname,
-            path: output_path.to_path_buf(),
-        });
+        SwarmEventHandler::new(self).handle_event(event)
     }
 
     /// Get peer by nickname
@@ -944,7 +370,7 @@ impl P2pClient {
     }
 
     /// Send event to event receiver
-    fn send_event(&self, event: P2pEvent) {
+    pub fn send_event(&self, event: P2pEvent) {
         if let Err(e) = self.event_sender.unbounded_send(event) {
             error!("Failed to send P2P event: {}", e);
         }
@@ -988,7 +414,7 @@ impl P2pClient {
     }
 
     /// Helper to find download_id by file_id
-    fn find_download_id_by_file_id(&self, file_id: &str) -> Option<String> {
+    pub fn find_download_id_by_file_id(&self, file_id: &str) -> Option<String> {
         self.download_manager.find_download_id_by_file_id(file_id)
     }
 

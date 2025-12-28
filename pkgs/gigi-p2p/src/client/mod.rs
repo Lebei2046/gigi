@@ -1,3 +1,4 @@
+pub mod event_handler;
 pub mod file_sharing;
 pub mod p2p_client;
 
