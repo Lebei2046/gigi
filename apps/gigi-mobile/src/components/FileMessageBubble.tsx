@@ -81,8 +81,10 @@ export default function FileMessageBubble({
 
   const isDownloading =
     message.isDownloading && message.downloadProgress !== undefined
+  const isDownloaded =
+    !message.isDownloading && message.downloadProgress === 100
   const isDownloadable =
-    !message.isOutgoing && message.shareCode && !isDownloading
+    !message.isOutgoing && message.shareCode && !isDownloading && !isDownloaded
 
   return (
     <div className="flex flex-col gap-2">
@@ -110,6 +112,17 @@ export default function FileMessageBubble({
               </p>
             </div>
           )}
+          {isDownloaded && (
+            <div className="mt-2">
+              <div className="w-full bg-green-200 rounded-full h-2">
+                <div
+                  className="bg-green-500 h-2 rounded-full"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <p className="text-xs text-green-600 mt-1">Download completed</p>
+            </div>
+          )}
         </div>
         {isDownloadable && (
           <button
@@ -131,6 +144,26 @@ export default function FileMessageBubble({
               />
             </svg>
           </button>
+        )}
+        {isDownloaded && (
+          <div
+            className="p-2 text-green-600 bg-green-50 rounded-lg"
+            title="File downloaded"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
         )}
       </div>
       {message.content && (
