@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   FaComment as ChatIcon,
@@ -12,6 +12,7 @@ import Chat from '../chat/Chat'
 import P2PLogs from '@/components/P2PLogs'
 import { useAppSelector, useAppDispatch } from '@/store'
 import { addLog, clearLogs } from '@/store/logsSlice'
+import { MessagingEvents } from '@/utils/messaging'
 
 export default function Home() {
   const logs = useAppSelector(state => state.logs.logs)

@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs;
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -21,6 +22,13 @@ use tracing::{debug, error, info, warn};
 fn init_logging() {
     gigi_p2p::init_tracing();
 }
+
+/// Download folder constant for file storage
+#[cfg(target_os = "android")]
+const DOWNLOAD_FOLDER: &str = "/storage/emulated/0/Download/gigi";
+
+#[cfg(not(target_os = "android"))]
+const DOWNLOAD_FOLDER: &str = "./gigi/Download";
 
 // Types that match the frontend expectations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,18 +69,6 @@ pub struct Config {
     pub download_folder: String,
     pub max_concurrent_downloads: usize,
     pub port: u16,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            nickname: "Anonymous".to_string(),
-            auto_accept_files: false,
-            download_folder: "./downloads".to_string(),
-            max_concurrent_downloads: 3,
-            port: 0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,13 +113,11 @@ pub struct AppState {
     pub event_receiver: Arc<Mutex<Option<mpsc::UnboundedReceiver<P2pEvent>>>>,
     pub config: Arc<RwLock<Config>>,
     pub active_downloads: Arc<Mutex<HashMap<String, DownloadProgress>>>,
-    pub shared_files: Arc<Mutex<HashMap<String, FileInfo>>>,
-    pub shared_files_path: PathBuf,
 }
 
 impl AppState {
     pub fn new() -> Self {
-        Self::with_download_folder("./downloads")
+        Self::with_download_folder(DOWNLOAD_FOLDER)
     }
 
     pub fn with_download_folder(download_folder: &str) -> Self {
@@ -135,10 +129,14 @@ impl AppState {
         Self {
             p2p_client: Arc::new(Mutex::new(None)),
             event_receiver: Arc::new(Mutex::new(None)),
-            config: Arc::new(RwLock::new(Config::default())),
+            config: Arc::new(RwLock::new(Config {
+                nickname: "Anonymous".to_string(),
+                auto_accept_files: false,
+                download_folder: base_path.to_string_lossy().to_string(),
+                max_concurrent_downloads: 3,
+                port: 0,
+            })),
             active_downloads: Arc::new(Mutex::new(HashMap::new())),
-            shared_files: Arc::new(Mutex::new(HashMap::new())),
-            shared_files_path: base_path.join("shared_files.json"),
         }
     }
 }
@@ -147,42 +145,6 @@ impl Default for AppState {
     fn default() -> Self {
         Self::new()
     }
-}
-
-// Helper functions for shared files persistence
-
-async fn load_shared_files(shared_files_path: &PathBuf) -> HashMap<String, FileInfo> {
-    if shared_files_path.exists() {
-        match fs::read_to_string(shared_files_path) {
-            Ok(content) => match serde_json::from_str::<HashMap<String, FileInfo>>(&content) {
-                Ok(files) => files,
-                Err(e) => {
-                    error!("Failed to deserialize shared files: {}", e);
-                    HashMap::new()
-                }
-            },
-            Err(e) => {
-                error!("Failed to read shared files file: {}", e);
-                HashMap::new()
-            }
-        }
-    } else {
-        HashMap::new()
-    }
-}
-
-async fn save_shared_files(
-    shared_files: &HashMap<String, FileInfo>,
-    shared_files_path: &PathBuf,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Create parent directory if it doesn't exist
-    if let Some(parent) = shared_files_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    let content = serde_json::to_string_pretty(shared_files)?;
-    fs::write(shared_files_path, content)?;
-    Ok(())
 }
 
 // Commands
@@ -228,10 +190,11 @@ async fn messaging_initialize_with_key(
 
     let config_guard = state.config.read().await;
     let output_dir = PathBuf::from(&config_guard.download_folder);
+    let shared_files_path = PathBuf::from(&config_guard.download_folder).join("shared.json");
     let final_nickname = config_guard.nickname.clone();
     drop(config_guard);
 
-    match P2pClient::new(keypair, final_nickname, output_dir) {
+    match P2pClient::new_with_config(keypair, final_nickname, output_dir, shared_files_path) {
         Ok((mut client, event_receiver)) => {
             // Start listening on a random port
             let addr = "/ip4/0.0.0.0/tcp/0".parse().unwrap();
@@ -252,7 +215,6 @@ async fn messaging_initialize_with_key(
             let p2p_client = state.p2p_client.clone();
             let config = state.config.clone();
             let active_downloads = state.active_downloads.clone();
-            let shared_files = state.shared_files.clone();
             let app_handle_clone = app_handle.clone();
             let receiver = {
                 let mut guard = state.event_receiver.lock().await;
@@ -323,7 +285,6 @@ async fn messaging_initialize_with_key(
                             &p2p_client,
                             &config,
                             &active_downloads,
-                            &shared_files,
                             &app_handle_clone,
                         )
                         .await
@@ -466,46 +427,7 @@ async fn messaging_share_file(
             .await
             .map_err(|e| format!("Failed to share file: {}", e))?;
 
-        // Get file metadata and store it
-        let metadata =
-            fs::metadata(&path).map_err(|e| format!("Failed to get file metadata: {}", e))?;
-
-        let file_name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or("Invalid file name")?
-            .to_string();
-
-        let file_info = FileInfo {
-            id: share_code.clone(),
-            name: file_name,
-            size: metadata.len(),
-            mime_type: mime_guess::from_path(&path)
-                .first_or_octet_stream()
-                .to_string(),
-            peer_id: {
-                let client_guard = state.p2p_client.lock().await;
-                if let Some(client) = client_guard.as_ref() {
-                    client.local_peer_id().to_string()
-                } else {
-                    "".to_string()
-                }
-            },
-        };
-
-        // Store the file info
-        {
-            let mut shared_files_guard = state.shared_files.lock().await;
-            shared_files_guard.insert(share_code.clone(), file_info);
-        }
-
-        // Save to disk
-        if let Err(e) =
-            save_shared_files(&*state.shared_files.lock().await, &state.shared_files_path).await
-        {
-            error!("Failed to save shared files: {}", e);
-        }
-
+        // P2pClient handles persistence automatically
         Ok(share_code)
     } else {
         Err("P2P client not initialized".to_string())
@@ -564,8 +486,24 @@ fn messaging_cancel_download(download_id: &str, _state: State<'_, AppState>) -> 
 
 #[tauri::command]
 async fn messaging_get_shared_files(state: State<'_, AppState>) -> Result<Vec<FileInfo>, String> {
-    let files_guard = state.shared_files.lock().await;
-    Ok(files_guard.values().cloned().collect())
+    let client_guard = state.p2p_client.lock().await;
+    if let Some(client) = client_guard.as_ref() {
+        let shared_files = client.list_shared_files();
+        Ok(shared_files
+            .into_iter()
+            .map(|sf| FileInfo {
+                id: sf.info.id.clone(),
+                name: sf.info.name.clone(),
+                size: sf.info.size,
+                mime_type: mime_guess::from_path(&sf.info.name)
+                    .first_or_octet_stream()
+                    .to_string(),
+                peer_id: client.local_peer_id().to_string(),
+            })
+            .collect())
+    } else {
+        Ok(vec![])
+    }
 }
 
 #[tauri::command]
@@ -591,6 +529,7 @@ async fn messaging_get_active_downloads(
 
 #[tauri::command]
 async fn messaging_send_file_message_with_path(
+    app: AppHandle,
     nickname: &str,
     file_path: &str,
     state: State<'_, AppState>,
@@ -602,18 +541,56 @@ async fn messaging_send_file_message_with_path(
 
     let mut client_guard = state.p2p_client.lock().await;
     if let Some(client) = client_guard.as_mut() {
-        let path = PathBuf::from(file_path);
+        let is_content_uri = file_path.starts_with("content://");
 
-        // Verify file exists
-        if !path.exists() {
-            error!("❌ File does not exist: {}", file_path);
-            return Err("File does not exist".to_string());
-        }
+        // Read file data and convert to base64 for immediate display
+        let image_data = if is_content_uri {
+            // Android content URI: use android-fs plugin
+            #[cfg(target_os = "android")]
+            {
+                use tauri_plugin_android_fs::AndroidFsExt;
+                info!("📱 Detected Android content URI, using android-fs plugin");
 
-        info!("✅ File exists, reading image data...");
-        // Read image data and convert to base64 for immediate display
-        let image_data =
-            fs::read(&path).map_err(|e| format!("Failed to read image file: {}", e))?;
+                let api = app.android_fs_async();
+                let uri = file_path;
+
+                // Open content URI as readable
+                let mut readable = api
+                    .open_file_readable(uri)
+                    .await
+                    .map_err(|e| format!("Failed to open content URI: {}", e))?;
+
+                // Read all data
+                let mut buffer = Vec::new();
+                readable
+                    .read_to_end(&mut buffer)
+                    .map_err(|e| format!("Failed to read from content URI: {}", e))?;
+
+                info!(
+                    "✅ Successfully read {} bytes from content URI",
+                    buffer.len()
+                );
+                buffer
+            }
+
+            #[cfg(not(target_os = "android"))]
+            {
+                return Err("Content URIs are only supported on Android".to_string());
+            }
+        } else {
+            // Regular filesystem path
+            let path = PathBuf::from(file_path);
+
+            // Verify file exists
+            if !path.exists() {
+                error!("❌ File does not exist: {}", file_path);
+                return Err("File does not exist".to_string());
+            }
+
+            info!("✅ File exists, reading image data...");
+            fs::read(&path).map_err(|e| format!("Failed to read image file: {}", e))?
+        };
+
         let base64_data = base64::engine::general_purpose::STANDARD.encode(&image_data);
         info!(
             "✅ Successfully converted image to base64, size: {} bytes",
@@ -621,11 +598,53 @@ async fn messaging_send_file_message_with_path(
         );
 
         info!("🔄 Sending image via P2P...");
-        // Send the image using existing P2P functionality
+
+        // Send the image using P2P functionality
+        // For content URIs, save to app-specific location first, then share
+        // For regular paths, share directly
+        let actual_path = if is_content_uri {
+            // Content URI: Save to app-specific location
+            #[cfg(target_os = "android")]
+            {
+                info!("📱 Saving content URI to app directory for sharing");
+
+                // Get app download directory
+                let config_guard = state.config.read().await;
+                let download_dir = PathBuf::from(&config_guard.download_folder);
+                drop(config_guard);
+
+                // Create directory if needed
+                fs::create_dir_all(&download_dir)
+                    .map_err(|e| format!("Failed to create download dir: {}", e))?;
+
+                // Generate filename from URI hash
+                let uri_hash = blake3::hash(file_path.as_bytes()).to_hex();
+                let filename = format!("gigi_share_{}.dat", &uri_hash[..16]);
+                let save_path = download_dir.join(&filename);
+
+                info!("📝 Saving content URI to: {:?}", save_path);
+                // Save image data to file
+                fs::write(&save_path, &image_data)
+                    .map_err(|e| format!("Failed to save file: {}", e))?;
+
+                info!("✅ Saved {} bytes to disk", image_data.len());
+                save_path
+            }
+
+            #[cfg(not(target_os = "android"))]
+            {
+                return Err("Content URIs are only supported on Android".to_string());
+            }
+        } else {
+            // Regular path: use directly
+            PathBuf::from(file_path)
+        };
+
         client
-            .send_direct_file(nickname, &path)
+            .send_direct_file(nickname, &actual_path)
             .await
             .map_err(|e| format!("Failed to send image: {}", e))?;
+
         info!("✅ Image sent successfully");
 
         // Return message ID and base64 data separated by a delimiter
@@ -644,6 +663,7 @@ async fn messaging_send_file_message_with_path(
 
 #[tauri::command]
 async fn messaging_send_group_file_message_with_path(
+    app: AppHandle,
     group_id: &str,
     file_path: &str,
     state: State<'_, AppState>,
@@ -655,18 +675,56 @@ async fn messaging_send_group_file_message_with_path(
 
     let mut client_guard = state.p2p_client.lock().await;
     if let Some(client) = client_guard.as_mut() {
-        let path = PathBuf::from(file_path);
+        let is_content_uri = file_path.starts_with("content://");
 
-        // Verify file exists
-        if !path.exists() {
-            error!("❌ File does not exist: {}", file_path);
-            return Err("File does not exist".to_string());
-        }
+        // Read file data and convert to base64 for immediate display
+        let image_data = if is_content_uri {
+            // Android content URI: use android-fs plugin
+            #[cfg(target_os = "android")]
+            {
+                use tauri_plugin_android_fs::AndroidFsExt;
+                info!("📱 Detected Android content URI (group), using android-fs plugin");
 
-        info!("✅ File exists, reading image data...");
-        // Read image data and convert to base64 for immediate display
-        let image_data =
-            fs::read(&path).map_err(|e| format!("Failed to read image file: {}", e))?;
+                let api = app.android_fs_async();
+                let uri = file_path;
+
+                // Open content URI as readable
+                let mut readable = api
+                    .open_file_readable(uri)
+                    .await
+                    .map_err(|e| format!("Failed to open content URI: {}", e))?;
+
+                // Read all data
+                let mut buffer = Vec::new();
+                readable
+                    .read_to_end(&mut buffer)
+                    .map_err(|e| format!("Failed to read from content URI: {}", e))?;
+
+                info!(
+                    "✅ Successfully read {} bytes from content URI (group)",
+                    buffer.len()
+                );
+                buffer
+            }
+
+            #[cfg(not(target_os = "android"))]
+            {
+                return Err("Content URIs are only supported on Android".to_string());
+            }
+        } else {
+            // Regular filesystem path
+            let path = PathBuf::from(file_path);
+
+            // Verify file exists
+            if !path.exists() {
+                error!("❌ File does not exist: {}", file_path);
+                return Err("File does not exist".to_string());
+            }
+
+            info!("✅ File exists, reading image data...");
+            fs::read(&path).map_err(|e| format!("Failed to read image file: {}", e))?
+        };
+
         let base64_data = base64::engine::general_purpose::STANDARD.encode(&image_data);
         info!(
             "✅ Successfully converted group image to base64, size: {} bytes",
@@ -674,11 +732,53 @@ async fn messaging_send_group_file_message_with_path(
         );
 
         info!("🔄 Sending group image via P2P...");
-        // Send the image using the new group image method
+
+        // Send the group image using P2P functionality
+        // For content URIs, save to app-specific location first, then share
+        // For regular paths, share directly
+        let actual_path = if is_content_uri {
+            // Content URI: Save to app-specific location
+            #[cfg(target_os = "android")]
+            {
+                info!("📱 Saving content URI (group) to app directory for sharing");
+
+                // Get app download directory
+                let config_guard = state.config.read().await;
+                let download_dir = PathBuf::from(&config_guard.download_folder);
+                drop(config_guard);
+
+                // Create directory if needed
+                fs::create_dir_all(&download_dir)
+                    .map_err(|e| format!("Failed to create download dir: {}", e))?;
+
+                // Generate filename from URI hash
+                let uri_hash = blake3::hash(file_path.as_bytes()).to_hex();
+                let filename = format!("gigi_group_{}.dat", &uri_hash[..16]);
+                let save_path = download_dir.join(&filename);
+
+                info!("📝 Saving group content URI to: {:?}", save_path);
+                // Save image data to file
+                fs::write(&save_path, &image_data)
+                    .map_err(|e| format!("Failed to save file: {}", e))?;
+
+                info!("✅ Saved {} bytes (group) to disk", image_data.len());
+                save_path
+            }
+
+            #[cfg(not(target_os = "android"))]
+            {
+                return Err("Content URIs are only supported on Android".to_string());
+            }
+        } else {
+            // Regular path: use directly
+            PathBuf::from(file_path)
+        };
+
         client
-            .send_group_file(group_id, &path)
+            .send_group_file(group_id, &actual_path)
             .await
             .map_err(|e| format!("Failed to send group image: {}", e))?;
+
         info!("✅ Group image sent successfully");
 
         // Return message ID and base64 data separated by a delimiter
@@ -721,25 +821,15 @@ async fn messaging_remove_shared_file(
     share_code: &str,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    // Remove from memory
-    {
-        let mut shared_files_guard = state.shared_files.lock().await;
-        shared_files_guard.remove(share_code);
+    let mut client_guard = state.p2p_client.lock().await;
+    if let Some(client) = client_guard.as_mut() {
+        client
+            .unshare_file(share_code)
+            .map_err(|e| format!("Failed to unshare file: {}", e))?;
+        Ok(())
+    } else {
+        Err("P2P client not initialized".to_string())
     }
-
-    // Save to disk
-    save_shared_files(&*state.shared_files.lock().await, &state.shared_files_path)
-        .await
-        .map_err(|e| format!("Failed to save shared files: {}", e))?;
-
-    Ok(())
-}
-
-#[tauri::command]
-async fn messaging_save_shared_files(state: State<'_, AppState>) -> Result<(), String> {
-    save_shared_files(&*state.shared_files.lock().await, &state.shared_files_path)
-        .await
-        .map_err(|e| format!("Failed to save shared files: {}", e))
 }
 
 #[tauri::command]
@@ -834,7 +924,6 @@ async fn handle_p2p_event_with_fields(
     _p2p_client: &Arc<Mutex<Option<P2pClient>>>,
     _config: &Arc<RwLock<Config>>,
     active_downloads: &Arc<Mutex<HashMap<String, DownloadProgress>>>,
-    _shared_files: &Arc<Mutex<HashMap<String, FileInfo>>>,
     app_handle: &AppHandle,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match event {
@@ -1376,18 +1465,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(app_state)
-        .setup(|app| {
-            // Load shared files from disk in async context
-            let app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if let Some(app_state) = app_handle.try_state::<AppState>() {
-                    let shared_files = load_shared_files(&app_state.shared_files_path).await;
-                    let mut files_guard = app_state.shared_files.lock().await;
-                    *files_guard = shared_files;
-                }
-            });
-            Ok(())
-        })
+        .setup(|_app| Ok(()))
         .invoke_handler(tauri::generate_handler![
             get_peer_id,
             try_get_peer_id,
@@ -1407,7 +1485,6 @@ pub fn run() {
             messaging_cancel_download,
             messaging_get_shared_files,
             messaging_remove_shared_file,
-            messaging_save_shared_files,
             messaging_get_image_data,
             messaging_get_file_info,
             messaging_select_any_file,

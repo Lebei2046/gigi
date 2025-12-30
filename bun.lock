@@ -64,6 +64,7 @@
         "@scure/bip39": "^1.6.0",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-dialog": "^2.4.2",
+        "@tauri-apps/plugin-fs": "^2.0.0",
         "@tauri-apps/plugin-opener": "^2",
         "@yudiel/react-qr-scanner": "^2.4.1",
         "class-variance-authority": "^0.7.1",
@@ -421,6 +422,8 @@
     "@tauri-apps/cli-win32-x64-msvc": ["@tauri-apps/cli-win32-x64-msvc@2.7.1", "", { "os": "win32", "cpu": "x64" }, "sha512-D7Q9kDObutuirCNLxYQ7KAg2Xxg99AjcdYz/KuMw5HvyEPbkC9Q7JL0vOrQOrHEHxIQ2lYzFOZvKKoC2yyqXcg=="],
 
     "@tauri-apps/plugin-dialog": ["@tauri-apps/plugin-dialog@2.4.2", "https://mirrors.cloud.tencent.com/npm/@tauri-apps/plugin-dialog/-/plugin-dialog-2.4.2.tgz", { "dependencies": { "@tauri-apps/api": "^2.8.0" } }, "sha512-lNIn5CZuw8WZOn8zHzmFmDSzg5zfohWoa3mdULP0YFh/VogVdMVWZPcWSHlydsiJhRQYaTNSYKN7RmZKE2lCYQ=="],
+
+    "@tauri-apps/plugin-fs": ["@tauri-apps/plugin-fs@2.4.4", "https://mirrors.cloud.tencent.com/npm/@tauri-apps/plugin-fs/-/plugin-fs-2.4.4.tgz", { "dependencies": { "@tauri-apps/api": "^2.8.0" } }, "sha512-MTorXxIRmOnOPT1jZ3w96vjSuScER38ryXY88vl5F0uiKdnvTKKTtaEjTEo8uPbl4e3gnUtfsDVwC7h77GQLvQ=="],
 
     "@tauri-apps/plugin-opener": ["@tauri-apps/plugin-opener@2.5.1", "https://repo.huaweicloud.com/repository/npm/@tauri-apps/plugin-opener/-/plugin-opener-2.5.1.tgz", { "dependencies": { "@tauri-apps/api": "^2.8.0" } }, "sha512-nyT6oW4ibyXJN2duVBZlPhPmN/+jViOtX0B95f7j5W3R493wEyCNRgjL6YXUp7cB1pKKG6spk7/Q46ZKuzeeBQ=="],
 

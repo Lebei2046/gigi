@@ -46,9 +46,15 @@ impl FileSharingManager {
 
     /// Share a file
     pub async fn share_file(&mut self, file_path: &Path) -> Result<String> {
+        // Try canonicalize, but fall back to original path if it fails (Android content URIs)
         let path = file_path
             .canonicalize()
-            .map_err(|_| P2pError::FileNotFound(file_path.to_path_buf()))?;
+            .unwrap_or_else(|_| file_path.to_path_buf());
+
+        // Verify file exists and is accessible
+        if !path.exists() {
+            return Err(P2pError::FileNotFound(path).into());
+        }
 
         let metadata = fs::metadata(&path).await?;
         let filename = path

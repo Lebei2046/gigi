@@ -55,12 +55,8 @@ impl P2pClient {
         nickname: String,
         output_directory: PathBuf,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
-        Self::new_with_config(
-            keypair,
-            nickname,
-            output_directory,
-            PathBuf::from("shared.json"),
-        )
+        let shared_file_path = output_directory.join("shared.json");
+        Self::new_with_config(keypair, nickname, output_directory, shared_file_path)
     }
 
     /// Create a new P2P client with custom shared file path

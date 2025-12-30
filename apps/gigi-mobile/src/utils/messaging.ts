@@ -264,7 +264,7 @@ export class MessagingClient {
             extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
           },
         ],
-      })
+      } as any)
 
       return selected || null
     } catch (error) {
@@ -305,7 +305,7 @@ export class MessagingClient {
             extensions: ['zip', 'rar', '7z', 'tar', 'gz'],
           },
         ],
-      })
+      } as any)
 
       return selected || null
     } catch (error) {
@@ -392,6 +392,7 @@ export class MessagingClient {
     nickname: string,
     filePath: string
   ): Promise<{ messageId: string; imageData: string }> {
+    // Directly pass the content URI to backend - it will handle it with android-fs plugin
     const response = await invoke<string>(
       'messaging_send_file_message_with_path',
       {
@@ -406,11 +407,48 @@ export class MessagingClient {
     return { messageId, imageData }
   }
 
+  // Extract filename from content URI
+  private static extractFileNameFromUri(uri: string): string {
+    try {
+      // Try to extract from content URI format:
+      // content://com.android.providers.media.documents/document/image%3A19573
+      if (uri.includes('image%3A')) {
+        const id = uri.split('image%3A')[1]?.split('&')[0]
+        return id ? `gigi_image_${id}.jpg` : 'image.jpg'
+      }
+      if (uri.includes('video%3A')) {
+        const id = uri.split('video%3A')[1]?.split('&')[0]
+        return id ? `gigi_video_${id}.mp4` : 'video.mp4'
+      }
+      if (uri.includes('audio%3A')) {
+        const id = uri.split('audio%3A')[1]?.split('&')[0]
+        return id ? `gigi_audio_${id}.mp3` : 'audio.mp3'
+      }
+
+      // Try to extract from the URI path
+      const lastSlash = uri.lastIndexOf('/')
+      if (lastSlash > -1) {
+        const filename = uri.slice(lastSlash + 1)
+        try {
+          // URL decode
+          return decodeURIComponent(filename)
+        } catch {
+          return filename
+        }
+      }
+    } catch (error) {
+      console.error('Failed to extract filename from URI:', error)
+    }
+
+    return 'file.dat'
+  }
+
   // Send group file message using file path
   static async sendGroupFileMessageWithPath(
     groupId: string,
     filePath: string
   ): Promise<{ messageId: string; imageData: string }> {
+    // Directly pass the content URI to backend - it will handle it with android-fs plugin
     const response = await invoke<string>(
       'messaging_send_group_file_message_with_path',
       {
