@@ -1897,18 +1897,19 @@ name = "gigi-mobile"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "blake3",
  "futures",
  "gigi-p2p",
  "hex",
  "libp2p 0.56.0",
  "mime_guess",
+ "percent-encoding",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-android-fs",
  "tauri-plugin-dialog",
- "tauri-plugin-fs",
  "tauri-plugin-opener",
  "tokio",
  "tracing",
@@ -5650,17 +5651,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sync_async"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b815ef8e053247ad785b136d233ee9c9872eeda5319f2719d57cac88270c3dd9"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.107",
-]
-
-[[package]]
 name = "sync_wrapper"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5911,17 +5901,12 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-android-fs"
-version = "24.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ea0c0834fbdb7ffb32c87aeeb63af7c0d428b136c4eecc0e8053b3a39dc68fa"
+checksum = "b32de3840d40ed36ff3582be57aef79f70e8466a842c98fb8be0109ee5cbf796"
 dependencies = [
- "base64 0.22.1",
- "glob",
- "percent-encoding",
- "schemars 0.8.22",
  "serde",
  "serde_json",
- "sync_async",
  "tauri",
  "tauri-plugin",
  "tauri-plugin-fs",

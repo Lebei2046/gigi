@@ -7,11 +7,12 @@ use futures::StreamExt;
 use gigi_p2p::{FileInfo as P2pFileInfo, P2pClient, P2pEvent};
 use hex;
 use libp2p::identity;
+#[cfg(target_os = "android")]
+use percent_encoding::percent_decode_str;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs;
-use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -123,8 +124,8 @@ impl AppState {
     pub fn with_download_folder(download_folder: &str) -> Self {
         let base_path = PathBuf::from(download_folder);
 
-        // Create downloads directory if it doesn't exist
-        fs::create_dir_all(&base_path).ok();
+        // Don't create directory at startup - defer until actually needed
+        // This avoids permission issues on Android at startup
 
         Self {
             p2p_client: Arc::new(Mutex::new(None)),
@@ -193,6 +194,10 @@ async fn messaging_initialize_with_key(
     let shared_files_path = PathBuf::from(&config_guard.download_folder).join("shared.json");
     let final_nickname = config_guard.nickname.clone();
     drop(config_guard);
+
+    // Create downloads directory at runtime when initializing
+    fs::create_dir_all(&output_dir)
+        .map_err(|e| format!("Failed to create download directory: {}", e))?;
 
     match P2pClient::new_with_config(keypair, final_nickname, output_dir, shared_files_path) {
         Ok((mut client, event_receiver)) => {
@@ -529,7 +534,7 @@ async fn messaging_get_active_downloads(
 
 #[tauri::command]
 async fn messaging_send_file_message_with_path(
-    app: AppHandle,
+    #[allow(unused_variables)] app: AppHandle,
     nickname: &str,
     file_path: &str,
     state: State<'_, AppState>,
@@ -545,32 +550,40 @@ async fn messaging_send_file_message_with_path(
 
         // Read file data and convert to base64 for immediate display
         let image_data = if is_content_uri {
-            // Android content URI: use android-fs plugin
+            // Android content URI: Use special handling
+            // On Android, the dialog plugin may return content URIs
+            // The standard fs plugin handles content URI translation
+            let uri_str = file_path;
+            info!("📱 Detected content URI: {}", uri_str);
+
+            // On Android, we need to use a workaround to read content URIs
             #[cfg(target_os = "android")]
             {
-                use tauri_plugin_android_fs::AndroidFsExt;
-                info!("📱 Detected Android content URI, using android-fs plugin");
+                // For content URIs, use the android-fs plugin
+                info!("📱 Attempting to read content URI: {}", uri_str);
 
-                let api = app.android_fs_async();
-                let uri = file_path;
+                use tauri_plugin_android_fs::{AndroidFs, AndroidFsExt, FilePath};
+                let android_api = app.android_fs();
 
-                // Open content URI as readable
-                let mut readable = api
-                    .open_file_readable(uri)
-                    .await
-                    .map_err(|e| format!("Failed to open content URI: {}", e))?;
+                // Convert URI string to FilePath (need to parse as Url first)
+                let url = tauri::Url::parse(uri_str)
+                    .map_err(|e| format!("Failed to parse URI: {}", e))?;
+                let file_path = FilePath::from(url);
 
-                // Read all data
-                let mut buffer = Vec::new();
-                readable
-                    .read_to_end(&mut buffer)
-                    .map_err(|e| format!("Failed to read from content URI: {}", e))?;
-
-                info!(
-                    "✅ Successfully read {} bytes from content URI",
-                    buffer.len()
-                );
-                buffer
+                // Open the file and read its contents
+                match android_api.open_file(&file_path) {
+                    Ok(mut file) => {
+                        let mut buffer = Vec::new();
+                        use std::io::Read;
+                        file.read_to_end(&mut buffer)
+                            .map_err(|e| format!("Failed to read content URI data: {}", e))?;
+                        buffer
+                    }
+                    Err(e) => {
+                        error!("Failed to open content URI: {}", e);
+                        return Err(format!("Failed to open content URI: {}", e));
+                    }
+                }
             }
 
             #[cfg(not(target_os = "android"))]
@@ -617,9 +630,72 @@ async fn messaging_send_file_message_with_path(
                 fs::create_dir_all(&download_dir)
                     .map_err(|e| format!("Failed to create download dir: {}", e))?;
 
-                // Generate filename from URI hash
-                let uri_hash = blake3::hash(file_path.as_bytes()).to_hex();
-                let filename = format!("gigi_share_{}.dat", &uri_hash[..16]);
+                // Try to extract filename from content URI
+                let filename_from_uri = if let Some(display_name) =
+                    file_path.split('=').last().and_then(|s| {
+                        let decoded = percent_decode_str(s).decode_utf8().ok()?;
+                        let name = decoded.split('/').last()?.to_string();
+                        if name.is_empty() {
+                            None
+                        } else {
+                            Some(name)
+                        }
+                    }) {
+                    display_name
+                } else {
+                    // Fallback: extract from URI path
+                    file_path
+                        .split('/')
+                        .last()
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| {
+                            // Final fallback: use hash
+                            let uri_hash = blake3::hash(file_path.as_bytes()).to_hex();
+                            format!("gigi_share_{}", &uri_hash[..16])
+                        })
+                };
+
+                // Detect file type from data and get appropriate extension
+                let file_ext = if image_data.len() >= 8 {
+                    // Check common signatures
+                    if image_data.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                        ".jpg"
+                    } else if image_data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+                        ".png"
+                    } else if image_data.starts_with(&[0x47, 0x49, 0x46]) {
+                        ".gif"
+                    } else if image_data.starts_with(b"WEBP")
+                        || image_data.starts_with(&[0x52, 0x49, 0x46, 0x46])
+                    {
+                        ".webp"
+                    } else if image_data.starts_with(b"BM") {
+                        ".bmp"
+                    } else if image_data.starts_with(&[0x00, 0x00, 0x00])
+                        || image_data.starts_with(&[0x1A, 0x45, 0xDF, 0xA3])
+                    {
+                        // Video signatures: MP4/AVI or WebM
+                        ".mp4"
+                    } else {
+                        // If filename already has extension, use it; otherwise use .dat
+                        if filename_from_uri.contains('.') {
+                            ""
+                        } else {
+                            ".dat"
+                        }
+                    }
+                } else {
+                    // For small files, trust the filename extension
+                    ""
+                };
+
+                // Combine filename and extension
+                let filename = if !file_ext.is_empty() && !filename_from_uri.contains('.') {
+                    format!("{}{}", filename_from_uri, file_ext)
+                } else {
+                    filename_from_uri
+                };
+
                 let save_path = download_dir.join(&filename);
 
                 info!("📝 Saving content URI to: {:?}", save_path);
@@ -663,7 +739,7 @@ async fn messaging_send_file_message_with_path(
 
 #[tauri::command]
 async fn messaging_send_group_file_message_with_path(
-    app: AppHandle,
+    #[allow(unused_variables)] app: AppHandle,
     group_id: &str,
     file_path: &str,
     state: State<'_, AppState>,
@@ -679,32 +755,40 @@ async fn messaging_send_group_file_message_with_path(
 
         // Read file data and convert to base64 for immediate display
         let image_data = if is_content_uri {
-            // Android content URI: use android-fs plugin
+            // Android content URI: Use special handling
+            // On Android, the dialog plugin may return content URIs
+            // The standard fs plugin handles content URI translation
+            let uri_str = file_path;
+            info!("📱 Detected content URI (group): {}", uri_str);
+
+            // On Android, we need to use a workaround to read content URIs
             #[cfg(target_os = "android")]
             {
-                use tauri_plugin_android_fs::AndroidFsExt;
-                info!("📱 Detected Android content URI (group), using android-fs plugin");
+                // For content URIs, use the android-fs plugin
+                info!("📱 Attempting to read content URI (group): {}", uri_str);
 
-                let api = app.android_fs_async();
-                let uri = file_path;
+                use tauri_plugin_android_fs::{AndroidFs, AndroidFsExt, FilePath};
+                let android_api = app.android_fs();
 
-                // Open content URI as readable
-                let mut readable = api
-                    .open_file_readable(uri)
-                    .await
-                    .map_err(|e| format!("Failed to open content URI: {}", e))?;
+                // Convert URI string to FilePath (need to parse as Url first)
+                let url = tauri::Url::parse(uri_str)
+                    .map_err(|e| format!("Failed to parse URI: {}", e))?;
+                let file_path = FilePath::from(url);
 
-                // Read all data
-                let mut buffer = Vec::new();
-                readable
-                    .read_to_end(&mut buffer)
-                    .map_err(|e| format!("Failed to read from content URI: {}", e))?;
-
-                info!(
-                    "✅ Successfully read {} bytes from content URI (group)",
-                    buffer.len()
-                );
-                buffer
+                // Open the file and read its contents
+                match android_api.open_file(&file_path) {
+                    Ok(mut file) => {
+                        let mut buffer = Vec::new();
+                        use std::io::Read;
+                        file.read_to_end(&mut buffer)
+                            .map_err(|e| format!("Failed to read content URI data: {}", e))?;
+                        buffer
+                    }
+                    Err(e) => {
+                        error!("Failed to open content URI: {}", e);
+                        return Err(format!("Failed to open content URI: {}", e));
+                    }
+                }
             }
 
             #[cfg(not(target_os = "android"))]
@@ -751,9 +835,72 @@ async fn messaging_send_group_file_message_with_path(
                 fs::create_dir_all(&download_dir)
                     .map_err(|e| format!("Failed to create download dir: {}", e))?;
 
-                // Generate filename from URI hash
-                let uri_hash = blake3::hash(file_path.as_bytes()).to_hex();
-                let filename = format!("gigi_group_{}.dat", &uri_hash[..16]);
+                // Try to extract filename from content URI
+                let filename_from_uri = if let Some(display_name) =
+                    file_path.split('=').last().and_then(|s| {
+                        let decoded = percent_decode_str(s).decode_utf8().ok()?;
+                        let name = decoded.split('/').last()?.to_string();
+                        if name.is_empty() {
+                            None
+                        } else {
+                            Some(name)
+                        }
+                    }) {
+                    display_name
+                } else {
+                    // Fallback: extract from URI path
+                    file_path
+                        .split('/')
+                        .last()
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| {
+                            // Final fallback: use hash
+                            let uri_hash = blake3::hash(file_path.as_bytes()).to_hex();
+                            format!("gigi_group_{}", &uri_hash[..16])
+                        })
+                };
+
+                // Detect file type from data and get appropriate extension
+                let file_ext = if image_data.len() >= 8 {
+                    // Check common signatures
+                    if image_data.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                        ".jpg"
+                    } else if image_data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+                        ".png"
+                    } else if image_data.starts_with(&[0x47, 0x49, 0x46]) {
+                        ".gif"
+                    } else if image_data.starts_with(b"WEBP")
+                        || image_data.starts_with(&[0x52, 0x49, 0x46, 0x46])
+                    {
+                        ".webp"
+                    } else if image_data.starts_with(b"BM") {
+                        ".bmp"
+                    } else if image_data.starts_with(&[0x00, 0x00, 0x00])
+                        || image_data.starts_with(&[0x1A, 0x45, 0xDF, 0xA3])
+                    {
+                        // Video signatures: MP4/AVI or WebM
+                        ".mp4"
+                    } else {
+                        // If filename already has extension, use it; otherwise use .dat
+                        if filename_from_uri.contains('.') {
+                            ""
+                        } else {
+                            ".dat"
+                        }
+                    }
+                } else {
+                    // For small files, trust the filename extension
+                    ""
+                };
+
+                // Combine filename and extension
+                let filename = if !file_ext.is_empty() && !filename_from_uri.contains('.') {
+                    format!("{}{}", filename_from_uri, file_ext)
+                } else {
+                    filename_from_uri
+                };
+
                 let save_path = download_dir.join(&filename);
 
                 info!("📝 Saving group content URI to: {:?}", save_path);
@@ -1461,11 +1608,15 @@ pub fn run() {
     // Create initial state
     let app_state = AppState::default();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::init());
+
+    #[cfg(target_os = "android")]
+    let builder = { builder.plugin(tauri_plugin_android_fs::init()) };
+
+    builder
         .manage(app_state)
-        .setup(|_app| Ok(()))
         .invoke_handler(tauri::generate_handler![
             get_peer_id,
             try_get_peer_id,

@@ -1,6 +1,13 @@
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 
+// Check if running on Android
+const isAndroid = () => {
+  return (
+    typeof navigator !== 'undefined' && navigator.userAgent.includes('Android')
+  )
+}
+
 // Types matching the Rust backend
 export interface Peer {
   id: string
@@ -258,12 +265,14 @@ export class MessagingClient {
       const selected = await open({
         multiple: false,
         directory: false,
-        filters: [
-          {
-            name: 'Image Files',
-            extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
-          },
-        ],
+        filters: isAndroid()
+          ? undefined
+          : [
+              {
+                name: 'Image Files',
+                extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
+              },
+            ],
       } as any)
 
       return selected || null
@@ -279,32 +288,34 @@ export class MessagingClient {
       const selected = await open({
         multiple: false,
         directory: false,
-        filters: [
-          {
-            name: 'All Files',
-            extensions: ['*'],
-          },
-          {
-            name: 'Documents',
-            extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf'],
-          },
-          {
-            name: 'Images',
-            extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
-          },
-          {
-            name: 'Videos',
-            extensions: ['mp4', 'avi', 'mov', 'mkv', 'webm'],
-          },
-          {
-            name: 'Audio',
-            extensions: ['mp3', 'wav', 'flac', 'aac', 'ogg'],
-          },
-          {
-            name: 'Archives',
-            extensions: ['zip', 'rar', '7z', 'tar', 'gz'],
-          },
-        ],
+        filters: isAndroid()
+          ? undefined
+          : [
+              {
+                name: 'All Files',
+                extensions: ['*'],
+              },
+              {
+                name: 'Documents',
+                extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf'],
+              },
+              {
+                name: 'Images',
+                extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
+              },
+              {
+                name: 'Videos',
+                extensions: ['mp4', 'avi', 'mov', 'mkv', 'webm'],
+              },
+              {
+                name: 'Audio',
+                extensions: ['mp3', 'wav', 'flac', 'aac', 'ogg'],
+              },
+              {
+                name: 'Archives',
+                extensions: ['zip', 'rar', '7z', 'tar', 'gz'],
+              },
+            ],
       } as any)
 
       return selected || null
