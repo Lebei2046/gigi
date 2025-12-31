@@ -7,8 +7,6 @@
   ],
   "permissions": [
     "core:default",
-    "opener:default",
-    "android-fs:default",
     "dialog:allow-open",
     "dialog:allow-save"
   ]

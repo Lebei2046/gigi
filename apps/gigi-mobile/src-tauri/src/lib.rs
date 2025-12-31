@@ -25,8 +25,9 @@ fn init_logging() {
 }
 
 /// Download folder constant for file storage
+/// On Android 10+, use app-specific storage to avoid scoped storage restrictions
 #[cfg(target_os = "android")]
-const DOWNLOAD_FOLDER: &str = "/storage/emulated/0/Download/gigi";
+const DOWNLOAD_FOLDER: &str = "/data/data/app.gigi/files/downloads";
 
 #[cfg(not(target_os = "android"))]
 const DOWNLOAD_FOLDER: &str = "./gigi/Download";
@@ -562,16 +563,18 @@ async fn messaging_send_file_message_with_path(
                 // For content URIs, use the android-fs plugin
                 info!("📱 Attempting to read content URI: {}", uri_str);
 
-                use tauri_plugin_android_fs::{AndroidFs, AndroidFsExt, FilePath};
+                use tauri_plugin_android_fs::{AndroidFsExt, FileAccessMode, FileUri};
+                use tauri_plugin_fs::FilePath;
+
                 let android_api = app.android_fs();
 
-                // Convert URI string to FilePath (need to parse as Url first)
+                // Convert URI string to FileUri via FilePath::Url
                 let url = tauri::Url::parse(uri_str)
-                    .map_err(|e| format!("Failed to parse URI: {}", e))?;
-                let file_path = FilePath::from(url);
+                    .map_err(|e| format!("Failed to parse content URI: {}", e))?;
+                let file_uri = FileUri::from(FilePath::Url(url));
 
                 // Open the file and read its contents
-                match android_api.open_file(&file_path) {
+                match android_api.open_file(&file_uri, FileAccessMode::Read) {
                     Ok(mut file) => {
                         let mut buffer = Vec::new();
                         use std::io::Read;
@@ -767,16 +770,18 @@ async fn messaging_send_group_file_message_with_path(
                 // For content URIs, use the android-fs plugin
                 info!("📱 Attempting to read content URI (group): {}", uri_str);
 
-                use tauri_plugin_android_fs::{AndroidFs, AndroidFsExt, FilePath};
+                use tauri_plugin_android_fs::{AndroidFsExt, FileAccessMode, FileUri};
+                use tauri_plugin_fs::FilePath;
+
                 let android_api = app.android_fs();
 
-                // Convert URI string to FilePath (need to parse as Url first)
+                // Convert URI string to FileUri via FilePath::Url
                 let url = tauri::Url::parse(uri_str)
-                    .map_err(|e| format!("Failed to parse URI: {}", e))?;
-                let file_path = FilePath::from(url);
+                    .map_err(|e| format!("Failed to parse content URI: {}", e))?;
+                let file_uri = FileUri::from(FilePath::Url(url));
 
                 // Open the file and read its contents
-                match android_api.open_file(&file_path) {
+                match android_api.open_file(&file_uri, FileAccessMode::Read) {
                     Ok(mut file) => {
                         let mut buffer = Vec::new();
                         use std::io::Read;
@@ -1608,9 +1613,7 @@ pub fn run() {
     // Create initial state
     let app_state = AppState::default();
 
-    let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init());
+    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
 
     #[cfg(target_os = "android")]
     let builder = { builder.plugin(tauri_plugin_android_fs::init()) };
