@@ -24,14 +24,6 @@ fn init_logging() {
     gigi_p2p::init_tracing();
 }
 
-/// Download folder constant for file storage
-/// On Android 10+, use app-specific storage to avoid scoped storage restrictions
-#[cfg(target_os = "android")]
-const DOWNLOAD_FOLDER: &str = "/data/data/app.gigi/files/downloads";
-
-#[cfg(not(target_os = "android"))]
-const DOWNLOAD_FOLDER: &str = "./gigi/Download";
-
 // Types that match the frontend expectations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileInfo {
@@ -119,22 +111,13 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        Self::with_download_folder(DOWNLOAD_FOLDER)
-    }
-
-    pub fn with_download_folder(download_folder: &str) -> Self {
-        let base_path = PathBuf::from(download_folder);
-
-        // Don't create directory at startup - defer until actually needed
-        // This avoids permission issues on Android at startup
-
         Self {
             p2p_client: Arc::new(Mutex::new(None)),
             event_receiver: Arc::new(Mutex::new(None)),
             config: Arc::new(RwLock::new(Config {
                 nickname: "Anonymous".to_string(),
                 auto_accept_files: false,
-                download_folder: base_path.to_string_lossy().to_string(),
+                download_folder: String::new(), // Will be set at runtime
                 max_concurrent_downloads: 3,
                 port: 0,
             })),
@@ -190,6 +173,19 @@ async fn messaging_initialize_with_key(
         config_guard.nickname = nickname.clone();
     }
 
+    // Get download directory from app_handle.path()
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+    let downloads_dir = app_data_dir.join("Download");
+
+    // Update config with the actual download directory
+    {
+        let mut config_guard = state.config.write().await;
+        config_guard.download_folder = downloads_dir.to_string_lossy().to_string();
+    }
+
     let config_guard = state.config.read().await;
     let output_dir = PathBuf::from(&config_guard.download_folder);
     let shared_files_path = PathBuf::from(&config_guard.download_folder).join("shared.json");
@@ -199,6 +195,8 @@ async fn messaging_initialize_with_key(
     // Create downloads directory at runtime when initializing
     fs::create_dir_all(&output_dir)
         .map_err(|e| format!("Failed to create download directory: {}", e))?;
+
+    info!("📁 Download directory set to: {:?}", output_dir);
 
     match P2pClient::new_with_config(keypair, final_nickname, output_dir, shared_files_path) {
         Ok((mut client, event_receiver)) => {

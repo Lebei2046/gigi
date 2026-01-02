@@ -3,36 +3,46 @@ import { useNavigate } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { loginWithP2P, setError } from '@/store/authSlice'
-import { useAppDispatch, useAppSelector } from '@/store'
+import { useAppDispatch } from '@/store'
 
 export default function Unlock() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { error } = useAppSelector((state: { auth: any }) => state.auth)
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-
-  // Clear error when user starts typing
-  useEffect(() => {
-    if (error && password.length > 0) {
-      dispatch(setError(''))
-    }
-  }, [password, error, dispatch])
+  const [localError, setLocalError] = useState('')
 
   // Validate password input
   const isValidPassword = password.trim().length >= 1
+
+  // Clear local error when user starts typing (only when password actually changes)
+  const [lastPassword, setLastPassword] = useState('')
+
+  useEffect(() => {
+    // Only clear error if password actually changed (user typed new characters)
+    if (localError && password !== lastPassword && password.length > 0) {
+      setLocalError('')
+    }
+    setLastPassword(password)
+  }, [password, localError, lastPassword])
 
   // Memoize handler to prevent unnecessary re-renders
   const handleUnlock = useCallback(async () => {
     if (!isValidPassword) return
 
     setIsLoading(true)
+    setLocalError('') // Clear previous error
+
     try {
       const result = await dispatch(loginWithP2P(password))
-      if (result?.payload?.success) {
+
+      if (result?.success) {
         navigate('/')
-      } else if (result?.payload?.error) {
-        dispatch(setError(result.payload.error))
+      } else if (result?.error) {
+        setLocalError(result.error)
+        dispatch(setError(result.error))
+      } else {
+        setLocalError('Unexpected login response')
       }
     } finally {
       setIsLoading(false)
@@ -76,10 +86,10 @@ export default function Unlock() {
                 disabled={isLoading}
                 className="w-full py-3 px-4 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              {error && (
+              {localError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-red-600 text-sm" role="alert">
-                    <span className="font-medium">⚠️ {error}</span>
+                    <span className="font-medium">⚠️ {localError}</span>
                   </p>
                 </div>
               )}
