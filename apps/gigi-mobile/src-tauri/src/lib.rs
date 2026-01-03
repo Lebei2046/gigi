@@ -173,17 +173,15 @@ async fn messaging_initialize_with_key(
         config_guard.nickname = nickname.clone();
     }
 
-    // Get download directory from app_handle.path()
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-    let downloads_dir = app_data_dir.join("Download");
-
     // Update config with the actual download directory
     {
+        let download_dir = app_handle
+            .path()
+            .download_dir()
+            .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
         let mut config_guard = state.config.write().await;
-        config_guard.download_folder = downloads_dir.to_string_lossy().to_string();
+        config_guard.download_folder = download_dir.to_string_lossy().to_string();
     }
 
     let config_guard = state.config.read().await;
