@@ -17,6 +17,8 @@ pub enum P2pError {
     FileNotFound(PathBuf),
     #[error("Share code invalid: {0}")]
     InvalidShareCode(String),
+    #[error("Invalid URI: {0}")]
+    InvalidUri(String),
     #[error("Network error: {0}")]
     NetworkError(String),
     #[error("IO error: {0}")]

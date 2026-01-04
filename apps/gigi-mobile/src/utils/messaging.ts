@@ -402,7 +402,7 @@ export class MessagingClient {
   static async sendFileMessageWithPath(
     nickname: string,
     filePath: string
-  ): Promise<{ messageId: string; imageData: string }> {
+  ): Promise<{ messageId: string; imageData?: string }> {
     // Directly pass the content URI to backend - it will handle it with android-fs plugin
     const response = await invoke<string>(
       'messaging_send_file_message_with_path',
@@ -412,9 +412,10 @@ export class MessagingClient {
       }
     )
 
-    // Parse the response to extract message ID and base64 image data
+    // Parse the response to extract message ID and optional base64 image data
     const parts = response.split('|')
-    const [messageId, imageData] = parts
+    const messageId = parts[0]
+    const imageData = parts[1] // undefined for non-images
     return { messageId, imageData }
   }
 
@@ -458,7 +459,7 @@ export class MessagingClient {
   static async sendGroupFileMessageWithPath(
     groupId: string,
     filePath: string
-  ): Promise<{ messageId: string; imageData: string }> {
+  ): Promise<{ messageId: string; imageData?: string }> {
     // Directly pass the content URI to backend - it will handle it with android-fs plugin
     const response = await invoke<string>(
       'messaging_send_group_file_message_with_path',
@@ -468,9 +469,10 @@ export class MessagingClient {
       }
     )
 
-    // Parse the response to extract message ID and base64 image data
+    // Parse the response to extract message ID and optional base64 image data
     const parts = response.split('|')
-    const [messageId, imageData] = parts
+    const messageId = parts[0]
+    const imageData = parts[1] // undefined for non-images
     return { messageId, imageData }
   }
 

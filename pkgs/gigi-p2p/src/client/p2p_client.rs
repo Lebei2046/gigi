@@ -319,6 +319,17 @@ impl P2pClient {
         self.file_manager.share_file(file_path).await
     }
 
+    /// Set the chunk reader callback for URI-based files
+    pub fn set_chunk_reader(&mut self, reader: super::file_sharing::FileChunkReader) {
+        self.file_manager.set_chunk_reader(reader.clone());
+        self.download_manager.set_chunk_reader(reader);
+    }
+
+    /// Share a content URI (Android content:// or iOS file://)
+    pub fn share_content_uri(&mut self, uri: &str, name: &str, size: u64) -> Result<String> {
+        self.file_manager.share_content_uri(uri, name, size)
+    }
+
     /// List shared files
     pub fn list_shared_files(&self) -> Vec<&crate::events::SharedFile> {
         self.file_manager.list_shared_files()

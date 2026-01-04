@@ -694,12 +694,17 @@ export default function ChatRoom() {
             filePath
           )
 
-          // Update the message with the returned message ID and image data
+          // Update the message with the returned message ID and optional image data
           const updatedMessage: Message = {
             ...imageMessage,
             id: response.messageId,
-            imageData: `data:image/${filename.split('.').pop()};base64,${response.imageData}`,
-            content: `📷 Image: ${filename}`,
+            content: `📎 File: ${filename}`,
+          }
+
+          // Only set imageData if it's an image
+          if (response.imageData) {
+            updatedMessage.imageData = `data:image/${filename.split('.').pop()};base64,${response.imageData}`
+            updatedMessage.content = `📷 Image: ${filename}`
           }
 
           // Update the message in the store
@@ -712,12 +717,12 @@ export default function ChatRoom() {
             })
           )
         } catch (error) {
-          console.error('❌ Failed to send group image:', error)
+          console.error('❌ Failed to send group file:', error)
           // Update message to show error
           dispatch(
             updateGroupMessage({
               id: imageMessage.id,
-              content: `❌ Image: ${filename} (Failed to send)`,
+              content: `❌ File: ${filename} (Failed to send)`,
             })
           )
         }
@@ -741,19 +746,24 @@ export default function ChatRoom() {
         // Dispatch via Redux
         dispatch(addImageMessage(imageMessage))
 
-        // Send file using file path and get response with image data
+        // Send file using file path and get response with image data (only for images)
         try {
           const response = await MessagingClient.sendFileMessageWithPath(
             peer!.nickname,
             filePath
           )
 
-          // Update the message with the returned message ID and image data
+          // Update the message with the returned message ID and optional image data
           const updatedMessage: Message = {
             ...imageMessage,
             id: response.messageId,
-            imageData: `data:image/${filename.split('.').pop()};base64,${response.imageData}`,
-            content: `📷 Image: ${filename}`,
+            content: `📎 File: ${filename}`,
+          }
+
+          // Only set imageData if it's an image
+          if (response.imageData) {
+            updatedMessage.imageData = `data:image/${filename.split('.').pop()};base64,${response.imageData}`
+            updatedMessage.content = `📷 Image: ${filename}`
           }
 
           // Update message in the store
@@ -766,12 +776,12 @@ export default function ChatRoom() {
             })
           )
         } catch (error) {
-          console.error('❌ Failed to send direct image:', error)
+          console.error('❌ Failed to send direct file:', error)
           // Update message to show error
           dispatch(
             updateMessage({
               id: imageMessage.id,
-              content: `❌ Image: ${filename} (Failed to send)`,
+              content: `❌ File: ${filename} (Failed to send)`,
             })
           )
         }

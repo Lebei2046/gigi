@@ -6,19 +6,25 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tokio::fs;
 use tracing::info;
+use url::Url;
 
 use crate::error::P2pError;
-use crate::events::{FileInfo, SharedFile};
+use crate::events::{FileInfo, FilePath, SharedFile};
 
 /// Constants for chunked file sharing
 pub const CHUNK_SIZE: usize = 256 * 1024; // 256KB chunks for better performance
+
+/// Callback type for reading file chunks from URIs
+pub type FileChunkReader = Arc<dyn Fn(&FilePath, u64, usize) -> Result<Vec<u8>> + Send + Sync>;
 
 /// File sharing manager
 pub struct FileSharingManager {
     pub shared_files: HashMap<String, SharedFile>,
     pub shared_file_path: PathBuf,
+    chunk_reader: Option<FileChunkReader>,
 }
 
 impl FileSharingManager {
@@ -26,7 +32,13 @@ impl FileSharingManager {
         Self {
             shared_files: HashMap::new(),
             shared_file_path,
+            chunk_reader: None,
         }
+    }
+
+    /// Set the chunk reader callback for URI-based files
+    pub fn set_chunk_reader(&mut self, reader: FileChunkReader) {
+        self.chunk_reader = Some(reader);
     }
 
     /// Generate share code for file
@@ -53,7 +65,7 @@ impl FileSharingManager {
 
         // Verify file exists and is accessible
         if !path.exists() {
-            return Err(P2pError::FileNotFound(path).into());
+            return Err(P2pError::FileNotFound(path.clone()).into());
         }
 
         let metadata = fs::metadata(&path).await?;
@@ -67,10 +79,13 @@ impl FileSharingManager {
         let hash = self.calculate_file_hash(&path)?;
 
         // Check if file is already shared
-        if let Some((existing_share_code, existing_shared_file)) = self
-            .shared_files
-            .iter()
-            .find(|(_, shared_file)| shared_file.path == path)
+        if let Some((existing_share_code, existing_shared_file)) =
+            self.shared_files
+                .iter()
+                .find(|(_, shared_file)| match &shared_file.path {
+                    crate::events::FilePath::Path(existing_path) => existing_path == &path,
+                    _ => false,
+                })
         {
             // File already shared, check if it has changed
             if existing_shared_file.info.hash == hash {
@@ -101,7 +116,7 @@ impl FileSharingManager {
                 let share_code = existing_share_code.clone();
                 let updated_shared_file = SharedFile {
                     info: updated_info,
-                    path: path.clone(),
+                    path: crate::events::FilePath::Path(path.clone()),
                     share_code: share_code.clone(),
                     revoked: false,
                 };
@@ -146,7 +161,7 @@ impl FileSharingManager {
 
         let shared_file = SharedFile {
             info: file_info,
-            path: path.clone(),
+            path: crate::events::FilePath::Path(path.clone()),
             share_code: share_code.clone(),
             revoked: false,
         };
@@ -162,6 +177,49 @@ impl FileSharingManager {
             &hash[..8],
             share_code
         );
+
+        Ok(share_code)
+    }
+
+    /// Share a content URI (Android content:// or iOS file://)
+    pub fn share_content_uri(&mut self, uri: &str, name: &str, size: u64) -> Result<String> {
+        use crate::events::FilePath;
+
+        let url =
+            Url::parse(uri).map_err(|e: url::ParseError| P2pError::InvalidUri(e.to_string()))?;
+        let share_code = self.generate_share_code(name);
+
+        let file_id = share_code.clone();
+
+        // Calculate chunk count
+        let chunk_count =
+            (size / CHUNK_SIZE as u64) as usize + if size % CHUNK_SIZE as u64 != 0 { 1 } else { 0 };
+
+        // Create FileInfo
+        let file_info = FileInfo {
+            id: file_id.clone(),
+            name: name.to_string(),
+            size,
+            hash: String::new(), // Will be calculated by the caller if needed
+            chunk_count,
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_secs(),
+        };
+
+        let shared_file = SharedFile {
+            info: file_info,
+            path: FilePath::Url(url),
+            share_code: share_code.clone(),
+            revoked: false,
+        };
+
+        self.shared_files.insert(share_code.clone(), shared_file);
+
+        // Save to persistent storage
+        self.save_shared_files()?;
+
+        info!("Shared content URI '{}' with code: {}", name, share_code);
 
         Ok(share_code)
     }
@@ -244,7 +302,7 @@ impl FileSharingManager {
                                         },
                                     created_at,
                                 },
-                                path: old_file.path,
+                                path: FilePath::Path(old_file.path),
                                 share_code: old_file.share_code,
                                 revoked: false,
                             };
@@ -256,7 +314,11 @@ impl FileSharingManager {
 
             // Only load files that still exist on disk
             for (share_code, shared_file) in loaded_files {
-                if shared_file.path.exists() {
+                let file_exists = match &shared_file.path {
+                    FilePath::Path(p) => p.exists(),
+                    FilePath::Url(_) => false, // URIs have temporary permissions, can't be accessed after restart
+                };
+                if file_exists {
                     self.shared_files.insert(share_code, shared_file);
                 }
             }

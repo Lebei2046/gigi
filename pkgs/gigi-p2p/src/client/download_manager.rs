@@ -24,6 +24,7 @@ pub struct DownloadManager {
     download_share_codes: HashMap<String, String>, // download_id -> share_code mapping
     downloading_files: HashMap<String, DownloadingFile>,
     output_directory: PathBuf,
+    chunk_reader: Option<super::file_sharing::FileChunkReader>,
 }
 
 impl DownloadManager {
@@ -34,7 +35,13 @@ impl DownloadManager {
             download_share_codes: HashMap::new(),
             downloading_files: HashMap::new(),
             output_directory,
+            chunk_reader: None,
         }
+    }
+
+    /// Set the chunk reader callback for URI-based files
+    pub fn set_chunk_reader(&mut self, reader: super::file_sharing::FileChunkReader) {
+        self.chunk_reader = Some(reader);
     }
 
     /// Start tracking a new download
@@ -395,30 +402,56 @@ impl DownloadManager {
     /// Read a chunk from a shared file (for serving downloads to others)
     pub fn read_chunk(
         &self,
-        file_path: &Path,
+        file_path: &crate::events::FilePath,
         chunk_index: usize,
         file_id: &str,
     ) -> Result<crate::events::ChunkInfo> {
-        use crate::events::ChunkInfo;
+        use crate::client::file_sharing::CHUNK_SIZE;
+        use crate::events::{ChunkInfo, FilePath};
 
-        let mut file = std::fs::File::open(file_path)?;
         let offset = chunk_index
-            .checked_mul(crate::client::file_sharing::CHUNK_SIZE)
+            .checked_mul(CHUNK_SIZE)
             .ok_or_else(|| anyhow::anyhow!("Chunk index overflow: {}", chunk_index))?;
-        file.seek(std::io::SeekFrom::Start(offset as u64))?;
 
-        let mut buffer = vec![0u8; crate::client::file_sharing::CHUNK_SIZE];
-        let bytes_read = file.read(&mut buffer)?;
-        buffer.truncate(bytes_read);
+        match file_path {
+            FilePath::Path(path) => {
+                // Regular file - use std::fs
+                let mut file = std::fs::File::open(path)?;
+                file.seek(std::io::SeekFrom::Start(offset as u64))?;
 
-        let hash = self.calculate_chunk_hash(&buffer);
+                let mut buffer = vec![0u8; CHUNK_SIZE];
+                let bytes_read = file.read(&mut buffer)?;
+                buffer.truncate(bytes_read);
 
-        Ok(ChunkInfo {
-            file_id: file_id.to_string(),
-            chunk_index,
-            data: buffer,
-            hash,
-        })
+                let hash = self.calculate_chunk_hash(&buffer);
+
+                Ok(ChunkInfo {
+                    file_id: file_id.to_string(),
+                    chunk_index,
+                    data: buffer,
+                    hash,
+                })
+            }
+            FilePath::Url(_url) => {
+                // Content URI or file:// URI - use callback
+                if let Some(reader) = &self.chunk_reader {
+                    match reader(file_path, offset as u64, CHUNK_SIZE) {
+                        Ok(data) => {
+                            let hash = self.calculate_chunk_hash(&data);
+                            Ok(ChunkInfo {
+                                file_id: file_id.to_string(),
+                                chunk_index,
+                                data,
+                                hash,
+                            })
+                        }
+                        Err(e) => Err(anyhow::anyhow!("Failed to read chunk from URI: {}", e)),
+                    }
+                } else {
+                    Err(anyhow::anyhow!("No chunk reader configured for URIs"))
+                }
+            }
+        }
     }
 
     /// Process a received chunk - handles verification, storage, and progress tracking

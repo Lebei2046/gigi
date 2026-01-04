@@ -5,6 +5,14 @@ use libp2p::gossipsub::IdentTopic;
 use libp2p::{multiaddr::Multiaddr, PeerId};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use url::Url;
+
+/// File path representation - supports both filesystem paths and URIs
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum FilePath {
+    Url(Url),      // Android content:// or iOS file:// URIs
+    Path(PathBuf), // Regular filesystem paths
+}
 
 /// Unified P2P event
 #[derive(Debug, Clone)]
@@ -167,7 +175,7 @@ pub struct ChunkInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedFile {
     pub info: FileInfo,
-    pub path: PathBuf,
+    pub path: FilePath,
     pub share_code: String,
     pub revoked: bool,
 }
