@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-remove-shared-file"
+description = "Enables the messaging_remove_shared_file command without any pre-configured scope."
+commands.allow = ["messaging_remove_shared_file"]
+
+[[permission]]
+identifier = "deny-messaging-remove-shared-file"
+description = "Denies the messaging_remove_shared_file command without any pre-configured scope."
+commands.deny = ["messaging_remove_shared_file"]

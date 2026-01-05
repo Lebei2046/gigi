@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-get-folder-content"
+description = "Enables the messaging_get_folder_content command without any pre-configured scope."
+commands.allow = ["messaging_get_folder_content"]
+
+[[permission]]
+identifier = "deny-messaging-get-folder-content"
+description = "Denies the messaging_get_folder_content command without any pre-configured scope."
+commands.deny = ["messaging_get_folder_content"]

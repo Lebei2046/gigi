@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-try-get-peer-id"
+description = "Enables the try_get_peer_id command without any pre-configured scope."
+commands.allow = ["try_get_peer_id"]
+
+[[permission]]
+identifier = "deny-try-get-peer-id"
+description = "Denies the try_get_peer_id command without any pre-configured scope."
+commands.deny = ["try_get_peer_id"]

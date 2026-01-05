@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-cancel-download"
+description = "Enables the messaging_cancel_download command without any pre-configured scope."
+commands.allow = ["messaging_cancel_download"]
+
+[[permission]]
+identifier = "deny-messaging-cancel-download"
+description = "Denies the messaging_cancel_download command without any pre-configured scope."
+commands.deny = ["messaging_cancel_download"]

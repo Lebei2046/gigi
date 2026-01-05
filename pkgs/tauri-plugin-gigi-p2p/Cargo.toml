@@ -10,8 +10,22 @@ links = "tauri-plugin-gigi-p2p"
 
 [dependencies]
 tauri = { version = "2.7.0" }
-serde = "1.0"
 thiserror = "2"
+anyhow = "1.0"
+base64 = "0.22"
+hex = "0.4"
+
+# Workspace dependencies
+gigi-p2p.workspace = true
+libp2p.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+futures.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+mime_guess.workspace = true
 
 [build-dependencies]
 tauri-plugin = { version = "2.3.1", features = ["build"] }

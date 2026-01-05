@@ -295,22 +295,358 @@
       "type": "string",
       "oneOf": [
         {
-          "description": "Enables the ping command without any pre-configured scope.",
+          "description": "Enables the clear_app_data command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-ping",
-          "markdownDescription": "Enables the ping command without any pre-configured scope."
+          "const": "allow-clear-app-data",
+          "markdownDescription": "Enables the clear_app_data command without any pre-configured scope."
         },
         {
-          "description": "Denies the ping command without any pre-configured scope.",
+          "description": "Denies the clear_app_data command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-ping",
-          "markdownDescription": "Denies the ping command without any pre-configured scope."
+          "const": "deny-clear-app-data",
+          "markdownDescription": "Denies the clear_app_data command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`",
+          "description": "Enables the emit_current_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-emit-current-state",
+          "markdownDescription": "Enables the emit_current_state command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the emit_current_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-emit-current-state",
+          "markdownDescription": "Denies the emit_current_state command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_peer_id command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-peer-id",
+          "markdownDescription": "Enables the get_peer_id command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_peer_id command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-peer-id",
+          "markdownDescription": "Denies the get_peer_id command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_cancel_download command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-cancel-download",
+          "markdownDescription": "Enables the messaging_cancel_download command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_cancel_download command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-cancel-download",
+          "markdownDescription": "Denies the messaging_cancel_download command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_active_downloads command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-active-downloads",
+          "markdownDescription": "Enables the messaging_get_active_downloads command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_active_downloads command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-active-downloads",
+          "markdownDescription": "Denies the messaging_get_active_downloads command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-config",
+          "markdownDescription": "Enables the messaging_get_config command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-config",
+          "markdownDescription": "Denies the messaging_get_config command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_file_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-file-info",
+          "markdownDescription": "Enables the messaging_get_file_info command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_file_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-file-info",
+          "markdownDescription": "Denies the messaging_get_file_info command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_folder_content command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-folder-content",
+          "markdownDescription": "Enables the messaging_get_folder_content command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_folder_content command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-folder-content",
+          "markdownDescription": "Denies the messaging_get_folder_content command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_image_data command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-image-data",
+          "markdownDescription": "Enables the messaging_get_image_data command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_image_data command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-image-data",
+          "markdownDescription": "Denies the messaging_get_image_data command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_peers command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-peers",
+          "markdownDescription": "Enables the messaging_get_peers command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_peers command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-peers",
+          "markdownDescription": "Denies the messaging_get_peers command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_public_key command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-public-key",
+          "markdownDescription": "Enables the messaging_get_public_key command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_public_key command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-public-key",
+          "markdownDescription": "Denies the messaging_get_public_key command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_shared_files command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-shared-files",
+          "markdownDescription": "Enables the messaging_get_shared_files command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_shared_files command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-shared-files",
+          "markdownDescription": "Denies the messaging_get_shared_files command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_initialize_with_key command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-initialize-with-key",
+          "markdownDescription": "Enables the messaging_initialize_with_key command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_initialize_with_key command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-initialize-with-key",
+          "markdownDescription": "Denies the messaging_initialize_with_key command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_join_group command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-join-group",
+          "markdownDescription": "Enables the messaging_join_group command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_join_group command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-join-group",
+          "markdownDescription": "Denies the messaging_join_group command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_remove_shared_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-remove-shared-file",
+          "markdownDescription": "Enables the messaging_remove_shared_file command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_remove_shared_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-remove-shared-file",
+          "markdownDescription": "Denies the messaging_remove_shared_file command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_request_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-request-file",
+          "markdownDescription": "Enables the messaging_request_file command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_request_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-request-file",
+          "markdownDescription": "Denies the messaging_request_file command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_request_file_from_nickname command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-request-file-from-nickname",
+          "markdownDescription": "Enables the messaging_request_file_from_nickname command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_request_file_from_nickname command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-request-file-from-nickname",
+          "markdownDescription": "Denies the messaging_request_file_from_nickname command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_select_any_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-select-any-file",
+          "markdownDescription": "Enables the messaging_select_any_file command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_select_any_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-select-any-file",
+          "markdownDescription": "Denies the messaging_select_any_file command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_send_direct_share_group_message command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-send-direct-share-group-message",
+          "markdownDescription": "Enables the messaging_send_direct_share_group_message command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_send_direct_share_group_message command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-send-direct-share-group-message",
+          "markdownDescription": "Denies the messaging_send_direct_share_group_message command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_send_file_message_with_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-send-file-message-with-path",
+          "markdownDescription": "Enables the messaging_send_file_message_with_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_send_file_message_with_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-send-file-message-with-path",
+          "markdownDescription": "Denies the messaging_send_file_message_with_path command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_send_group_file_message_with_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-send-group-file-message-with-path",
+          "markdownDescription": "Enables the messaging_send_group_file_message_with_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_send_group_file_message_with_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-send-group-file-message-with-path",
+          "markdownDescription": "Denies the messaging_send_group_file_message_with_path command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_send_group_message command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-send-group-message",
+          "markdownDescription": "Enables the messaging_send_group_message command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_send_group_message command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-send-group-message",
+          "markdownDescription": "Denies the messaging_send_group_message command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_send_message command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-send-message",
+          "markdownDescription": "Enables the messaging_send_message command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_send_message command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-send-message",
+          "markdownDescription": "Denies the messaging_send_message command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_send_message_to_nickname command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-send-message-to-nickname",
+          "markdownDescription": "Enables the messaging_send_message_to_nickname command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_send_message_to_nickname command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-send-message-to-nickname",
+          "markdownDescription": "Denies the messaging_send_message_to_nickname command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_set_nickname command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-set-nickname",
+          "markdownDescription": "Enables the messaging_set_nickname command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_set_nickname command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-set-nickname",
+          "markdownDescription": "Denies the messaging_set_nickname command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_share_content_uri command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-share-content-uri",
+          "markdownDescription": "Enables the messaging_share_content_uri command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_share_content_uri command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-share-content-uri",
+          "markdownDescription": "Denies the messaging_share_content_uri command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_share_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-share-file",
+          "markdownDescription": "Enables the messaging_share_file command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_share_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-share-file",
+          "markdownDescription": "Denies the messaging_share_file command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_update_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-update-config",
+          "markdownDescription": "Enables the messaging_update_config command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_update_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-update-config",
+          "markdownDescription": "Denies the messaging_update_config command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the try_get_peer_id command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-try-get-peer-id",
+          "markdownDescription": "Enables the try_get_peer_id command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the try_get_peer_id command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-try-get-peer-id",
+          "markdownDescription": "Denies the try_get_peer_id command without any pre-configured scope."
+        },
+        {
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`"
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`"
         }
       ]
     }

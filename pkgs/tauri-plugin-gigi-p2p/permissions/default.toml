@@ -1,3 +1,35 @@
 [default]
 description = "Default permissions for the plugin"
-permissions = ["allow-ping"]
+permissions = [
+  # Peer commands
+  "allow-get-peer-id",
+  "allow-try-get-peer-id",
+  # Config commands
+  "allow-messaging-get-peers",
+  "allow-messaging-set-nickname",
+  "allow-messaging-get-public-key",
+  "allow-messaging-get-active-downloads",
+  "allow-messaging-update-config",
+  "allow-messaging-get-config",
+  # Messaging commands
+  "allow-messaging-initialize-with-key",
+  "allow-messaging-send-message-to-nickname",
+  "allow-messaging-send-direct-share-group-message",
+  "allow-messaging-join-group",
+  "allow-messaging-send-group-message",
+  "allow-emit-current-state",
+  # File commands
+  "allow-messaging-send-file-message-with-path",
+  "allow-messaging-send-group-file-message-with-path",
+  "allow-messaging-share-file",
+  "allow-messaging-request-file-from-nickname",
+  "allow-messaging-cancel-download",
+  "allow-messaging-get-shared-files",
+  "allow-messaging-remove-shared-file",
+  "allow-messaging-get-image-data",
+  "allow-messaging-get-file-info",
+  "allow-messaging-select-any-file",
+  "allow-messaging-share-content-uri",
+  # Utils commands
+  "allow-clear-app-data",
+]

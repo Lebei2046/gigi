@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-send-group-file-message-with-path"
+description = "Enables the messaging_send_group_file_message_with_path command without any pre-configured scope."
+commands.allow = ["messaging_send_group_file_message_with_path"]
+
+[[permission]]
+identifier = "deny-messaging-send-group-file-message-with-path"
+description = "Denies the messaging_send_group_file_message_with_path command without any pre-configured scope."
+commands.deny = ["messaging_send_group_file_message_with_path"]

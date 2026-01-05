@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-send-message-to-nickname"
+description = "Enables the messaging_send_message_to_nickname command without any pre-configured scope."
+commands.allow = ["messaging_send_message_to_nickname"]
+
+[[permission]]
+identifier = "deny-messaging-send-message-to-nickname"
+description = "Denies the messaging_send_message_to_nickname command without any pre-configured scope."
+commands.deny = ["messaging_send_message_to_nickname"]

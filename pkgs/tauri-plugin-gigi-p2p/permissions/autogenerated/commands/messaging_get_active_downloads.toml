@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-get-active-downloads"
+description = "Enables the messaging_get_active_downloads command without any pre-configured scope."
+commands.allow = ["messaging_get_active_downloads"]
+
+[[permission]]
+identifier = "deny-messaging-get-active-downloads"
+description = "Denies the messaging_get_active_downloads command without any pre-configured scope."
+commands.deny = ["messaging_get_active_downloads"]

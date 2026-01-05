@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-share-content-uri"
+description = "Enables the messaging_share_content_uri command without any pre-configured scope."
+commands.allow = ["messaging_share_content_uri"]
+
+[[permission]]
+identifier = "deny-messaging-share-content-uri"
+description = "Denies the messaging_share_content_uri command without any pre-configured scope."
+commands.deny = ["messaging_share_content_uri"]

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-get-image-data"
+description = "Enables the messaging_get_image_data command without any pre-configured scope."
+commands.allow = ["messaging_get_image_data"]
+
+[[permission]]
+identifier = "deny-messaging-get-image-data"
+description = "Denies the messaging_get_image_data command without any pre-configured scope."
+commands.deny = ["messaging_get_image_data"]

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-select-any-file"
+description = "Enables the messaging_select_any_file command without any pre-configured scope."
+commands.allow = ["messaging_select_any_file"]
+
+[[permission]]
+identifier = "deny-messaging-select-any-file"
+description = "Denies the messaging_select_any_file command without any pre-configured scope."
+commands.deny = ["messaging_select_any_file"]
