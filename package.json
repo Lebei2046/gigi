@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "workspaces": [
     "pkgs/*",
-    "apps/*"
+    "apps/*",
+    "pkgs/tauri-plugin-gigi-p2p/examples/*"
   ],
   "private": true
 }

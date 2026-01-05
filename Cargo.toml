@@ -4,6 +4,8 @@ members = [
   "apps/gigi-app/src-tauri",
   "apps/gigi-mobile/src-tauri",
   "pkgs/gigi-p2p",
+  "pkgs/tauri-plugin-gigi-p2p",
+  "pkgs/tauri-plugin-gigi-p2p/examples/tauri-app/src-tauri",
 ]
 
 [workspace.package]
