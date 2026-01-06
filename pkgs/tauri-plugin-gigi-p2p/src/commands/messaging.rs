@@ -172,7 +172,10 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
                             .await;
 
                         if let Err(e) = result {
-                            tracing::error!("Error handling swarm event: {:?}", e);
+                            // Ignore timeout errors - they're expected when no events are pending
+                            if !matches!(e, tokio::time::error::Elapsed { .. }) {
+                                tracing::error!("Error handling swarm event: {:?}", e);
+                            }
                         }
                     } else {
                         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;

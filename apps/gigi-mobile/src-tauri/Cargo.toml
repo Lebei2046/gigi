@@ -20,6 +20,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+tauri-plugin-gigi-p2p = { path = "../../../pkgs/tauri-plugin-gigi-p2p" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 libp2p.workspace = true
@@ -36,5 +37,3 @@ blake3 = "1"
 
 [target.'cfg(target_os = "android")'.dependencies]
 percent-encoding = "2.3"
-tauri-plugin-android-fs = "24.0.0"
-tauri-plugin-fs = "2"

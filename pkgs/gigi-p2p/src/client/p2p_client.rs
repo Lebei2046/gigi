@@ -112,7 +112,6 @@ impl P2pClient {
                 libp2p::noise::Config::new,
                 libp2p::yamux::Config::default,
             )?
-            .with_quic()
             .with_behaviour(|_| behaviour)?
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();

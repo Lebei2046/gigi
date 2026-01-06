@@ -164,6 +164,7 @@ export const loginWithP2P =
 
       return { success: true, peerId }
     } catch (error) {
+      console.error('P2P initialization error:', error)
       const errorMessage =
         error instanceof Error ? error.message : 'P2P initialization failed'
       return { success: false, error: errorMessage }

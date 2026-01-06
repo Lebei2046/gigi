@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "dialog:allow-open",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "gigi-p2p:default"
   ]
 }

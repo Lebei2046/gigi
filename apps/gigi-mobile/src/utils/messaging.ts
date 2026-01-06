@@ -1,6 +1,11 @@
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 
+// Helper function to invoke plugin commands
+const invokePlugin = async (command: string, args?: any) => {
+  return invoke(`plugin:gigi-p2p|${command}`, args || {})
+}
+
 // Check if running on Android
 const isAndroid = () => {
   return (
@@ -135,15 +140,23 @@ export class MessagingClient {
     privateKey: Uint8Array,
     nickname: string
   ): Promise<string> {
-    return invoke('messaging_initialize_with_key', {
-      privateKey: Array.from(privateKey),
-      nickname,
-    })
+    console.log('Initializing P2P with key, nickname:', nickname)
+    try {
+      const result = await invokePlugin('messaging_initialize_with_key', {
+        privateKey: Array.from(privateKey),
+        nickname,
+      })
+      console.log('P2P initialization succeeded, peerId:', result)
+      return result
+    } catch (error) {
+      console.error('P2P initialization failed:', error)
+      throw error
+    }
   }
 
   // Send direct message
   static async sendMessage(toPeerId: string, message: string): Promise<string> {
-    return invoke('messaging_send_message', { toPeerId, message })
+    return invokePlugin('messaging_send_message', { toPeerId, message })
   }
 
   // Send direct message by nickname (preferred)
@@ -151,7 +164,10 @@ export class MessagingClient {
     nickname: string,
     message: string
   ): Promise<string> {
-    return invoke('messaging_send_message_to_nickname', { nickname, message })
+    return invokePlugin('messaging_send_message_to_nickname', {
+      nickname,
+      message,
+    })
   }
 
   // Send group share message to peer
@@ -160,7 +176,7 @@ export class MessagingClient {
     groupId: string,
     groupName: string
   ): Promise<string> {
-    return invoke('messaging_send_direct_share_group_message', {
+    return invokePlugin('messaging_send_direct_share_group_message', {
       nickname: targetNickname,
       groupId,
       groupName,
@@ -169,17 +185,17 @@ export class MessagingClient {
 
   // Get connected peers
   static async getPeers(): Promise<Peer[]> {
-    return invoke<Peer[]>('messaging_get_peers')
+    return invokePlugin<Peer[]>('messaging_get_peers')
   }
 
   // Set nickname
   static async setNickname(nickname: string): Promise<void> {
-    return invoke('messaging_set_nickname', { nickname })
+    return invokePlugin('messaging_set_nickname', { nickname })
   }
 
   // Join a group
   static async joinGroup(groupId: string): Promise<void> {
-    return invoke('messaging_join_group', { groupId })
+    return invokePlugin('messaging_join_group', { groupId })
   }
 
   // Send group message
@@ -187,12 +203,12 @@ export class MessagingClient {
     groupId: string,
     message: string
   ): Promise<string> {
-    return invoke('messaging_send_group_message', { groupId, message })
+    return invokePlugin('messaging_send_group_message', { groupId, message })
   }
 
   // Share a file
   static async shareFile(filePath: string): Promise<string> {
-    return invoke('messaging_share_file', { filePath })
+    return invokePlugin('messaging_share_file', { filePath })
   }
 
   // Request/download a file
@@ -200,7 +216,7 @@ export class MessagingClient {
     fileId: string,
     fromPeerId: string
   ): Promise<string> {
-    return invoke('messaging_request_file', { fileId, fromPeerId })
+    return invokePlugin('messaging_request_file', { fileId, fromPeerId })
   }
 
   // Request/download file by nickname (preferred)
@@ -208,7 +224,7 @@ export class MessagingClient {
     nickname: string,
     shareCode: string
   ): Promise<string> {
-    return invoke('messaging_request_file_from_nickname', {
+    return invokePlugin('messaging_request_file_from_nickname', {
       nickname,
       shareCode,
     })
@@ -216,47 +232,47 @@ export class MessagingClient {
 
   // Cancel download
   static async cancelDownload(downloadId: string): Promise<void> {
-    return invoke('messaging_cancel_download', { downloadId })
+    return invokePlugin('messaging_cancel_download', { downloadId })
   }
 
   // Get shared files
   static async getSharedFiles(): Promise<FileInfo[]> {
-    return invoke('messaging_get_shared_files')
+    return invokePlugin('messaging_get_shared_files')
   }
 
   // Remove shared file
   static async removeSharedFile(shareCode: string): Promise<void> {
-    return invoke('messaging_remove_shared_file', { shareCode })
+    return invokePlugin('messaging_remove_shared_file', { shareCode })
   }
 
   // Save shared files to disk
   static async saveSharedFiles(): Promise<void> {
-    return invoke('messaging_save_shared_files')
+    return invokePlugin('messaging_save_shared_files')
   }
 
   // Get current peer ID
   static async getPeerId(): Promise<string> {
-    return invoke<string>('get_peer_id')
+    return invokePlugin<string>('get_peer_id')
   }
 
   // Get public key
   static async getPublicKey(): Promise<string> {
-    return invoke<string>('messaging_get_public_key')
+    return invokePlugin<string>('messaging_get_public_key')
   }
 
   // Get active downloads
   static async getActiveDownloads(): Promise<DownloadProgress[]> {
-    return invoke<DownloadProgress[]>('messaging_get_active_downloads')
+    return invokePlugin<DownloadProgress[]>('messaging_get_active_downloads')
   }
 
   // Update configuration
   static async updateConfig(config: Config): Promise<void> {
-    return invoke<void>('messaging_update_config', { config })
+    return invokePlugin<void>('messaging_update_config', { config })
   }
 
   // Get current configuration
   static async getConfig(): Promise<Config> {
-    return invoke<Config>('messaging_get_config')
+    return invokePlugin<Config>('messaging_get_config')
   }
 
   // Select image file using dialog
@@ -330,7 +346,7 @@ export class MessagingClient {
     filePath: string
   ): Promise<{ name: string; size: number; type: string }> {
     try {
-      const response = await invoke<{
+      const response = await invokePlugin<{
         name: string
         size: number
         mime_type: string
@@ -404,7 +420,7 @@ export class MessagingClient {
     filePath: string
   ): Promise<{ messageId: string; imageData?: string }> {
     // Directly pass the content URI to backend - it will handle it with android-fs plugin
-    const response = await invoke<string>(
+    const response = await invokePlugin<string>(
       'messaging_send_file_message_with_path',
       {
         nickname,
@@ -461,7 +477,7 @@ export class MessagingClient {
     filePath: string
   ): Promise<{ messageId: string; imageData?: string }> {
     // Directly pass the content URI to backend - it will handle it with android-fs plugin
-    const response = await invoke<string>(
+    const response = await invokePlugin<string>(
       'messaging_send_group_file_message_with_path',
       {
         groupId,
@@ -478,27 +494,27 @@ export class MessagingClient {
 
   // Utility function to try get peer ID from private key
   static async tryGetPeerId(priv_key: Uint8Array): Promise<string> {
-    return invoke('try_get_peer_id', { privKey: Array.from(priv_key) })
+    return invokePlugin('try_get_peer_id', { privKey: Array.from(priv_key) })
   }
 
   // Clear app data from backend
   static async clearAppData(): Promise<void> {
-    return invoke('clear_app_data')
+    return invokePlugin('clear_app_data')
   }
 
   // Emit current P2P state (for catching up on missed events)
   static async emitCurrentState(): Promise<void> {
-    return invoke('emit_current_state')
+    return invokePlugin('emit_current_state')
   }
 
   // Get image data from local file path
   static async getImageData(filePath: string): Promise<string> {
-    return invoke<string>('messaging_get_image_data', { filePath })
+    return invokePlugin<string>('messaging_get_image_data', { filePath })
   }
 
   // Get message history with a peer
   static async getMessageHistory(peerId: string): Promise<Message[]> {
-    return invoke<Message[]>('messaging_get_message_history', { peerId })
+    return invokePlugin<Message[]>('messaging_get_message_history', { peerId })
   }
 }
 
