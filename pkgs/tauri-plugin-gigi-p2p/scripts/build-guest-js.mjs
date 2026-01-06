@@ -83,12 +83,13 @@ commands.forEach(cmd => {
 
 // Generate event listener functions for each event
 tsCode += `// Event listeners
+// Note: Tauri plugin system automatically handles the plugin prefix, so we don't need to add it manually
 
 `;
 events.forEach(event => {
   const eventName = event.replace(/-([a-z])/g, (_, c) => c.toUpperCase()).replace(/^-/, ''); // Convert to camelCase for function name
   tsCode += `export async function on${eventName.charAt(0).toUpperCase() + eventName.slice(1)}(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|${event}', callback);
+  return await listen('${event}', callback);
 }
 
 `;

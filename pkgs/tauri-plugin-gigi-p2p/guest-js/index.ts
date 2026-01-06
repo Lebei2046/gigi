@@ -106,76 +106,77 @@ export async function clear_app_data(...args: any[]): Promise<any> {
 }
 
 // Event listeners
+// Note: Tauri plugin system automatically handles the plugin prefix, so we don't need to add it manually
 
 export async function onPeerDiscovered(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|peer-discovered', callback);
+  return await listen('peer-discovered', callback);
 }
 
 export async function onPeerExpired(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|peer-expired', callback);
+  return await listen('peer-expired', callback);
 }
 
 export async function onNicknameUpdated(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|nickname-updated', callback);
+  return await listen('nickname-updated', callback);
 }
 
 export async function onMessageReceived(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|message-received', callback);
+  return await listen('message-received', callback);
 }
 
 export async function onGroupMessage(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|group-message', callback);
+  return await listen('group-message', callback);
 }
 
 export async function onImageMessageReceived(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|image-message-received', callback);
+  return await listen('image-message-received', callback);
 }
 
 export async function onGroupImageMessageReceived(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|group-image-message-received', callback);
+  return await listen('group-image-message-received', callback);
 }
 
 export async function onFileMessageReceived(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|file-message-received', callback);
+  return await listen('file-message-received', callback);
 }
 
 export async function onGroupFileMessageReceived(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|group-file-message-received', callback);
+  return await listen('group-file-message-received', callback);
 }
 
 export async function onGroupShareReceived(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|group-share-received', callback);
+  return await listen('group-share-received', callback);
 }
 
 export async function onFileShareRequest(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|file-share-request', callback);
+  return await listen('file-share-request', callback);
 }
 
 export async function onFileDownloadProgress(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|file-download-progress', callback);
+  return await listen('file-download-progress', callback);
 }
 
 export async function onFileDownloadCompleted(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|file-download-completed', callback);
+  return await listen('file-download-completed', callback);
 }
 
 export async function onFileDownloadStarted(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|file-download-started', callback);
+  return await listen('file-download-started', callback);
 }
 
 export async function onFileDownloadFailed(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|file-download-failed', callback);
+  return await listen('file-download-failed', callback);
 }
 
 export async function onPeerConnected(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|peer-connected', callback);
+  return await listen('peer-connected', callback);
 }
 
 export async function onPeerDisconnected(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|peer-disconnected', callback);
+  return await listen('peer-disconnected', callback);
 }
 
 export async function onP2pError(callback: EventCallback<any>): Promise<UnlistenFn> {
-  return await listen('plugin:gigi-p2p|p2p-error', callback);
+  return await listen('p2p-error', callback);
 }
 

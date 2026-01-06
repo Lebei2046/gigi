@@ -36,7 +36,8 @@ let messageIdCounter = 0
 export const generateMessageId = () => {
   const now = Date.now()
   const counter = ++messageIdCounter
-  return `${now}-${counter}`
+  const random = Math.random().toString(36).substring(2, 8)
+  return `${now}-${counter}-${random}`
 }
 
 export interface Message {
@@ -344,7 +345,8 @@ const chatRoomSlice = createSlice({
     updateMessage: (
       state,
       action: PayloadAction<{
-        id: string
+        id?: string
+        shareCode?: string
         content?: string
         imageData?: string
         newId?: string
@@ -352,23 +354,51 @@ const chatRoomSlice = createSlice({
         downloadProgress?: number
       }>
     ) => {
-      const { id, content, imageData, newId, isDownloading, downloadProgress } =
-        action.payload
-      const message = state.messages.find(msg => msg.id === id)
+      const {
+        id,
+        shareCode,
+        content,
+        imageData,
+        newId,
+        isDownloading,
+        downloadProgress,
+      } = action.payload
+      // Find message by id or shareCode (search from newest to oldest)
+      const message = [...state.messages]
+        .reverse()
+        .find(msg => msg.id === id || msg.shareCode === shareCode)
+      console.log('🔧 updateMessage called:', {
+        id,
+        shareCode,
+        newId,
+        messageFound: !!message,
+        totalMessages: state.messages.length,
+      })
       if (message) {
+        console.log('🔧 Updating message:', {
+          oldId: message.id,
+          oldContent: message.content,
+          hasOldImageData: !!message.imageData,
+          newContent: content,
+          hasNewImageData: !!imageData,
+          newId,
+        })
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData
         if (newId !== undefined) message.id = newId
         if (isDownloading !== undefined) message.isDownloading = isDownloading
         if (downloadProgress !== undefined)
           message.downloadProgress = downloadProgress
+      } else {
+        console.warn('⚠️ Message not found for update:', { id, shareCode })
       }
     },
 
     updateGroupMessage: (
       state,
       action: PayloadAction<{
-        id: string
+        id?: string
+        shareCode?: string
         content?: string
         imageData?: string
         newId?: string
@@ -376,9 +406,19 @@ const chatRoomSlice = createSlice({
         downloadProgress?: number
       }>
     ) => {
-      const { id, content, imageData, newId, isDownloading, downloadProgress } =
-        action.payload
-      const message = state.messages.find(msg => msg.id === id)
+      const {
+        id,
+        shareCode,
+        content,
+        imageData,
+        newId,
+        isDownloading,
+        downloadProgress,
+      } = action.payload
+      // Find message by id or shareCode (search from newest to oldest)
+      const message = [...state.messages]
+        .reverse()
+        .find(msg => msg.id === id || msg.shareCode === shareCode)
       if (message) {
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData

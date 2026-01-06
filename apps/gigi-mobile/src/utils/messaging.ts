@@ -1,10 +1,5 @@
-import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
-
-// Helper function to invoke plugin commands
-const invokePlugin = async (command: string, args?: any) => {
-  return invoke(`plugin:gigi-p2p|${command}`, args || {})
-}
+import * as GigiP2p from 'tauri-plugin-gigi-p2p-api'
 
 // Check if running on Android
 const isAndroid = () => {
@@ -142,7 +137,7 @@ export class MessagingClient {
   ): Promise<string> {
     console.log('Initializing P2P with key, nickname:', nickname)
     try {
-      const result = await invokePlugin('messaging_initialize_with_key', {
+      const result = await GigiP2p.messaging_initialize_with_key({
         privateKey: Array.from(privateKey),
         nickname,
       })
@@ -156,7 +151,7 @@ export class MessagingClient {
 
   // Send direct message
   static async sendMessage(toPeerId: string, message: string): Promise<string> {
-    return invokePlugin('messaging_send_message', { toPeerId, message })
+    return GigiP2p.messaging_send_message({ toPeerId, message })
   }
 
   // Send direct message by nickname (preferred)
@@ -164,7 +159,7 @@ export class MessagingClient {
     nickname: string,
     message: string
   ): Promise<string> {
-    return invokePlugin('messaging_send_message_to_nickname', {
+    return GigiP2p.messaging_send_message_to_nickname({
       nickname,
       message,
     })
@@ -176,7 +171,7 @@ export class MessagingClient {
     groupId: string,
     groupName: string
   ): Promise<string> {
-    return invokePlugin('messaging_send_direct_share_group_message', {
+    return GigiP2p.messaging_send_direct_share_group_message({
       nickname: targetNickname,
       groupId,
       groupName,
@@ -185,17 +180,17 @@ export class MessagingClient {
 
   // Get connected peers
   static async getPeers(): Promise<Peer[]> {
-    return invokePlugin<Peer[]>('messaging_get_peers')
+    return GigiP2p.messaging_get_peers()
   }
 
   // Set nickname
   static async setNickname(nickname: string): Promise<void> {
-    return invokePlugin('messaging_set_nickname', { nickname })
+    return GigiP2p.messaging_set_nickname({ nickname })
   }
 
   // Join a group
   static async joinGroup(groupId: string): Promise<void> {
-    return invokePlugin('messaging_join_group', { groupId })
+    return GigiP2p.messaging_join_group({ groupId })
   }
 
   // Send group message
@@ -203,12 +198,12 @@ export class MessagingClient {
     groupId: string,
     message: string
   ): Promise<string> {
-    return invokePlugin('messaging_send_group_message', { groupId, message })
+    return GigiP2p.messaging_send_group_message({ groupId, message })
   }
 
   // Share a file
   static async shareFile(filePath: string): Promise<string> {
-    return invokePlugin('messaging_share_file', { filePath })
+    return GigiP2p.messaging_share_file({ filePath })
   }
 
   // Request/download a file
@@ -216,7 +211,7 @@ export class MessagingClient {
     fileId: string,
     fromPeerId: string
   ): Promise<string> {
-    return invokePlugin('messaging_request_file', { fileId, fromPeerId })
+    return GigiP2p.messaging_request_file({ fileId, fromPeerId })
   }
 
   // Request/download file by nickname (preferred)
@@ -224,7 +219,7 @@ export class MessagingClient {
     nickname: string,
     shareCode: string
   ): Promise<string> {
-    return invokePlugin('messaging_request_file_from_nickname', {
+    return GigiP2p.messaging_request_file_from_nickname({
       nickname,
       shareCode,
     })
@@ -232,47 +227,47 @@ export class MessagingClient {
 
   // Cancel download
   static async cancelDownload(downloadId: string): Promise<void> {
-    return invokePlugin('messaging_cancel_download', { downloadId })
+    return GigiP2p.messaging_cancel_download({ downloadId })
   }
 
   // Get shared files
   static async getSharedFiles(): Promise<FileInfo[]> {
-    return invokePlugin('messaging_get_shared_files')
+    return GigiP2p.messaging_get_shared_files()
   }
 
   // Remove shared file
   static async removeSharedFile(shareCode: string): Promise<void> {
-    return invokePlugin('messaging_remove_shared_file', { shareCode })
+    return GigiP2p.messaging_remove_shared_file({ shareCode })
   }
 
   // Save shared files to disk
   static async saveSharedFiles(): Promise<void> {
-    return invokePlugin('messaging_save_shared_files')
+    return GigiP2p.messaging_save_shared_files()
   }
 
   // Get current peer ID
   static async getPeerId(): Promise<string> {
-    return invokePlugin<string>('get_peer_id')
+    return GigiP2p.get_peer_id()
   }
 
   // Get public key
   static async getPublicKey(): Promise<string> {
-    return invokePlugin<string>('messaging_get_public_key')
+    return GigiP2p.messaging_get_public_key()
   }
 
   // Get active downloads
   static async getActiveDownloads(): Promise<DownloadProgress[]> {
-    return invokePlugin<DownloadProgress[]>('messaging_get_active_downloads')
+    return GigiP2p.messaging_get_active_downloads()
   }
 
   // Update configuration
   static async updateConfig(config: Config): Promise<void> {
-    return invokePlugin<void>('messaging_update_config', { config })
+    return GigiP2p.messaging_update_config({ config })
   }
 
   // Get current configuration
   static async getConfig(): Promise<Config> {
-    return invokePlugin<Config>('messaging_get_config')
+    return GigiP2p.messaging_get_config()
   }
 
   // Select image file using dialog
@@ -346,11 +341,7 @@ export class MessagingClient {
     filePath: string
   ): Promise<{ name: string; size: number; type: string }> {
     try {
-      const response = await invokePlugin<{
-        name: string
-        size: number
-        mime_type: string
-      }>('messaging_get_file_info', { filePath })
+      const response = await GigiP2p.messaging_get_file_info({ filePath })
       return {
         name: response.name,
         size: response.size,
@@ -420,13 +411,10 @@ export class MessagingClient {
     filePath: string
   ): Promise<{ messageId: string; imageData?: string }> {
     // Directly pass the content URI to backend - it will handle it with android-fs plugin
-    const response = await invokePlugin<string>(
-      'messaging_send_file_message_with_path',
-      {
-        nickname,
-        filePath,
-      }
-    )
+    const response = await GigiP2p.messaging_send_file_message_with_path({
+      nickname,
+      filePath,
+    })
 
     // Parse the response to extract message ID and optional base64 image data
     const parts = response.split('|')
@@ -477,13 +465,10 @@ export class MessagingClient {
     filePath: string
   ): Promise<{ messageId: string; imageData?: string }> {
     // Directly pass the content URI to backend - it will handle it with android-fs plugin
-    const response = await invokePlugin<string>(
-      'messaging_send_group_file_message_with_path',
-      {
-        groupId,
-        filePath,
-      }
-    )
+    const response = await GigiP2p.messaging_send_group_file_message_with_path({
+      groupId,
+      filePath,
+    })
 
     // Parse the response to extract message ID and optional base64 image data
     const parts = response.split('|')
@@ -494,27 +479,27 @@ export class MessagingClient {
 
   // Utility function to try get peer ID from private key
   static async tryGetPeerId(priv_key: Uint8Array): Promise<string> {
-    return invokePlugin('try_get_peer_id', { privKey: Array.from(priv_key) })
+    return GigiP2p.try_get_peer_id({ privKey: Array.from(priv_key) })
   }
 
   // Clear app data from backend
   static async clearAppData(): Promise<void> {
-    return invokePlugin('clear_app_data')
+    return GigiP2p.clear_app_data()
   }
 
   // Emit current P2P state (for catching up on missed events)
   static async emitCurrentState(): Promise<void> {
-    return invokePlugin('emit_current_state')
+    return GigiP2p.emit_current_state()
   }
 
   // Get image data from local file path
   static async getImageData(filePath: string): Promise<string> {
-    return invokePlugin<string>('messaging_get_image_data', { filePath })
+    return GigiP2p.messaging_get_image_data({ filePath })
   }
 
   // Get message history with a peer
   static async getMessageHistory(peerId: string): Promise<Message[]> {
-    return invokePlugin<Message[]>('messaging_get_message_history', { peerId })
+    return GigiP2p.messaging_get_message_history({ peerId })
   }
 }
 

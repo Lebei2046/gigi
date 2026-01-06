@@ -299,7 +299,8 @@ export default function ChatRoom() {
     const handleImageMessageReceived = (messageData: any) => {
       if (chatId && messageData.from_peer_id === chatId && !isGroupChat) {
         const imageMessage: Message = {
-          id: messageData.share_code, // Use share_code as ID
+          id: generateMessageId(), // Use unique ID instead of share_code
+          shareCode: messageData.share_code, // Store share_code separately
           from_peer_id: messageData.from_peer_id,
           from_nickname: messageData.from_nickname,
           content: messageData.download_error
@@ -331,7 +332,7 @@ export default function ChatRoom() {
 
       if (chatId && messageData.from_peer_id === chatId && !isGroupChat) {
         const fileMessage: Message = {
-          id: messageData.share_code, // Use share_code as ID
+          id: generateMessageId(), // Use unique ID instead of share_code
           from_peer_id: messageData.from_peer_id,
           from_nickname: messageData.from_nickname,
           content: messageData.download_error
@@ -341,7 +342,7 @@ export default function ChatRoom() {
           isOutgoing: false,
           isGroup: false,
           messageType: 'file',
-          shareCode: messageData.share_code,
+          shareCode: messageData.share_code, // Store share_code separately
           filename: messageData.filename,
           fileSize: messageData.file_size,
           fileType: messageData.file_type,
@@ -405,8 +406,9 @@ export default function ChatRoom() {
     // Listen for file download events
     const handleFileDownloadStarted = (data: any) => {
       // Update UI to show downloading has started (for auto-downloaded files)
+      // Find message by shareCode instead of id
       const updateFields = {
-        id: data.share_code,
+        shareCode: data.share_code,
         isDownloading: true,
         downloadProgress: 0,
       }
@@ -422,8 +424,9 @@ export default function ChatRoom() {
       // Update message content with progress
       const progressText = `⬇️ Downloading ${data.filename}: ${data.progress_percent.toFixed(1)}%`
 
+      // Find message by shareCode instead of id
       const updateFields = {
-        id: data.share_code,
+        shareCode: data.share_code,
         content: progressText,
         downloadProgress: data.progress_percent,
         isDownloading: data.progress_percent < 100,
@@ -437,11 +440,18 @@ export default function ChatRoom() {
     }
 
     const handleFileDownloadCompleted = async (data: any) => {
-      // Extract actual filename from path if data.filename is wrong
+      // Find the message first to get the original filename
+      const message = messages.find(
+        msg => msg.shareCode === data.share_code || msg.id === data.share_code
+      )
+
+      // Use the original filename from the message if available, otherwise extract from path
+      const originalFilename = message?.filename
       const actualFilename =
-        data.filename === 'Loading...' || data.filename.includes('...')
+        originalFilename ||
+        (data.filename === 'Loading...' || data.filename.includes('...')
           ? data.path.split(/[\\/]/).pop() || data.filename
-          : data.filename
+          : data.filename)
 
       // Determine if it's an image file
       const isImage =
@@ -481,20 +491,16 @@ export default function ChatRoom() {
         }
       }
 
+      // Find message by shareCode instead of id
+      const updateFields = {
+        shareCode: data.share_code,
+        ...updatedMessage,
+      }
+
       if (isGroupChat) {
-        dispatch(
-          updateGroupMessage({
-            id: data.share_code,
-            ...updatedMessage,
-          })
-        )
+        dispatch(updateGroupMessage(updateFields))
       } else if (!isGroupChat && data.from_peer_id === chatId) {
-        dispatch(
-          updateMessage({
-            id: data.share_code,
-            ...updatedMessage,
-          })
-        )
+        dispatch(updateMessage(updateFields))
       }
     }
 
@@ -698,13 +704,14 @@ export default function ChatRoom() {
           const updatedMessage: Message = {
             ...imageMessage,
             id: response.messageId,
-            content: `📎 File: ${filename}`,
           }
 
-          // Only set imageData if it's an image
+          // Set content and imageData based on file type
           if (response.imageData) {
             updatedMessage.imageData = `data:image/${filename.split('.').pop()};base64,${response.imageData}`
             updatedMessage.content = `📷 Image: ${filename}`
+          } else {
+            updatedMessage.content = `📎 File: ${filename}`
           }
 
           // Update the message in the store
@@ -753,18 +760,28 @@ export default function ChatRoom() {
             filePath
           )
 
+          console.log('📤 Image send response:', response)
+
           // Update the message with the returned message ID and optional image data
           const updatedMessage: Message = {
             ...imageMessage,
             id: response.messageId,
-            content: `📎 File: ${filename}`,
           }
 
-          // Only set imageData if it's an image
+          // Set content and imageData based on file type
           if (response.imageData) {
             updatedMessage.imageData = `data:image/${filename.split('.').pop()};base64,${response.imageData}`
             updatedMessage.content = `📷 Image: ${filename}`
+          } else {
+            updatedMessage.content = `📎 File: ${filename}`
           }
+
+          console.log('📤 Updating image message:', {
+            originalId: imageMessage.id,
+            newId: updatedMessage.id,
+            content: updatedMessage.content,
+            hasImageData: !!updatedMessage.imageData,
+          })
 
           // Update message in the store
           dispatch(
