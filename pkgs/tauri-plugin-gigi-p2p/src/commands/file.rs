@@ -205,13 +205,9 @@ pub(crate) async fn messaging_request_file_from_nickname<R: tauri::Runtime>(
     let mut p2p_client = state.p2p_client.lock().await;
     let client = p2p_client.as_mut().ok_or(Error::P2pNotInitialized)?;
 
-    match client.download_file(nickname, share_code) {
-        Ok(()) => {
-            let download_id = uuid::Uuid::new_v4().to_string();
-            Ok(download_id)
-        }
-        Err(e) => Err(Error::P2p(format!("Failed to request file: {}", e))),
-    }
+    client
+        .download_file(nickname, share_code)
+        .map_err(|e| Error::P2p(format!("Failed to request file: {}", e)))
 }
 
 /// Cancel an in-progress download

@@ -1,6 +1,27 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import * as GigiP2p from 'tauri-plugin-gigi-p2p-api'
 
+// Re-export event types from plugin API for convenience
+export type {
+  PeerDiscovered,
+  PeerExpired,
+  NicknameUpdated,
+  MessageReceived,
+  ImageMessageReceived,
+  GroupImageMessageReceived,
+  FileMessageReceived,
+  GroupFileMessageReceived,
+  GroupShareReceived,
+  FileShareRequest,
+  FileDownloadStarted,
+  FileDownloadProgress,
+  FileDownloadCompleted,
+  FileDownloadFailed,
+  PeerConnected,
+  PeerDisconnected,
+  P2pError,
+} from 'tauri-plugin-gigi-p2p-api'
+
 // Check if running on Android
 const isAndroid = () => {
   return (
@@ -32,7 +53,7 @@ export interface Message {
   downloadProgress?: number
 }
 
-export interface GroupMessage {
+export interface LocalGroupMessage {
   id: string
   group_id: string
   from_peer_id: string
@@ -49,62 +70,7 @@ export interface GroupShareMessage {
   timestamp: number
 }
 
-export interface ImageMessageReceived {
-  from_peer_id: string
-  from_nickname: string
-  share_code: string
-  filename: string
-  file_size: number
-  file_type: string
-  timestamp: number
-  download_error?: string
-}
-
-export interface FileMessageReceived {
-  from_peer_id: string
-  from_nickname: string
-  share_code: string
-  filename: string
-  file_size: number
-  file_type: string
-  timestamp: number
-}
-
-export interface FileDownloadStarted {
-  from_peer_id: string
-  from_nickname: string
-  filename: string
-  timestamp: number
-}
-
-export interface FileDownloadProgress {
-  download_id: string
-  filename: string
-  share_code: string
-  from_nickname: string
-  downloaded_chunks: number
-  total_chunks: number
-  progress_percent: number
-  timestamp: number
-}
-
-export interface FileDownloadCompleted {
-  download_id: string
-  filename: string
-  share_code: string
-  from_nickname: string
-  path: string
-  timestamp: number
-}
-
-export interface FileDownloadFailed {
-  download_id: string
-  filename: string
-  share_code: string
-  from_nickname: string
-  error: string
-  timestamp: number
-}
+// Note: ImageMessageReceived, FileMessageReceived, FileDownloadStarted, etc. are now imported from plugin API
 
 export interface FileInfo {
   id: string

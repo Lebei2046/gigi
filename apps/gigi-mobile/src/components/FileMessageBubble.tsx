@@ -3,7 +3,11 @@ import { MessagingUtils } from '@/utils/messaging'
 
 interface FileMessageBubbleProps {
   message: Message
-  onDownloadRequest: (shareCode: string, filename: string) => void
+  onDownloadRequest: (
+    messageId: string,
+    shareCode: string,
+    filename: string
+  ) => void
 }
 
 export default function FileMessageBubble({
@@ -12,7 +16,7 @@ export default function FileMessageBubble({
 }: FileMessageBubbleProps) {
   const handleDownloadClick = () => {
     if (message.shareCode && message.filename) {
-      onDownloadRequest(message.shareCode, message.filename)
+      onDownloadRequest(message.id, message.shareCode, message.filename)
     }
   }
 

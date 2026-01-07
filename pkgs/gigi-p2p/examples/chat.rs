@@ -191,6 +191,8 @@ async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pC
             from,
             from_nickname,
             filename,
+            download_id: _,
+            share_code: _,
         } => {
             println!(
                 "⬇️ Downloading {} from {} ({})...",
@@ -485,10 +487,10 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                     "Starting file download"
                 );
                 match client.download_file(nickname, share_code) {
-                    Ok(()) => {
+                    Ok(download_id) => {
                         println!(
-                            "✅ Download started from {} with code {}",
-                            nickname, share_code
+                            "✅ Download started from {} with code {} (download_id: {})",
+                            nickname, share_code, download_id
                         );
                         debug!("File download started successfully");
                     }

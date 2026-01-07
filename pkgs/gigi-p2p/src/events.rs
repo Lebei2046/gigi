@@ -110,6 +110,8 @@ pub enum P2pEvent {
         from: PeerId,
         from_nickname: String,
         filename: String,
+        download_id: String,
+        share_code: String,
     },
     FileDownloadProgress {
         download_id: String,

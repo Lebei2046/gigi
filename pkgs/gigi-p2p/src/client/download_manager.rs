@@ -25,6 +25,7 @@ pub struct DownloadManager {
     downloading_files: HashMap<String, DownloadingFile>,
     output_directory: PathBuf,
     chunk_reader: Option<super::file_sharing::FileChunkReader>,
+    request_id_to_download: HashMap<String, String>, // request_id (as string) -> download_id mapping
 }
 
 impl DownloadManager {
@@ -36,6 +37,7 @@ impl DownloadManager {
             downloading_files: HashMap::new(),
             output_directory,
             chunk_reader: None,
+            request_id_to_download: HashMap::new(),
         }
     }
 
@@ -52,14 +54,27 @@ impl DownloadManager {
         share_code: String,
         filename: Option<String>,
     ) -> String {
+        // Only remove COMPLETED downloads with same share_code before creating new one
+        // This allows parallel downloads of the same file, but prevents reuse of old completed entries
+        let to_remove: Vec<String> = self
+            .active_downloads
+            .values()
+            .filter(|d| d.share_code == share_code && d.completed)
+            .map(|d| d.download_id.clone())
+            .collect();
+        for dl_id in to_remove {
+            self.active_downloads.remove(&dl_id);
+        }
+
         // Create unique download_id for this specific download
+        // Use nanos for uniqueness when multiple downloads start at same time
         let download_id = format!(
             "pending_{}_{}",
             share_code,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_secs()
+                .as_nanos()
         );
 
         let active_download = ActiveDownload {
@@ -92,37 +107,33 @@ impl DownloadManager {
         from_peer_id: libp2p::PeerId,
         from_nickname: String,
     ) -> Result<String> {
-        // Create proper download_id for this specific download
-        let final_download_id = format!(
-            "dl_{}_{}_{}",
-            filename,
-            from_peer_id,
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-        );
+        // Keep the original download_id - don't create a new one
+        // This ensures the frontend mapping remains valid
 
-        // Store share code mapping - map share_code to final_download_id for easier lookup
-        if let Some(active_download) = self.active_downloads.get(download_id) {
-            self.download_share_codes.insert(
-                active_download.share_code.clone(),
-                final_download_id.clone(),
-            );
-        }
+        // Get existing download to preserve share_code and started_at
+        let share_code = self
+            .get_share_code_for_download(download_id)
+            .unwrap_or_else(|| download_id.to_string());
+        let started_at = self
+            .active_downloads
+            .get(download_id)
+            .map(|d| d.started_at)
+            .unwrap_or_else(std::time::Instant::now);
 
-        // Update or create active download entry
+        // Store share code mapping
+        self.download_share_codes
+            .insert(share_code.clone(), download_id.to_string());
+
+        // Update the active download entry in place
         let active_download = ActiveDownload {
-            download_id: final_download_id.clone(),
-            filename: filename.clone(),
-            share_code: self
-                .get_share_code_for_download(download_id)
-                .unwrap_or_else(|| download_id.to_string()),
+            download_id: download_id.to_string(),
+            filename,
+            share_code,
             from_peer_id,
             from_nickname,
             total_chunks,
             downloaded_chunks: 0,
-            started_at: std::time::Instant::now(),
+            started_at,
             completed: false,
             failed: false,
             error_message: None,
@@ -130,12 +141,9 @@ impl DownloadManager {
         };
 
         self.active_downloads
-            .insert(final_download_id.clone(), active_download);
+            .insert(download_id.to_string(), active_download);
 
-        // Remove the old pending download
-        self.active_downloads.remove(download_id);
-
-        Ok(final_download_id)
+        Ok(download_id.to_string())
     }
 
     /// Update download progress
@@ -206,6 +214,21 @@ impl DownloadManager {
             .collect()
     }
 
+    /// Associate a request_id with a download_id
+    pub fn map_request_to_download(&mut self, request_id: String, download_id: String) {
+        self.request_id_to_download.insert(request_id, download_id);
+    }
+
+    /// Get download_id by request_id
+    pub fn get_download_by_request_id(&self, request_id: &str) -> Option<String> {
+        self.request_id_to_download.get(request_id).cloned()
+    }
+
+    /// Clean up request_id to download_id mapping
+    pub fn cleanup_request_mapping(&mut self, request_id: &str) {
+        self.request_id_to_download.remove(request_id);
+    }
+
     /// Get recent downloads (useful for UI history)
     pub fn get_recent_downloads(&self, limit: usize) -> Vec<&ActiveDownload> {
         let mut downloads: Vec<&ActiveDownload> = self
@@ -218,23 +241,6 @@ impl DownloadManager {
         downloads.sort_by(|a, b| b.started_at.cmp(&a.started_at));
         downloads.truncate(limit);
         downloads
-    }
-
-    /// Helper to find share code for a download
-    pub fn find_share_code_for_file(&self, file_id: &str) -> Option<String> {
-        // First check if we have it mapped
-        if let Some(share_code) = self.download_share_codes.get(file_id) {
-            return Some(share_code.clone());
-        }
-
-        // Look for pending downloads with this file_id pattern
-        self.active_downloads
-            .values()
-            .find(|download| {
-                download.download_id.contains(file_id)
-                    || download.download_id.starts_with("pending_")
-            })
-            .map(|download| download.share_code.clone())
     }
 
     /// Helper to find download_id by file_id (share_code)
@@ -338,13 +344,31 @@ impl DownloadManager {
     }
 
     /// Start downloading a file after receiving file info
-    pub fn start_download_file(&mut self, _peer_id: libp2p::PeerId, info: FileInfo) -> Result<()> {
+    pub fn start_download_file(
+        &mut self,
+        _peer_id: libp2p::PeerId,
+        info: FileInfo,
+        download_id: Option<&str>,
+    ) -> Result<()> {
         // Find available filename
         let filename = self.find_available_filename(&info.name);
         let output_path = self.output_directory.join(&filename);
-        let temp_path = self
-            .output_directory
-            .join(format!("{}.downloading", info.id));
+
+        // Use download_id for temp path to ensure uniqueness when same file is downloaded multiple times
+        // If download_id is provided, use it; otherwise fall back to info.id with timestamp
+        let temp_path = if let Some(dl_id) = download_id {
+            // Extract the unique part from download_id (e.g., "dl_..." or "pending_...")
+            // Use the download_id directly to ensure unique temp paths
+            self.output_directory.join(format!("{}.downloading", dl_id))
+        } else {
+            // Fallback: use info.id with timestamp for uniqueness
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            self.output_directory
+                .join(format!("{}_{}.downloading", info.id, timestamp))
+        };
 
         // Create downloading file entry
         let downloading_file = DownloadingFile {
@@ -354,25 +378,27 @@ impl DownloadManager {
             downloaded_chunks: HashMap::new(),
         };
 
+        // Use download_id as key instead of info.id to support parallel downloads of the same file
+        let key = download_id.unwrap_or(&info.id);
         self.downloading_files
-            .insert(info.id.clone(), downloading_file);
+            .insert(key.to_string(), downloading_file);
 
         Ok(())
     }
 
-    /// Get downloading file by file ID
-    pub fn get_downloading_file(&self, file_id: &str) -> Option<&DownloadingFile> {
-        self.downloading_files.get(file_id)
+    /// Get downloading file by download ID
+    pub fn get_downloading_file(&self, download_id: &str) -> Option<&DownloadingFile> {
+        self.downloading_files.get(download_id)
     }
 
-    /// Get downloading file by file ID (mutable)
-    pub fn get_downloading_file_mut(&mut self, file_id: &str) -> Option<&mut DownloadingFile> {
-        self.downloading_files.get_mut(file_id)
+    /// Get downloading file by download ID (mutable)
+    pub fn get_downloading_file_mut(&mut self, download_id: &str) -> Option<&mut DownloadingFile> {
+        self.downloading_files.get_mut(download_id)
     }
 
     /// Remove downloading file
-    pub fn remove_downloading_file(&mut self, file_id: &str) -> Option<DownloadingFile> {
-        self.downloading_files.remove(file_id)
+    pub fn remove_downloading_file(&mut self, download_id: &str) -> Option<DownloadingFile> {
+        self.downloading_files.remove(download_id)
     }
 
     /// Calculate SHA256 hash of a file
@@ -457,7 +483,7 @@ impl DownloadManager {
     /// Process a received chunk - handles verification, storage, and progress tracking
     pub fn process_received_chunk(
         &mut self,
-        file_id: &str,
+        download_id: &str,
         chunk_index: usize,
         chunk: &crate::events::ChunkInfo,
     ) -> Result<ChunkProcessResult> {
@@ -470,8 +496,8 @@ impl DownloadManager {
         // Get downloading file info and extract needed data before borrowing
         let (temp_path, output_path, expected_hash, total_chunks) = {
             let downloading_file = self
-                .get_downloading_file(file_id)
-                .ok_or_else(|| anyhow::anyhow!("File not found in downloads: {}", file_id))?;
+                .get_downloading_file(download_id)
+                .ok_or_else(|| anyhow::anyhow!("Download not found: {}", download_id))?;
             (
                 downloading_file.temp_path.clone(),
                 downloading_file.output_path.clone(),
@@ -487,8 +513,8 @@ impl DownloadManager {
 
         // Now get mutable reference to update progress
         let downloading_file = self
-            .get_downloading_file_mut(file_id)
-            .ok_or_else(|| anyhow::anyhow!("File not found in downloads: {}", file_id))?;
+            .get_downloading_file_mut(download_id)
+            .ok_or_else(|| anyhow::anyhow!("Download not found: {}", download_id))?;
 
         // Mark chunk as downloaded
         downloading_file.downloaded_chunks.insert(chunk_index, true);
@@ -534,10 +560,10 @@ impl DownloadManager {
     /// Get next chunks to request for maintaining optimal concurrency
     pub fn get_next_chunks_to_request(
         &self,
-        file_id: &str,
+        download_id: &str,
         max_concurrent_requests: usize,
     ) -> Option<Vec<usize>> {
-        let downloading_file = self.get_downloading_file(file_id)?;
+        let downloading_file = self.get_downloading_file(download_id)?;
 
         let downloaded_count = downloading_file
             .downloaded_chunks
@@ -574,10 +600,14 @@ impl DownloadManager {
     }
 
     /// Mark chunks as requested (not downloaded)
-    pub fn mark_chunks_requested(&mut self, file_id: &str, chunk_indices: &[usize]) -> Result<()> {
+    pub fn mark_chunks_requested(
+        &mut self,
+        download_id: &str,
+        chunk_indices: &[usize],
+    ) -> Result<()> {
         let downloading_file = self
-            .get_downloading_file_mut(file_id)
-            .ok_or_else(|| anyhow::anyhow!("File not found in downloads: {}", file_id))?;
+            .get_downloading_file_mut(download_id)
+            .ok_or_else(|| anyhow::anyhow!("Download not found: {}", download_id))?;
 
         for &chunk_index in chunk_indices {
             downloading_file

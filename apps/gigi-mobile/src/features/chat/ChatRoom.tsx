@@ -36,6 +36,8 @@ export default function ChatRoom() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const saveTimeoutRef = useRef<number | null>(null)
   const sentMessagesRef = useRef<Set<string>>(new Set())
+  // Map downloadId to messageId to track which message each download belongs to
+  const downloadIdToMessageIdRef = useRef<Map<string, string>>(new Map())
 
   // Redux state
   const {
@@ -405,32 +407,86 @@ export default function ChatRoom() {
 
     // Listen for file download events
     const handleFileDownloadStarted = (data: any) => {
-      // Update UI to show downloading has started (for auto-downloaded files)
-      // Find message by shareCode instead of id
-      const updateFields = {
-        shareCode: data.share_code,
-        isDownloading: true,
-        downloadProgress: 0,
+      console.log('📥 file-download-started event received:', data)
+
+      // The download_id should match the one returned when user clicked download
+      // Check if we already have a mapping (set when user clicked download)
+      let messageId = downloadIdToMessageIdRef.current.get(data.download_id)
+
+      // If no mapping exists, try to find by downloadId field in messages (for backward compatibility)
+      if (!messageId) {
+        const message = messages.find(
+          msg => msg.downloadId === data.download_id
+        )
+        if (message) {
+          messageId = message.id
+          downloadIdToMessageIdRef.current.set(data.download_id, message.id)
+        }
       }
 
-      if (isGroupChat) {
-        dispatch(updateGroupMessage(updateFields))
-      } else if (!isGroupChat && data.from_peer_id === chatId) {
-        dispatch(updateMessage(updateFields))
+      if (messageId) {
+        console.log('📝 Found message for download-started:', {
+          downloadId: data.download_id,
+          messageId,
+          shareCode: data.share_code,
+        })
+
+        // Update UI to show downloading has started
+        const updateFields = {
+          id: messageId,
+          downloadId: data.download_id,
+          isDownloading: true,
+          downloadProgress: 0,
+        }
+
+        console.log(
+          '📥 Dispatching updateMessage for download-started:',
+          updateFields
+        )
+
+        if (isGroupChat) {
+          dispatch(updateGroupMessage(updateFields))
+        } else if (!isGroupChat && data.from_peer_id === chatId) {
+          dispatch(updateMessage(updateFields))
+        }
+      } else {
+        console.warn('⚠️ No message found for download-started:', {
+          downloadId: data.download_id,
+          shareCode: data.share_code,
+        })
       }
     }
 
     const handleFileDownloadProgress = (data: any) => {
+      console.log('📊 file-download-progress event received:', data)
+
+      // Get the messageId from the mapping
+      let messageId = downloadIdToMessageIdRef.current.get(data.download_id)
+
+      if (!messageId) {
+        console.warn('⚠️ No messageId found for download-progress:', {
+          downloadId: data.download_id,
+          shareCode: data.share_code,
+        })
+        return
+      }
+
       // Update message content with progress
       const progressText = `⬇️ Downloading ${data.filename}: ${data.progress_percent.toFixed(1)}%`
 
-      // Find message by shareCode instead of id
+      // Use messageId from mapping to find the correct message
       const updateFields = {
-        shareCode: data.share_code,
+        id: messageId,
+        downloadId: data.download_id, // Also set downloadId for consistency
         content: progressText,
         downloadProgress: data.progress_percent,
         isDownloading: data.progress_percent < 100,
       }
+
+      console.log(
+        '📊 Dispatching updateMessage for download-progress:',
+        updateFields
+      )
 
       if (isGroupChat) {
         dispatch(updateGroupMessage(updateFields))
@@ -440,10 +496,19 @@ export default function ChatRoom() {
     }
 
     const handleFileDownloadCompleted = async (data: any) => {
-      // Find the message first to get the original filename
-      const message = messages.find(
-        msg => msg.shareCode === data.share_code || msg.id === data.share_code
-      )
+      // Get the messageId from the mapping
+      let messageId = downloadIdToMessageIdRef.current.get(data.download_id)
+
+      if (!messageId) {
+        console.warn('⚠️ No messageId found for download-completed:', {
+          downloadId: data.download_id,
+          shareCode: data.share_code,
+        })
+        return
+      }
+
+      // Find message first to get original filename (by messageId for accuracy)
+      const message = messages.find(msg => msg.id === messageId)
 
       // Use the original filename from the message if available, otherwise extract from path
       const originalFilename = message?.filename
@@ -491,9 +556,10 @@ export default function ChatRoom() {
         }
       }
 
-      // Find message by shareCode instead of id
+      // Use messageId from mapping to find the correct message
       const updateFields = {
-        shareCode: data.share_code,
+        id: messageId, // Use mapped messageId for precise targeting
+        downloadId: data.download_id, // Also set downloadId for consistency
         ...updatedMessage,
       }
 
@@ -501,6 +567,15 @@ export default function ChatRoom() {
         dispatch(updateGroupMessage(updateFields))
       } else if (!isGroupChat && data.from_peer_id === chatId) {
         dispatch(updateMessage(updateFields))
+      }
+
+      // Clean up the mapping after download completes
+      if (messageId) {
+        downloadIdToMessageIdRef.current.delete(data.download_id)
+        console.log(
+          '🧹 Cleaned up downloadId mapping for completed download:',
+          data.download_id
+        )
       }
     }
 
@@ -569,11 +644,22 @@ export default function ChatRoom() {
     }
 
     const handleFileDownloadFailed = (data: any) => {
+      // Get the messageId from the mapping
+      let messageId = downloadIdToMessageIdRef.current.get(data.download_id)
+
+      if (!messageId) {
+        console.warn('⚠️ No messageId found for download-failed:', {
+          downloadId: data.download_id,
+          shareCode: data.share_code,
+        })
+        return
+      }
+
       const fileIcon = getFileIcon(data.file_type, data.filename)
       const errorMessage = `❌ ${fileIcon} File: ${data.filename} (Download failed: ${data.error})`
 
       const updateFields = {
-        id: data.share_code,
+        id: messageId,
         content: errorMessage,
         isDownloading: false,
         downloadProgress: undefined,
@@ -584,6 +670,13 @@ export default function ChatRoom() {
       } else if (!isGroupChat && data.from_peer_id === chatId) {
         dispatch(updateMessage(updateFields))
       }
+
+      // Clean up the mapping after download fails
+      downloadIdToMessageIdRef.current.delete(data.download_id)
+      console.log(
+        '🧹 Cleaned up downloadId mapping for failed download:',
+        data.download_id
+      )
     }
 
     MessagingEvents.on('image-message-received', handleImageMessageReceived)
@@ -938,10 +1031,12 @@ export default function ChatRoom() {
   }
 
   const handleFileDownloadRequest = async (
+    messageId: string,
     shareCode: string,
     filename: string
   ) => {
     console.log('🔍 handleFileDownloadRequest called:', {
+      messageId,
       shareCode,
       filename,
       peer: peer ? `${peer.nickname} (${peer.id})` : 'null',
@@ -958,25 +1053,37 @@ export default function ChatRoom() {
         `🎯 Requesting download for file: ${filename} with share code: ${shareCode}`
       )
 
-      // Update UI to show downloading state immediately
+      // Request file download from peer and get download_id
+      console.log('📞 Calling MessagingClient.requestFileFromNickname...')
+      const downloadId = await MessagingClient.requestFileFromNickname(
+        peer.nickname,
+        shareCode
+      )
+      console.log(
+        '✅ requestFileFromNickname completed successfully, downloadId:',
+        downloadId
+      )
+
+      // Store the mapping from downloadId to messageId
+      downloadIdToMessageIdRef.current.set(downloadId, messageId)
+      console.log('📝 Stored downloadId mapping:', { downloadId, messageId })
+
+      // Update UI to show downloading state immediately (use messageId to find specific message)
       const updateAction = isGroupChat
         ? updateGroupMessage({
-            id: shareCode,
+            id: messageId,
             isDownloading: true,
             downloadProgress: 0,
+            downloadId: downloadId,
           })
         : updateMessage({
-            id: shareCode,
+            id: messageId,
             isDownloading: true,
             downloadProgress: 0,
+            downloadId: downloadId,
           })
 
       dispatch(updateAction)
-
-      // Request file download from peer
-      console.log('📞 Calling MessagingClient.requestFileFromNickname...')
-      await MessagingClient.requestFileFromNickname(peer.nickname, shareCode)
-      console.log('✅ requestFileFromNickname completed successfully')
 
       dispatch(
         addLog({
@@ -988,15 +1095,17 @@ export default function ChatRoom() {
     } catch (error) {
       console.error('❌ Failed to request file download:', error)
 
-      // Reset downloading state on error
+      // Reset downloading state on error (use messageId to find specific message)
       const resetAction = isGroupChat
         ? updateGroupMessage({
-            id: shareCode,
+            id: messageId,
             isDownloading: false,
+            downloadId: undefined,
           })
         : updateMessage({
-            id: shareCode,
+            id: messageId,
             isDownloading: false,
+            downloadId: undefined,
           })
 
       dispatch(resetAction)
@@ -1118,6 +1227,7 @@ export default function ChatRoom() {
     return () => {
       dispatch(resetChatRoomState())
       sentMessagesRef.current.clear()
+      downloadIdToMessageIdRef.current.clear()
     }
   }, [dispatch])
 

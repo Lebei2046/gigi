@@ -294,7 +294,10 @@ impl<'a> FileSharingEventHandler<'a> {
         if let libp2p::request_response::Event::Message { message, peer, .. } = event {
             match message {
                 libp2p::request_response::Message::Request {
-                    request, channel, ..
+                    request,
+                    channel,
+                    request_id: _,
+                    ..
                 } => {
                     let response = match request {
                         FileSharingRequest::GetFileInfo(file_id) => {
@@ -348,8 +351,12 @@ impl<'a> FileSharingEventHandler<'a> {
                         .file_sharing
                         .send_response(channel, response);
                 }
-                libp2p::request_response::Message::Response { response, .. } => {
-                    self.handle_file_response(response, peer)?;
+                libp2p::request_response::Message::Response {
+                    response,
+                    request_id,
+                    ..
+                } => {
+                    self.handle_file_response(response, peer, request_id.to_string())?;
                 }
             }
         }
@@ -360,12 +367,13 @@ impl<'a> FileSharingEventHandler<'a> {
         &mut self,
         response: crate::behaviour::FileSharingResponse,
         peer: PeerId,
+        request_id: String,
     ) -> Result<()> {
         use crate::behaviour::FileSharingResponse;
 
         match response {
             FileSharingResponse::FileInfo(Some(info)) => {
-                self.handle_file_info_response(info, peer)?;
+                self.handle_file_info_response(info, peer, request_id)?;
             }
             FileSharingResponse::FileInfo(None) => {
                 self.client.send_event(P2pEvent::FileDownloadFailed {
@@ -378,7 +386,7 @@ impl<'a> FileSharingEventHandler<'a> {
                 });
             }
             FileSharingResponse::Chunk(Some(chunk)) => {
-                self.handle_chunk_response(peer, chunk)?;
+                self.handle_chunk_response(peer, chunk, request_id)?;
             }
             FileSharingResponse::Chunk(None) => {
                 // Chunk not found
@@ -398,19 +406,40 @@ impl<'a> FileSharingEventHandler<'a> {
         &mut self,
         info: crate::events::FileInfo,
         peer: PeerId,
+        request_id: String,
     ) -> Result<()> {
         use crate::behaviour::FileSharingRequest;
 
-        // Start download when we receive file info
+        // Find the pending download_id using the request_id
+        let pending_download_id = self
+            .client
+            .download_manager
+            .get_download_by_request_id(&request_id)
+            .unwrap_or_else(|| {
+                format!(
+                    "pending_unknown_{}_{}",
+                    request_id,
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos()
+                )
+            });
+
+        // Clean up the request mapping
         self.client
             .download_manager
-            .start_download_file(peer, info.clone())?;
-        self.client.send_event(P2pEvent::FileInfoReceived {
-            from: peer,
-            info: info.clone(),
-        });
+            .cleanup_request_mapping(&request_id);
 
-        // Find and update the active download entry
+        // Get the download entry to extract share_code
+        let share_code = self
+            .client
+            .download_manager
+            .get_active_download(&pending_download_id)
+            .map(|d| d.share_code.clone())
+            .unwrap_or_else(|| info.id.clone());
+
+        // Get peer nickname
         let from_nickname = self
             .client
             .peer_manager
@@ -418,32 +447,19 @@ impl<'a> FileSharingEventHandler<'a> {
             .map(|p| p.nickname.clone())
             .unwrap_or_else(|| peer.to_string());
 
-        // Find the share code from pending downloads or use file_id as fallback
-        let share_code = self
-            .client
-            .download_manager
-            .find_share_code_for_file(&info.id)
-            .unwrap_or_else(|| info.id.clone());
-
-        // Find the pending download to update it with proper info
-        let pending_download_id = self
-            .client
-            .download_manager
-            .get_download_by_share_code(&share_code)
-            .map(|download| download.download_id.clone())
-            .unwrap_or_else(|| {
-                format!(
-                    "pending_{}_{}",
-                    share_code,
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs()
-                )
-            });
+        // Start download when we receive file info, using the pending_download_id for unique temp path
+        self.client.download_manager.start_download_file(
+            peer,
+            info.clone(),
+            Some(&pending_download_id),
+        )?;
+        self.client.send_event(P2pEvent::FileInfoReceived {
+            from: peer,
+            info: info.clone(),
+        });
 
         // Update the pending download with proper file info using DownloadManager
-        let _final_download_id = self
+        let final_download_id = self
             .client
             .download_manager
             .update_download_with_file_info(
@@ -454,11 +470,13 @@ impl<'a> FileSharingEventHandler<'a> {
                 from_nickname.clone(),
             )?;
 
-        // Send download started event with correct filename
+        // Send download started event with correct filename and download_id
         self.client.send_event(P2pEvent::FileDownloadStarted {
             from: peer,
             from_nickname: from_nickname,
             filename: info.name.clone(),
+            download_id: final_download_id.clone(),
+            share_code: share_code,
         });
 
         // Start requesting initial chunks with optimized concurrency
@@ -466,17 +484,21 @@ impl<'a> FileSharingEventHandler<'a> {
         let initial_requests = std::cmp::min(10, info.chunk_count);
         let initial_chunk_indices: Vec<usize> = (0..initial_requests).collect();
 
-        // Mark initial chunks as requested
+        // Mark initial chunks as requested using download_id
         self.client
             .download_manager
-            .mark_chunks_requested(&file_id, &initial_chunk_indices)?;
+            .mark_chunks_requested(&final_download_id, &initial_chunk_indices)?;
 
-        // Send initial requests
+        // Send initial requests and map request_id to download_id
         for chunk_index in initial_chunk_indices {
-            let _request_id = self.client.swarm.behaviour_mut().file_sharing.send_request(
+            let request_id = self.client.swarm.behaviour_mut().file_sharing.send_request(
                 &peer,
                 FileSharingRequest::GetChunk(file_id.clone(), chunk_index),
             );
+            // Map this chunk request to the download_id so we can route the response correctly
+            self.client
+                .download_manager
+                .map_request_to_download(request_id.to_string(), final_download_id.clone());
         }
 
         Ok(())
@@ -486,15 +508,25 @@ impl<'a> FileSharingEventHandler<'a> {
         &mut self,
         peer: PeerId,
         chunk: crate::events::ChunkInfo,
+        request_id: String,
     ) -> Result<()> {
         use crate::behaviour::FileSharingRequest;
 
-        // Find download_id for this file_id
-        let download_id = self.client.find_download_id_by_file_id(&chunk.file_id);
+        // Find download_id using the request_id mapping
+        let download_id = self
+            .client
+            .download_manager
+            .get_download_by_request_id(&request_id)
+            .ok_or_else(|| anyhow::anyhow!("No download found for request_id: {}", request_id))?;
 
-        // Process chunk through DownloadManager
+        // Clean up the request_id mapping after finding the download_id
+        self.client
+            .download_manager
+            .cleanup_request_mapping(&request_id);
+
+        // Process chunk through DownloadManager using download_id
         match self.client.download_manager.process_received_chunk(
-            &chunk.file_id,
+            &download_id,
             chunk.chunk_index,
             &chunk,
         )? {
@@ -507,11 +539,9 @@ impl<'a> FileSharingEventHandler<'a> {
                 expected_hash,
             } => {
                 // Update active download progress
-                if let Some(download_id) = &download_id {
-                    self.client
-                        .download_manager
-                        .update_download_progress(download_id, downloaded_count);
-                }
+                self.client
+                    .download_manager
+                    .update_download_progress(&download_id, downloaded_count);
 
                 // Send progress event
                 self.send_progress_event(&download_id, downloaded_count, total_chunks);
@@ -527,39 +557,44 @@ impl<'a> FileSharingEventHandler<'a> {
                     // Remove from downloading files
                     self.client
                         .download_manager
-                        .remove_downloading_file(&chunk.file_id);
+                        .remove_downloading_file(&download_id);
                 } else {
                     // Get next chunks to request
                     if let Some(next_chunks) = self
                         .client
                         .download_manager
-                        .get_next_chunks_to_request(&chunk.file_id, 10)
+                        .get_next_chunks_to_request(&download_id, 10)
                     {
                         // Mark them as requested
                         self.client
                             .download_manager
-                            .mark_chunks_requested(&chunk.file_id, &next_chunks)?;
+                            .mark_chunks_requested(&download_id, &next_chunks)?;
 
                         // Send requests
                         for chunk_idx in next_chunks {
-                            let _request_id =
+                            let request_id =
                                 self.client.swarm.behaviour_mut().file_sharing.send_request(
                                     &peer,
                                     FileSharingRequest::GetChunk(chunk.file_id.clone(), chunk_idx),
                                 );
+                            // Map this chunk request to download_id
+                            self.client.download_manager.map_request_to_download(
+                                request_id.to_string(),
+                                download_id.clone(),
+                            );
                         }
                     }
                 }
             }
             super::download_manager::ChunkProcessResult::HashMismatch => {
                 self.send_download_failed_event(
-                    download_id.as_deref().unwrap_or("unknown"),
+                    &download_id,
                     format!("Chunk {} hash mismatch", chunk.chunk_index),
                 );
             }
             super::download_manager::ChunkProcessResult::WriteFailed(error) => {
                 self.send_download_failed_event(
-                    download_id.as_deref().unwrap_or("unknown"),
+                    &download_id,
                     format!("Failed to write chunk: {}", error),
                 );
             }
@@ -573,7 +608,7 @@ impl<'a> FileSharingEventHandler<'a> {
         temp_path: &std::path::Path,
         output_path: &std::path::Path,
         expected_hash: &str,
-        download_id: &Option<String>,
+        download_id: &str,
     ) -> Result<()> {
         // Verify file hash
         match self.client.download_manager.calculate_file_hash(temp_path) {
@@ -586,21 +621,21 @@ impl<'a> FileSharingEventHandler<'a> {
                         }
                         Err(e) => {
                             self.send_download_failed_event(
-                                download_id.as_deref().unwrap_or("unknown"),
+                                download_id,
                                 format!("Failed to rename file: {}", e),
                             );
                         }
                     }
                 } else {
                     self.send_download_failed_event(
-                        download_id.as_deref().unwrap_or("unknown"),
+                        download_id,
                         "File hash verification failed".to_string(),
                     );
                 }
             }
             Err(e) => {
                 self.send_download_failed_event(
-                    download_id.as_deref().unwrap_or("unknown"),
+                    download_id,
                     format!("Failed to calculate file hash: {}", e),
                 );
             }
@@ -610,14 +645,14 @@ impl<'a> FileSharingEventHandler<'a> {
 
     fn send_progress_event(
         &mut self,
-        download_id: &Option<String>,
+        download_id: &str,
         downloaded_count: usize,
         total_chunks: usize,
     ) {
         let (actual_download_id, filename, share_code, from_nickname, from_peer_id) = self
             .client
             .download_manager
-            .get_download_info_for_event(download_id);
+            .get_download_info_for_event(&Some(download_id.to_string()));
 
         self.client.send_event(P2pEvent::FileDownloadProgress {
             download_id: actual_download_id,
@@ -652,46 +687,17 @@ impl<'a> FileSharingEventHandler<'a> {
         });
     }
 
-    fn send_download_completed_event(
-        &mut self,
-        download_id: &Option<String>,
-        output_path: &std::path::Path,
-    ) {
-        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) =
-            if let Some(download_id) = download_id {
-                // Mark as completed in download manager first
-                let completed_download = self
-                    .client
-                    .download_manager
-                    .complete_download(download_id, output_path.to_path_buf());
+    fn send_download_completed_event(&mut self, download_id: &str, output_path: &std::path::Path) {
+        let (actual_download_id, filename, share_code, from_nickname, from_peer_id) = self
+            .client
+            .download_manager
+            .get_download_info_for_event(&Some(download_id.to_string()));
 
-                // Get the info for the event
-                if let Some(completed_download) = completed_download {
-                    (
-                        completed_download.download_id.clone(),
-                        completed_download.filename.clone(),
-                        completed_download.share_code.clone(),
-                        completed_download.from_nickname.clone(),
-                        completed_download.from_peer_id,
-                    )
-                } else {
-                    (
-                        download_id.clone(),
-                        "Unknown".to_string(),
-                        "Unknown".to_string(),
-                        "Unknown".to_string(),
-                        libp2p::PeerId::random(),
-                    )
-                }
-            } else {
-                (
-                    "unknown".to_string(),
-                    "Unknown".to_string(),
-                    "Unknown".to_string(),
-                    "Unknown".to_string(),
-                    libp2p::PeerId::random(),
-                )
-            };
+        // Mark as completed in download manager
+        let _completed_download = self
+            .client
+            .download_manager
+            .complete_download(&actual_download_id, output_path.to_path_buf());
 
         self.client.send_event(P2pEvent::FileDownloadCompleted {
             download_id: actual_download_id,

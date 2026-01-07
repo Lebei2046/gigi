@@ -352,14 +352,14 @@ impl P2pClient {
     }
 
     /// Download file from peer
-    pub fn download_file(&mut self, nickname: &str, share_code: &str) -> Result<()> {
+    pub fn download_file(&mut self, nickname: &str, share_code: &str) -> Result<String> {
         let peer_id = self
             .peer_manager
             .get_peer_id_by_nickname(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
 
-        // Track download request with DownloadManager
-        let _temp_download_id = self.download_manager.start_download(
+        // Track download request with DownloadManager and get the download_id
+        let download_id = self.download_manager.start_download(
             peer_id,
             nickname.to_string(),
             share_code.to_string(),
@@ -367,12 +367,16 @@ impl P2pClient {
         );
 
         // First request file info
-        let _request_id = self.swarm.behaviour_mut().file_sharing.send_request(
+        let request_id = self.swarm.behaviour_mut().file_sharing.send_request(
             &peer_id,
             FileSharingRequest::GetFileInfo(share_code.to_string()),
         );
 
-        Ok(())
+        // Map request_id to download_id so we can match the response
+        self.download_manager
+            .map_request_to_download(request_id.to_string(), download_id.clone());
+
+        Ok(download_id)
     }
 
     /// Send event to event receiver

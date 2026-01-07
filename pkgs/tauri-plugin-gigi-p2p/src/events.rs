@@ -154,7 +154,16 @@ pub async fn handle_p2p_event<R: tauri::Runtime>(
             from,
             from_nickname,
             filename,
-        } => handle_file_download_started(app_handle, &from, &from_nickname, &filename)?,
+            download_id,
+            share_code,
+        } => handle_file_download_started(
+            app_handle,
+            &from,
+            &from_nickname,
+            &filename,
+            &download_id,
+            &share_code,
+        )?,
         P2pEvent::FileDownloadFailed {
             download_id,
             filename,
@@ -261,8 +270,11 @@ async fn handle_direct_file_share_message<R: tauri::Runtime>(
         info!("Auto-downloading image file: {}", filename);
         if let Some(client) = p2p_client.lock().await.as_mut() {
             match client.download_file(from_nickname, share_code) {
-                Ok(()) => {
-                    info!("Started auto-download for image: {}", filename);
+                Ok(download_id) => {
+                    info!(
+                        "Started auto-download for image: {} (download_id: {})",
+                        filename, download_id
+                    );
                     emit_image_message_received(
                         app_handle,
                         from,
@@ -378,8 +390,11 @@ async fn handle_group_file_share_message<R: tauri::Runtime>(
         info!("Auto-downloading group image file: {}", filename);
         if let Some(client) = p2p_client.lock().await.as_mut() {
             match client.download_file(from_nickname, share_code) {
-                Ok(()) => {
-                    info!("Started auto-download for group image: {}", filename);
+                Ok(download_id) => {
+                    info!(
+                        "Started auto-download for group image: {} (download_id: {})",
+                        filename, download_id
+                    );
                     emit_group_image_message_received(
                         app_handle,
                         from,
@@ -559,6 +574,8 @@ fn handle_file_download_started<R: tauri::Runtime>(
     from: &libp2p::PeerId,
     from_nickname: &str,
     filename: &str,
+    download_id: &str,
+    share_code: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!(
         "Download started for {} from {} ({})",
@@ -570,6 +587,8 @@ fn handle_file_download_started<R: tauri::Runtime>(
             "from_peer_id": from.to_string(),
             "from_nickname": from_nickname,
             "filename": filename,
+            "download_id": download_id,
+            "share_code": share_code,
             "timestamp": std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?
                 .as_secs(),

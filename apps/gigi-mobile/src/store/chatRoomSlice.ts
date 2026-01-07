@@ -57,6 +57,7 @@ export interface Message {
   shareCode?: string
   isDownloading?: boolean
   downloadProgress?: number
+  downloadId?: string // Unique ID to track specific download
 }
 
 export interface ChatRoomState {
@@ -346,6 +347,7 @@ const chatRoomSlice = createSlice({
       state,
       action: PayloadAction<{
         id?: string
+        downloadId?: string
         shareCode?: string
         content?: string
         imageData?: string
@@ -357,40 +359,54 @@ const chatRoomSlice = createSlice({
       const {
         id,
         shareCode,
+        downloadId,
         content,
         imageData,
         newId,
         isDownloading,
         downloadProgress,
       } = action.payload
-      // Find message by id or shareCode (search from newest to oldest)
+
+      // Find message by id, downloadId, or shareCode (search from newest to oldest)
+      // Priority: id > downloadId > shareCode (to ensure we update the right message)
       const message = [...state.messages]
         .reverse()
-        .find(msg => msg.id === id || msg.shareCode === shareCode)
+        .find(
+          msg =>
+            msg.id === id ||
+            msg.downloadId === downloadId ||
+            msg.shareCode === shareCode
+        )
+
       console.log('🔧 updateMessage called:', {
         id,
         shareCode,
-        newId,
+        downloadId,
         messageFound: !!message,
+        foundMessage: message
+          ? {
+              id: message.id,
+              downloadId: message.downloadId,
+              shareCode: message.shareCode,
+            }
+          : null,
         totalMessages: state.messages.length,
       })
+
       if (message) {
-        console.log('🔧 Updating message:', {
-          oldId: message.id,
-          oldContent: message.content,
-          hasOldImageData: !!message.imageData,
-          newContent: content,
-          hasNewImageData: !!imageData,
-          newId,
-        })
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData
         if (newId !== undefined) message.id = newId
         if (isDownloading !== undefined) message.isDownloading = isDownloading
         if (downloadProgress !== undefined)
           message.downloadProgress = downloadProgress
+        if (downloadId !== undefined) message.downloadId = downloadId
       } else {
-        console.warn('⚠️ Message not found for update:', { id, shareCode })
+        console.warn('⚠️ Message not found for update:', {
+          id,
+          shareCode,
+          downloadId,
+        })
       }
     },
 
@@ -399,6 +415,7 @@ const chatRoomSlice = createSlice({
       action: PayloadAction<{
         id?: string
         shareCode?: string
+        downloadId?: string
         content?: string
         imageData?: string
         newId?: string
@@ -409,16 +426,23 @@ const chatRoomSlice = createSlice({
       const {
         id,
         shareCode,
+        downloadId,
         content,
         imageData,
         newId,
         isDownloading,
         downloadProgress,
       } = action.payload
-      // Find message by id or shareCode (search from newest to oldest)
+      // Find message by id, downloadId, or shareCode (search from newest to oldest)
+      // Priority: downloadId > id > shareCode (to ensure we update the right message)
       const message = [...state.messages]
         .reverse()
-        .find(msg => msg.id === id || msg.shareCode === shareCode)
+        .find(
+          msg =>
+            msg.downloadId === downloadId ||
+            msg.id === id ||
+            msg.shareCode === shareCode
+        )
       if (message) {
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData
@@ -426,6 +450,7 @@ const chatRoomSlice = createSlice({
         if (isDownloading !== undefined) message.isDownloading = isDownloading
         if (downloadProgress !== undefined)
           message.downloadProgress = downloadProgress
+        if (downloadId !== undefined) message.downloadId = downloadId
       }
     },
 
