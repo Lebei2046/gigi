@@ -379,11 +379,15 @@ const chatRoomSlice = createSlice({
         )
 
       console.log('🔧 updateMessage called:', {
-        id,
-        shareCode,
-        downloadId,
+        payload: action.payload,
+        stateMessages: state.messages.map(m => ({
+          id: m.id,
+          downloadId: m.downloadId,
+        })),
+        searchingFor: { id, downloadId, shareCode },
+        foundMessage: message,
         messageFound: !!message,
-        foundMessage: message
+        foundMessageDetails: message
           ? {
               id: message.id,
               downloadId: message.downloadId,
@@ -391,9 +395,24 @@ const chatRoomSlice = createSlice({
             }
           : null,
         totalMessages: state.messages.length,
+        allMessagesIds: state.messages.map(m => m.id),
       })
 
+      console.log('🔍 About to check if (message):', {
+        messageIsTruthy: !!message,
+        messageValue: message,
+        messageType: typeof message,
+      })
+
+      console.log(
+        '🧪 Executing if(message) check. Result:',
+        message ? 'TRUE' : 'FALSE'
+      )
+
+      console.log('✨ NEW VERSION OF CODE - this confirms code is updated')
+
       if (message) {
+        // Redux Toolkit uses Immer - direct mutations are allowed but let's be explicit
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData
         if (newId !== undefined) message.id = newId
@@ -401,11 +420,20 @@ const chatRoomSlice = createSlice({
         if (downloadProgress !== undefined)
           message.downloadProgress = downloadProgress
         if (downloadId !== undefined) message.downloadId = downloadId
+        console.log('✅ Message updated in Redux:', {
+          id: message.id,
+          messageType: message.messageType,
+          hasImageData: !!message.imageData,
+          imageDataLength: message.imageData?.length,
+          content: message.content?.substring(0, 50),
+        })
       } else {
         console.warn('⚠️ Message not found for update:', {
           id,
           shareCode,
           downloadId,
+          messageValue: message,
+          messagesInState: state.messages.length,
         })
       }
     },
@@ -477,6 +505,8 @@ const chatRoomSlice = createSlice({
       })
       .addCase(initializeChatRoomAsync.rejected, (state, action) => {
         state.isLoading = false
+        state.peer = null
+        state.group = null
         state.error = action.error.message || 'Failed to initialize chat room'
       })
 
