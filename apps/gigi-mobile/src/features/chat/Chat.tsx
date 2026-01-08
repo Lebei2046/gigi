@@ -25,7 +25,7 @@ import {
 import { clearMessages } from '@/store/chatRoomSlice'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { formatShortPeerId } from '@/utils/peerUtils'
-import { Trash2 } from 'lucide-react'
+import { ask } from '@tauri-apps/plugin-dialog'
 import {
   getGroup,
   saveGroup,
@@ -37,6 +37,13 @@ import {
   ensureMilliseconds,
 } from '@/utils/chatUtils'
 import type { Chat, Group } from '@/models/db'
+import ChatHeader from './components/chat/ChatHeader'
+import GroupShareNotifications from './components/chat/GroupShareNotifications'
+import GroupsSection from './components/chat/GroupsSection'
+import DirectChatsSection from './components/chat/DirectChatsSection'
+import ShareDrawer from './components/chat/ShareDrawer'
+import ErrorState from './components/chat/ErrorState'
+import LoadingState from './components/chat/LoadingState'
 
 export default function Chat() {
   const dispatch = useAppDispatch()
@@ -571,7 +578,10 @@ export default function Chat() {
   const handleShareGroup = (group: Group) => {
     const reduxGroup = {
       ...group,
-      createdAt: group.createdAt.toISOString(), // Convert Date to string for Redux
+      createdAt:
+        typeof group.createdAt === 'string'
+          ? group.createdAt
+          : group.createdAt.toISOString(), // Convert Date to string for Redux
     }
     dispatch(setSelectedGroup(reduxGroup))
     dispatch(setShowShareDrawer(true))
@@ -582,7 +592,12 @@ export default function Chat() {
     isGroupChat: boolean,
     chatName: string
   ) => {
-    if (!confirm(`Remove messages for ${chatName}`)) {
+    const confirmed = await ask(`Remove messages for ${chatName}?`, {
+      title: 'Confirm',
+      kind: 'warning',
+    })
+
+    if (!confirmed) {
       return
     }
 
@@ -651,40 +666,7 @@ export default function Chat() {
 
   // Error and loading states
   if (componentError) {
-    return (
-      <div className="flex items-center justify-center h-full bg-gray-50 p-4">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-8 h-8 text-red-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            Oops! Something went wrong
-          </h3>
-          <p className="text-red-600 font-medium mb-2">Chat component error</p>
-          <p className="text-sm text-gray-600 mb-6 font-mono bg-gray-50 p-3 rounded-lg text-left">
-            {String(componentError)}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-          >
-            Reload Application
-          </button>
-        </div>
-      </div>
-    )
+    return <ErrorState error={componentError} />
   }
 
   if (error) {
@@ -702,11 +684,7 @@ export default function Chat() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500">Loading peers...</p>
-      </div>
-    )
+    return <LoadingState />
   }
 
   return (
@@ -718,393 +696,39 @@ export default function Chat() {
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {/* Group Share Notifications */}
-        {groupShareNotifications.length > 0 && (
-          <div className="mb-6 space-y-3">
-            {groupShareNotifications.map(notification => (
-              <div
-                key={notification.from_peer_id}
-                className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 shadow-sm"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">🎉</span>
-                      <span className="font-semibold text-purple-800">
-                        Group Invitation
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-700 mb-1">
-                      from{' '}
-                      <span className="font-medium">
-                        {notification.from_nickname}
-                      </span>
-                    </div>
-                    <div className="text-sm font-medium text-purple-600 bg-purple-100 inline-block px-2 py-1 rounded">
-                      {notification.group_name}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => handleAcceptGroupShare(notification)}
-                    className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => handleIgnoreGroupShare(notification)}
-                    className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition-colors"
-                  >
-                    Ignore
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <GroupShareNotifications
+          notifications={groupShareNotifications}
+          onAccept={handleAcceptGroupShare}
+          onIgnore={handleIgnoreGroupShare}
+        />
 
         {/* Groups Section */}
-        {groups.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">👥</span>
-              <h3 className="text-lg font-semibold text-gray-900">Groups</h3>
-              <span className="bg-blue-100 text-blue-600 text-xs font-medium px-2 py-1 rounded-full">
-                {groups.length}
-              </span>
-              {(() => {
-                const totalGroupUnread = groups.reduce((sum, group) => {
-                  const chatInfo = chats.find(chat => chat.id === group.id)
-                  return sum + (chatInfo?.unreadCount || 0)
-                }, 0)
-                return (
-                  totalGroupUnread > 0 && (
-                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {totalGroupUnread}
-                    </span>
-                  )
-                )
-              })()}
-            </div>
-            <div className="space-y-3">
-              {groups.map(group => {
-                const chatInfo = chats.find(chat => chat.id === group.id)
-                const unreadCount = chatInfo?.unreadCount || 0
-
-                return (
-                  <div
-                    key={group.id}
-                    className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div
-                      className="flex justify-between items-start p-4 cursor-pointer"
-                      onClick={() => navigate(`/chat/${group.id}`)}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-semibold">
-                              G
-                            </span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-gray-900">
-                                {group.name}
-                              </span>
-                              {unreadCount > 0 && (
-                                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                                  {unreadCount}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <span className="bg-gray-100 px-2 py-0.5 rounded">
-                                {group.joined ? 'Member' : 'Owner'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        {latestMessages[group.id] && (
-                          <div className="text-sm text-gray-600 mt-2 truncate ml-12">
-                            💬 {latestMessages[group.id]}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={e => {
-                          e.stopPropagation()
-                          handleShareGroup(group)
-                        }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.026a3 3 0 10-4.732 2.684m4.732-2.684a3 3 0 00-4.732-2.684"
-                          ></path>
-                        </svg>
-                      </button>
-                      <button
-                        onClick={e => {
-                          e.stopPropagation()
-                          handleClearMessages(group.id, true, group.name)
-                        }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Clear messages"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        <GroupsSection
+          groups={groups}
+          chats={chats}
+          latestMessages={latestMessages}
+          onGroupClick={groupId => navigate(`/chat/${groupId}`)}
+          onShare={handleShareGroup}
+          onClearMessages={handleClearMessages}
+        />
 
         {/* Direct Chats Section */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-lg">💬</span>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Direct Chats
-            </h3>
-            <span className="bg-green-100 text-green-600 text-xs font-medium px-2 py-1 rounded-full">
-              {peers.length}
-            </span>
-          </div>
-          {peers.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  ></path>
-                </svg>
-              </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                No Chats Yet
-              </h4>
-              <p className="text-gray-600 text-sm mb-4">
-                Make sure other devices are running Gigi on the same network to
-                start chatting.
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-700">
-                  💡 Tip: Both devices need to be connected to the same WiFi
-                  network
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {peers.map(peer => {
-                const latestMessage = latestMessages[peer.id]
-                const chatInfo = chats.find(chat => chat.id === peer.id)
-                const unreadCount = chatInfo?.unreadCount || 0
-
-                return (
-                  <div
-                    key={peer.id}
-                    onClick={() => handlePeerClick(peer)}
-                    className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-green-300"
-                  >
-                    <div className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-bold text-lg">
-                              {peer.nickname?.charAt(0).toUpperCase() || '?'}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold text-gray-900">
-                                {peer.nickname}
-                              </span>
-                              {unreadCount > 0 && (
-                                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                                  {unreadCount}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-500 font-mono truncate">
-                              {formatShortPeerId(peer.id)}
-                            </div>
-                            {peer.capabilities.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {peer.capabilities.map((cap, index) => (
-                                  <span
-                                    key={index}
-                                    className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded"
-                                  >
-                                    {cap}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right ml-3 flex-shrink-0">
-                          {chatInfo?.lastMessageTime && (
-                            <div className="text-xs text-gray-400 mb-1">
-                              {chatInfo.lastMessageTime}
-                            </div>
-                          )}
-                          {(chatInfo?.lastMessage || latestMessage) && (
-                            <div className="text-xs text-gray-600 max-w-32 truncate font-medium">
-                              {chatInfo?.lastMessage || latestMessage}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-1 mt-2">
-                          <button
-                            onClick={e => {
-                              e.stopPropagation()
-                              handleClearMessages(
-                                peer.id,
-                                false,
-                                peer.nickname || 'Unknown'
-                              )
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Clear messages"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <DirectChatsSection
+          peers={peers}
+          chats={chats}
+          latestMessages={latestMessages}
+          onPeerClick={handlePeerClick}
+          onClearMessages={handleClearMessages}
+        />
 
         {/* Share Drawer */}
-        {showShareDrawer && selectedGroup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 animate-fade-in">
-            <div className="bg-white w-full max-h-96 rounded-t-3xl shadow-2xl animate-slide-up">
-              {/* Handle bar */}
-              <div className="flex justify-center pt-2 pb-1">
-                <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
-              </div>
-
-              <div className="px-6 pb-6">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Share Group
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      "{selectedGroup.name}"
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => dispatch(setShowShareDrawer(false))}
-                    className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
-                  >
-                    <svg
-                      className="w-5 h-5 text-gray-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M6 18L18 6M6 6l12 12"
-                      ></path>
-                    </svg>
-                  </button>
-                </div>
-
-                {peers.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg
-                        className="w-8 h-8 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                        ></path>
-                      </svg>
-                    </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      No Available Peers
-                    </h4>
-                    <p className="text-gray-600 text-sm">
-                      No peers available to share with
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {peers.map(peer => (
-                      <div
-                        key={peer.id}
-                        onClick={() => handleSendShareToPeer(peer)}
-                        className="bg-gray-50 hover:bg-gray-100 rounded-xl p-4 cursor-pointer transition-all hover:shadow-md border border-transparent hover:border-gray-200"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-bold">
-                              {peer.nickname?.charAt(0).toUpperCase() || '?'}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900">
-                              {peer.nickname}
-                            </div>
-                            <div className="text-xs text-gray-500 font-mono truncate">
-                              {formatShortPeerId(peer.id)}
-                            </div>
-                          </div>
-                          <svg
-                            className="w-5 h-5 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M13 7l5 5m0 0l-5 5m5-5H6"
-                            ></path>
-                          </svg>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        <ShareDrawer
+          isOpen={showShareDrawer}
+          selectedGroup={selectedGroup}
+          peers={peers}
+          onClose={() => dispatch(setShowShareDrawer(false))}
+          onShare={handleSendShareToPeer}
+        />
       </div>
     </div>
   )
