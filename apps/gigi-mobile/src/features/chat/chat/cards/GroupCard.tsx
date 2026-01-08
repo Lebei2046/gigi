@@ -10,7 +10,7 @@ interface GroupCardProps {
   onClearMessages: (groupId: string, groupName: string) => void
 }
 
-export default function GroupCard({
+export function GroupCard({
   group,
   latestMessage,
   unreadCount,

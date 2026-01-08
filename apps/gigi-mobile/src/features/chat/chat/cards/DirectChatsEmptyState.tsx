@@ -18,12 +18,12 @@ export default function DirectChatsEmptyState() {
       </div>
       <h4 className="text-lg font-semibold text-gray-900 mb-2">No Chats Yet</h4>
       <p className="text-gray-600 text-sm mb-4">
-        Make sure other devices are running Gigi on the same network to start
+        Make sure other devices are running Gigi on same network to start
         chatting.
       </p>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <p className="text-xs text-blue-700">
-          💡 Tip: Both devices need to be connected to the same WiFi network
+          💡 Tip: Both devices need to be connected to same WiFi network
         </p>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import type { Group } from '@/models/db'
-import GroupCard from './GroupCard'
+import { GroupCard } from '../cards'
 
 interface GroupsSectionProps {
   groups: Group[]

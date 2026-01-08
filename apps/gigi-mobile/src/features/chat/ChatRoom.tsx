@@ -8,13 +8,13 @@ import {
   ChatRoomInput,
   LoadingState,
   EmptyState,
-} from './components/chat-room'
+} from './chat-room'
 import {
   useChatRoomInitialization,
   useMessagingEvents,
   useMessagePersistence,
   useMessageActions,
-} from './components/chat-room/hooks'
+} from './chat-room/hooks'
 
 export default function ChatRoom() {
   const navigate = useNavigate()

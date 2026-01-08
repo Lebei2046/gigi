@@ -10,7 +10,7 @@ interface PeerCardProps {
   onClearMessages: (peerId: string, peerNickname: string) => void
 }
 
-export default function PeerCard({
+export function PeerCard({
   peer,
   latestMessage,
   unreadCount,

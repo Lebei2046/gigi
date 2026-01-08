@@ -1,7 +1,7 @@
 import type { Peer } from '@/utils/messaging'
 import type { Chat } from '@/models/db'
-import PeerCard from './PeerCard'
-import DirectChatsEmptyState from './DirectChatsEmptyState'
+import { PeerCard } from '../cards'
+import DirectChatsEmptyState from '../cards/DirectChatsEmptyState'
 
 interface DirectChatsSectionProps {
   peers: Peer[]
