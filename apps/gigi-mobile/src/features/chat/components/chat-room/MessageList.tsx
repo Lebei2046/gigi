@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react'
 import type { Message } from '@/store/chatRoomSlice'
-import MessageBubble from './MessageBubble'
+import { MessageBubble } from './bubbles'
 
 interface MessageListProps {
   messages: Message[]

@@ -14,7 +14,7 @@ import {
   useMessagingEvents,
   useMessagePersistence,
   useMessageActions,
-} from './hooks'
+} from './components/chat-room/hooks'
 
 export default function ChatRoom() {
   const navigate = useNavigate()
