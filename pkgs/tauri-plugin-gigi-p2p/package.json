@@ -17,6 +17,7 @@
     "README.md"
   ],
   "scripts": {
+    "prebuild": "bun build:guest-js",
     "build": "rollup -c",
     "build:guest-js": "node scripts/build-guest-js.mjs",
     "prepublishOnly": "bun build",

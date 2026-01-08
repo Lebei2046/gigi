@@ -115,6 +115,7 @@ export interface ImageMessageReceived {
   file_type: string
   timestamp: number
   download_error?: string
+  download_id?: string
 }
 
 export interface GroupImageMessageReceived {
@@ -126,6 +127,7 @@ export interface GroupImageMessageReceived {
   file_size: number
   file_type: string
   timestamp: number
+  download_id?: string
 }
 
 export interface FileMessageReceived {

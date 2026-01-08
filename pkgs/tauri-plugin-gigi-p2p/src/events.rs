@@ -285,6 +285,7 @@ async fn handle_direct_file_share_message<R: tauri::Runtime>(
                         file_type,
                         timestamp,
                         None,
+                        Some(download_id.clone()),
                     )?;
                 }
                 Err(e) => {
@@ -302,6 +303,7 @@ async fn handle_direct_file_share_message<R: tauri::Runtime>(
                         file_type,
                         timestamp,
                         Some(format!("Failed to download: {}", e)),
+                        None,
                     )?;
                 }
             }
@@ -406,6 +408,7 @@ async fn handle_group_file_share_message<R: tauri::Runtime>(
                         file_type,
                         timestamp,
                         None,
+                        Some(download_id.clone()),
                     )?;
                 }
                 Err(e) => {
@@ -424,6 +427,7 @@ async fn handle_group_file_share_message<R: tauri::Runtime>(
                         file_type,
                         timestamp,
                         Some(format!("Failed to download: {}", e)),
+                        None,
                     )?;
                 }
             }
@@ -681,6 +685,7 @@ fn emit_image_message_received<R: tauri::Runtime>(
     file_type: &str,
     timestamp: u64,
     download_error: Option<String>,
+    download_id: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut payload = json!({
         "from_peer_id": from.to_string(),
@@ -694,6 +699,10 @@ fn emit_image_message_received<R: tauri::Runtime>(
 
     if let Some(error) = download_error {
         payload["download_error"] = json!(error);
+    }
+
+    if let Some(dl_id) = download_id {
+        payload["download_id"] = json!(dl_id);
     }
 
     app_handle.emit("image-message-received", &payload)?;
@@ -712,6 +721,7 @@ fn emit_group_image_message_received<R: tauri::Runtime>(
     file_type: &str,
     timestamp: u64,
     download_error: Option<String>,
+    download_id: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut payload = json!({
         "from_peer_id": from.to_string(),
@@ -726,6 +736,10 @@ fn emit_group_image_message_received<R: tauri::Runtime>(
 
     if let Some(error) = download_error {
         payload["download_error"] = json!(error);
+    }
+
+    if let Some(dl_id) = download_id {
+        payload["download_id"] = json!(dl_id);
     }
 
     app_handle.emit("group-image-message-received", &payload)?;

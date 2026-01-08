@@ -300,8 +300,9 @@ export default function ChatRoom() {
     // Listen for image messages
     const handleImageMessageReceived = (messageData: any) => {
       if (chatId && messageData.from_peer_id === chatId && !isGroupChat) {
+        const messageId = generateMessageId()
         const imageMessage: Message = {
-          id: generateMessageId(), // Use unique ID instead of share_code
+          id: messageId, // Use unique ID
           shareCode: messageData.share_code, // Store share_code separately
           from_peer_id: messageData.from_peer_id,
           from_nickname: messageData.from_nickname,
@@ -316,6 +317,19 @@ export default function ChatRoom() {
           imageData: undefined, // Will be set after download
           filename: messageData.filename,
         }
+
+        // Set downloadId mapping BEFORE dispatching to avoid race condition
+        if (messageData.download_id) {
+          downloadIdToMessageIdRef.current.set(
+            messageData.download_id,
+            messageId
+          )
+          console.log('📝 Set downloadId mapping for auto-download:', {
+            downloadId: messageData.download_id,
+            messageId,
+          })
+        }
+
         dispatch(addImageMessage(imageMessage))
       }
     }
@@ -361,8 +375,10 @@ export default function ChatRoom() {
     // Listen for group image messages
     const handleGroupImageMessageReceived = (messageData: any) => {
       if (chatId && messageData.group_id === chatId && isGroupChat) {
+        const messageId = generateMessageId()
         const imageMessage: Message = {
-          id: messageData.share_code, // Use share_code as ID
+          id: messageId, // Use unique ID instead of share_code
+          shareCode: messageData.share_code,
           from_peer_id: messageData.from_peer_id,
           from_nickname: messageData.from_nickname,
           content: messageData.download_error
@@ -376,6 +392,19 @@ export default function ChatRoom() {
           imageData: undefined, // Will be set after download
           filename: messageData.filename,
         }
+
+        // Set downloadId mapping BEFORE dispatching to avoid race condition
+        if (messageData.download_id) {
+          downloadIdToMessageIdRef.current.set(
+            messageData.download_id,
+            messageId
+          )
+          console.log('📝 Set downloadId mapping for group auto-download:', {
+            downloadId: messageData.download_id,
+            messageId,
+          })
+        }
+
         dispatch(addGroupImageMessage(imageMessage))
       }
     }
