@@ -131,6 +131,15 @@ export function useMessageActions({
       sentMessagesRef.current.add(imageMessage.id)
       dispatch(addImageMessage(imageMessage))
 
+      // Update message to show "Uploading..." state
+      dispatch(
+        (isGroupChat ? updateGroupMessage : updateMessage)({
+          id: imageMessage.id,
+          content: `📷 Uploading: ${filename}...`,
+          isUploading: true,
+        })
+      )
+
       const response = isGroupChat
         ? await MessagingClient.sendGroupFileMessageWithPath(
             group!.id,
@@ -154,10 +163,19 @@ export function useMessageActions({
           content: updatedMessage.content,
           imageData: updatedMessage.imageData,
           newId: updatedMessage.id,
+          isUploading: false, // Clear uploading state
         })
       )
     } catch (error) {
       console.error('Failed to send image:', error)
+
+      // Clear uploading state on error
+      dispatch(
+        (isGroupChat ? updateGroupMessage : updateMessage)({
+          id: imageMessage.id,
+          isUploading: false,
+        })
+      )
     }
   }
 
@@ -180,6 +198,15 @@ export function useMessageActions({
       sentMessagesRef.current.add(fileMessage.id)
       dispatch(addMessage(fileMessage))
 
+      // Update message to show "Uploading..." state
+      dispatch(
+        (isGroupChat ? updateGroupMessage : updateMessage)({
+          id: fileMessage.id,
+          content: `📎 Uploading: ${fileInfo.name}...`,
+          isUploading: true,
+        })
+      )
+
       const response = await MessagingClient.sendFileMessageWithPath(
         peer!.nickname,
         filePath
@@ -196,10 +223,19 @@ export function useMessageActions({
           id: fileMessage.id,
           content: updatedMessage.content,
           newId: updatedMessage.id,
+          isUploading: false, // Clear uploading state
         })
       )
     } catch (error) {
       console.error('Failed to send file:', error)
+
+      // Clear uploading state on error
+      dispatch(
+        updateMessage({
+          id: fileMessage.id,
+          isUploading: false,
+        })
+      )
     }
   }
 

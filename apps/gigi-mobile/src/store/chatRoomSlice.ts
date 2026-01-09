@@ -58,6 +58,7 @@ export interface Message {
   isDownloading?: boolean
   downloadProgress?: number
   downloadId?: string // Unique ID to track specific download
+  isUploading?: boolean // For showing upload progress
 }
 
 export interface ChatRoomState {
@@ -354,6 +355,7 @@ const chatRoomSlice = createSlice({
         newId?: string
         isDownloading?: boolean
         downloadProgress?: number
+        isUploading?: boolean
       }>
     ) => {
       const {
@@ -365,6 +367,7 @@ const chatRoomSlice = createSlice({
         newId,
         isDownloading,
         downloadProgress,
+        isUploading,
       } = action.payload
 
       // Find message by id, downloadId, or shareCode (search from newest to oldest)
@@ -420,6 +423,7 @@ const chatRoomSlice = createSlice({
         if (downloadProgress !== undefined)
           message.downloadProgress = downloadProgress
         if (downloadId !== undefined) message.downloadId = downloadId
+        if (isUploading !== undefined) message.isUploading = isUploading
         console.log('✅ Message updated in Redux:', {
           id: message.id,
           messageType: message.messageType,
