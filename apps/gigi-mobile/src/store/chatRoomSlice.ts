@@ -373,9 +373,9 @@ const chatRoomSlice = createSlice({
         .reverse()
         .find(
           msg =>
-            msg.id === id ||
-            msg.downloadId === downloadId ||
-            msg.shareCode === shareCode
+            (id !== undefined && msg.id === id) ||
+            (downloadId !== undefined && msg.downloadId === downloadId) ||
+            (shareCode !== undefined && msg.shareCode === shareCode)
         )
 
       console.log('🔧 updateMessage called:', {
