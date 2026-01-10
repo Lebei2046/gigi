@@ -3,6 +3,7 @@
 // Gigi DNS - Auto-discovery protocol for local networks with nicknames
 
 pub mod behaviour;
+pub mod interface;
 pub mod protocol;
 pub mod types;
 

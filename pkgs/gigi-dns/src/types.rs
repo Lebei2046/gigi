@@ -25,7 +25,6 @@ pub struct GigiDnsConfig {
     pub capabilities: Vec<String>,
     pub metadata: HashMap<String, String>,
     pub use_localhost: bool, // Use localhost unicast instead of multicast for testing
-    pub use_broadcast: bool, // Use broadcast instead of multicast
 }
 
 impl Default for GigiDnsConfig {
@@ -40,7 +39,6 @@ impl Default for GigiDnsConfig {
             capabilities: Vec::new(),
             metadata: HashMap::new(),
             use_localhost: false,
-            use_broadcast: false,
         }
     }
 }

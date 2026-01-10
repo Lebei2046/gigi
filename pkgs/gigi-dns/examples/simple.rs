@@ -16,12 +16,32 @@ struct Args {
     /// Nickname for this peer
     #[arg(short, long, default_value = "Anonymous")]
     nickname: String,
+
+    /// TTL for peer records in seconds
+    #[arg(short = 't', long, default_value = "360")]
+    ttl: u64,
+
+    /// Query interval in seconds
+    #[arg(short = 'q', long, default_value = "300")]
+    query_interval: u64,
+
+    /// Announce interval in seconds
+    #[arg(short = 'a', long, default_value = "15")]
+    announce_interval: u64,
+
+    /// Cleanup interval in seconds
+    #[arg(short = 'c', long, default_value = "30")]
+    cleanup_interval: u64,
+
+    /// Enable IPv6
+    #[arg(long)]
+    ipv6: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::DEBUG)
         .init();
 
     let args = Args::parse();
@@ -34,18 +54,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("👤 Peer ID: {}", local_peer_id);
     println!("📝 Nickname: {}", args.nickname);
 
-    // Create Gigi DNS config with nickname
+    // Create Gigi DNS config with all timing parameters
     let config = GigiDnsConfig {
         nickname: args.nickname.clone(),
         capabilities: vec!["chat".to_string(), "file_sharing".to_string()],
-        ttl: Duration::from_secs(6 * 60),
-        query_interval: Duration::from_secs(10),
-        use_broadcast: false, // Use multicast instead of broadcast
-        enable_ipv6: false,   // Use IPv4 for simplicity
+        ttl: Duration::from_secs(args.ttl),
+        query_interval: Duration::from_secs(args.query_interval),
+        announce_interval: Duration::from_secs(args.announce_interval),
+        cleanup_interval: Duration::from_secs(args.cleanup_interval),
+        enable_ipv6: args.ipv6,
         ..Default::default()
     };
 
     println!("🔧 Capabilities: {:?}", config.capabilities);
+    println!("⏱️  TTL: {}s", args.ttl);
+    println!(
+        "⏱️  Query interval: {}s (adaptive probing: 500ms → ... → {}s)",
+        args.query_interval, args.query_interval
+    );
+    println!("⏱️  Announce interval: {}s", args.announce_interval);
+    println!("⏱️  Cleanup interval: {}s", args.cleanup_interval);
+    println!("📡 Mode: Multicast");
+    println!("🌐 IP Version: {}", if args.ipv6 { "IPv6" } else { "IPv4" });
 
     // Create Gigi DNS behavior
     let mdns = GigiDnsBehaviour::new(local_peer_id, config)?;
@@ -63,10 +93,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     // Listen on all interfaces
-    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+    let listen_addr = if args.ipv6 {
+        "/ip6/::/tcp/0"
+    } else {
+        "/ip4/0.0.0.0/tcp/0"
+    };
+    swarm.listen_on(listen_addr.parse()?)?;
 
     println!("✅ Gigi DNS initialized successfully!");
     println!("ℹ️  Listening for peers on local network...");
+    println!("ℹ️  Adaptive probing will discover peers quickly (starting at 500ms)");
     println!("ℹ️  Press Ctrl+C to stop");
     println!("");
 

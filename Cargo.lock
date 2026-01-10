@@ -1897,6 +1897,8 @@ name = "gigi-dns"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "futures",
+ "if-watch",
  "libp2p 0.56.0",
  "libp2p-identity",
  "libp2p-swarm 0.47.0",
