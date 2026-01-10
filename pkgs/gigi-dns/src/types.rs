@@ -12,13 +12,15 @@ use std::{
 
 pub const IPV4_MDNS_MULTICAST_ADDRESS: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 pub const IPV6_MDNS_MULTICAST_ADDRESS: Ipv6Addr = Ipv6Addr::new(0xFF02, 0, 0, 0, 0, 0, 0, 0xFB);
-pub const GIGI_DNS_PORT: u16 = 5354;
+pub const GIGI_DNS_PORT: u16 = 7173;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigiDnsConfig {
     pub nickname: String,
     pub ttl: Duration,
     pub query_interval: Duration,
+    pub announce_interval: Duration,
+    pub cleanup_interval: Duration,
     pub enable_ipv6: bool,
     pub capabilities: Vec<String>,
     pub metadata: HashMap<String, String>,
@@ -32,6 +34,8 @@ impl Default for GigiDnsConfig {
             nickname: "Anonymous".to_string(),
             ttl: Duration::from_secs(6 * 60),
             query_interval: Duration::from_secs(5 * 60),
+            announce_interval: Duration::from_secs(15),
+            cleanup_interval: Duration::from_secs(30),
             enable_ipv6: false,
             capabilities: Vec::new(),
             metadata: HashMap::new(),

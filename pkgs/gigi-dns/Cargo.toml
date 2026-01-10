@@ -11,13 +11,10 @@ edition = "2021"
 libp2p = { workspace = true }
 libp2p-swarm = "0.47"
 libp2p-identity = { workspace = true }
-serde = { version = "1.0", features = ["derive"] }
-futures = { workspace = true }
+serde = { workspace = true }
 rand = "0.8"
-anyhow = { workspace = true }
 tracing = { workspace = true }
 tokio = { version = "1.0", features = ["net", "time", "sync", "macros", "rt-multi-thread"] }
-libc = "0.2"
 socket2 = "0.5"
 
 [dev-dependencies]

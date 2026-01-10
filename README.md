@@ -10,7 +10,9 @@ gigi/
 │   ├── gigi-app/          # Desktop application (Tauri + React)
 │   └── gigi-mobile/       # Mobile application (Tauri + React)
 ├── pkgs/
-│   └── gigi-p2p/          # Comprehensive P2P networking library
+│   ├── gigi-p2p/          # Comprehensive P2P networking library
+│   ├── gigi-dns/          # Custom mDNS-based peer discovery protocol
+│   └── tauri-plugin-gigi-p2p/  # Tauri plugin for P2P functionality
 ├── Cargo.lock
 ├── Cargo.toml             # Rust workspace configuration
 ├── package.json           # Node.js workspace configuration
@@ -20,28 +22,53 @@ gigi/
 
 ## Core Components
 
-### P2P Networking Library (`pkgs/gigi-p2p`)
+### P2P Networking Libraries
 
-A comprehensive Rust library built on libp2p that provides the complete P2P functionality:
+#### `pkgs/gigi-dns` - Custom Discovery Protocol
 
-#### Core Networking
-- **Peer Discovery**: Automatic mDNS-based peer discovery with nickname resolution
+A custom mDNS-based protocol that automatically discovers peers in local area networks with nicknames, capabilities, and metadata.
+
+**Features:**
+- Auto-discovery peers with nickname + peer_id + multiaddr in ONE protocol
+- Rich metadata including capabilities and key-value pairs
+- Human-readable nicknames instead of cryptic peer IDs
+- libp2p compatible - implements NetworkBehaviour trait
+- Zero configuration - works out of the box
+- Low bandwidth - efficient multicast-based discovery (port 7173)
+- SO_REUSEPORT support for multiple instances on same port
+
+**Configuration:**
+- TTL: 6 minutes (peer record expiration)
+- Query interval: 5 minutes (periodic discovery queries)
+- Supports both multicast and broadcast modes
+- IPv4/IPv6 support
+
+#### `pkgs/gigi-p2p` - P2P Networking Library
+
+A comprehensive Rust library built on libp2p that provides complete P2P functionality.
+
+**Core Networking:**
+- **Peer Discovery**: Integration with gigi-dns for custom mDNS-based discovery
 - **Multiple Protocols**: TCP, QUIC support with Noise protocol encryption
 - **Multiplexing**: Yamux for efficient connection management
 - **Request-Response**: Reliable message delivery with acknowledgments
 
-#### Communication Features
+**Communication Features:**
 - **Direct Messaging**: Text messages and image sharing between peers
 - **Group Messaging**: Gossipsub-based pub/sub group communication
 - **Nicknames**: Human-readable peer identification system
 
-#### File Sharing System
+**File Sharing System:**
 - **Chunked Transfers**: Large files transferred in 256KB chunks
 - **Progress Tracking**: Real-time download progress events
 - **Hash Verification**: SHA256 integrity checking
 - **Persistent Storage**: Shared files saved to `shared.json`
 - **Share Codes**: Unique codes for file access
 - **Duplicate Detection**: Same files share existing codes
+
+#### `pkgs/tauri-plugin-gigi-p2p` - Tauri Integration
+
+Tauri plugin that exposes P2P functionality to frontend applications via Tauri's command system, enabling seamless Rust-JavaScript interop.
 
 ### Frontend Applications (`apps/`)
 
@@ -58,6 +85,7 @@ Modern React-based applications built with TypeScript and Tauri:
 - **Responsive Design**: Adaptive UI for mobile screens
 - **Touch-optimized**: Gestures and mobile interactions
 - **React Router**: Navigation between chat screens
+- **Comprehensive Documentation**: Detailed notes for backend, DM, file sharing, group messaging, and refactoring
 
 Both applications feature:
 - **Modern UI**: Clean, intuitive user interface
@@ -71,10 +99,12 @@ Both applications feature:
 ### Backend (Rust Workspace)
 - **Rust**: Core language for P2P libraries
 - **libp2p**: Comprehensive P2P networking framework
-  - mDNS, Gossipsub, Request-Response protocols
+  - Custom mDNS via gigi-dns (port 7173)
+  - Gossipsub, Request-Response protocols
   - TCP/QUIC transport with Noise encryption
   - Yamux multiplexing and Kademlia DHT
 - **Tokio**: High-performance async runtime
+- **socket2**: Low-level socket configuration for SO_REUSEPORT
 - **Serde**: JSON/CBOR serialization
 - **Tauri**: Native app framework and plugin system
 - **Additional Libraries**: blake3, sha2, chrono, uuid, tracing
@@ -91,16 +121,17 @@ Both applications feature:
 ## Key Features
 
 ### P2P Network Infrastructure
-- **Zero-Configuration**: Automatic peer discovery via mDNS
+- **Zero-Configuration**: Automatic peer discovery via custom mDNS (port 7173)
 - **Multi-Protocol**: TCP and QUIC transport support
 - **Encrypted Communication**: Noise protocol for all connections
 - **Identity Management**: Ed25519 key pairs and nickname system
 - **Connection Multiplexing**: Efficient resource usage
+- **Multi-Instance Support**: SO_REUSEPORT allows multiple instances on same port
 
 ### Communication System
 - **Direct Messaging**: Real-time text and image sharing between peers
 - **Group Communication**: Gossipsub-based broadcast messaging with bidirectional communication
-  - **Group Creation**: Users can create groups and invite other peers  
+  - **Group Creation**: Users can create groups and invite other peers
   - **Owner/Member Roles**: Distinguished access between group creators and invited members
   - **Topic Subscription**: Both owners and members automatically subscribe to group topics for messaging
 - **File Sharing**: Comprehensive file transfer system
@@ -151,6 +182,25 @@ cargo build
 cargo test
 ```
 
+### Running the Applications
+
+**Desktop App:**
+```bash
+cd apps/gigi-app
+bun install
+bun run tauri dev
+```
+
+**Mobile App:**
+```bash
+cd apps/gigi-mobile
+bun install
+# For iOS
+bun run tauri ios dev
+# For Android
+bun run tauri android dev
+```
+
 ## Workspace Architecture
 
 This project uses a monorepo structure with Rust and JavaScript workspaces:
@@ -160,6 +210,13 @@ This project uses a monorepo structure with Rust and JavaScript workspaces:
 - **Version Sync**: All packages use the same version
 - **Optimized Builds**: LTO and size optimization for release
 - **Dev Features**: Test builds with additional debugging
+
+**Workspace Members:**
+- `apps/gigi-app/src-tauri` - Desktop app backend
+- `apps/gigi-mobile/src-tauri` - Mobile app backend
+- `pkgs/gigi-p2p` - P2P networking library
+- `pkgs/gigi-dns` - Custom discovery protocol
+- `pkgs/tauri-plugin-gigi-p2p` - Tauri plugin
 
 ### JavaScript Workspace (package.json)
 - **Package Management**: Bun for fast operations
@@ -189,7 +246,7 @@ This project uses a monorepo structure with Rust and JavaScript workspaces:
 
 **Debugging Steps**:
 1. Check console logs for "✅ Successfully joined group" messages
-2. Verify both instances show "📊 Total groups in local storage: 1" 
+2. Verify both instances show "📊 Total groups in local storage: 1"
 3. Ensure "📤 Sending group message" and "✅ Group message published successfully" appear
 4. Check for "🔥 Raw gossipsub message received" on receiver side
 
@@ -221,6 +278,7 @@ $ANDROID_HOME/emulator/emulator -avd Medium_Phone_API_36.1
 - **Mobile Features**: Platform-specific optimizations
 - **Performance**: Network efficiency and speed improvements
 - **Security**: Enhanced encryption and verification
+- **Discovery Protocol**: Improvements to gigi-dns (custom mDNS)
 
 ## License
 

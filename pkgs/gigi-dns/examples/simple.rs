@@ -3,8 +3,8 @@
 // Simple example of using Gigi DNS with full swarm integration
 
 use clap::Parser;
-use futures::StreamExt;
 use gigi_dns::{GigiDnsBehaviour, GigiDnsConfig};
+use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{identity, noise, tcp, yamux, SwarmBuilder};
 use libp2p_identity::PeerId;
@@ -21,7 +21,7 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(tracing::Level::INFO)
         .init();
 
     let args = Args::parse();

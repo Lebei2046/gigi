@@ -36,6 +36,7 @@ pub struct GigiDnsBehaviour {
     pending_events: VecDeque<GigiDnsEvent>,
     query_timer: Instant,
     announce_timer: Instant,
+    cleanup_timer: Instant,
     listen_addresses: Arc<RwLock<ListenAddresses>>,
     // Async channels for background task communication
     multicast_rx: UnboundedReceiver<MulticastMessage>,
@@ -133,6 +134,7 @@ impl GigiDnsBehaviour {
             pending_events: VecDeque::new(),
             query_timer: now,
             announce_timer: now,
+            cleanup_timer: now,
             listen_addresses: Arc::new(RwLock::new(ListenAddresses::default())),
             multicast_rx: event_rx,
             send_tx,
@@ -288,7 +290,11 @@ impl GigiDnsBehaviour {
                 tracing::info!("No event generated from packet");
             }
             Err(e) => {
-                tracing::warn!("Failed to process DNS packet: {}", e);
+                if e != "Self-discovery" {
+                    tracing::warn!("Failed to process DNS packet: {}", e);
+                } else {
+                    tracing::debug!("Ignoring self-discovery");
+                }
             }
         }
     }
@@ -391,8 +397,8 @@ impl NetworkBehaviour for GigiDnsBehaviour {
 
             let now = Instant::now();
 
-            // Send periodic announcements (every 15 seconds for testing)
-            if now.duration_since(self.announce_timer) >= Duration::from_secs(15) {
+            // Send periodic announcements
+            if now.duration_since(self.announce_timer) >= self.config.announce_interval {
                 tracing::debug!("Announcement timer triggered");
                 let _ = self.send_announcement();
             }
@@ -404,10 +410,11 @@ impl NetworkBehaviour for GigiDnsBehaviour {
             }
 
             // Cleanup expired peers periodically
-            if now.duration_since(self.query_timer) >= Duration::from_secs(30) {
+            if now.duration_since(self.cleanup_timer) >= self.config.cleanup_interval {
                 for event in self.protocol.cleanup_expired() {
                     self.pending_events.push_back(event);
                 }
+                self.cleanup_timer = now;
             }
 
             return Poll::Pending;

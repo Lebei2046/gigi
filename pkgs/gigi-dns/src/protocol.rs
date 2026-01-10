@@ -192,6 +192,12 @@ impl GigiDnsProtocol {
             .parse()
             .map_err(|e| format!("Invalid PeerId: {}", e))?;
 
+        // Skip if discovered self
+        if peer_id == self.local_peer_id {
+            tracing::debug!("Ignoring self-discovery");
+            return Err("Self-discovery".to_string());
+        }
+
         let multiaddr: Multiaddr = record
             .addr
             .parse()
