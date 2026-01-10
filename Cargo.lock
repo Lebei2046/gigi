@@ -1893,6 +1893,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "gigi-dns"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "futures",
+ "libc",
+ "libp2p 0.56.0",
+ "libp2p-identity",
+ "libp2p-swarm 0.47.0",
+ "rand 0.8.5",
+ "serde",
+ "socket2 0.5.10",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "gigi-mobile"
 version = "0.1.0"
 dependencies = [
