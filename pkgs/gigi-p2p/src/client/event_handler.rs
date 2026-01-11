@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use libp2p::{swarm::SwarmEvent, PeerId};
-use tracing::{debug, info, warn};
+use tracing::info;
 
 use super::P2pClient;
 use crate::behaviour::UnifiedEvent;
@@ -45,11 +45,8 @@ impl<'a> SwarmEventHandler<'a> {
     /// Handle unified network events by delegating to specific handlers
     fn handle_unified_event(&mut self, event: UnifiedEvent) -> Result<()> {
         match event {
-            UnifiedEvent::Mdns(mdns_event) => {
-                MdnsEventHandler::new(self.client).handle_event(mdns_event)?
-            }
-            UnifiedEvent::Nickname(nickname_event) => {
-                NicknameEventHandler::new(self.client).handle_event(nickname_event)?
+            UnifiedEvent::GigiDns(gigi_dns_event) => {
+                GigiDnsEventHandler::new(self.client).handle_event(gigi_dns_event)?
             }
             UnifiedEvent::DirectMessage(dm_event) => {
                 DirectMessageEventHandler::new(self.client).handle_event(dm_event)?
@@ -65,104 +62,52 @@ impl<'a> SwarmEventHandler<'a> {
     }
 }
 
-/// Handles mDNS discovery events
-pub struct MdnsEventHandler<'a> {
+/// Handles gigi-dns discovery events
+pub struct GigiDnsEventHandler<'a> {
     client: &'a mut P2pClient,
 }
 
-impl<'a> MdnsEventHandler<'a> {
+impl<'a> GigiDnsEventHandler<'a> {
     pub fn new(client: &'a mut P2pClient) -> Self {
         Self { client }
     }
 
-    pub fn handle_event(&mut self, event: libp2p::mdns::Event) -> Result<()> {
+    pub fn handle_event(&mut self, event: gigi_dns::GigiDnsEvent) -> Result<()> {
         match event {
-            libp2p::mdns::Event::Discovered(list) => {
-                info!("mDNS discovered {} peers", list.len());
-                for (peer_id, addr) in list {
-                    debug!("Found peer: {} at {}", peer_id, addr);
-                    self.client.peer_manager.handle_peer_discovered(
-                        peer_id,
-                        addr,
-                        &mut self.client.swarm,
-                        &self.client.local_nickname,
-                        &mut self.client.event_sender,
-                    )?;
-                }
+            gigi_dns::GigiDnsEvent::Discovered(peer_info) => {
+                info!(
+                    "gigi-dns discovered peer: {} ({})",
+                    peer_info.nickname, peer_info.peer_id
+                );
+                self.client.peer_manager.handle_peer_discovered(
+                    peer_info.peer_id,
+                    peer_info.multiaddr.clone(),
+                    &mut self.client.swarm,
+                    &peer_info.nickname,
+                    &mut self.client.event_sender,
+                )?;
             }
-            libp2p::mdns::Event::Expired(list) => {
-                info!("mDNS expired {} peers", list.len());
-                for (peer_id, _addr) in list {
-                    self.client
-                        .peer_manager
-                        .handle_peer_expired(peer_id, &mut self.client.event_sender)?;
-                }
+            gigi_dns::GigiDnsEvent::Updated {
+                peer_id, new_info, ..
+            } => {
+                info!("gigi-dns updated peer: {} ({})", new_info.nickname, peer_id);
+                self.client.peer_manager.update_peer_nickname(
+                    peer_id,
+                    new_info.nickname.clone(),
+                    &mut self.client.event_sender,
+                );
             }
-        }
-        Ok(())
-    }
-}
-
-/// Handles nickname protocol events
-pub struct NicknameEventHandler<'a> {
-    client: &'a mut P2pClient,
-}
-
-impl<'a> NicknameEventHandler<'a> {
-    pub fn new(client: &'a mut P2pClient) -> Self {
-        Self { client }
-    }
-
-    pub fn handle_event(
-        &mut self,
-        event: libp2p::request_response::Event<
-            crate::behaviour::NicknameRequest,
-            crate::behaviour::NicknameResponse,
-        >,
-    ) -> Result<()> {
-        use crate::behaviour::{NicknameRequest, NicknameResponse};
-
-        if let libp2p::request_response::Event::Message { message, peer, .. } = event {
-            match message {
-                libp2p::request_response::Message::Request {
-                    request, channel, ..
-                } => {
-                    let response = match request {
-                        NicknameRequest::AnnounceNickname { nickname } => {
-                            self.client.peer_manager.update_peer_nickname(
-                                peer,
-                                nickname.clone(),
-                                &mut self.client.event_sender,
-                            );
-                            NicknameResponse::Ack {
-                                nickname: self.client.local_nickname.clone(),
-                            }
-                        }
-                    };
-                    debug!("Sending nickname response to {}: {:?}", peer, response);
-                    let _ = self
-                        .client
-                        .swarm
-                        .behaviour_mut()
-                        .nickname
-                        .send_response(channel, response);
-                }
-                libp2p::request_response::Message::Response { response, .. } => {
-                    debug!("Received nickname response from {}: {:?}", peer, response);
-                    match response {
-                        NicknameResponse::Ack { nickname } => {
-                            debug!("Peer {} acknowledged our nickname announcement with their nickname: {}", peer, nickname);
-                            self.client.peer_manager.update_peer_nickname(
-                                peer,
-                                nickname,
-                                &mut self.client.event_sender,
-                            );
-                        }
-                        NicknameResponse::Error(error) => {
-                            warn!("Peer {} reported nickname error: {}", peer, error);
-                        }
-                    }
-                }
+            gigi_dns::GigiDnsEvent::Expired { peer_id, info } => {
+                info!("gigi-dns expired peer: {} ({})", info.nickname, peer_id);
+                self.client
+                    .peer_manager
+                    .handle_peer_expired(peer_id, &mut self.client.event_sender)?;
+            }
+            gigi_dns::GigiDnsEvent::Offline { peer_id, info } => {
+                info!("gigi-dns peer offline: {} ({})", info.nickname, peer_id);
+                self.client
+                    .peer_manager
+                    .handle_peer_expired(peer_id, &mut self.client.event_sender)?;
             }
         }
         Ok(())

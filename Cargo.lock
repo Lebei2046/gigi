@@ -1946,6 +1946,7 @@ dependencies = [
  "console",
  "crossterm",
  "futures",
+ "gigi-dns",
  "indicatif",
  "libp2p 0.56.0",
  "mime_guess",

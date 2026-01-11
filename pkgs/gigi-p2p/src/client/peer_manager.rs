@@ -4,9 +4,8 @@ use anyhow::Result;
 use libp2p::{multiaddr::Multiaddr, PeerId, Swarm};
 use std::collections::HashMap;
 use std::time::Instant;
-use tracing::debug;
 
-use crate::behaviour::{NicknameRequest, UnifiedBehaviour};
+use crate::behaviour::UnifiedBehaviour;
 use crate::error::P2pError;
 use crate::events::{P2pEvent, PeerInfo};
 
@@ -30,26 +29,15 @@ impl PeerManager {
         &mut self,
         peer_id: PeerId,
         addr: Multiaddr,
-        swarm: &mut Swarm<UnifiedBehaviour>,
-        local_nickname: &str,
+        _swarm: &mut Swarm<UnifiedBehaviour>,
+        nickname: &str,
         event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
     ) -> Result<()> {
         if !self.peers.contains_key(&peer_id) {
-            let nickname = peer_id.to_string(); // Default nickname
+            // Nickname is now provided by gigi-dns, no need to request it
+            let nickname = nickname.to_string();
 
             self.nickname_to_peer.insert(nickname.clone(), peer_id);
-
-            // Announce our nickname
-            debug!(
-                "Sending AnnounceNickname request to {} as {}",
-                peer_id, local_nickname
-            );
-            swarm.behaviour_mut().nickname.send_request(
-                &peer_id,
-                NicknameRequest::AnnounceNickname {
-                    nickname: local_nickname.to_string(),
-                },
-            );
 
             let _ = event_sender.unbounded_send(P2pEvent::PeerDiscovered {
                 peer_id,

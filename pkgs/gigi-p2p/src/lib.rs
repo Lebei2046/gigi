@@ -1,9 +1,8 @@
 //! Gigi P2P - A comprehensive peer-to-peer networking library
 //!
 //! This library provides unified P2P functionality including:
-//! - Auto Discovery via mDNS
-//! - Nickname Exchange via request-response
-//! - Direct Messaging via request-response  
+//! - Auto Discovery via gigi-dns (with nicknames, capabilities, metadata)
+//! - Direct Messaging via request-response
 //! - Group Messaging via Gossipsub
 //! - File Transfer via request-response
 //! - Unified event system

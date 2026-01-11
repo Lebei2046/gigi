@@ -604,21 +604,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Main loop for handling swarm events and user input
     let mut running = true;
     info!("Starting main event loop");
-    while running {
-        print!("> ");
-        io::stdout().flush().unwrap();
 
+    // Print initial prompt
+    print!("> ");
+    io::stdout().flush().unwrap();
+
+    while running {
         tokio::select! {
             // Handle swarm events through the client
+            // Note: This will fire frequently, but we DON'T reprint prompt since
+            // swarm events are handled internally and don't produce user-visible output
             _ = client.handle_next_swarm_event() => {
                 debug!("Swarm event handled internally");
-                // Event handling is done internally
             }
 
             // Handle P2P events from the event receiver
             Some(event) = event_receiver.next() => {
                 debug!("Received P2P event from receiver");
                 handle_p2p_event(event, &args.output, &client).await;
+                // Reprint prompt after event output (which does produce visible output)
+                print!("> ");
+                io::stdout().flush().unwrap();
             }
 
             // Handle stdin input
@@ -626,6 +632,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 debug!("Processing user input: {}", input);
                 if !process_command(&input, &mut client).await {
                     running = false;
+                } else {
+                    // Reprint prompt after command processing
+                    print!("> ");
+                    io::stdout().flush().unwrap();
                 }
             }
 

@@ -1,25 +1,13 @@
 //! Network behaviour and protocols
 
 use blake3::Hasher;
+use gigi_dns::GigiDnsBehaviour;
 use libp2p::{
     gossipsub::{self, MessageAuthenticity, MessageId, ValidationMode},
-    mdns::{self},
     request_response::{self},
     swarm::NetworkBehaviour,
 };
 use serde::{Deserialize, Serialize};
-
-/// Nickname exchange messages
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum NicknameRequest {
-    AnnounceNickname { nickname: String },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum NicknameResponse {
-    Ack { nickname: String },
-    Error(String),
-}
 
 /// Direct messaging messages
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,8 +54,7 @@ pub enum FileSharingResponse {
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "UnifiedEvent")]
 pub struct UnifiedBehaviour {
-    pub mdns: mdns::tokio::Behaviour,
-    pub nickname: request_response::cbor::Behaviour<NicknameRequest, NicknameResponse>,
+    pub gigi_dns: GigiDnsBehaviour,
     pub direct_msg: request_response::cbor::Behaviour<DirectMessage, DirectResponse>,
     pub gossipsub: gossipsub::Behaviour,
     pub file_sharing: request_response::cbor::Behaviour<FileSharingRequest, FileSharingResponse>,
@@ -76,22 +63,15 @@ pub struct UnifiedBehaviour {
 /// Unified event from network behaviour
 #[derive(Debug)]
 pub enum UnifiedEvent {
-    Mdns(mdns::Event),
-    Nickname(request_response::Event<NicknameRequest, NicknameResponse>),
+    GigiDns(gigi_dns::GigiDnsEvent),
     DirectMessage(request_response::Event<DirectMessage, DirectResponse>),
     Gossipsub(gossipsub::Event),
     FileSharing(request_response::Event<FileSharingRequest, FileSharingResponse>),
 }
 
-impl From<mdns::Event> for UnifiedEvent {
-    fn from(event: mdns::Event) -> Self {
-        Self::Mdns(event)
-    }
-}
-
-impl From<request_response::Event<NicknameRequest, NicknameResponse>> for UnifiedEvent {
-    fn from(event: request_response::Event<NicknameRequest, NicknameResponse>) -> Self {
-        Self::Nickname(event)
+impl From<gigi_dns::GigiDnsEvent> for UnifiedEvent {
+    fn from(event: gigi_dns::GigiDnsEvent) -> Self {
+        Self::GigiDns(event)
     }
 }
 

@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 use futures::channel::mpsc;
+use gigi_dns::GigiDnsConfig;
 use libp2p::{
     identity::Keypair,
-    mdns::{self, Config as MdnsConfig},
     multiaddr::Multiaddr,
     request_response::{self, ProtocolSupport},
     swarm::SwarmEvent,
@@ -69,18 +69,22 @@ impl P2pClient {
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
         let (event_sender, event_receiver) = mpsc::unbounded();
 
-        // Create behaviours
-        let mdns =
-            mdns::tokio::Behaviour::new(MdnsConfig::default(), keypair.public().to_peer_id())?;
+        // Create gigi-dns config
+        let dns_config = GigiDnsConfig {
+            nickname: nickname.clone(),
+            capabilities: vec!["chat".to_string(), "file_sharing".to_string()],
+            ttl: Duration::from_secs(360),
+            query_interval: Duration::from_secs(300),
+            announce_interval: Duration::from_secs(15),
+            cleanup_interval: Duration::from_secs(30),
+            enable_ipv6: false,
+            ..Default::default()
+        };
 
-        let nickname_behaviour = request_response::cbor::Behaviour::new(
-            [(
-                StreamProtocol::new("/nickname/1.0.0"),
-                ProtocolSupport::Full,
-            )],
-            request_response::Config::default(),
-        );
+        // Create gigi-dns behaviour
+        let gigi_dns = gigi_dns::GigiDnsBehaviour::new(keypair.public().to_peer_id(), dns_config)?;
 
+        // Create other behaviours
         let direct_msg = request_response::cbor::Behaviour::new(
             [(StreamProtocol::new("/direct/1.0.0"), ProtocolSupport::Full)],
             request_response::Config::default(),
@@ -97,8 +101,7 @@ impl P2pClient {
 
         // Create unified behaviour
         let behaviour = UnifiedBehaviour {
-            mdns,
-            nickname: nickname_behaviour,
+            gigi_dns,
             direct_msg,
             gossipsub,
             file_sharing,

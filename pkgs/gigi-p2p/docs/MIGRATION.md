@@ -202,15 +202,15 @@ pub fn new(keypair: Keypair, nickname: String, download_dir: PathBuf) -> Result<
 
 ## Migration Checklist
 
-- [ ] Add gigi-dns dependency to gigi-p2p Cargo.toml
-- [ ] Remove `NicknameRequest`/`NicknameResponse` from behaviour.rs
-- [ ] Replace `mdns` + `nickname` with `gigi_dns` in `UnifiedBehaviour`
-- [ ] Update event handler to map `GigiDnsEvent` → `P2pEvent`
-- [ ] Update `P2pClient::new()` to use `GigiDnsBehaviour`
-- [ ] Remove nickname exchange methods from `P2pClient`
-- [ ] Update `PeerManager` to handle immediate nickname availability
-- [ ] Run integration tests
-- [ ] Update chat example
+- [x] Add gigi-dns dependency to gigi-p2p Cargo.toml
+- [x] Remove `NicknameRequest`/`NicknameResponse` from behaviour.rs
+- [x] Replace `mdns` + `nickname` with `gigi_dns` in `UnifiedBehaviour`
+- [x] Update event handler to map `GigiDnsEvent` → `P2pEvent`
+- [x] Update `P2pClient::new()` to use `GigiDnsBehaviour`
+- [x] Remove nickname exchange methods from `P2pClient`
+- [x] Update `PeerManager` to handle immediate nickname availability
+- [x] Run integration tests (6/6 passed)
+- [x] Update chat example (no API changes needed - builds successfully)
 - [ ] Update Tauri plugin (if needed)
 - [ ] Update mobile apps (if needed)
 

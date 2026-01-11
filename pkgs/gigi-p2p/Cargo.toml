@@ -4,6 +4,7 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
+gigi-dns = { path = "../gigi-dns" }
 libp2p = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
