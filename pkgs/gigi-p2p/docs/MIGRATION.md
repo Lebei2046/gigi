@@ -224,3 +224,31 @@ If issues arise:
 3. Gradual rollout (test with small group first)
 
 Would you like me to proceed with implementing this migration?
+
+## Well done!
+
+The migration is now complete! Here's the final summary:
+
+## Migration Complete: gigi-p2p → gigi-dns
+
+### Changes Made:
+1. **Cargo.toml** - Added gigi-dns dependency
+2. **behaviour.rs** - Removed mDNS + nickname, added gigi_dns
+3. **p2p_client.rs** - Initialize with GigiDnsBehaviour
+4. **event_handler.rs** - Handle GigiDnsEvent (Discovered, Updated, Expired, Offline)
+5. **peer_manager.rs** - Removed nickname exchange protocol
+6. **lib.rs** - Updated documentation
+7. **chat.rs** - Fixed prompt spam issue
+
+### Test Results:
+- ✅ All 6 integration tests passed
+- ✅ Chat example builds successfully
+- ✅ Prompt issue resolved
+
+### Benefits Achieved:
+- Faster peer discovery (no nickname round-trip)
+- Simpler architecture (4 protocols vs 5)
+- Rich metadata (capabilities at discovery)
+- Better UX (instant nicknames)
+
+The frontend (Tauri, mobile apps) doesn't need code changes since the public API remained unchanged.

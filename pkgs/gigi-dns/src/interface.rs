@@ -67,7 +67,7 @@ impl InterfaceTask {
         // Create receive socket bound to this interface
         let recv_socket = Self::create_recv_socket(&interface_ip, &config)?;
         let recv_local = recv_socket.local_addr()?;
-        tracing::info!(
+        tracing::debug!(
             "Interface {} recv socket bound to {}",
             interface_ip,
             recv_local
@@ -76,7 +76,7 @@ impl InterfaceTask {
         // Create send socket
         let send_socket = Self::create_send_socket(&interface_ip, &config)?;
         let send_local = send_socket.local_addr()?;
-        tracing::info!(
+        tracing::debug!(
             "Interface {} send socket bound to {}",
             interface_ip,
             send_local
@@ -236,7 +236,7 @@ impl InterfaceTask {
         if !self.has_discovered_peers {
             self.has_discovered_peers = true;
             self.probe_state = ProbeState::Finished;
-            tracing::info!(
+            tracing::debug!(
                 "Interface {} discovered peer, stopping adaptive probing",
                 self.interface_ip
             );
@@ -266,7 +266,7 @@ impl InterfaceTask {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
         self.query_deadline = Instant::now() + query_interval;
-        tracing::info!("Interface {} sent query to {}", self.interface_ip, addr);
+        tracing::debug!("Interface {} sent query to {}", self.interface_ip, addr);
         Ok(())
     }
 
@@ -295,12 +295,12 @@ impl InterfaceTask {
         }
 
         self.announce_deadline = Instant::now() + self.config.announce_interval;
-        tracing::info!("Interface {} sent announcement", self.interface_ip);
+        tracing::debug!("Interface {} sent announcement", self.interface_ip);
         Ok(())
     }
 
     fn process_packet(&mut self, packet: &[u8], src: SocketAddr) {
-        tracing::info!(
+        tracing::debug!(
             "Interface {} received {} bytes from {}",
             self.interface_ip,
             packet.len(),
@@ -309,7 +309,7 @@ impl InterfaceTask {
 
         // Check if it's a query and respond
         if self.protocol.is_query(packet) {
-            tracing::info!(
+            tracing::debug!(
                 "Interface {} detected query from {}",
                 self.interface_ip,
                 src
@@ -319,14 +319,14 @@ impl InterfaceTask {
                     for response in packets {
                         let _ = self.send_tx.send((response, src));
                     }
-                    tracing::info!(
+                    tracing::debug!(
                         "Interface {} responded to query from {}",
                         self.interface_ip,
                         src
                     );
                 }
                 Err(e) => {
-                    tracing::warn!(
+                    tracing::debug!(
                         "Interface {} failed to build response: {}",
                         self.interface_ip,
                         e
@@ -337,7 +337,7 @@ impl InterfaceTask {
         }
 
         // Handle response packet
-        tracing::info!(
+        tracing::debug!(
             "Interface {} processing response from {}",
             self.interface_ip,
             src
@@ -346,7 +346,7 @@ impl InterfaceTask {
             Ok(Some(event)) => {
                 self.on_peer_discovered();
                 let _ = self.event_tx.send(InterfaceEvent::PeerDiscovered(event));
-                tracing::info!(
+                tracing::debug!(
                     "Interface {} discovered peer from {}",
                     self.interface_ip,
                     src
@@ -355,7 +355,7 @@ impl InterfaceTask {
             Ok(None) => {}
             Err(e) => {
                 if e != "Self-discovery" {
-                    tracing::warn!(
+                    tracing::debug!(
                         "Interface {} failed to process packet: {}",
                         self.interface_ip,
                         e
@@ -366,7 +366,7 @@ impl InterfaceTask {
     }
 
     pub async fn run(mut self) {
-        tracing::info!("Interface {} task starting", self.interface_ip);
+        tracing::debug!("Interface {} task starting", self.interface_ip);
 
         loop {
             // Calculate the next deadline among all timers
@@ -385,7 +385,7 @@ impl InterfaceTask {
             tokio::select! {
                 // Process address updates - highest priority
                 Some(addresses) = self.address_update_rx.recv() => {
-                    tracing::info!("Interface {} received address update with {} addresses", self.interface_ip, addresses.len());
+                    tracing::debug!("Interface {} received address update with {} addresses", self.interface_ip, addresses.len());
                     self.protocol.update_listen_addresses(addresses);
                 }
                 // Process packets from I/O task - highest priority
@@ -395,7 +395,7 @@ impl InterfaceTask {
                             self.process_packet(&packet, src);
                         }
                         None => {
-                            tracing::warn!("Interface {} channel closed, stopping", self.interface_ip);
+                            tracing::debug!("Interface {} channel closed, stopping", self.interface_ip);
                             break;
                         }
                     }
@@ -428,7 +428,7 @@ impl InterfaceTask {
             }
         }
 
-        tracing::info!("Interface {} task stopped", self.interface_ip);
+        tracing::debug!("Interface {} task stopped", self.interface_ip);
     }
 }
 
@@ -451,12 +451,12 @@ pub fn handle_if_event(
                 return None;
             }
 
-            tracing::info!("Interface {} came up", addr);
+            tracing::debug!("Interface {} came up", addr);
             Some((addr, true)) // true = up
         }
         Ok(IfEvent::Down(inet)) => {
             let addr = inet.addr();
-            tracing::info!("Interface {} went down", addr);
+            tracing::debug!("Interface {} went down", addr);
             Some((addr, false)) // false = down
         }
         Err(e) => {

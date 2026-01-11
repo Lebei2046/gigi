@@ -66,7 +66,7 @@ impl GigiDnsBehaviour {
         // Note: IfWatcher will emit events for existing interfaces during first poll
         // We'll handle them in the poll() method
 
-        tracing::info!("Gigi DNS behaviour initialized with if-watch support");
+        tracing::debug!("Gigi DNS behaviour initialized with if-watch support");
 
         Ok(Self {
             config,
@@ -83,7 +83,7 @@ impl GigiDnsBehaviour {
     }
 
     fn spawn_interface_task(&mut self, interface_ip: IpAddr) -> std::io::Result<()> {
-        tracing::info!("Spawning task for interface {}", interface_ip);
+        tracing::debug!("Spawning task for interface {}", interface_ip);
 
         // Create channel for address updates
         let (address_update_tx, address_update_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -112,13 +112,13 @@ impl GigiDnsBehaviour {
                 .send(libp2p_addrs);
         }
 
-        tracing::info!("Task spawned for interface {}", interface_ip);
+        tracing::debug!("Task spawned for interface {}", interface_ip);
         Ok(())
     }
 
     fn stop_interface_task(&mut self, interface_ip: IpAddr) {
         if let Some(handle) = self.if_tasks.remove(&interface_ip) {
-            tracing::info!("Stopping task for interface {}", interface_ip);
+            tracing::debug!("Stopping task for interface {}", interface_ip);
             handle.abort();
         }
         self.address_update_txs.remove(&interface_ip);

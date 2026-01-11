@@ -105,6 +105,8 @@ bun run tauri          # Default config
 bun run tauri:i2       # Instance 2
 bun run tauri:i3       # Instance 3
 
+RUST_LOG=gigi_dns=warn,gigi_p2p=info bun tauri dev # Logging
+
 # Build for production
 bun run build
 
