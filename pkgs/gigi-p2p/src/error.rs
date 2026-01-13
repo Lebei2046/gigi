@@ -29,4 +29,6 @@ pub enum P2pError {
     Timeout(String),
     #[error("Message send error: {0}")]
     MessageSendError(String),
+    #[error("Message persistence is not enabled")]
+    PersistenceNotEnabled,
 }

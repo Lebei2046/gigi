@@ -12,6 +12,7 @@ use libp2p::{
 };
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, instrument, warn};
 
@@ -25,6 +26,7 @@ use crate::behaviour::{
 };
 use crate::error::P2pError;
 use crate::events::{ActiveDownload, GroupInfo, P2pEvent, PeerInfo};
+use gigi_store::{MessageStore, PersistenceConfig, SyncManager};
 
 /// Main P2P client
 pub struct P2pClient {
@@ -45,6 +47,12 @@ pub struct P2pClient {
 
     // Event handling
     pub(super) event_sender: mpsc::UnboundedSender<P2pEvent>,
+
+    // Persistence (optional)
+    #[allow(dead_code)]
+    pub(super) message_store: Option<Arc<MessageStore>>,
+    #[allow(dead_code)]
+    pub(super) sync_manager: Option<SyncManager>,
 }
 
 impl P2pClient {
@@ -66,6 +74,24 @@ impl P2pClient {
         nickname: String,
         output_directory: PathBuf,
         shared_file_path: PathBuf,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
+        Self::new_with_config_and_persistence(
+            keypair,
+            nickname,
+            output_directory,
+            shared_file_path,
+            None,
+        )
+    }
+
+    /// Create a new P2P client with persistence enabled
+    #[instrument(skip(keypair))]
+    pub fn new_with_config_and_persistence(
+        keypair: Keypair,
+        nickname: String,
+        output_directory: PathBuf,
+        shared_file_path: PathBuf,
+        persistence_config: Option<PersistenceConfig>,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
         let (event_sender, event_receiver) = mpsc::unbounded();
 
@@ -122,6 +148,19 @@ impl P2pClient {
         let file_manager = FileSharingManager::new(shared_file_path.clone());
         let download_manager = DownloadManager::new(output_directory);
 
+        // Initialize persistence if config provided
+        let (message_store, sync_manager) = if let Some(config) = persistence_config {
+            let store = Arc::new(tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(async { MessageStore::new(config.db_path.clone()).await })
+            })?);
+            let sync_state_path = config.db_path.with_extension("sync");
+            let sync = SyncManager::new(store.clone(), nickname.clone(), sync_state_path);
+            (Some(store), Some(sync))
+        } else {
+            (None, None)
+        };
+
         let mut client = Self {
             swarm,
             local_nickname: nickname,
@@ -130,6 +169,8 @@ impl P2pClient {
             file_manager,
             download_manager,
             event_sender,
+            message_store,
+            sync_manager,
         };
 
         // Load existing shared files
@@ -207,6 +248,58 @@ impl P2pClient {
     /// Get connected peers count
     pub fn connected_peers_count(&self) -> usize {
         self.peer_manager.connected_peers_count()
+    }
+
+    /// Send persistent message to peer
+    pub async fn send_persistent_message(&mut self, nickname: &str, message: String) -> Result<()> {
+        let peer_id = self
+            .peer_manager
+            .get_peer_id_by_nickname(nickname)
+            .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
+
+        // Store message in persistence if enabled
+        if let Some(ref message_store) = self.message_store {
+            use gigi_store::{
+                MessageContent, MessageDirection, MessageType, StoredMessage, SyncStatus,
+            };
+            let peer_id_str = peer_id.to_string();
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    let stored_msg = StoredMessage {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        msg_type: MessageType::Direct,
+                        direction: MessageDirection::Sent,
+                        content: MessageContent::Text {
+                            text: message.clone(),
+                        },
+                        sender_nickname: self.local_nickname.clone(),
+                        recipient_nickname: Some(nickname.to_string()),
+                        group_name: None,
+                        peer_id: peer_id_str.clone(),
+                        timestamp: chrono::Utc::now(),
+                        created_at: chrono::Utc::now(),
+                        delivered: false,
+                        delivered_at: None,
+                        read: false,
+                        read_at: None,
+                        sync_status: SyncStatus::Pending,
+                        sync_attempts: 0,
+                        last_sync_attempt: None,
+                        expires_at: chrono::Utc::now() + chrono::Duration::days(7),
+                    };
+                    message_store.store_message(stored_msg).await
+                })
+            })
+            .map_err(|e| anyhow::anyhow!("Failed to store message: {}", e))?;
+        }
+
+        // Send the message via P2P
+        self.swarm
+            .behaviour_mut()
+            .direct_msg
+            .send_request(&peer_id, DirectMessage::Text { message });
+
+        Ok(())
     }
 
     /// Send direct message to peer
@@ -439,5 +532,88 @@ impl P2pClient {
     /// Get completed downloads (useful for UI history)
     pub fn get_recent_downloads(&self, limit: usize) -> Vec<&ActiveDownload> {
         self.download_manager.get_recent_downloads(limit)
+    }
+
+    // ===== Persistence Methods =====
+
+    /// Check if persistence is enabled
+    #[allow(dead_code)]
+    pub fn is_persistence_enabled(&self) -> bool {
+        self.message_store.is_some()
+    }
+
+    /// Get conversation history with a peer
+    pub async fn get_conversation_history(
+        &self,
+        nickname: &str,
+    ) -> Result<Vec<gigi_store::StoredMessage>> {
+        let message_store = self
+            .message_store
+            .as_ref()
+            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+
+        // Find peer_id from nickname
+        let peer_id = self
+            .peer_manager
+            .get_peer_id_by_nickname(nickname)
+            .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
+
+        message_store
+            .get_conversation(nickname, 100, 0)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get conversation history: {}", e))
+    }
+
+    /// Mark a message as read
+    pub async fn mark_message_as_read(&self, message_id: &str) -> Result<()> {
+        let message_store = self
+            .message_store
+            .as_ref()
+            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+
+        message_store
+            .mark_read(message_id)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to mark message as read: {}", e))
+    }
+
+    /// Mark a message as delivered
+    pub async fn mark_message_as_delivered(&self, message_id: &str) -> Result<()> {
+        let message_store = self
+            .message_store
+            .as_ref()
+            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+
+        message_store
+            .mark_delivered(message_id)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to mark message as delivered: {}", e))
+    }
+
+    /// Store a message
+    pub async fn store_message(&self, msg: gigi_store::StoredMessage) -> Result<()> {
+        let message_store = self
+            .message_store
+            .as_ref()
+            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+
+        message_store
+            .store_message(msg)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to store message: {}", e))
+    }
+
+    /// Get unread message count for a peer
+    #[allow(dead_code)]
+    pub async fn get_unread_count(&self, peer_nickname: &str) -> Result<u64> {
+        let sync_manager = self
+            .sync_manager
+            .as_ref()
+            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+
+        sync_manager
+            .get_unread_count(peer_nickname)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get unread count: {}", e))
     }
 }

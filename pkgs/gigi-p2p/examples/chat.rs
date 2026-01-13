@@ -1,6 +1,6 @@
 use clap::Parser;
 use futures::StreamExt;
-use gigi_p2p::{P2pClient, P2pEvent};
+use gigi_p2p::{P2pClient, P2pEvent, PersistenceConfig};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use tokio::fs;
@@ -25,6 +25,14 @@ struct Args {
     /// File for recording shared file information
     #[arg(long, default_value = "shared.json")]
     shared: PathBuf,
+
+    /// Enable message persistence
+    #[arg(long)]
+    persistence: bool,
+
+    /// Directory for persistence database
+    #[arg(long, default_value = "gigi-persistence")]
+    db: PathBuf,
 }
 
 fn show_help() {
@@ -42,6 +50,7 @@ fn show_help() {
     println!("  │  unshare <code>          Unshare a file          │");
     println!("  │  files, f                List shared files       │");
     println!("  │  download <nick> <code>  Download shared file    │");
+    println!("  │  history <nick>           View conversation history│");
     println!("  │  quit, exit, q           Exit the chat           │");
     println!("  └──────────────────────────────────────────────────┘");
     println!("\n💡 Tips:");
@@ -282,11 +291,20 @@ async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pC
             error!(error = %err, "P2P error occurred");
             println!("❌ Error: {}", err);
         }
+        P2pEvent::PendingMessagesAvailable { peer, nickname } => {
+            println!(
+                "📬 {} ({}) is now online with pending messages!",
+                nickname, peer
+            );
+            if let Ok(count) = _client.get_unread_count(&nickname).await {
+                println!("   💬 {} unread message(s)", count);
+            }
+        }
     }
 }
 
 #[instrument(skip(client), fields(command = input))]
-async fn process_command(input: &str, client: &mut P2pClient) -> bool {
+async fn process_command(input: &str, client: &mut P2pClient, persistence_enabled: bool) -> bool {
     let parts: Vec<&str> = input.split_whitespace().collect();
     if parts.is_empty() {
         return true;
@@ -303,7 +321,18 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                 println!("  No peers found. Make sure others are on the same network.");
             } else {
                 for (i, peer) in peers.iter().enumerate() {
-                    println!("  {}. {} ({})", i + 1, peer.nickname, peer.peer_id);
+                    if persistence_enabled {
+                        let unread = client.get_unread_count(&peer.nickname).await.unwrap_or(0);
+                        println!(
+                            "  {}. {} ({}) - Unread: {}",
+                            i + 1,
+                            peer.nickname,
+                            peer.peer_id,
+                            unread
+                        );
+                    } else {
+                        println!("  {}. {} ({})", i + 1, peer.nickname, peer.peer_id);
+                    }
                 }
             }
         }
@@ -318,18 +347,76 @@ async fn process_command(input: &str, client: &mut P2pClient) -> bool {
                     message_length = message.len(),
                     "Sending direct message"
                 );
-                match client.send_direct_message(nickname, message) {
-                    Ok(()) => {
-                        println!("✅ Message sent to {}", nickname);
-                        debug!("Direct message sent successfully");
+                if persistence_enabled {
+                    match client.send_persistent_message(nickname, message).await {
+                        Ok(()) => {
+                            println!("✅ Message sent to {}", nickname);
+                            debug!("Direct message sent successfully");
+                        }
+                        Err(e) => {
+                            error!(
+                                to_nickname = %nickname,
+                                error = %e,
+                                "Failed to send direct message"
+                            );
+                            println!("❌ Failed to send: {}", e);
+                        }
+                    }
+                } else {
+                    match client.send_direct_message(nickname, message) {
+                        Ok(()) => {
+                            println!("✅ Message sent to {}", nickname);
+                            debug!("Direct message sent successfully");
+                        }
+                        Err(e) => {
+                            error!(
+                                to_nickname = %nickname,
+                                error = %e,
+                                "Failed to send direct message"
+                            );
+                            println!("❌ Failed to send: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+        "history" | "hist" => {
+            if parts.len() < 2 {
+                println!("❌ Usage: history <nickname>");
+            } else if !persistence_enabled {
+                println!("❌ Persistence is not enabled. Run with --persistence flag.");
+            } else {
+                let nickname = parts[1];
+                match client.get_conversation_history(nickname).await {
+                    Ok(messages) => {
+                        println!("\n📜 Conversation history with {}:", nickname);
+                        if messages.is_empty() {
+                            println!("  No messages yet.");
+                        } else {
+                            for msg in messages {
+                                let direction = match msg.direction {
+                                    gigi_p2p::MessageDirection::Sent => "→",
+                                    gigi_p2p::MessageDirection::Received => "←",
+                                };
+                                let content = match msg.content {
+                                    gigi_p2p::MessageContent::Text { text } => text,
+                                    _ => "<non-text>".to_string(),
+                                };
+                                println!(
+                                    "  {} [{}] {}:{}",
+                                    direction,
+                                    msg.timestamp.format("%Y-%m-%d %H:%M:%S"),
+                                    msg.sender_nickname,
+                                    content
+                                );
+                                if !msg.read {
+                                    println!("    (unread)");
+                                }
+                            }
+                        }
                     }
                     Err(e) => {
-                        error!(
-                            to_nickname = %nickname,
-                            error = %e,
-                            "Failed to send direct message"
-                        );
-                        println!("❌ Failed to send: {}", e);
+                        println!("❌ Failed to get history: {}", e);
                     }
                 }
             }
@@ -558,15 +645,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create output directory
     fs::create_dir_all(&args.output).await?;
 
+    // Create persistence directory if enabled
+    if args.persistence {
+        fs::create_dir_all(&args.db).await?;
+    }
+
+    // Create persistence config if enabled
+    let persistence_config = if args.persistence {
+        let db_path = args.db.join(format!("{}.db", args.nickname));
+        Some(PersistenceConfig {
+            db_path,
+            ..Default::default()
+        })
+    } else {
+        None
+    };
+
     // Create P2P client
     info!("Creating P2P client with nickname: {}", args.nickname);
-    let (mut client, mut event_receiver) = P2pClient::new_with_config(
+    let (mut client, mut event_receiver) = P2pClient::new_with_config_and_persistence(
         libp2p::identity::Keypair::generate_ed25519(),
         args.nickname.clone(),
         args.output.clone(),
         args.shared.clone(),
+        persistence_config,
     )?;
     info!("P2P client created successfully");
+
+    if args.persistence {
+        println!("✅ Persistence enabled - messages will be stored in database");
+    }
 
     // Start listening
     let listen_addr = format!("/ip4/0.0.0.0/tcp/{}", args.port).parse()?;
@@ -630,7 +738,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Handle stdin input
             Some(input) = stdin_receiver.recv() => {
                 debug!("Processing user input: {}", input);
-                if !process_command(&input, &mut client).await {
+                if !process_command(&input, &mut client, args.persistence).await {
                     running = false;
                 } else {
                     // Reprint prompt after command processing

@@ -5,13 +5,14 @@ edition = "2021"
 
 [dependencies]
 gigi-dns = { path = "../gigi-dns" }
+gigi-store = { path = "../gigi-store" }
 libp2p = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-uuid = { workspace = true, features = ["v4"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
 thiserror = { workspace = true }
 bytes = { workspace = true }
 blake3 = { workspace = true }
@@ -29,6 +30,7 @@ crossterm = { workspace = true }
 indicatif = { workspace = true }
 console = { workspace = true }
 chrono = { workspace = true }
+tempfile = "3"
 
 [[example]]
 name = "chat"

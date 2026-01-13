@@ -203,6 +203,15 @@ impl PeerManager {
     pub fn get_connected_peers(&self) -> Vec<&PeerInfo> {
         self.peers.values().filter(|p| p.connected).collect()
     }
+
+    /// Check if a peer is connected
+    #[allow(dead_code)]
+    pub fn is_connected(&self, peer_id: &PeerId) -> bool {
+        self.peers
+            .get(peer_id)
+            .map(|p| p.connected)
+            .unwrap_or(false)
+    }
 }
 
 impl Default for PeerManager {

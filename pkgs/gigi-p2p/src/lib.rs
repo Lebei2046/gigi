@@ -47,6 +47,13 @@ pub fn init_tracing_with_level(level: tracing::Level) {
 pub use client::P2pClient;
 pub use client::CHUNK_SIZE;
 pub use error::P2pError;
+
+// Re-export persistence types from gigi-store
+pub use gigi_store::{
+    MessageContent, MessageDirection, MessageStore, PersistenceConfig, StoredMessage, SyncManager,
+};
+
+// Re-export other event types
 pub use events::{
     ActiveDownload, ChunkInfo, FileInfo, GroupInfo, GroupMessage, P2pEvent, PeerInfo, SharedFile,
 };
