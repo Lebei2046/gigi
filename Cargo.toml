@@ -5,6 +5,8 @@ members = [
   "apps/gigi-mobile/src-tauri",
   "pkgs/gigi-p2p",
   "pkgs/gigi-dns",
+  "pkgs/gigi-file-sharing",
+  "pkgs/gigi-store",
   "pkgs/tauri-plugin-gigi-p2p",
 ]
 
@@ -49,6 +51,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4.0", features = ["derive"] }
 gigi-p2p = { version = "0.0.1", path = "./pkgs/gigi-p2p" }
+gigi-file-sharing = { version = "0.1.0", path = "./pkgs/gigi-file-sharing" }
 
 
 [profile.release]

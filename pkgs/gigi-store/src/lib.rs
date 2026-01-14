@@ -1,13 +1,20 @@
-//! Gigi Store - Persistent message storage for P2P applications
+//! Gigi Store - Persistent storage for P2P applications
 //!
 //! This crate provides SQLite-based persistent storage for messages using Sea-ORM,
 //! including offline queuing, message history, and delivery tracking.
+//!
+//! It also manages application-wide data such as private keys and nicknames,
+//! and shared file information.
 
 pub mod entities;
+pub mod file_sharing_store;
+pub mod key_manager;
 pub mod message_store;
 pub mod migration;
 pub mod sync_manager;
 
+pub use file_sharing_store::{FileSharingStore, SharedFileInfo};
+pub use key_manager::{AppData, KeyManager};
 pub use message_store::MessageStore;
 pub use sync_manager::{AckType, SyncAction, SyncManager, SyncMessage, SyncMessageHandler};
 

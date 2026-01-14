@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 gigi-dns = { path = "../gigi-dns" }
+gigi-file-sharing = { path = "../gigi-file-sharing" }
 gigi-store = { path = "../gigi-store" }
 libp2p = { workspace = true }
 tokio = { workspace = true }
@@ -22,6 +23,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 mime_guess = "2.0"
 url = "2"
+sea-orm = "1.1.19"
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
@@ -31,6 +33,7 @@ indicatif = { workspace = true }
 console = { workspace = true }
 chrono = { workspace = true }
 tempfile = "3"
+sea-orm = "1.1.19"
 
 [[example]]
 name = "chat"

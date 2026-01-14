@@ -26,6 +26,7 @@ use crate::behaviour::{
 };
 use crate::error::P2pError;
 use crate::events::{ActiveDownload, GroupInfo, P2pEvent, PeerInfo};
+use gigi_store::migration::MigratorTrait;
 use gigi_store::{MessageStore, PersistenceConfig, SyncManager};
 
 /// Main P2P client
@@ -63,25 +64,22 @@ impl P2pClient {
         nickname: String,
         output_directory: PathBuf,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
-        let shared_file_path = output_directory.join("shared.json");
-        Self::new_with_config(keypair, nickname, output_directory, shared_file_path)
+        Self::new_with_config(keypair, nickname, output_directory, None)
     }
 
-    /// Create a new P2P client with custom shared file path
+    /// Create a new P2P client with custom shared file path (deprecated, no longer used)
     #[instrument(skip(keypair))]
+    #[deprecated(
+        since = "0.0.1",
+        note = "Use new() instead - shared files are now stored in gigi-store"
+    )]
     pub fn new_with_config(
         keypair: Keypair,
         nickname: String,
         output_directory: PathBuf,
-        shared_file_path: PathBuf,
+        _shared_file_path: Option<PathBuf>,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
-        Self::new_with_config_and_persistence(
-            keypair,
-            nickname,
-            output_directory,
-            shared_file_path,
-            None,
-        )
+        Self::new_with_config_and_persistence(keypair, nickname, output_directory, None)
     }
 
     /// Create a new P2P client with persistence enabled
@@ -90,7 +88,6 @@ impl P2pClient {
         keypair: Keypair,
         nickname: String,
         output_directory: PathBuf,
-        shared_file_path: PathBuf,
         persistence_config: Option<PersistenceConfig>,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
         let (event_sender, event_receiver) = mpsc::unbounded();
@@ -145,20 +142,49 @@ impl P2pClient {
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
 
-        let file_manager = FileSharingManager::new(shared_file_path.clone());
+        let file_manager = FileSharingManager::new();
         let download_manager = DownloadManager::new(output_directory);
 
         // Initialize persistence if config provided
-        let (message_store, sync_manager) = if let Some(config) = persistence_config {
+        let (message_store, sync_manager, file_sharing_store) = if let Some(config) =
+            persistence_config
+        {
             let store = Arc::new(tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current()
                     .block_on(async { MessageStore::new(config.db_path.clone()).await })
             })?);
             let sync_state_path = config.db_path.with_extension("sync");
             let sync = SyncManager::new(store.clone(), nickname.clone(), sync_state_path);
-            (Some(store), Some(sync))
+
+            // Create file sharing store using the same database
+            let db_conn = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    sea_orm::Database::connect(format!(
+                        "sqlite://{}?mode=rwc",
+                        config.db_path.display()
+                    ))
+                    .await
+                })
+            })?;
+            // Run migrations to ensure shared_files table exists
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(async { gigi_store::migration::Migrator::up(&db_conn, None).await })
+            })?;
+            let file_store = Arc::new(tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(async { gigi_store::FileSharingStore::new(db_conn).await })
+            })?);
+
+            (Some(store), Some(sync), Some(file_store))
         } else {
-            (None, None)
+            (None, None, None)
+        };
+
+        // Attach file sharing store to file manager if available
+        let file_manager = match &file_sharing_store {
+            Some(store) => file_manager.with_store(Arc::clone(store)),
+            None => file_manager,
         };
 
         let mut client = Self {
@@ -173,8 +199,13 @@ impl P2pClient {
             sync_manager,
         };
 
-        // Load existing shared files
-        client.file_manager.load_shared_files()?;
+        // Load existing shared files from store if available
+        if file_sharing_store.is_some() {
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(async { client.file_manager.load_from_store().await })
+            })?;
+        }
 
         Ok((client, event_receiver))
     }
@@ -421,8 +452,8 @@ impl P2pClient {
     }
 
     /// Share a content URI (Android content:// or iOS file://)
-    pub fn share_content_uri(&mut self, uri: &str, name: &str, size: u64) -> Result<String> {
-        self.file_manager.share_content_uri(uri, name, size)
+    pub async fn share_content_uri(&mut self, uri: &str, name: &str, size: u64) -> Result<String> {
+        self.file_manager.share_content_uri(uri, name, size).await
     }
 
     /// List shared files
@@ -553,7 +584,7 @@ impl P2pClient {
             .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
 
         // Find peer_id from nickname
-        let peer_id = self
+        let _peer_id = self
             .peer_manager
             .get_peer_id_by_nickname(nickname)
             .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;

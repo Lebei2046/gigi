@@ -432,8 +432,8 @@ impl DownloadManager {
         chunk_index: usize,
         file_id: &str,
     ) -> Result<crate::events::ChunkInfo> {
-        use crate::client::file_sharing::CHUNK_SIZE;
         use crate::events::{ChunkInfo, FilePath};
+        use gigi_file_sharing::CHUNK_SIZE;
 
         let offset = chunk_index
             .checked_mul(CHUNK_SIZE)
@@ -544,7 +544,7 @@ impl DownloadManager {
         use std::io::{Seek, Write};
 
         let offset = chunk_index
-            .checked_mul(crate::client::file_sharing::CHUNK_SIZE)
+            .checked_mul(gigi_file_sharing::CHUNK_SIZE)
             .ok_or_else(|| anyhow::anyhow!("Chunk index overflow: {}", chunk_index))?;
         let mut file = std::fs::OpenOptions::new()
             .create(true)

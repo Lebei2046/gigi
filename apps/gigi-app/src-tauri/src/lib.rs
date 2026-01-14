@@ -1,4 +1,3 @@
-use base64::Engine;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -92,19 +91,6 @@ async fn initialize_p2p(app: AppHandle, config: P2pConfig) -> Result<(), String>
                         "message": message
                     }),
                 },
-                gigi_p2p::P2pEvent::DirectImageMessage {
-                    from_nickname,
-                    filename,
-                    data,
-                    ..
-                } => P2pEventFrontend {
-                    event_type: "direct_image_message".to_string(),
-                    data: serde_json::json!({
-                        "from_nickname": from_nickname,
-                        "filename": filename,
-                        "data": base64::prelude::BASE64_STANDARD.encode(&data)
-                    }),
-                },
                 gigi_p2p::P2pEvent::GroupMessage {
                     from_nickname,
                     group,
@@ -118,11 +104,11 @@ async fn initialize_p2p(app: AppHandle, config: P2pConfig) -> Result<(), String>
                         "message": message
                     }),
                 },
-                gigi_p2p::P2pEvent::FileDownloadCompleted { file_id, path, .. } => {
+                gigi_p2p::P2pEvent::FileDownloadCompleted { filename, path, .. } => {
                     P2pEventFrontend {
                         event_type: "file_download_completed".to_string(),
                         data: serde_json::json!({
-                            "file_id": file_id,
+                            "filename": filename,
                             "path": path.to_string_lossy()
                         }),
                     }
@@ -175,6 +161,7 @@ async fn send_direct_file(app: AppHandle, args: SendFileArgs) -> Result<(), Stri
     match client_guard.as_mut() {
         Some(client) => client
             .send_direct_file(&args.nickname, &PathBuf::from(args.image_path))
+            .await
             .map_err(|e| e.to_string()),
         None => Err("P2P client not initialized".to_string()),
     }
@@ -237,7 +224,7 @@ async fn share_file(app: AppHandle, file_path: String) -> Result<String, String>
 }
 
 #[tauri::command]
-async fn download_file(app: AppHandle, args: DownloadFileArgs) -> Result<(), String> {
+async fn download_file(app: AppHandle, args: DownloadFileArgs) -> Result<String, String> {
     let client_wrapper = app.state::<P2pClientWrapper>();
     let mut client_guard = client_wrapper.lock().await;
     match client_guard.as_mut() {

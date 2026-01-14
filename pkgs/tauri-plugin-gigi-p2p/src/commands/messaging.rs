@@ -112,7 +112,7 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
 
     tracing::info!("Download directory set to: {:?}", output_dir);
 
-    match P2pClient::new_with_config(keypair, final_nickname, output_dir, shared_files_path) {
+    match P2pClient::new_with_config(keypair, final_nickname, output_dir, Some(shared_files_path)) {
         Ok((mut client, event_receiver)) => {
             // Start listening on a random port
             let addr = "/ip4/0.0.0.0/tcp/0"

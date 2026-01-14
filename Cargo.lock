@@ -2160,6 +2160,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "gigi-file-sharing"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "gigi-store",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
 name = "gigi-mobile"
 version = "0.1.0"
 dependencies = [
@@ -2196,10 +2214,12 @@ dependencies = [
  "crossterm",
  "futures",
  "gigi-dns",
+ "gigi-file-sharing",
  "gigi-store",
  "indicatif",
  "libp2p 0.56.0",
  "mime_guess",
+ "sea-orm",
  "serde",
  "serde_json",
  "sha2",
@@ -2217,6 +2237,7 @@ name = "gigi-store"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "libp2p 0.56.0",
  "sea-orm",

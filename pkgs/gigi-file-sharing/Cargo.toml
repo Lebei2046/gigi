@@ -1,0 +1,21 @@
+[package]
+name = "gigi-file-sharing"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+blake3 = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+url = "2.5"
+gigi-store = { path = "../gigi-store" }
+
+[dev-dependencies]
+tempfile = "3"
+tracing-subscriber = { workspace = true }
+
