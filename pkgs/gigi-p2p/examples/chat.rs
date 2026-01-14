@@ -31,7 +31,7 @@ struct Args {
     persistence: bool,
 
     /// Directory for persistence database
-    #[arg(long, default_value = "gigi-persistence")]
+    #[arg(long, default_value = "downloads")]
     db: PathBuf,
 }
 

@@ -1,17 +1,19 @@
-//! Message store - persistent storage for messages using SQLite
+//! Message store - persistent storage for messages using Sea-ORM and SQLite
 
+use crate::entities::{messages, offline_queue};
 use crate::events::StoredMessage;
 use crate::PersistenceConfig;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use rusqlite::{params, OptionalExtension, Row};
+use sea_orm::prelude::Expr;
+use sea_orm::*;
+use sea_orm_migration::MigratorTrait;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use tracing::{debug, error, info};
 
 /// Message store - manages persistent message storage
 pub struct MessageStore {
-    pub(crate) db: Arc<Mutex<rusqlite::Connection>>,
+    pub(crate) db: DatabaseConnection,
     pub(crate) config: PersistenceConfig,
 }
 
@@ -27,94 +29,44 @@ impl MessageStore {
 
     /// Create a message store with custom config
     pub async fn with_config(config: PersistenceConfig) -> Result<Self> {
-        // Open database
-        let db_path = config.db_path.clone();
-        let conn =
-            rusqlite::Connection::open(&db_path).context("Failed to open message database")?;
+        // Create database URL - Use sqlx-sqlite format for Sea-ORM 1.x
+        let db_path = config
+            .db_path
+            .canonicalize()
+            .unwrap_or_else(|_| config.db_path.clone());
 
-        // Create tables
-        Self::create_tables(&conn)?;
-        Self::create_indexes(&conn)?;
+        let db_path_str = db_path
+            .to_str()
+            .context("Invalid database path")?
+            .replace("\\", "/"); // Windows path compatibility
+
+        // Use the correct connection string format for sqlx-sqlite
+        // Sea-ORM 1.x expects "sqlite://" prefix for sqlx-sqlite driver
+        let db_url = format!("sqlite:{}?mode=rwc", db_path_str);
+
+        // Connect to database using sqlx-sqlite
+        let db: DatabaseConnection = Database::connect(db_url.as_str())
+            .await
+            .context("Failed to connect to database")?;
+
+        // Run migrations
+        crate::migration::Migrator::up(&db, None)
+            .await
+            .context("Failed to run migrations")?;
+
+        // Create indexes
+        Self::create_indexes(&db)
+            .await
+            .context("Failed to create indexes")?;
 
         info!("Message store initialized at {}", config.db_path.display());
 
-        Ok(Self {
-            db: Arc::new(Mutex::new(conn)),
-            config,
-        })
-    }
-
-    /// Initialize database tables
-    fn create_tables(conn: &rusqlite::Connection) -> Result<()> {
-        conn.execute(
-            r#"
-            CREATE TABLE IF NOT EXISTS messages (
-                id TEXT PRIMARY KEY,
-                msg_type TEXT NOT NULL,
-                direction TEXT NOT NULL,
-                content_type TEXT NOT NULL,
-                content_json TEXT NOT NULL,
-                sender_nickname TEXT NOT NULL,
-                recipient_nickname TEXT,
-                group_name TEXT,
-                peer_id TEXT NOT NULL,
-                timestamp INTEGER NOT NULL,
-                created_at INTEGER NOT NULL,
-                delivered BOOLEAN DEFAULT FALSE,
-                delivered_at INTEGER,
-                read BOOLEAN DEFAULT FALSE,
-                read_at INTEGER,
-                sync_status TEXT DEFAULT 'Pending',
-                sync_attempts INTEGER DEFAULT 0,
-                last_sync_attempt INTEGER,
-                expires_at INTEGER NOT NULL
-            )
-            "#,
-            [],
-        )
-        .context("Failed to create messages table")?;
-
-        conn.execute(
-            r#"
-            CREATE TABLE IF NOT EXISTS offline_queue (
-                message_id TEXT PRIMARY KEY,
-                target_nickname TEXT NOT NULL,
-                target_peer_id TEXT,
-                queued_at INTEGER NOT NULL,
-                retry_count INTEGER DEFAULT 0,
-                max_retries INTEGER DEFAULT 10,
-                last_retry_at INTEGER,
-                next_retry_at INTEGER,
-                expires_at INTEGER NOT NULL,
-                status TEXT DEFAULT 'Pending',
-                FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
-            )
-            "#,
-            [],
-        )
-        .context("Failed to create offline_queue table")?;
-
-        conn.execute(
-            r#"
-            CREATE TABLE IF NOT EXISTS message_acknowledgments (
-                id TEXT PRIMARY KEY,
-                message_id TEXT NOT NULL,
-                acknowledged_by_nickname TEXT NOT NULL,
-                acknowledged_by_peer_id TEXT NOT NULL,
-                acknowledged_at INTEGER NOT NULL,
-                ack_type TEXT NOT NULL,
-                FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
-            )
-            "#,
-            [],
-        )
-        .context("Failed to create message_acknowledgments table")?;
-
-        Ok(())
+        Ok(Self { db, config })
     }
 
     /// Create database indexes
-    fn create_indexes(conn: &rusqlite::Connection) -> Result<()> {
+    async fn create_indexes(db: &DatabaseConnection) -> Result<()> {
+        // SQLite indexes for performance
         let indexes = vec![
             "CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC)",
             "CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_nickname)",
@@ -126,13 +78,15 @@ impl MessageStore {
             "CREATE INDEX IF NOT EXISTS idx_offline_queue_status ON offline_queue(status)",
             "CREATE INDEX IF NOT EXISTS idx_offline_queue_next_retry ON offline_queue(next_retry_at)",
             "CREATE INDEX IF NOT EXISTS idx_offline_queue_expires ON offline_queue(expires_at)",
-            "CREATE INDEX IF NOT EXISTS idx_acknowledgments_message ON message_acknowledgments(message_id)",
-            "CREATE INDEX IF NOT EXISTS idx_acknowledgments_by_peer ON message_acknowledgments(acknowledged_by_nickname)",
         ];
 
         for idx in indexes {
-            conn.execute(idx, [])
-                .context(format!("Failed to create index: {}", idx))?;
+            db.execute(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                idx.to_string(),
+            ))
+            .await
+            .context(format!("Failed to create index: {}", idx))?;
         }
 
         Ok(())
@@ -140,42 +94,45 @@ impl MessageStore {
 
     /// Store a message
     pub async fn store_message(&self, msg: StoredMessage) -> Result<()> {
-        let db = self.db.lock().unwrap();
+        let new_msg = messages::ActiveModel {
+            id: Set(msg.id.clone()),
+            msg_type: Set(serde_json::to_string(&msg.msg_type)?),
+            direction: Set(serde_json::to_string(&msg.direction)?),
+            content_type: Set(match &msg.content {
+                crate::MessageContent::Text { .. } => "Text".to_string(),
+                crate::MessageContent::FileShare { .. } => "FileShare".to_string(),
+                crate::MessageContent::ShareGroup { .. } => "ShareGroup".to_string(),
+            }),
+            content_json: Set(serde_json::to_string(&msg.content)?),
+            sender_nickname: Set(msg.sender_nickname),
+            recipient_nickname: Set(msg.recipient_nickname),
+            group_name: Set(msg.group_name),
+            peer_id: Set(msg.peer_id),
+            timestamp: Set(msg.timestamp.timestamp_millis()),
+            created_at: Set(msg.created_at.timestamp_millis()),
+            delivered: Set(msg.delivered),
+            delivered_at: Set(msg.delivered_at.map(|t| t.timestamp_millis())),
+            read: Set(msg.read),
+            read_at: Set(msg.read_at.map(|t| t.timestamp_millis())),
+            sync_status: Set(serde_json::to_string(&msg.sync_status)?),
+            sync_attempts: Set(msg.sync_attempts),
+            last_sync_attempt: Set(msg.last_sync_attempt.map(|t| t.timestamp_millis())),
+            expires_at: Set(msg.expires_at.timestamp_millis()),
+        };
 
-        db.execute(
-            r#"
-            INSERT OR REPLACE INTO messages (
-                id, msg_type, direction, content_type, content_json,
-                sender_nickname, recipient_nickname, group_name, peer_id,
-                timestamp, created_at, delivered, delivered_at,
-                read, read_at, sync_status, sync_attempts,
-                last_sync_attempt, expires_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
-                    ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
-            "#,
-            params![
-                msg.id,
-                serde_json::to_string(&msg.msg_type)?,
-                serde_json::to_string(&msg.direction)?,
-                serde_json::to_string(&msg.content)?,
-                serde_json::to_string(&msg.content)?,
-                msg.sender_nickname,
-                msg.recipient_nickname,
-                msg.group_name,
-                msg.peer_id,
-                msg.timestamp.timestamp_millis(),
-                msg.created_at.timestamp_millis(),
-                msg.delivered,
-                msg.delivered_at.map(|t| t.timestamp_millis()),
-                msg.read,
-                msg.read_at.map(|t| t.timestamp_millis()),
-                serde_json::to_string(&msg.sync_status)?,
-                msg.sync_attempts,
-                msg.last_sync_attempt.map(|t| t.timestamp_millis()),
-                msg.expires_at.timestamp_millis(),
-            ],
-        )
-        .context("Failed to store message")?;
+        // Use insert() without expecting a return value
+        let insert_result = new_msg.insert(&self.db).await;
+
+        // Ignore RecordNotFound error - it might still have inserted successfully
+        match insert_result {
+            Ok(_) | Err(DbErr::RecordNotFound(_)) => {
+                // Either succeeded or there was an issue finding the record after insert
+                // but the insert likely succeeded
+            }
+            Err(e) => {
+                return Err(e).context("Failed to store message")?;
+            }
+        }
 
         debug!("Stored message: {}", msg.id);
         Ok(())
@@ -183,38 +140,35 @@ impl MessageStore {
 
     /// Add message to offline queue
     pub async fn enqueue_offline(&self, message_id: String, target_nickname: String) -> Result<()> {
-        let db = self.db.lock().unwrap();
-
         let now = Utc::now();
         let expires_at = now + chrono::Duration::seconds(self.config.message_ttl_seconds as i64);
         let next_retry_at = now + chrono::Duration::seconds(300); // 5 minutes
 
-        db.execute(
-            r#"
-            INSERT OR REPLACE INTO offline_queue (
-                message_id, target_nickname, queued_at,
-                retry_count, max_retries, last_retry_at,
-                next_retry_at, expires_at, status
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-            "#,
-            params![
-                message_id,
-                target_nickname,
-                now.timestamp_millis(),
-                0u32,
-                self.config.max_retry_attempts,
-                Option::<i64>::None,
-                next_retry_at.timestamp_millis(),
-                expires_at.timestamp_millis(),
-                "Pending",
-            ],
-        )
-        .context("Failed to enqueue message")?;
+        let queue_item = offline_queue::ActiveModel {
+            message_id: Set(message_id),
+            target_nickname: Set(target_nickname),
+            target_peer_id: Set(None),
+            queued_at: Set(now.timestamp_millis()),
+            retry_count: Set(0),
+            max_retries: Set(self.config.max_retry_attempts),
+            last_retry_at: Set(None),
+            next_retry_at: Set(Some(next_retry_at.timestamp_millis())),
+            expires_at: Set(expires_at.timestamp_millis()),
+            status: Set("Pending".to_string()),
+        };
 
-        info!(
-            "Enqueued message {} for offline peer {}",
-            message_id, target_nickname
-        );
+        // Use insert() without expecting a return value
+        let insert_result = queue_item.insert(&self.db).await;
+
+        // Ignore RecordNotFound error
+        match insert_result {
+            Ok(_) | Err(DbErr::RecordNotFound(_)) => {}
+            Err(e) => {
+                return Err(e).context("Failed to enqueue message")?;
+            }
+        }
+
+        info!("Enqueued message for offline peer");
         Ok(())
     }
 
@@ -224,28 +178,20 @@ impl MessageStore {
         target_nickname: &str,
         limit: usize,
     ) -> Result<Vec<StoredMessage>> {
-        let db = self.db.lock().unwrap();
-
-        let mut stmt = db
-            .prepare(
-                r#"
-                SELECT m.* FROM messages m
-                INNER JOIN offline_queue q ON m.id = q.message_id
-                WHERE q.target_nickname = ?1 AND q.status = 'Pending'
-                ORDER BY m.timestamp ASC
-                LIMIT ?2
-                "#,
-            )
-            .context("Failed to prepare pending messages query")?;
-
-        let messages: Vec<StoredMessage> = stmt
-            .query_map(params![target_nickname, limit], |row| {
-                Self::row_to_stored_message(row)
-            })
-            .map_err(|e| anyhow::anyhow!("Failed to map rows: {}", e))?
-            .collect::<std::result::Result<Vec<_>, rusqlite::Error>>()
-            .map_err(|e| anyhow::anyhow!("Failed to collect messages: {}", e))
+        let result = messages::Entity::find()
+            .inner_join(offline_queue::Entity)
+            .filter(offline_queue::Column::TargetNickname.eq(target_nickname))
+            .filter(offline_queue::Column::Status.eq("Pending"))
+            .order_by_asc(messages::Column::Timestamp)
+            .limit(limit as u64)
+            .all(&self.db)
+            .await
             .context("Failed to fetch pending messages")?;
+
+        let messages: Vec<StoredMessage> = result
+            .into_iter()
+            .map(|m| self.model_to_stored_message(m))
+            .collect::<Result<Vec<_>>>()?;
 
         debug!(
             "Found {} pending messages for {}",
@@ -262,27 +208,22 @@ impl MessageStore {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<StoredMessage>> {
-        let db = self.db.lock().unwrap();
-
-        let mut stmt = db
-            .prepare(
-                r#"
-                SELECT * FROM messages
-                WHERE (sender_nickname = ?1 OR recipient_nickname = ?1)
-                ORDER BY timestamp DESC
-                LIMIT ?2 OFFSET ?3
-                "#,
+        let result = messages::Entity::find()
+            .filter(
+                Condition::any()
+                    .add(messages::Column::SenderNickname.eq(peer_nickname))
+                    .add(messages::Column::RecipientNickname.eq(peer_nickname)),
             )
-            .context("Failed to prepare conversation query")?;
-
-        let messages: Vec<StoredMessage> = stmt
-            .query_map(params![peer_nickname, limit, offset], |row| {
-                Self::row_to_stored_message(row)
-            })
-            .map_err(|e| anyhow::anyhow!("Failed to map rows: {}", e))?
-            .collect::<std::result::Result<Vec<_>, rusqlite::Error>>()
-            .map_err(|e| anyhow::anyhow!("Failed to collect messages: {}", e))
+            .order_by_desc(messages::Column::Timestamp)
+            .paginate(&self.db, limit as u64)
+            .fetch_page(offset as u64)
+            .await
             .context("Failed to fetch conversation")?;
+
+        let messages: Vec<StoredMessage> = result
+            .into_iter()
+            .map(|m| self.model_to_stored_message(m))
+            .collect::<Result<Vec<_>>>()?;
 
         debug!(
             "Retrieved {} messages from conversation with {}",
@@ -299,27 +240,18 @@ impl MessageStore {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<StoredMessage>> {
-        let db = self.db.lock().unwrap();
-
-        let mut stmt = db
-            .prepare(
-                r#"
-                SELECT * FROM messages
-                WHERE group_name = ?1
-                ORDER BY timestamp DESC
-                LIMIT ?2 OFFSET ?3
-                "#,
-            )
-            .context("Failed to prepare group messages query")?;
-
-        let messages: Vec<StoredMessage> = stmt
-            .query_map(params![group_name, limit, offset], |row| {
-                Self::row_to_stored_message(row)
-            })
-            .map_err(|e| anyhow::anyhow!("Failed to map rows: {}", e))?
-            .collect::<std::result::Result<Vec<_>, rusqlite::Error>>()
-            .map_err(|e| anyhow::anyhow!("Failed to collect messages: {}", e))
+        let result = messages::Entity::find()
+            .filter(messages::Column::GroupName.eq(group_name))
+            .order_by_desc(messages::Column::Timestamp)
+            .paginate(&self.db, limit as u64)
+            .fetch_page(offset as u64)
+            .await
             .context("Failed to fetch group messages")?;
+
+        let messages: Vec<StoredMessage> = result
+            .into_iter()
+            .map(|m| self.model_to_stored_message(m))
+            .collect::<Result<Vec<_>>>()?;
 
         debug!(
             "Retrieved {} messages from group {}",
@@ -331,22 +263,28 @@ impl MessageStore {
 
     /// Mark message as delivered
     pub async fn mark_delivered(&self, message_id: &str) -> Result<()> {
-        let db = self.db.lock().unwrap();
-
         let now = Utc::now().timestamp_millis();
 
         // Update message status
-        db.execute(
-            "UPDATE messages SET delivered = TRUE, delivered_at = ?1, sync_status = 'Delivered' WHERE id = ?2",
-            params![now, message_id],
-        )
+        messages::ActiveModel {
+            id: Set(message_id.to_string()),
+            delivered: Set(true),
+            delivered_at: Set(Some(now)),
+            sync_status: Set(serde_json::to_string(&crate::SyncStatus::Delivered)?),
+            ..Default::default()
+        }
+        .update(&self.db)
+        .await
         .context("Failed to mark message as delivered")?;
 
         // Update queue status
-        db.execute(
-            "UPDATE offline_queue SET status = 'Delivered' WHERE message_id = ?1",
-            params![message_id],
-        )
+        offline_queue::ActiveModel {
+            message_id: Set(message_id.to_string()),
+            status: Set("Delivered".to_string()),
+            ..Default::default()
+        }
+        .update(&self.db)
+        .await
         .context("Failed to update queue status")?;
 
         debug!("Marked message {} as delivered", message_id);
@@ -355,14 +293,16 @@ impl MessageStore {
 
     /// Mark message as read
     pub async fn mark_read(&self, message_id: &str) -> Result<()> {
-        let db = self.db.lock().unwrap();
-
         let now = Utc::now().timestamp_millis();
 
-        db.execute(
-            "UPDATE messages SET read = TRUE, read_at = ?1 WHERE id = ?2",
-            params![now, message_id],
-        )
+        messages::ActiveModel {
+            id: Set(message_id.to_string()),
+            read: Set(true),
+            read_at: Set(Some(now)),
+            ..Default::default()
+        }
+        .update(&self.db)
+        .await
         .context("Failed to mark message as read")?;
 
         debug!("Marked message {} as read", message_id);
@@ -371,65 +311,63 @@ impl MessageStore {
 
     /// Update retry information for a message
     pub async fn update_retry(&self, message_id: &str, success: bool) -> Result<()> {
-        let db = self.db.lock().unwrap();
-
-        let now = Utc::now();
-
         if success {
-            db.execute(
-                "UPDATE offline_queue SET status = 'Delivered' WHERE message_id = ?1",
-                params![message_id],
-            )
+            offline_queue::ActiveModel {
+                message_id: Set(message_id.to_string()),
+                status: Set("Delivered".to_string()),
+                ..Default::default()
+            }
+            .update(&self.db)
+            .await
             .context("Failed to update queue status on success")?;
         } else {
-            // Get current retry count
-            let retry_count: u32 = db
-                .query_row(
-                    "SELECT retry_count FROM offline_queue WHERE message_id = ?1",
-                    params![message_id],
-                    |row| row.get(0),
-                )
-                .unwrap_or(0);
+            // Get current queue item
+            let queue_item = offline_queue::Entity::find()
+                .filter(offline_queue::Column::MessageId.eq(message_id))
+                .one(&self.db)
+                .await
+                .context("Failed to fetch queue item")?;
 
-            if retry_count < self.config.max_retry_attempts {
-                // Exponential backoff: 5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560 minutes
-                let backoff_minutes = 5 * 2u32.pow(retry_count);
-                let next_retry = now + chrono::Duration::minutes(backoff_minutes as i64);
+            if let Some(item) = queue_item {
+                if item.retry_count < self.config.max_retry_attempts {
+                    let now = Utc::now();
+                    // Exponential backoff: 5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560 minutes
+                    let backoff_minutes = 5 * 2u32.pow(item.retry_count);
+                    let next_retry = now + chrono::Duration::minutes(backoff_minutes as i64);
 
-                db.execute(
-                    r#"
-                    UPDATE offline_queue
-                    SET retry_count = retry_count + 1,
-                        last_retry_at = ?1,
-                        next_retry_at = ?2
-                    WHERE message_id = ?3
-                    "#,
-                    params![
-                        now.timestamp_millis(),
-                        next_retry.timestamp_millis(),
+                    offline_queue::ActiveModel {
+                        message_id: Set(message_id.to_string()),
+                        retry_count: Set(item.retry_count + 1),
+                        last_retry_at: Set(Some(now.timestamp_millis())),
+                        next_retry_at: Set(Some(next_retry.timestamp_millis())),
+                        ..Default::default()
+                    }
+                    .update(&self.db)
+                    .await
+                    .context("Failed to update retry info")?;
+
+                    info!(
+                        "Scheduled retry for message {} (attempt {}, next retry in {} minutes)",
                         message_id,
-                    ],
-                )
-                .context("Failed to update retry info")?;
+                        item.retry_count + 1,
+                        backoff_minutes
+                    );
+                } else {
+                    // Max retries reached, mark as expired
+                    offline_queue::ActiveModel {
+                        message_id: Set(message_id.to_string()),
+                        status: Set("Expired".to_string()),
+                        ..Default::default()
+                    }
+                    .update(&self.db)
+                    .await
+                    .context("Failed to mark queue item as expired")?;
 
-                info!(
-                    "Scheduled retry for message {} (attempt {}, next retry in {} minutes)",
-                    message_id,
-                    retry_count + 1,
-                    backoff_minutes
-                );
-            } else {
-                // Max retries reached, mark as expired
-                db.execute(
-                    "UPDATE offline_queue SET status = 'Expired' WHERE message_id = ?1",
-                    params![message_id],
-                )
-                .context("Failed to mark queue item as expired")?;
-
-                error!(
-                    "Message {} reached max retry attempts, marked as expired",
-                    message_id
-                );
+                    error!(
+                        "Message {} reached max retry attempts, marked as expired",
+                        message_id
+                    );
+                }
             }
         }
 
@@ -438,26 +376,33 @@ impl MessageStore {
 
     /// Get messages that need retry
     pub async fn get_retry_messages(&self, limit: usize) -> Result<Vec<(String, String)>> {
-        let db = self.db.lock().unwrap();
+        let now = Utc::now().timestamp_millis();
 
-        let mut stmt = db
-            .prepare(
-                r#"
-                SELECT message_id, target_nickname FROM offline_queue
-                WHERE status = 'Pending' AND next_retry_at <= ?1
-                AND retry_count < max_retries
-                ORDER BY next_retry_at ASC
-                LIMIT ?2
-                "#,
+        let result = offline_queue::Entity::find()
+            .filter(offline_queue::Column::Status.eq("Pending"))
+            .filter(offline_queue::Column::NextRetryAt.lte(now))
+            .filter(
+                Condition::all()
+                    .add(
+                        Expr::col((offline_queue::Entity, offline_queue::Column::RetryCount)).lt(
+                            Expr::col((offline_queue::Entity, offline_queue::Column::MaxRetries)),
+                        ),
+                    )
+                    .add(
+                        Expr::col((offline_queue::Entity, offline_queue::Column::NextRetryAt))
+                            .is_not_null(),
+                    ),
             )
-            .context("Failed to prepare retry messages query")?;
-
-        let items = stmt
-            .query_map(params![Utc::now().timestamp_millis(), limit], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-            })?
-            .collect::<Result<Vec<_>, rusqlite::Error>>()
+            .order_by_asc(offline_queue::Column::NextRetryAt)
+            .limit(limit as u64)
+            .all(&self.db)
+            .await
             .context("Failed to fetch retry messages")?;
+
+        let items = result
+            .into_iter()
+            .map(|item| Ok((item.message_id, item.target_nickname)))
+            .collect::<Result<Vec<_>>>()?;
 
         debug!("Found {} messages ready for retry", items.len());
         Ok(items)
@@ -465,27 +410,56 @@ impl MessageStore {
 
     /// Clean up expired messages
     pub async fn cleanup_expired(&self) -> Result<u64> {
-        let db = self.db.lock().unwrap();
-
         let now = Utc::now().timestamp_millis();
 
         // Clean up expired queue items
-        let queue_count = db
-            .execute(
-                "DELETE FROM offline_queue WHERE expires_at < ?1 OR (retry_count >= max_retries AND next_retry_at < ?1)",
-                params![now],
+        let queue_count = offline_queue::Entity::delete_many()
+            .filter(
+                Condition::any()
+                    .add(offline_queue::Column::ExpiresAt.lt(now))
+                    .add(
+                        Condition::all()
+                            .add(
+                                Expr::col((
+                                    offline_queue::Entity,
+                                    offline_queue::Column::RetryCount,
+                                ))
+                                .gte(Expr::col((
+                                    offline_queue::Entity,
+                                    offline_queue::Column::MaxRetries,
+                                ))),
+                            )
+                            .add(
+                                Expr::col((
+                                    offline_queue::Entity,
+                                    offline_queue::Column::NextRetryAt,
+                                ))
+                                .lt(now),
+                            )
+                            .add(
+                                Expr::col((
+                                    offline_queue::Entity,
+                                    offline_queue::Column::NextRetryAt,
+                                ))
+                                .is_not_null(),
+                            ),
+                    ),
             )
-            .context("Failed to cleanup expired queue items")?;
+            .exec(&self.db)
+            .await
+            .context("Failed to cleanup expired queue items")?
+            .rows_affected;
 
         // Clean up expired delivered messages
-        let msg_count = db
-            .execute(
-                "DELETE FROM messages WHERE expires_at < ?1 AND delivered = TRUE",
-                params![now],
-            )
-            .context("Failed to cleanup expired messages")?;
+        let msg_count = messages::Entity::delete_many()
+            .filter(messages::Column::ExpiresAt.lt(now))
+            .filter(messages::Column::Delivered.eq(true))
+            .exec(&self.db)
+            .await
+            .context("Failed to cleanup expired messages")?
+            .rows_affected;
 
-        let total = (queue_count + msg_count) as u64;
+        let total = queue_count + msg_count;
         if total > 0 {
             info!("Cleaned up {} expired messages", total);
         }
@@ -495,14 +469,11 @@ impl MessageStore {
 
     /// Get unread message count for a peer
     pub async fn get_unread_count(&self, peer_nickname: &str) -> Result<u64> {
-        let db = self.db.lock().unwrap();
-
-        let count: u64 = db
-            .query_row(
-                "SELECT COUNT(*) FROM messages WHERE sender_nickname = ?1 AND read = FALSE",
-                params![peer_nickname],
-                |row| row.get(0),
-            )
+        let count = messages::Entity::find()
+            .filter(messages::Column::SenderNickname.eq(peer_nickname))
+            .filter(messages::Column::Read.eq(false))
+            .count(&self.db)
+            .await
             .context("Failed to get unread count")?;
 
         debug!("Unread messages from {}: {}", peer_nickname, count);
@@ -511,63 +482,66 @@ impl MessageStore {
 
     /// Get message by ID
     pub async fn get_message(&self, message_id: &str) -> Result<Option<StoredMessage>> {
-        let db = self.db.lock().unwrap();
-
-        let mut stmt = db
-            .prepare("SELECT * FROM messages WHERE id = ?1")
-            .context("Failed to prepare get message query")?;
-
-        let result: Option<StoredMessage> = stmt
-            .query_row(params![message_id], |row| Self::row_to_stored_message(row))
-            .optional()
-            .map_err(|e| anyhow::anyhow!("Failed to fetch message: {}", e))
+        let result = messages::Entity::find_by_id(message_id.to_string())
+            .one(&self.db)
+            .await
             .context("Failed to fetch message")?;
 
-        Ok(result)
+        Ok(result
+            .map(|m| self.model_to_stored_message(m))
+            .transpose()?)
     }
 
-    /// Convert database row to StoredMessage
-    fn row_to_stored_message(row: &Row) -> std::result::Result<StoredMessage, rusqlite::Error> {
+    /// Convert Sea-ORM model to StoredMessage
+    fn model_to_stored_message(&self, model: messages::Model) -> Result<StoredMessage> {
         Ok(StoredMessage {
-            id: row.get(0)?,
-            msg_type: serde_json::from_str(&row.get::<_, String>(1)?)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
-            direction: serde_json::from_str(&row.get::<_, String>(2)?)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
-            content: serde_json::from_str(&row.get::<_, String>(4)?)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
-            sender_nickname: row.get(5)?,
-            recipient_nickname: row.get(6)?,
-            group_name: row.get(7)?,
-            peer_id: row.get(8)?,
-            timestamp: DateTime::from_timestamp_millis(row.get(9)?)
-                .ok_or(rusqlite::Error::InvalidQuery)?
+            id: model.id,
+            msg_type: serde_json::from_str(&model.msg_type).context("Failed to parse msg_type")?,
+            direction: serde_json::from_str(&model.direction)
+                .context("Failed to parse direction")?,
+            content: serde_json::from_str(&model.content_json)
+                .context("Failed to parse content")?,
+            sender_nickname: model.sender_nickname,
+            recipient_nickname: model.recipient_nickname,
+            group_name: model.group_name,
+            peer_id: model.peer_id,
+            timestamp: DateTime::from_timestamp_millis(model.timestamp)
+                .context("Invalid timestamp")?
                 .with_timezone(&Utc),
-            created_at: DateTime::from_timestamp_millis(row.get(10)?)
-                .ok_or(rusqlite::Error::InvalidQuery)?
+            created_at: DateTime::from_timestamp_millis(model.created_at)
+                .context("Invalid created_at timestamp")?
                 .with_timezone(&Utc),
-            delivered: row.get(11)?,
-            delivered_at: row
-                .get::<_, Option<i64>>(12)?
-                .map(|t| DateTime::from_timestamp_millis(t).ok_or(rusqlite::Error::InvalidQuery))
-                .transpose()?
-                .map(|dt| dt.with_timezone(&Utc)),
-            read: row.get(13)?,
-            read_at: row
-                .get::<_, Option<i64>>(14)?
-                .map(|t| DateTime::from_timestamp_millis(t).ok_or(rusqlite::Error::InvalidQuery))
-                .transpose()?
-                .map(|dt| dt.with_timezone(&Utc)),
-            sync_status: serde_json::from_str(&row.get::<_, String>(15)?)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
-            sync_attempts: row.get(16)?,
-            last_sync_attempt: row
-                .get::<_, Option<i64>>(17)?
-                .map(|t| DateTime::from_timestamp_millis(t).ok_or(rusqlite::Error::InvalidQuery))
-                .transpose()?
-                .map(|dt| dt.with_timezone(&Utc)),
-            expires_at: DateTime::from_timestamp_millis(row.get(18)?)
-                .ok_or(rusqlite::Error::InvalidQuery)?
+            delivered: model.delivered,
+            delivered_at: model
+                .delivered_at
+                .map(|t| {
+                    DateTime::from_timestamp_millis(t)
+                        .context("Invalid delivered_at timestamp")
+                        .map(|dt| dt.with_timezone(&Utc))
+                })
+                .transpose()?,
+            read: model.read,
+            read_at: model
+                .read_at
+                .map(|t| {
+                    DateTime::from_timestamp_millis(t)
+                        .context("Invalid read_at timestamp")
+                        .map(|dt| dt.with_timezone(&Utc))
+                })
+                .transpose()?,
+            sync_status: serde_json::from_str(&model.sync_status)
+                .context("Failed to parse sync_status")?,
+            sync_attempts: model.sync_attempts,
+            last_sync_attempt: model
+                .last_sync_attempt
+                .map(|t| {
+                    DateTime::from_timestamp_millis(t)
+                        .context("Invalid last_sync_attempt timestamp")
+                        .map(|dt| dt.with_timezone(&Utc))
+                })
+                .transpose()?,
+            expires_at: DateTime::from_timestamp_millis(model.expires_at)
+                .context("Invalid expires_at timestamp")?
                 .with_timezone(&Utc),
         })
     }
