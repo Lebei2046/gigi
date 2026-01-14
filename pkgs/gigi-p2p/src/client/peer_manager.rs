@@ -29,7 +29,7 @@ impl PeerManager {
         &mut self,
         peer_id: PeerId,
         addr: Multiaddr,
-        _swarm: &mut Swarm<UnifiedBehaviour>,
+        swarm: &mut Swarm<UnifiedBehaviour>,
         nickname: &str,
         event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
     ) -> Result<()> {
@@ -48,12 +48,19 @@ impl PeerManager {
             let peer_info = PeerInfo {
                 peer_id,
                 nickname,
-                addresses: vec![addr],
+                addresses: vec![addr.clone()],
                 last_seen: Instant::now(),
                 connected: false,
             };
 
             self.peers.insert(peer_id, peer_info);
+
+            // Attempt to dial the discovered peer
+            if let Err(e) = swarm.dial(addr.clone()) {
+                tracing::warn!("Failed to dial discovered peer {}: {}", peer_id, e);
+            } else {
+                tracing::info!("Dialing discovered peer: {}", peer_id);
+            }
         }
         Ok(())
     }

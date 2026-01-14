@@ -58,7 +58,7 @@ fn show_help() {
 }
 
 #[instrument(skip_all)]
-async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pClient) {
+async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &mut P2pClient) {
     debug!(
         event_type = ?std::mem::discriminant(&event),
         "Handling P2P event"
@@ -290,12 +290,23 @@ async fn handle_p2p_event(event: P2pEvent, _output_dir: &PathBuf, _client: &P2pC
             println!("❌ Error: {}", err);
         }
         P2pEvent::PendingMessagesAvailable { peer, nickname } => {
-            println!(
-                "📬 {} ({}) is now online with pending messages!",
-                nickname, peer
-            );
-            if let Ok(count) = _client.get_unread_count(&nickname).await {
-                println!("   💬 {} unread message(s)", count);
+            println!("📬 {} ({}) is now online!", nickname, peer);
+
+            // Send pending messages
+            match _client.send_pending_messages(&nickname).await {
+                Ok(count) => {
+                    if count > 0 {
+                        println!("   ✅ Sent {} pending message(s) to {}", count, nickname);
+                    }
+                }
+                Err(e) => {
+                    error!(
+                        nickname = %nickname,
+                        error = %e,
+                        "Failed to send pending messages"
+                    );
+                    println!("   ❌ Failed to send pending messages: {}", e);
+                }
             }
         }
     }
@@ -352,12 +363,18 @@ async fn process_command(input: &str, client: &mut P2pClient, persistence_enable
                             debug!("Direct message sent successfully");
                         }
                         Err(e) => {
-                            error!(
-                                to_nickname = %nickname,
-                                error = %e,
-                                "Failed to send direct message"
-                            );
-                            println!("❌ Failed to send: {}", e);
+                            // Check if this is an "offline" error (message saved)
+                            if e.to_string().contains("not online") {
+                                println!("✅ Message saved ({} is offline). Will send when they come online.", nickname);
+                                info!("Message saved for offline peer: {}", nickname);
+                            } else {
+                                error!(
+                                    to_nickname = %nickname,
+                                    error = %e,
+                                    "Failed to send direct message"
+                                );
+                                println!("❌ Failed to send: {}", e);
+                            }
                         }
                     }
                 } else {
@@ -367,12 +384,18 @@ async fn process_command(input: &str, client: &mut P2pClient, persistence_enable
                             debug!("Direct message sent successfully");
                         }
                         Err(e) => {
-                            error!(
-                                to_nickname = %nickname,
-                                error = %e,
-                                "Failed to send direct message"
-                            );
-                            println!("❌ Failed to send: {}", e);
+                            // Check if this is an "offline" error (message saved)
+                            if e.to_string().contains("not online") {
+                                println!("✅ Message saved ({} is offline). Will send when they come online.", nickname);
+                                info!("Message saved for offline peer: {}", nickname);
+                            } else {
+                                error!(
+                                    to_nickname = %nickname,
+                                    error = %e,
+                                    "Failed to send direct message"
+                                );
+                                println!("❌ Failed to send: {}", e);
+                            }
                         }
                     }
                 }
@@ -391,6 +414,15 @@ async fn process_command(input: &str, client: &mut P2pClient, persistence_enable
                         if messages.is_empty() {
                             println!("  No messages yet.");
                         } else {
+                            // Mark all messages in conversation as read
+                            if let Err(e) = client.mark_conversation_read(nickname).await {
+                                error!(
+                                    nickname = %nickname,
+                                    error = %e,
+                                    "Failed to mark conversation as read"
+                                );
+                            }
+
                             for msg in messages {
                                 let direction = match msg.direction {
                                     gigi_p2p::MessageDirection::Sent => "→",
@@ -407,6 +439,8 @@ async fn process_command(input: &str, client: &mut P2pClient, persistence_enable
                                     msg.sender_nickname,
                                     content
                                 );
+                                // Only show unread status before marking as read
+                                // (they won't be shown as unread next time)
                                 if !msg.read {
                                     println!("    (unread)");
                                 }
@@ -758,7 +792,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Handle P2P events from the event receiver
             Some(event) = event_receiver.next() => {
                 debug!("Received P2P event from receiver");
-                handle_p2p_event(event, &args.output, &client).await;
+                handle_p2p_event(event, &args.output, &mut client).await;
                 // Reprint prompt after event output (which does produce visible output)
                 print!("> ");
                 io::stdout().flush().unwrap();

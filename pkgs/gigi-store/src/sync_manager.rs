@@ -14,6 +14,7 @@ use tracing::{debug, error, info};
 /// Sync state for a peer
 #[derive(Debug, Clone)]
 struct SyncState {
+    #[allow(dead_code)] // Kept for future use in sync logic
     last_sync: DateTime<Utc>,
     in_progress: bool,
 }
@@ -40,7 +41,7 @@ impl SyncManager {
     /// Create a new sync manager
     pub fn new(
         message_store: Arc<MessageStore>,
-        local_nickname: String,
+        _local_nickname: String,
         sync_state_path: std::path::PathBuf,
     ) -> Self {
         Self {

@@ -28,6 +28,7 @@ impl<'a> SwarmEventHandler<'a> {
                 self.client.send_event(P2pEvent::ListeningOn { address });
             }
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                info!("Connection established with peer: {}", peer_id);
                 self.client
                     .peer_manager
                     .handle_connection_established(peer_id, &mut self.client.event_sender);
@@ -35,6 +36,7 @@ impl<'a> SwarmEventHandler<'a> {
                 // Trigger sync if persistence is enabled (simplified - no async for now)
                 if let Some(ref _sync_manager) = self.client.sync_manager {
                     if let Ok(nickname) = self.client.peer_manager.get_peer_nickname(&peer_id) {
+                        info!("Sending PendingMessagesAvailable event for {}", nickname);
                         // TODO: Implement proper async sync triggering
                         self.client.send_event(P2pEvent::PendingMessagesAvailable {
                             peer: peer_id,

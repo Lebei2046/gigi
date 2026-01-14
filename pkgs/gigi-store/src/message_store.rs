@@ -291,6 +291,19 @@ impl MessageStore {
         Ok(())
     }
 
+    /// Update message peer_id
+    pub async fn update_message_peer_id(&self, message_id: &str, peer_id: String) -> Result<()> {
+        messages::Entity::update_many()
+            .filter(messages::Column::Id.eq(message_id))
+            .col_expr(messages::Column::PeerId, Expr::value(peer_id))
+            .exec(&self.db)
+            .await
+            .context("Failed to update message peer_id")?;
+
+        debug!("Updated peer_id for message {}", message_id);
+        Ok(())
+    }
+
     /// Mark message as read
     pub async fn mark_read(&self, message_id: &str) -> Result<()> {
         let now = Utc::now().timestamp_millis();
@@ -306,6 +319,24 @@ impl MessageStore {
         .context("Failed to mark message as read")?;
 
         debug!("Marked message {} as read", message_id);
+        Ok(())
+    }
+
+    /// Mark all messages in a conversation as read
+    pub async fn mark_conversation_read(&self, nickname: &str) -> Result<()> {
+        let now = Utc::now().timestamp_millis();
+
+        messages::Entity::update_many()
+            .filter(messages::Column::RecipientNickname.eq(nickname))
+            .filter(messages::Column::MsgType.eq("Received"))
+            .filter(messages::Column::Read.eq(false))
+            .col_expr(messages::Column::Read, Expr::value(true))
+            .col_expr(messages::Column::ReadAt, Expr::value(Some(now)))
+            .exec(&self.db)
+            .await
+            .context("Failed to mark conversation as read")?;
+
+        debug!("Marked all messages from {} as read", nickname);
         Ok(())
     }
 

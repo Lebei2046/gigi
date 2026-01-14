@@ -64,7 +64,7 @@ impl P2pClient {
         nickname: String,
         output_directory: PathBuf,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
-        Self::new_with_config(keypair, nickname, output_directory, None)
+        Self::new_with_config_and_persistence(keypair, nickname, output_directory, None)
     }
 
     /// Create a new P2P client with custom shared file path (deprecated, no longer used)
@@ -283,21 +283,63 @@ impl P2pClient {
 
     /// Send persistent message to peer
     pub async fn send_persistent_message(&mut self, nickname: &str, message: String) -> Result<()> {
-        let peer_id = self
-            .peer_manager
-            .get_peer_id_by_nickname(nickname)
-            .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
+        let peer_id = self.peer_manager.get_peer_id_by_nickname(nickname);
 
-        // Store message in persistence if enabled
-        if let Some(ref message_store) = self.message_store {
-            use gigi_store::{
-                MessageContent, MessageDirection, MessageType, StoredMessage, SyncStatus,
-            };
-            let peer_id_str = peer_id.to_string();
-            tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    let stored_msg = StoredMessage {
-                        id: uuid::Uuid::new_v4().to_string(),
+        match peer_id {
+            Some(peer_id) => {
+                // Peer is online, store message and send via P2P
+                if let Some(ref message_store) = self.message_store {
+                    use gigi_store::{
+                        MessageContent, MessageDirection, MessageType, StoredMessage, SyncStatus,
+                    };
+                    let peer_id_str = peer_id.to_string();
+                    tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current().block_on(async {
+                            let stored_msg = StoredMessage {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                msg_type: MessageType::Direct,
+                                direction: MessageDirection::Sent,
+                                content: MessageContent::Text {
+                                    text: message.clone(),
+                                },
+                                sender_nickname: self.local_nickname.clone(),
+                                recipient_nickname: Some(nickname.to_string()),
+                                group_name: None,
+                                peer_id: peer_id_str.clone(),
+                                timestamp: chrono::Utc::now(),
+                                created_at: chrono::Utc::now(),
+                                delivered: false,
+                                delivered_at: None,
+                                read: false,
+                                read_at: None,
+                                sync_status: SyncStatus::Pending,
+                                sync_attempts: 0,
+                                last_sync_attempt: None,
+                                expires_at: chrono::Utc::now() + chrono::Duration::days(7),
+                            };
+                            message_store.store_message(stored_msg).await
+                        })
+                    })
+                    .map_err(|e| anyhow::anyhow!("Failed to store message: {}", e))?;
+                }
+
+                // Send the message via P2P
+                self.swarm
+                    .behaviour_mut()
+                    .direct_msg
+                    .send_request(&peer_id, DirectMessage::Text { message });
+
+                Ok(())
+            }
+            None => {
+                // Peer is offline, store message for later delivery
+                if let Some(message_store) = &self.message_store {
+                    use gigi_store::{MessageContent, MessageDirection, MessageType, SyncStatus};
+
+                    // Create stored message
+                    let message_id = uuid::Uuid::new_v4().to_string();
+                    let stored_msg = gigi_store::StoredMessage {
+                        id: message_id.clone(),
                         msg_type: MessageType::Direct,
                         direction: MessageDirection::Sent,
                         content: MessageContent::Text {
@@ -306,7 +348,7 @@ impl P2pClient {
                         sender_nickname: self.local_nickname.clone(),
                         recipient_nickname: Some(nickname.to_string()),
                         group_name: None,
-                        peer_id: peer_id_str.clone(),
+                        peer_id: String::new(), // Empty string since we don't know peer_id
                         timestamp: chrono::Utc::now(),
                         created_at: chrono::Utc::now(),
                         delivered: false,
@@ -318,34 +360,96 @@ impl P2pClient {
                         last_sync_attempt: None,
                         expires_at: chrono::Utc::now() + chrono::Duration::days(7),
                     };
-                    message_store.store_message(stored_msg).await
-                })
-            })
-            .map_err(|e| anyhow::anyhow!("Failed to store message: {}", e))?;
+
+                    // Store message and add to offline queue
+                    let msg_clone = message_store.clone();
+                    tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current().block_on(async {
+                            msg_clone.store_message(stored_msg).await?;
+                            msg_clone
+                                .enqueue_offline(message_id, nickname.to_string())
+                                .await?;
+                            Ok::<(), anyhow::Error>(())
+                        })
+                    })?;
+                }
+
+                Err(anyhow::anyhow!(
+                    "Peer '{}' is not online. Message saved for later delivery.",
+                    nickname
+                ))
+            }
         }
-
-        // Send the message via P2P
-        self.swarm
-            .behaviour_mut()
-            .direct_msg
-            .send_request(&peer_id, DirectMessage::Text { message });
-
-        Ok(())
     }
 
     /// Send direct message to peer
     pub fn send_direct_message(&mut self, nickname: &str, message: String) -> Result<()> {
-        let peer_id = self
-            .peer_manager
-            .get_peer_id_by_nickname(nickname)
-            .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
+        let peer_id = self.peer_manager.get_peer_id_by_nickname(nickname);
 
-        self.swarm
-            .behaviour_mut()
-            .direct_msg
-            .send_request(&peer_id, DirectMessage::Text { message });
+        match peer_id {
+            Some(peer_id) => {
+                // Peer is online, send immediately
+                self.swarm
+                    .behaviour_mut()
+                    .direct_msg
+                    .send_request(&peer_id, DirectMessage::Text { message });
+                Ok(())
+            }
+            None => {
+                // Peer is offline, store message for later delivery
+                if let Some(message_store) = &self.message_store {
+                    use chrono::Utc;
+                    use gigi_store::MessageContent;
+                    use gigi_store::MessageDirection;
 
-        Ok(())
+                    // Create stored message
+                    let message_id = uuid::Uuid::new_v4().to_string();
+                    let stored_msg = gigi_store::StoredMessage {
+                        id: message_id.clone(),
+                        msg_type: gigi_store::MessageType::Direct,
+                        direction: MessageDirection::Sent,
+                        content: MessageContent::Text {
+                            text: message.clone(),
+                        },
+                        sender_nickname: self.local_nickname.clone(),
+                        recipient_nickname: Some(nickname.to_string()),
+                        group_name: None,
+                        peer_id: String::new(), // Empty string since we don't know peer_id
+                        timestamp: Utc::now(),
+                        created_at: Utc::now(),
+
+                        delivered: false,
+                        delivered_at: None,
+
+                        read: false,
+                        read_at: None,
+
+                        sync_status: gigi_store::SyncStatus::Pending,
+                        sync_attempts: 0,
+                        last_sync_attempt: None,
+
+                        expires_at: Utc::now() + chrono::Duration::days(7), // Expire after 7 days
+                    };
+
+                    // Store message and add to offline queue
+                    let msg_clone = message_store.clone();
+                    tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current().block_on(async {
+                            msg_clone.store_message(stored_msg).await?;
+                            msg_clone
+                                .enqueue_offline(message_id, nickname.to_string())
+                                .await?;
+                            Ok::<(), anyhow::Error>(())
+                        })
+                    })?;
+                }
+
+                Err(anyhow::anyhow!(
+                    "Peer '{}' is not online. Message saved for later delivery.",
+                    nickname
+                ))
+            }
+        }
     }
 
     /// Send file to peer using file sharing
@@ -583,12 +687,8 @@ impl P2pClient {
             .as_ref()
             .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
 
-        // Find peer_id from nickname
-        let _peer_id = self
-            .peer_manager
-            .get_peer_id_by_nickname(nickname)
-            .ok_or_else(|| P2pError::NicknameNotFound(nickname.to_string()))?;
-
+        // We don't require the peer to be online to view history
+        // Just check if there are any messages in the database
         message_store
             .get_conversation(nickname, 100, 0)
             .await
@@ -606,6 +706,19 @@ impl P2pClient {
             .mark_read(message_id)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to mark message as read: {}", e))
+    }
+
+    /// Mark all messages in a conversation as read
+    pub async fn mark_conversation_read(&self, nickname: &str) -> Result<()> {
+        let message_store = self
+            .message_store
+            .as_ref()
+            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+
+        message_store
+            .mark_conversation_read(nickname)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to mark conversation as read: {}", e))
     }
 
     /// Mark a message as delivered
@@ -646,5 +759,51 @@ impl P2pClient {
             .get_unread_count(peer_nickname)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to get unread count: {}", e))
+    }
+
+    /// Send pending messages to a peer that just came online
+    pub async fn send_pending_messages(&mut self, nickname: &str) -> Result<usize> {
+        let message_store = self
+            .message_store
+            .as_ref()
+            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+
+        // Get the peer_id for this nickname
+        let peer_id = self
+            .peer_manager
+            .get_peer_id_by_nickname(nickname)
+            .ok_or_else(|| anyhow::anyhow!("Peer not found: {}", nickname))?;
+
+        // Get pending messages
+        let pending = message_store
+            .get_pending_messages(nickname, 100)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get pending messages: {}", e))?;
+
+        if pending.is_empty() {
+            return Ok(0);
+        }
+
+        // Send each pending message
+        let mut sent_count = 0;
+        for msg in pending {
+            if let gigi_store::MessageContent::Text { text } = msg.content {
+                self.swarm.behaviour_mut().direct_msg.send_request(
+                    &peer_id,
+                    crate::behaviour::DirectMessage::Text { message: text },
+                );
+
+                // Update peer_id if it was empty
+                if msg.peer_id.is_empty() {
+                    let _ = message_store
+                        .update_message_peer_id(&msg.id, peer_id.to_string())
+                        .await;
+                }
+
+                sent_count += 1;
+            }
+        }
+
+        Ok(sent_count)
     }
 }
