@@ -17,6 +17,7 @@ hex = "0.4"
 
 # Workspace dependencies
 gigi-p2p.workspace = true
+gigi-store.workspace = true
 libp2p.workspace = true
 serde.workspace = true
 serde_json.workspace = true

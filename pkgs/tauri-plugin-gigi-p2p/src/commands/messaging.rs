@@ -1,3 +1,4 @@
+use gigi_store::PersistenceConfig;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::{events::handle_p2p_event, models::PluginState, Error, Result};
@@ -102,7 +103,7 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
     // Get config for download directory
     let config_guard = state.config.read().await;
     let output_dir = std::path::PathBuf::from(&config_guard.download_folder);
-    let shared_files_path = output_dir.join("shared.json");
+    let db_path = output_dir.join(format!("{}.db", config_guard.nickname));
     let final_nickname = config_guard.nickname.clone();
     drop(config_guard);
 
@@ -112,7 +113,18 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
 
     tracing::info!("Download directory set to: {:?}", output_dir);
 
-    match P2pClient::new_with_config(keypair, final_nickname, output_dir, Some(shared_files_path)) {
+    // Create persistence config for file sharing storage
+    let persistence_config = PersistenceConfig {
+        db_path,
+        ..Default::default()
+    };
+
+    match P2pClient::new_with_config_and_persistence(
+        keypair,
+        final_nickname,
+        output_dir,
+        Some(persistence_config),
+    ) {
         Ok((mut client, event_receiver)) => {
             // Start listening on a random port
             let addr = "/ip4/0.0.0.0/tcp/0"

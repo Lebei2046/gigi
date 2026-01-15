@@ -67,21 +67,6 @@ impl P2pClient {
         Self::new_with_config_and_persistence(keypair, nickname, output_directory, None)
     }
 
-    /// Create a new P2P client with custom shared file path (deprecated, no longer used)
-    #[instrument(skip(keypair))]
-    #[deprecated(
-        since = "0.0.1",
-        note = "Use new() instead - shared files are now stored in gigi-store"
-    )]
-    pub fn new_with_config(
-        keypair: Keypair,
-        nickname: String,
-        output_directory: PathBuf,
-        _shared_file_path: Option<PathBuf>,
-    ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
-        Self::new_with_config_and_persistence(keypair, nickname, output_directory, None)
-    }
-
     /// Create a new P2P client with persistence enabled
     #[instrument(skip(keypair))]
     pub fn new_with_config_and_persistence(

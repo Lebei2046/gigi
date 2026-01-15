@@ -6969,6 +6969,7 @@ dependencies = [
  "base64 0.22.1",
  "futures",
  "gigi-p2p",
+ "gigi-store",
  "hex",
  "libp2p 0.56.0",
  "mime_guess",
