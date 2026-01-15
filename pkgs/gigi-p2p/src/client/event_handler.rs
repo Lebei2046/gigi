@@ -1,6 +1,7 @@
 //! Event handling for P2P client swarm events
 
 use anyhow::Result;
+use chrono::Utc;
 use libp2p::{swarm::SwarmEvent, PeerId};
 use tracing::info;
 
@@ -163,6 +164,43 @@ impl<'a> DirectMessageEventHandler<'a> {
             let nickname = self.client.peer_manager.get_peer_nickname(&peer)?;
             match request {
                 DirectMessage::Text { message } => {
+                    // Store received message in database if persistence is enabled
+                    if let Some(ref message_store) = self.client.message_store {
+                        use gigi_store::{
+                            MessageContent, MessageDirection, MessageType, SyncStatus,
+                        };
+                        let peer_id_str = peer.to_string();
+                        let stored_msg = gigi_store::StoredMessage {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            msg_type: MessageType::Direct,
+                            direction: MessageDirection::Received,
+                            content: MessageContent::Text {
+                                text: message.clone(),
+                            },
+                            sender_nickname: nickname.clone(),
+                            recipient_nickname: Some(self.client.local_nickname.clone()),
+                            group_name: None,
+                            peer_id: peer_id_str,
+                            timestamp: Utc::now(),
+                            created_at: Utc::now(),
+                            delivered: true,
+                            delivered_at: Some(Utc::now()),
+                            read: false,
+                            read_at: None,
+                            sync_status: SyncStatus::Synced,
+                            sync_attempts: 0,
+                            last_sync_attempt: None,
+                            expires_at: Utc::now() + chrono::Duration::days(7),
+                        };
+                        // Store message (ignore errors for simplicity in event handler)
+                        let msg_clone = message_store.clone();
+                        tokio::task::block_in_place(|| {
+                            tokio::runtime::Handle::current().block_on(async move {
+                                let _ = msg_clone.store_message(stored_msg).await;
+                            })
+                        });
+                    }
+
                     self.client.send_event(P2pEvent::DirectMessage {
                         from: peer,
                         from_nickname: nickname,

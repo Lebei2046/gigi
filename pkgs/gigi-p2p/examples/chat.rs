@@ -49,6 +49,7 @@ fn show_help() {
     println!("  │  files, f                List shared files       │");
     println!("  │  download <nick> <code>  Download shared file    │");
     println!("  │  history <nick>           View conversation history│");
+    println!("  │  clear <nick>            Clear conversation     │");
     println!("  │  quit, exit, q           Exit the chat           │");
     println!("  └──────────────────────────────────────────────────┘");
     println!("\n💡 Tips:");
@@ -449,6 +450,32 @@ async fn process_command(input: &str, client: &mut P2pClient, persistence_enable
                     }
                     Err(e) => {
                         println!("❌ Failed to get history: {}", e);
+                    }
+                }
+            }
+        }
+        "clear" => {
+            if parts.len() < 2 {
+                println!("❌ Usage: clear <nickname>");
+            } else if !persistence_enabled {
+                println!("❌ Persistence is not enabled. Run with --persistence flag.");
+            } else {
+                let nickname = parts[1];
+                match client.clear_conversation(nickname).await {
+                    Ok(count) => {
+                        println!(
+                            "✅ Cleared {} message(s) from conversation with {}",
+                            count, nickname
+                        );
+                        info!("Cleared conversation with {}", nickname);
+                    }
+                    Err(e) => {
+                        error!(
+                            nickname = %nickname,
+                            error = %e,
+                            "Failed to clear conversation"
+                        );
+                        println!("❌ Failed to clear conversation: {}", e);
                     }
                 }
             }

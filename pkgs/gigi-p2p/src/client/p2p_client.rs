@@ -800,10 +800,26 @@ impl P2pClient {
                         .await;
                 }
 
+                // Mark message as sent in the queue
+                let _ = message_store.mark_message_sent(&msg.id).await;
+
                 sent_count += 1;
             }
         }
 
         Ok(sent_count)
+    }
+
+    /// Clear conversation history with a peer
+    pub async fn clear_conversation(&self, nickname: &str) -> Result<usize> {
+        let message_store = self
+            .message_store
+            .as_ref()
+            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+
+        message_store
+            .clear_conversation(nickname)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to clear conversation: {}", e))
     }
 }

@@ -261,6 +261,22 @@ impl MessageStore {
         Ok(messages)
     }
 
+    /// Mark message as sent (remove from offline queue)
+    pub async fn mark_message_sent(&self, message_id: &str) -> Result<()> {
+        // Update queue status to "Sent" so it won't be picked up again
+        offline_queue::ActiveModel {
+            message_id: Set(message_id.to_string()),
+            status: Set("Sent".to_string()),
+            ..Default::default()
+        }
+        .update(&self.db)
+        .await
+        .context("Failed to mark message as sent")?;
+
+        debug!("Marked message {} as sent", message_id);
+        Ok(())
+    }
+
     /// Mark message as delivered
     pub async fn mark_delivered(&self, message_id: &str) -> Result<()> {
         let now = Utc::now().timestamp_millis();
@@ -575,6 +591,25 @@ impl MessageStore {
                 .context("Invalid expires_at timestamp")?
                 .with_timezone(&Utc),
         })
+    }
+
+    /// Clear conversation history with a peer
+    pub async fn clear_conversation(&self, peer_nickname: &str) -> Result<usize> {
+        let delete_result = messages::Entity::delete_many()
+            .filter(
+                Condition::any()
+                    .add(messages::Column::SenderNickname.eq(peer_nickname))
+                    .add(messages::Column::RecipientNickname.eq(peer_nickname)),
+            )
+            .exec(&self.db)
+            .await
+            .context("Failed to clear conversation")?;
+
+        info!(
+            "Cleared {} messages from conversation with {}",
+            delete_result.rows_affected, peer_nickname
+        );
+        Ok(delete_result.rows_affected as usize)
     }
 }
 
