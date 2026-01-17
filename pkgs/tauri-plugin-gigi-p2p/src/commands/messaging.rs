@@ -666,7 +666,9 @@ pub(crate) async fn get_file_thumbnail(
             tracing::info!("Thumbnail not in database, generating for: {}", file_path);
 
             // Generate thumbnail
-            match thumbnail::generate_thumbnail(&original_file_path, &thumbnail_dir, (200, 200), 70).await {
+            match thumbnail::generate_thumbnail(&original_file_path, &thumbnail_dir, (200, 200), 70)
+                .await
+            {
                 Ok(thumbnail_filename) => {
                     let _full_thumbnail_path = thumbnail_dir.join(&thumbnail_filename);
 
@@ -676,7 +678,10 @@ pub(crate) async fn get_file_thumbnail(
                     let thumbnail_filename_clone = thumbnail_filename.clone();
                     tokio::spawn(async move {
                         if let Some(store) = thumbnail_store_clone.read().await.as_ref() {
-                            if let Err(e) = store.store_thumbnail(&file_path_clone, &thumbnail_filename_clone).await {
+                            if let Err(e) = store
+                                .store_thumbnail(&file_path_clone, &thumbnail_filename_clone)
+                                .await
+                            {
                                 tracing::error!("Failed to store thumbnail mapping: {}", e);
                             }
                         }
@@ -707,7 +712,9 @@ pub(crate) async fn get_file_thumbnail(
             tracing::warn!("Failed to read thumbnail file {:?}: {}", thumb_file_path, e);
             // Thumbnail file doesn't exist even though database entry exists
             // Try to regenerate it
-            match thumbnail::generate_thumbnail(&original_file_path, &thumbnail_dir, (200, 200), 70).await {
+            match thumbnail::generate_thumbnail(&original_file_path, &thumbnail_dir, (200, 200), 70)
+                .await
+            {
                 Ok(thumbnail_filename) => {
                     let full_thumbnail_path = thumbnail_dir.join(&thumbnail_filename);
 
@@ -716,7 +723,10 @@ pub(crate) async fn get_file_thumbnail(
                     let file_path_clone = file_path.clone();
                     tokio::spawn(async move {
                         if let Some(store) = thumbnail_store_clone.read().await.as_ref() {
-                            if let Err(e) = store.store_thumbnail(&file_path_clone, &thumbnail_filename).await {
+                            if let Err(e) = store
+                                .store_thumbnail(&file_path_clone, &thumbnail_filename)
+                                .await
+                            {
                                 tracing::error!("Failed to store thumbnail mapping: {}", e);
                             }
                         }
@@ -757,7 +767,10 @@ pub(crate) async fn get_full_image_by_path(
 
     // Check if file exists
     if !original_file_path.exists() {
-        return Err(Error::CommandFailed(format!("File not found: {}", file_path)));
+        return Err(Error::CommandFailed(format!(
+            "File not found: {}",
+            file_path
+        )));
     }
 
     // Read full image file directly from the provided path
@@ -820,7 +833,10 @@ pub(crate) async fn get_messages(
     // Check if peer_id is a group or peer
     // Groups have a different format (typically uuid-like or specific format)
     // Try peer_id query first, then fallback to group/conversation by nickname
-    let stored_messages = if let Ok(msgs) = store.get_conversation_by_peer_id(&peer_id, limit, offset).await {
+    let stored_messages = if let Ok(msgs) = store
+        .get_conversation_by_peer_id(&peer_id, limit, offset)
+        .await
+    {
         if !msgs.is_empty() {
             msgs
         } else if let Ok(group_msgs) = store.get_group_messages(&peer_id, limit, offset).await {
@@ -913,7 +929,10 @@ pub(crate) async fn get_messages(
             // Construct the downloaded file path
             let downloaded_file_path = download_dir.join(filename);
             if downloaded_file_path.exists() {
-                file_path_map.insert(idx, Some(downloaded_file_path.to_string_lossy().to_string()));
+                file_path_map.insert(
+                    idx,
+                    Some(downloaded_file_path.to_string_lossy().to_string()),
+                );
             }
         }
     }
@@ -983,6 +1002,9 @@ pub(crate) async fn get_messages(
             })
         })
         .collect();
+
+    // Reverse messages so they're in chronological order (oldest first)
+    let messages_json: Vec<serde_json::Value> = messages_json.into_iter().rev().collect();
 
     Ok(serde_json::json!({
         "messages": messages_json,
@@ -1069,10 +1091,7 @@ pub(crate) async fn search_messages(
                     share_codes_to_query.push((idx, share_code.clone()));
                 }
             }
-            MessageContent::FileShareWithThumbnail {
-                file_type,
-                ..
-            } => {
+            MessageContent::FileShareWithThumbnail { file_type, .. } => {
                 if file_type.starts_with("image/") {
                     // For FileShareWithThumbnail messages, we'll extract file_path from thumbnail_store
                     share_codes_to_query.push((idx, String::new()));
@@ -1110,7 +1129,10 @@ pub(crate) async fn search_messages(
                 // Construct the downloaded file path
                 let downloaded_file_path = download_dir.join(filename);
                 if downloaded_file_path.exists() {
-                    file_path_map.insert(idx, Some(downloaded_file_path.to_string_lossy().to_string()));
+                    file_path_map.insert(
+                        idx,
+                        Some(downloaded_file_path.to_string_lossy().to_string()),
+                    );
                 }
             }
         }
@@ -1181,6 +1203,9 @@ pub(crate) async fn search_messages(
             })
         })
         .collect();
+
+    // Reverse messages so they're in chronological order (oldest first)
+    let filtered_messages: Vec<serde_json::Value> = filtered_messages.into_iter().rev().collect();
 
     drop(message_store);
     drop(file_sharing_store);

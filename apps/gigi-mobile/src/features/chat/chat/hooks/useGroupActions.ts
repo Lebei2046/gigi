@@ -73,7 +73,11 @@ export function useGroupActions() {
     isGroupChat: boolean,
     chatName: string
   ) => {
-    console.log('🗑️ handleClearMessages called:', { chatId, isGroupChat, chatName })
+    console.log('🗑️ handleClearMessages called:', {
+      chatId,
+      isGroupChat,
+      chatName,
+    })
 
     const confirmed = await ask(`Remove messages for ${chatName}?`, {
       title: 'Confirm',
@@ -90,7 +94,9 @@ export function useGroupActions() {
     try {
       console.log('🚀 Dispatching clearChatMessagesAsync...')
       await dispatch(clearChatMessagesAsync({ chatId, isGroupChat })).unwrap()
-      console.log('✅ clearChatMessagesAsync completed, dispatching clearMessages()')
+      console.log(
+        '✅ clearChatMessagesAsync completed, dispatching clearMessages()'
+      )
       dispatch(clearMessages())
 
       dispatch(

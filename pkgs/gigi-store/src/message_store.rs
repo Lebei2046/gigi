@@ -366,7 +366,9 @@ impl MessageStore {
 
         for msg in messages_with_code {
             // Parse content_json to find matching share_code
-            if let Ok(content) = serde_json::from_str::<crate::events::MessageContent>(&msg.content_json) {
+            if let Ok(content) =
+                serde_json::from_str::<crate::events::MessageContent>(&msg.content_json)
+            {
                 let (code, filename, file_size, file_type) = match content {
                     crate::events::MessageContent::FileShare {
                         share_code,
@@ -735,9 +737,9 @@ impl MessageStore {
         // 2. Delete thumbnail files for both incoming and outgoing images
         for msg in &image_messages {
             // Parse content from JSON
-            if let Ok(content) = serde_json::from_str::<crate::events::MessageContent>(
-                &msg.content_json
-            ) {
+            if let Ok(content) =
+                serde_json::from_str::<crate::events::MessageContent>(&msg.content_json)
+            {
                 match content {
                     crate::events::MessageContent::FileShare {
                         share_code,
@@ -752,8 +754,9 @@ impl MessageStore {
                         // Only process images
                         if file_type.starts_with("image/") {
                             // Check if message is incoming or outgoing
-                            if let Ok(direction) =
-                                serde_json::from_str::<crate::events::MessageDirection>(&msg.direction)
+                            if let Ok(direction) = serde_json::from_str::<
+                                crate::events::MessageDirection,
+                            >(&msg.direction)
                             {
                                 if matches!(direction, crate::events::MessageDirection::Received) {
                                     // INCOMING messages: Get thumbnail path from file_sharing_store
@@ -803,7 +806,9 @@ impl MessageStore {
                                                 }
                                             }
                                             // Delete the thumbnail mapping from thumbnail_store
-                                            if let Err(e) = thumbnail_store.delete_thumbnail(&file_path).await {
+                                            if let Err(e) =
+                                                thumbnail_store.delete_thumbnail(&file_path).await
+                                            {
                                                 error!(
                                                     "Failed to delete thumbnail mapping for {}: {}",
                                                     file_path, e

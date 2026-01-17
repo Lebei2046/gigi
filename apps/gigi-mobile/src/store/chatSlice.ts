@@ -117,7 +117,11 @@ export const clearChatMessagesAsync = createAsyncThunk(
     try {
       console.log('📞 Calling clearMessagesWithThumbnails with chatId:', chatId)
       const result = await MessagingClient.clearMessagesWithThumbnails(chatId)
-      console.log('✅ clearMessagesWithThumbnails succeeded, cleared', result, 'messages')
+      console.log(
+        '✅ clearMessagesWithThumbnails succeeded, cleared',
+        result,
+        'messages'
+      )
     } catch (error) {
       console.error('❌ Failed to clear messages from backend:', error)
       throw error

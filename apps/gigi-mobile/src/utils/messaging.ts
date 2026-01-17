@@ -386,7 +386,9 @@ export class MessagingClient {
     // Parse the response to extract message ID and optional base64 image data
     const parts = response.split('|')
     const messageId = parts[0]
-    const imageData = parts[1] // undefined for non-images
+    // Check if parts[1] is actual image data (not thumbnail metadata)
+    const imageData =
+      parts[1] && !parts[1].startsWith('thumbnail:') ? parts[1] : undefined
     return { messageId, imageData }
   }
 
@@ -440,7 +442,9 @@ export class MessagingClient {
     // Parse the response to extract message ID and optional base64 image data
     const parts = response.split('|')
     const messageId = parts[0]
-    const imageData = parts[1] // undefined for non-images
+    // Check if parts[1] is actual image data (not thumbnail metadata)
+    const imageData =
+      parts[1] && !parts[1].startsWith('thumbnail:') ? parts[1] : undefined
     return { messageId, imageData }
   }
 

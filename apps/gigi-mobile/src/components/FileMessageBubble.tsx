@@ -86,7 +86,9 @@ export default function FileMessageBubble({
   const isDownloading =
     message.isDownloading && message.downloadProgress !== undefined
   const isDownloaded =
-    !message.isDownloading && message.downloadProgress === 100
+    !message.isDownloading &&
+    !message.isOutgoing &&
+    (message.downloadProgress === 100 || message.filePath !== undefined)
   const isDownloadable =
     !message.isOutgoing && message.shareCode && !isDownloading && !isDownloaded
 

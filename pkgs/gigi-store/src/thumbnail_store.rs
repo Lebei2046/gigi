@@ -1,7 +1,9 @@
 //! Thumbnail store - Map file paths to thumbnail paths
 
 use anyhow::{Context, Result};
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, NotSet, QueryFilter, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, NotSet, QueryFilter, Set,
+};
 use tracing::info;
 
 /// Thumbnail store - handles mapping of file paths to thumbnail paths

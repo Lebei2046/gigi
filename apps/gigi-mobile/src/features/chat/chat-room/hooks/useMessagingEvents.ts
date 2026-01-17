@@ -294,6 +294,7 @@ export function useMessagingEvents({
               ...updatedMessage,
               content: `📷 Image: ${actualFilename}`,
               thumbnailData,
+              filePath: data.path, // Set filePath for full image viewing
             }
           } else {
             // Fallback: load full image
@@ -304,6 +305,7 @@ export function useMessagingEvents({
               ...updatedMessage,
               content: `📷 Image: ${actualFilename}`,
               thumbnailData: imageData, // Use as thumbnail for display
+              filePath: data.path, // Set filePath for full image viewing
             }
           }
           console.log('📝 Updated message with image data:', updatedMessage)

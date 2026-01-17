@@ -3,8 +3,8 @@ use tauri::{AppHandle, Manager, State};
 use crate::file_utils;
 use crate::{models::FileInfo, models::FileSendTarget, Error, PluginState, Result};
 use base64::Engine;
-use gigi_store::{MessageContent, MessageDirection, MessageType, StoredMessage};
 use chrono::Utc;
+use gigi_store::{MessageContent, MessageDirection, MessageType, StoredMessage};
 
 /// Helper function to send file message with optional base64 data
 pub async fn send_file_message_internal<R: tauri::Runtime>(
@@ -131,7 +131,9 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
 
     // Generate thumbnail for image files
     let thumbnail_path_str = if is_image {
-        let download_dir = app.path().download_dir()
+        let download_dir = app
+            .path()
+            .download_dir()
             .map_err(|e| Error::Io(format!("Failed to get download directory: {}", e)))?;
 
         #[cfg(target_os = "android")]
@@ -147,15 +149,14 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
         } else {
             use gigi_store::thumbnail;
 
-            match thumbnail::generate_thumbnail(
-                &actual_path,
-                &thumbnail_dir,
-                (200, 200),
-                70
-            ).await {
+            match thumbnail::generate_thumbnail(&actual_path, &thumbnail_dir, (200, 200), 70).await
+            {
                 Ok(thumbnail_filename) => {
                     let full_thumbnail_path = thumbnail_dir.join(&thumbnail_filename);
-                    tracing::info!("Generated thumbnail for sent image: {}", full_thumbnail_path.display());
+                    tracing::info!(
+                        "Generated thumbnail for sent image: {}",
+                        full_thumbnail_path.display()
+                    );
 
                     // Store thumbnail mapping in thumbnail_store
                     let thumbnail_store = state.thumbnail_store.clone();
@@ -196,12 +197,10 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
 
     // Get peer_id for direct messages
     let peer_id = match target {
-        FileSendTarget::Direct(nickname) => {
-            client
-                .get_peer_id_by_nickname(nickname)
-                .map(|id| id.to_string())
-                .unwrap_or_default()
-        }
+        FileSendTarget::Direct(nickname) => client
+            .get_peer_id_by_nickname(nickname)
+            .map(|id| id.to_string())
+            .unwrap_or_default(),
         FileSendTarget::Group(group_id) => group_id.to_string(),
     };
 
@@ -216,7 +215,9 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
     let peer_id_clone = peer_id.clone();
 
     // Prepare thumbnail path for storage in message
-    let thumbnail_path_for_msg = thumbnail_path_str.as_ref().and_then(|p| p.split('/').last().map(String::from));
+    let thumbnail_path_for_msg = thumbnail_path_str
+        .as_ref()
+        .and_then(|p| p.split('/').last().map(String::from));
 
     tokio::spawn(async move {
         if let Some(store) = message_store.read().await.as_ref() {
@@ -239,7 +240,11 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
 
             let stored_msg = StoredMessage {
                 id: message_id_for_db.clone(),
-                msg_type: if is_group { MessageType::Group } else { MessageType::Direct },
+                msg_type: if is_group {
+                    MessageType::Group
+                } else {
+                    MessageType::Direct
+                },
                 direction: MessageDirection::Sent,
                 content,
                 sender_nickname: local_nickname.clone(),

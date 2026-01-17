@@ -66,14 +66,17 @@ export default function ImageMessageBubble({
       setIsLoadingFullImage(true)
       try {
         let imageData: string
-        if (message.filePath) {
+        if (message.imageData) {
+          // Use existing base64 image data (for newly sent messages)
+          imageData = message.imageData
+        } else if (message.filePath) {
           // For received files, use file path (Bob downloads Alice's file)
           imageData = await MessagingClient.getFullImageByPath(message.filePath)
         } else if (message.shareCode) {
           // For sent files, use share code (Alice shares her own file)
           imageData = await MessagingClient.getFullImage(message.shareCode)
         } else {
-          throw new Error('No file path or share code available')
+          throw new Error('No image data, file path or share code available')
         }
         setFullImageData(imageData)
         setShowFullImage(true)
