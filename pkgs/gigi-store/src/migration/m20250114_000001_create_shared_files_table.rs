@@ -9,6 +9,7 @@ enum SharedFiles {
     FileSize,
     Hash,
     ChunkCount,
+    ThumbnailPath,
     CreatedAt,
     Revoked,
 }
@@ -43,6 +44,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(SharedFiles::Hash).string().not_null())
                     .col(ColumnDef::new(SharedFiles::ChunkCount).integer().not_null())
+                    .col(ColumnDef::new(SharedFiles::ThumbnailPath).string().null())
                     .col(
                         ColumnDef::new(SharedFiles::CreatedAt)
                             .big_integer()

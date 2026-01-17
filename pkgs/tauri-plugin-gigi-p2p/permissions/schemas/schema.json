@@ -307,6 +307,18 @@
           "markdownDescription": "Denies the clear_app_data command without any pre-configured scope."
         },
         {
+          "description": "Enables the clear_messages_with_thumbnails command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-clear-messages-with-thumbnails",
+          "markdownDescription": "Enables the clear_messages_with_thumbnails command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the clear_messages_with_thumbnails command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-clear-messages-with-thumbnails",
+          "markdownDescription": "Denies the clear_messages_with_thumbnails command without any pre-configured scope."
+        },
+        {
           "description": "Enables the emit_current_state command without any pre-configured scope.",
           "type": "string",
           "const": "allow-emit-current-state",
@@ -317,6 +329,54 @@
           "type": "string",
           "const": "deny-emit-current-state",
           "markdownDescription": "Denies the emit_current_state command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_file_thumbnail command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-file-thumbnail",
+          "markdownDescription": "Enables the get_file_thumbnail command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_file_thumbnail command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-file-thumbnail",
+          "markdownDescription": "Denies the get_file_thumbnail command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_full_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-full-image",
+          "markdownDescription": "Enables the get_full_image command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_full_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-full-image",
+          "markdownDescription": "Denies the get_full_image command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_full_image_by_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-full-image-by-path",
+          "markdownDescription": "Enables the get_full_image_by_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_full_image_by_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-full-image-by-path",
+          "markdownDescription": "Denies the get_full_image_by_path command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_messages command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-messages",
+          "markdownDescription": "Enables the get_messages command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_messages command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-messages",
+          "markdownDescription": "Denies the get_messages command without any pre-configured scope."
         },
         {
           "description": "Enables the get_peer_id command without any pre-configured scope.",
@@ -631,6 +691,18 @@
           "markdownDescription": "Denies the messaging_update_config command without any pre-configured scope."
         },
         {
+          "description": "Enables the search_messages command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-search-messages",
+          "markdownDescription": "Enables the search_messages command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the search_messages command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-search-messages",
+          "markdownDescription": "Denies the search_messages command without any pre-configured scope."
+        },
+        {
           "description": "Enables the try_get_peer_id command without any pre-configured scope.",
           "type": "string",
           "const": "allow-try-get-peer-id",
@@ -643,10 +715,10 @@
           "markdownDescription": "Denies the try_get_peer_id command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`",
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`"
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`"
         }
       ]
     }

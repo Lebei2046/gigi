@@ -18,27 +18,9 @@ export function useMessagePersistence({
 }: UseMessagePersistenceParams) {
   const saveTimeoutRef = useRef<number | null>(null)
 
-  // Save messages to localStorage when they change
-  useEffect(() => {
-    if (!chatId || isLoading) return
-
-    const saveTimeout = setTimeout(() => {
-      try {
-        const historyKey = isGroupChat
-          ? `chat_history_group_${chatId}`
-          : `chat_history_${chatId}`
-        localStorage.setItem(historyKey, JSON.stringify(messages))
-      } catch (error) {
-        console.error('Failed to save message history:', error)
-      }
-    }, 300)
-
-    return () => {
-      if (saveTimeout) {
-        clearTimeout(saveTimeout)
-      }
-    }
-  }, [messages, chatId, isGroupChat, isLoading])
+  // Note: Message history is now stored in backend SQLite
+  // We only save metadata (latest message) to localStorage
+  // The useEffect that saved full messages to localStorage has been removed
 
   const saveFinalMessage = () => {
     if (messages.length > 0 && chatId) {

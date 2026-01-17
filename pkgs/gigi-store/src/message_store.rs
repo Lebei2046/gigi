@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use sea_orm::prelude::Expr;
 use sea_orm::*;
 use sea_orm_migration::MigratorTrait;
+use std::fs;
 use std::path::PathBuf;
 use tracing::{debug, error, info};
 
@@ -71,6 +72,7 @@ impl MessageStore {
             "CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC)",
             "CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_nickname)",
             "CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_nickname)",
+            "CREATE INDEX IF NOT EXISTS idx_messages_peer_id ON messages(peer_id)",
             "CREATE INDEX IF NOT EXISTS idx_messages_group ON messages(group_name)",
             "CREATE INDEX IF NOT EXISTS idx_messages_sync_status ON messages(sync_status)",
             "CREATE INDEX IF NOT EXISTS idx_messages_expires ON messages(expires_at)",
@@ -101,6 +103,7 @@ impl MessageStore {
             content_type: Set(match &msg.content {
                 crate::MessageContent::Text { .. } => "Text".to_string(),
                 crate::MessageContent::FileShare { .. } => "FileShare".to_string(),
+                crate::MessageContent::FileShareWithThumbnail { .. } => "FileShare".to_string(),
                 crate::MessageContent::ShareGroup { .. } => "ShareGroup".to_string(),
             }),
             content_json: Set(serde_json::to_string(&msg.content)?),
@@ -233,6 +236,34 @@ impl MessageStore {
         Ok(messages)
     }
 
+    /// Get conversation history by peer_id
+    pub async fn get_conversation_by_peer_id(
+        &self,
+        peer_id: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<StoredMessage>> {
+        let result = messages::Entity::find()
+            .filter(messages::Column::PeerId.eq(peer_id))
+            .order_by_desc(messages::Column::Timestamp)
+            .paginate(&self.db, limit as u64)
+            .fetch_page(offset as u64)
+            .await
+            .context("Failed to fetch conversation by peer_id")?;
+
+        let messages: Vec<StoredMessage> = result
+            .into_iter()
+            .map(|m| self.model_to_stored_message(m))
+            .collect::<Result<Vec<_>>>()?;
+
+        debug!(
+            "Retrieved {} messages from conversation with peer_id {}",
+            messages.len(),
+            peer_id
+        );
+        Ok(messages)
+    }
+
     /// Get group messages
     pub async fn get_group_messages(
         &self,
@@ -317,6 +348,70 @@ impl MessageStore {
             .context("Failed to update message peer_id")?;
 
         debug!("Updated peer_id for message {}", message_id);
+        Ok(())
+    }
+
+    /// Update thumbnail path for a file message (by share_code)
+    pub async fn update_message_thumbnail_path(
+        &self,
+        share_code: &str,
+        thumbnail_path: &str,
+    ) -> Result<()> {
+        // Find all messages with FileShare content matching the share_code
+        let messages_with_code = messages::Entity::find()
+            .filter(messages::Column::ContentType.eq("FileShare"))
+            .all(&self.db)
+            .await
+            .context("Failed to query messages")?;
+
+        for msg in messages_with_code {
+            // Parse content_json to find matching share_code
+            if let Ok(content) = serde_json::from_str::<crate::events::MessageContent>(&msg.content_json) {
+                let (code, filename, file_size, file_type) = match content {
+                    crate::events::MessageContent::FileShare {
+                        share_code,
+                        filename,
+                        file_size,
+                        file_type,
+                    } => (share_code, filename, file_size, file_type),
+                    crate::events::MessageContent::FileShareWithThumbnail {
+                        share_code,
+                        filename,
+                        file_size,
+                        file_type,
+                        ..
+                    } => (share_code, filename, file_size, file_type),
+                    _ => continue,
+                };
+
+                if code == share_code {
+                    // Update content with thumbnail_path
+                    let updated_content = crate::events::MessageContent::FileShareWithThumbnail {
+                        share_code: code,
+                        filename,
+                        file_size,
+                        file_type,
+                        thumbnail_path: Some(thumbnail_path.to_string()),
+                    };
+                    let updated_json = serde_json::to_string(&updated_content)?;
+
+                    let msg_id = msg.id.clone();
+
+                    // Update the message
+                    messages::ActiveModel {
+                        id: Set(msg_id.clone()),
+                        content_json: Set(updated_json),
+                        ..Default::default()
+                    }
+                    .update(&self.db)
+                    .await
+                    .context("Failed to update message thumbnail path")?;
+
+                    debug!("Updated thumbnail path for message {}", msg_id);
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -608,6 +703,135 @@ impl MessageStore {
         info!(
             "Cleared {} messages from conversation with {}",
             delete_result.rows_affected, peer_nickname
+        );
+        Ok(delete_result.rows_affected as usize)
+    }
+
+    /// Clear conversation and delete thumbnail files for both incoming and outgoing images
+    pub async fn clear_conversation_with_thumbnails(
+        &self,
+        peer_id: &str,
+        file_sharing_store: &crate::file_sharing_store::FileSharingStore,
+        thumbnail_store: &crate::ThumbnailStore,
+    ) -> Result<usize> {
+        info!(
+            "Starting clear_conversation_with_thumbnails for peer_id: {}",
+            peer_id
+        );
+
+        // 1. Get all image messages from this conversation
+        let image_messages = messages::Entity::find()
+            .filter(messages::Column::PeerId.eq(peer_id))
+            .all(&self.db)
+            .await
+            .context("Failed to fetch image messages")?;
+
+        info!(
+            "Found {} messages for peer_id: {}",
+            image_messages.len(),
+            peer_id
+        );
+
+        // 2. Delete thumbnail files for both incoming and outgoing images
+        for msg in &image_messages {
+            // Parse content from JSON
+            if let Ok(content) = serde_json::from_str::<crate::events::MessageContent>(
+                &msg.content_json
+            ) {
+                match content {
+                    crate::events::MessageContent::FileShare {
+                        share_code,
+                        file_type,
+                        ..
+                    }
+                    | crate::events::MessageContent::FileShareWithThumbnail {
+                        share_code,
+                        file_type,
+                        ..
+                    } => {
+                        // Only process images
+                        if file_type.starts_with("image/") {
+                            // Check if message is incoming or outgoing
+                            if let Ok(direction) =
+                                serde_json::from_str::<crate::events::MessageDirection>(&msg.direction)
+                            {
+                                if matches!(direction, crate::events::MessageDirection::Received) {
+                                    // INCOMING messages: Get thumbnail path from file_sharing_store
+                                    if let Ok(Some(thumbnail_path)) =
+                                        file_sharing_store.get_thumbnail_path(&share_code).await
+                                    {
+                                        // Delete the thumbnail file
+                                        let thumbnail_file = PathBuf::from(&thumbnail_path);
+                                        if thumbnail_file.exists() {
+                                            if let Err(e) = fs::remove_file(&thumbnail_file) {
+                                                error!(
+                                                    "Failed to delete thumbnail file {}: {}",
+                                                    thumbnail_path, e
+                                                );
+                                            } else {
+                                                info!(
+                                                    "Deleted thumbnail file for incoming image: {}",
+                                                    thumbnail_path
+                                                );
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // OUTGOING messages: Get file path from file_sharing_store,
+                                    // then get thumbnail path from thumbnail_store
+                                    if let Ok(Some(shared_file)) =
+                                        file_sharing_store.get_shared_file(&share_code).await
+                                    {
+                                        let file_path = shared_file.file_path;
+                                        // Look up thumbnail path from thumbnail_store
+                                        if let Ok(Some(thumbnail_path)) =
+                                            thumbnail_store.get_thumbnail(&file_path).await
+                                        {
+                                            // Delete the thumbnail file
+                                            let thumbnail_file = PathBuf::from(&thumbnail_path);
+                                            if thumbnail_file.exists() {
+                                                if let Err(e) = fs::remove_file(&thumbnail_file) {
+                                                    error!(
+                                                        "Failed to delete thumbnail file for outgoing image {}: {}",
+                                                        thumbnail_path, e
+                                                    );
+                                                } else {
+                                                    info!(
+                                                        "Deleted thumbnail file for outgoing image: {}",
+                                                        thumbnail_path
+                                                    );
+                                                }
+                                            }
+                                            // Delete the thumbnail mapping from thumbnail_store
+                                            if let Err(e) = thumbnail_store.delete_thumbnail(&file_path).await {
+                                                error!(
+                                                    "Failed to delete thumbnail mapping for {}: {}",
+                                                    file_path, e
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // 3. Clear the conversation
+        let delete_result = messages::Entity::delete_many()
+            .filter(messages::Column::PeerId.eq(peer_id))
+            .exec(&self.db)
+            .await
+            .context("Failed to clear conversation")?;
+
+        info!(
+            "Cleared {} messages from conversation with {} (including {} image messages)",
+            delete_result.rows_affected,
+            peer_id,
+            image_messages.len()
         );
         Ok(delete_result.rows_affected as usize)
     }

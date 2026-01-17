@@ -337,6 +337,30 @@ impl FileSharingManager {
         }
         Ok(())
     }
+
+    /// Update thumbnail path for a shared file
+    pub async fn update_thumbnail_path(
+        &self,
+        share_code: &str,
+        thumbnail_path: &str,
+    ) -> Result<()> {
+        if let Some(store) = &self.file_sharing_store {
+            store
+                .update_thumbnail_path(share_code, thumbnail_path)
+                .await?;
+            info!("Updated thumbnail path for share_code: {}", share_code);
+        }
+        Ok(())
+    }
+
+    /// Get thumbnail path for a shared file
+    pub async fn get_thumbnail_path(&self, share_code: &str) -> Result<Option<String>> {
+        if let Some(store) = &self.file_sharing_store {
+            Ok(store.get_thumbnail_path(share_code).await?)
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 impl Default for FileSharingManager {

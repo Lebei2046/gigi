@@ -12,11 +12,14 @@ pub mod key_manager;
 pub mod message_store;
 pub mod migration;
 pub mod sync_manager;
+pub mod thumbnail;
+pub mod thumbnail_store;
 
 pub use file_sharing_store::{FileSharingStore, SharedFileInfo};
 pub use key_manager::{AppData, KeyManager};
 pub use message_store::MessageStore;
 pub use sync_manager::{AckType, SyncAction, SyncManager, SyncMessage, SyncMessageHandler};
+pub use thumbnail_store::ThumbnailStore;
 
 mod events;
 

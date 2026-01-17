@@ -44,7 +44,8 @@ export interface Message {
   timestamp: number
   messageType?: 'text' | 'image' | 'file'
   imageId?: string
-  imageData?: string
+  thumbnailData?: string // Base64 thumbnail (from backend)
+  imageData?: string // Base64 full image (loaded on demand)
   filename?: string
   fileSize?: number
   fileType?: string
@@ -466,6 +467,56 @@ export class MessagingClient {
   // Get message history with a peer
   static async getMessageHistory(peerId: string): Promise<Message[]> {
     return GigiP2p.messaging_get_message_history({ peerId })
+  }
+
+  // Get messages from backend with pagination
+  static async getMessages(
+    peerId: string,
+    options?: { limit?: number; offset?: number }
+  ): Promise<{
+    messages: Message[]
+    peerId: string
+    limit: number
+    offset: number
+  }> {
+    const result = await GigiP2p.get_messages({
+      peerId,
+      limit: options?.limit || 50,
+      offset: options?.offset || 0,
+    })
+    return typeof result === 'string' ? JSON.parse(result) : result
+  }
+
+  // Search messages in backend
+  static async searchMessages(
+    query: string,
+    peerId?: string
+  ): Promise<{ messages: Message[]; query: string; peerId?: string }> {
+    const result = await GigiP2p.search_messages({
+      query,
+      peerId: peerId || null,
+    })
+    return typeof result === 'string' ? JSON.parse(result) : result
+  }
+
+  // Clear messages and delete thumbnail files for incoming images
+  static async clearMessagesWithThumbnails(peerId: string): Promise<number> {
+    return await GigiP2p.clear_messages_with_thumbnails({ peerId })
+  }
+
+  // Get thumbnail for a shared file
+  static async getFileThumbnail(filePath: string): Promise<string> {
+    return await GigiP2p.get_file_thumbnail({ filePath })
+  }
+
+  // Get full-size image for a shared file by file path (for received files)
+  static async getFullImageByPath(filePath: string): Promise<string> {
+    return await GigiP2p.get_full_image_by_path({ filePath })
+  }
+
+  // Get full-size image for a shared file by share code (for sent files)
+  static async getFullImage(shareCode: string): Promise<string> {
+    return await GigiP2p.get_full_image({ shareCode })
   }
 }
 

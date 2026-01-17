@@ -31,6 +31,12 @@ const commands = [
   'emit_current_state',
   'messaging_get_message_history',
   'messaging_save_shared_files',
+  'get_messages',
+  'search_messages',
+  'clear_messages_with_thumbnails',
+  'get_file_thumbnail',
+  'get_full_image_by_path',
+  'get_full_image',
   // File commands
   'messaging_send_file_message_with_path',
   'messaging_send_group_file_message_with_path',
@@ -116,6 +122,7 @@ export interface ImageMessageReceived {
   timestamp: number
   download_error?: string
   download_id?: string
+  thumbnailPath?: string
 }
 
 export interface GroupImageMessageReceived {
@@ -128,6 +135,7 @@ export interface GroupImageMessageReceived {
   file_type: string
   timestamp: number
   download_id?: string
+  thumbnailPath?: string
 }
 
 export interface FileMessageReceived {
@@ -193,6 +201,7 @@ export interface FileDownloadCompleted {
   share_code: string
   from_nickname: string
   path: string
+  thumbnail_filename?: string
   timestamp: number
 }
 

@@ -243,6 +243,11 @@ impl DownloadManager {
         downloads
     }
 
+    /// Get the output directory
+    pub fn get_output_directory(&self) -> PathBuf {
+        self.output_directory.clone()
+    }
+
     /// Helper to find download_id by file_id (share_code)
     pub fn find_download_id_by_file_id(&self, file_id: &str) -> Option<String> {
         // First check if we have a direct mapping from share_code to download_id

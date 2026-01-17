@@ -1,14 +1,16 @@
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::file_utils;
 use crate::{models::FileInfo, models::FileSendTarget, Error, PluginState, Result};
 use base64::Engine;
+use gigi_store::{MessageContent, MessageDirection, MessageType, StoredMessage};
+use chrono::Utc;
 
 /// Helper function to send file message with optional base64 data
 pub async fn send_file_message_internal<R: tauri::Runtime>(
-    _app: &AppHandle<R>,
+    app: &AppHandle<R>,
     client: &mut gigi_p2p::P2pClient,
-    _state: &State<'_, PluginState>,
+    state: &State<'_, PluginState>,
     target: FileSendTarget<'_>,
     file_path: &str,
 ) -> Result<String> {
@@ -24,11 +26,9 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
 
     let base64_data = if is_image {
         let image_data = if is_content_uri {
-            tracing::info!("Detected content URI: {}", file_path);
-
             #[cfg(target_os = "android")]
             {
-                file_utils::android::read_content_uri(_app, file_path)
+                file_utils::android::read_content_uri(app, file_path)
                     .map_err(|e| Error::Io(format!("Failed to read content URI: {}", e)))?
             }
 
@@ -46,13 +46,11 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
                 return Err(Error::Io("File does not exist".to_string()));
             }
 
-            tracing::info!("File exists, reading image data...");
             fs::read(&path).map_err(|e| Error::Io(format!("Failed to read image file: {}", e)))?
         };
 
         file_utils::convert_to_base64_if_image(&image_data)
     } else {
-        tracing::info!("File is not an image (checked extension), skipping base64 conversion");
         None
     };
 
@@ -60,9 +58,7 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
     let actual_path = if is_content_uri {
         #[cfg(target_os = "android")]
         {
-            tracing::info!("Saving content URI to app directory for sharing");
-
-            let config_guard = _state.config.read().await;
+            let config_guard = state.config.read().await;
             let download_dir = std::path::PathBuf::from(&config_guard.download_folder);
             drop(config_guard);
 
@@ -74,7 +70,7 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
                     .decode(b64)
                     .map_err(|e| Error::Io(format!("Failed to decode base64: {}", e)))?
             } else {
-                file_utils::android::read_content_uri(_app, file_path)
+                file_utils::android::read_content_uri(app, file_path)
                     .map_err(|e| Error::Io(format!("Failed to read content URI: {}", e)))?
             };
 
@@ -97,6 +93,25 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
         std::path::PathBuf::from(file_path)
     };
 
+    // Share file to get share code BEFORE sending
+    let share_code = client
+        .share_file(&actual_path)
+        .await
+        .map_err(|e| Error::P2p(e.to_string()))?;
+
+    // Get file metadata for database storage
+    let file_metadata = std::fs::metadata(&actual_path).ok();
+    let file_size = file_metadata.map(|m| m.len()).unwrap_or(0);
+    let file_name = actual_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let file_type = mime_guess::from_path(&actual_path)
+        .first_or_octet_stream()
+        .to_string();
+
+    // Send file to target
     match target {
         FileSendTarget::Direct(nickname) => {
             client
@@ -114,18 +129,154 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
 
     tracing::info!("File sent successfully");
 
-    let message_id = uuid::Uuid::new_v4().to_string();
-    let response = if let Some(b64) = base64_data {
-        tracing::info!(
-            "Returning response: {}|base64_data({} bytes)",
-            message_id,
-            b64.len()
-        );
-        format!("{}|{}", message_id, b64)
+    // Generate thumbnail for image files
+    let thumbnail_path_str = if is_image {
+        let download_dir = app.path().download_dir()
+            .map_err(|e| Error::Io(format!("Failed to get download directory: {}", e)))?;
+
+        #[cfg(target_os = "android")]
+        let thumbnail_dir = download_dir.join("thumbnails");
+
+        #[cfg(not(target_os = "android"))]
+        let thumbnail_dir = download_dir.join("gigi/thumbnails");
+
+        // Ensure thumbnail directory exists
+        if let Err(e) = tokio::fs::create_dir_all(&thumbnail_dir).await {
+            tracing::warn!("Failed to create thumbnail directory: {}", e);
+            None
+        } else {
+            use gigi_store::thumbnail;
+
+            match thumbnail::generate_thumbnail(
+                &actual_path,
+                &thumbnail_dir,
+                (200, 200),
+                70
+            ).await {
+                Ok(thumbnail_filename) => {
+                    let full_thumbnail_path = thumbnail_dir.join(&thumbnail_filename);
+                    tracing::info!("Generated thumbnail for sent image: {}", full_thumbnail_path.display());
+
+                    // Store thumbnail mapping in thumbnail_store
+                    let thumbnail_store = state.thumbnail_store.clone();
+                    let actual_path_str = actual_path.to_string_lossy().to_string();
+                    let thumbnail_filename_clone = thumbnail_filename.clone();
+                    tokio::spawn(async move {
+                        if let Some(store) = thumbnail_store.read().await.as_ref() {
+                            if let Err(e) = store
+                                .store_thumbnail(&actual_path_str, &thumbnail_filename_clone)
+                                .await
+                            {
+                                tracing::error!("Failed to store thumbnail mapping: {}", e);
+                            }
+                        }
+                    });
+
+                    Some(full_thumbnail_path.to_string_lossy().to_string())
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to generate thumbnail for sent image: {}", e);
+                    None
+                }
+            }
+        }
     } else {
-        tracing::info!("Returning response: {} (no base64 data)", message_id);
-        message_id
+        None
     };
+
+    let message_id = uuid::Uuid::new_v4().to_string();
+    let message_id_for_db = message_id.clone();
+
+    // Save message to database asynchronously
+    let is_group = matches!(target, FileSendTarget::Group(_));
+    let recipient_nickname = match target {
+        FileSendTarget::Direct(nickname) => Some(nickname.to_string()),
+        FileSendTarget::Group(_) => None,
+    };
+
+    // Get peer_id for direct messages
+    let peer_id = match target {
+        FileSendTarget::Direct(nickname) => {
+            client
+                .get_peer_id_by_nickname(nickname)
+                .map(|id| id.to_string())
+                .unwrap_or_default()
+        }
+        FileSendTarget::Group(group_id) => group_id.to_string(),
+    };
+
+    let message_store = state.message_store.clone();
+    let share_code_clone = share_code.clone();
+    let filename_clone = file_name.clone();
+    let file_type_clone = file_type.clone();
+    let local_nickname = {
+        let config = state.config.read().await;
+        config.nickname.clone()
+    };
+    let peer_id_clone = peer_id.clone();
+
+    // Prepare thumbnail path for storage in message
+    let thumbnail_path_for_msg = thumbnail_path_str.as_ref().and_then(|p| p.split('/').last().map(String::from));
+
+    tokio::spawn(async move {
+        if let Some(store) = message_store.read().await.as_ref() {
+            let content = if let Some(thumb) = thumbnail_path_for_msg {
+                MessageContent::FileShareWithThumbnail {
+                    share_code: share_code_clone.clone(),
+                    filename: filename_clone.clone(),
+                    file_size,
+                    file_type: file_type_clone.clone(),
+                    thumbnail_path: Some(thumb),
+                }
+            } else {
+                MessageContent::FileShare {
+                    share_code: share_code_clone.clone(),
+                    filename: filename_clone.clone(),
+                    file_size,
+                    file_type: file_type_clone.clone(),
+                }
+            };
+
+            let stored_msg = StoredMessage {
+                id: message_id_for_db.clone(),
+                msg_type: if is_group { MessageType::Group } else { MessageType::Direct },
+                direction: MessageDirection::Sent,
+                content,
+                sender_nickname: local_nickname.clone(),
+                recipient_nickname,
+                group_name: None,
+                peer_id: peer_id_clone,
+                timestamp: Utc::now(),
+                created_at: Utc::now(),
+                delivered: false,
+                delivered_at: None,
+                read: false,
+                read_at: None,
+                sync_status: gigi_store::SyncStatus::Synced,
+                sync_attempts: 0,
+                last_sync_attempt: None,
+                expires_at: Utc::now() + chrono::Duration::days(30),
+            };
+            if let Err(e) = store.store_message(stored_msg).await {
+                tracing::error!("Failed to store sent file message to database: {}", e);
+            }
+        }
+    });
+
+    let response = if let Some(b64) = base64_data {
+        if let Some(thumb) = thumbnail_path_str {
+            format!("{}|{}|thumbnail:{}", message_id, b64, thumb)
+        } else {
+            format!("{}|{}", message_id, b64)
+        }
+    } else {
+        if let Some(thumb) = thumbnail_path_str {
+            format!("{}|thumbnail:{}", message_id, thumb)
+        } else {
+            message_id
+        }
+    };
+
     Ok(response)
 }
 
@@ -190,7 +341,6 @@ pub(crate) async fn messaging_share_file<R: tauri::Runtime>(
         .await
         .map_err(|e| Error::P2p(e.to_string()))?;
 
-    // P2pClient handles persistence automatically
     Ok(share_code)
 }
 
@@ -215,10 +365,8 @@ pub(crate) async fn messaging_request_file_from_nickname<R: tauri::Runtime>(
 pub(crate) async fn messaging_cancel_download<R: tauri::Runtime>(
     _app: AppHandle<R>,
     _state: State<'_, PluginState>,
-    download_id: &str,
+    _download_id: &str,
 ) -> Result<()> {
-    // Placeholder - would need to implement in gigi-p2p
-    tracing::info!("Cancelled download: {}", download_id);
     Ok(())
 }
 
@@ -279,7 +427,6 @@ pub(crate) async fn messaging_get_image_data<R: tauri::Runtime>(
         return Err(Error::Io("File does not exist".to_string()));
     }
 
-    // Check if it's an image file
     let file_type = mime_guess::from_path(path)
         .first_or_octet_stream()
         .to_string();
@@ -288,7 +435,6 @@ pub(crate) async fn messaging_get_image_data<R: tauri::Runtime>(
         return Err(Error::CommandFailed("File is not an image".to_string()));
     }
 
-    // Read image data and convert to base64
     let image_data =
         fs::read(path).map_err(|e| Error::Io(format!("Failed to read image file: {}", e)))?;
 
@@ -339,9 +485,6 @@ pub(crate) async fn messaging_get_file_info<R: tauri::Runtime>(
 pub(crate) async fn messaging_select_any_file<R: tauri::Runtime>(
     _app: AppHandle<R>,
 ) -> Result<Option<String>> {
-    // File picker should be implemented by the app using tauri-plugin-dialog
-    // This is a placeholder - apps should use their own file picker implementation
-    // Return None to indicate no file was selected
     Ok(None)
 }
 
@@ -356,7 +499,7 @@ pub(crate) async fn messaging_share_content_uri<R: tauri::Runtime>(
 ) -> Result<String> {
     #[cfg(target_os = "android")]
     {
-        let mut p2p_client = _state.p2p_client.lock().await;
+        let mut p2p_client = state.p2p_client.lock().await;
         let client = p2p_client.as_mut().ok_or(Error::P2pNotInitialized)?;
 
         let share_code = client

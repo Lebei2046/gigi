@@ -62,6 +62,14 @@ pub enum MessageContent {
         file_size: u64,
         file_type: String,
     },
+    /// File share with optional thumbnail path (used after download)
+    FileShareWithThumbnail {
+        share_code: String,
+        filename: String,
+        file_size: u64,
+        file_type: String,
+        thumbnail_path: Option<String>,
+    },
     ShareGroup {
         group_id: String,
         group_name: String,

@@ -18,6 +18,12 @@ Default permissions for the plugin
 - `allow-messaging-join-group`
 - `allow-messaging-send-group-message`
 - `allow-emit-current-state`
+- `allow-get-messages`
+- `allow-search-messages`
+- `allow-clear-messages-with-thumbnails`
+- `allow-get-file-thumbnail`
+- `allow-get-full-image-by-path`
+- `allow-get-full-image`
 - `allow-messaging-send-file-message-with-path`
 - `allow-messaging-send-group-file-message-with-path`
 - `allow-messaging-share-file`
@@ -69,6 +75,32 @@ Denies the clear_app_data command without any pre-configured scope.
 <tr>
 <td>
 
+`gigi-p2p:allow-clear-messages-with-thumbnails`
+
+</td>
+<td>
+
+Enables the clear_messages_with_thumbnails command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-clear-messages-with-thumbnails`
+
+</td>
+<td>
+
+Denies the clear_messages_with_thumbnails command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `gigi-p2p:allow-emit-current-state`
 
 </td>
@@ -88,6 +120,110 @@ Enables the emit_current_state command without any pre-configured scope.
 <td>
 
 Denies the emit_current_state command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-get-file-thumbnail`
+
+</td>
+<td>
+
+Enables the get_file_thumbnail command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-get-file-thumbnail`
+
+</td>
+<td>
+
+Denies the get_file_thumbnail command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-get-full-image`
+
+</td>
+<td>
+
+Enables the get_full_image command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-get-full-image`
+
+</td>
+<td>
+
+Denies the get_full_image command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-get-full-image-by-path`
+
+</td>
+<td>
+
+Enables the get_full_image_by_path command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-get-full-image-by-path`
+
+</td>
+<td>
+
+Denies the get_full_image_by_path command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-get-messages`
+
+</td>
+<td>
+
+Enables the get_messages command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-get-messages`
+
+</td>
+<td>
+
+Denies the get_messages command without any pre-configured scope.
 
 </td>
 </tr>
@@ -764,6 +900,32 @@ Enables the messaging_update_config command without any pre-configured scope.
 <td>
 
 Denies the messaging_update_config command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-search-messages`
+
+</td>
+<td>
+
+Enables the search_messages command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-search-messages`
+
+</td>
+<td>
+
+Denies the search_messages command without any pre-configured scope.
 
 </td>
 </tr>

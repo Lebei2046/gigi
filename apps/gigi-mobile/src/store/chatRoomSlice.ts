@@ -11,6 +11,62 @@ import {
 } from '@/utils/chatUtils'
 import { MessagingClient } from '@/utils/messaging'
 
+// LRU Cache for thumbnails to prevent memory leaks
+const MAX_CACHED_THUMBNAILS = 20
+const thumbnailCache: Map<string, string> = new Map()
+
+function getCachedThumbnail(shareCode: string): string | undefined {
+  const value = thumbnailCache.get(shareCode)
+  if (value !== undefined) {
+    // Move to end (most recently used)
+    thumbnailCache.delete(shareCode)
+    thumbnailCache.set(shareCode, value)
+    return value
+  }
+  return undefined
+}
+
+function setCachedThumbnail(shareCode: string, thumbnail: string): void {
+  // Remove if exists
+  thumbnailCache.delete(shareCode)
+  // Add to end (most recently used)
+  thumbnailCache.set(shareCode, thumbnail)
+  // Evict oldest if over limit
+  while (thumbnailCache.size > MAX_CACHED_THUMBNAILS) {
+    const oldestKey = thumbnailCache.keys().next().value
+    thumbnailCache.delete(oldestKey)
+  }
+}
+
+function clearThumbnailCache(): void {
+  thumbnailCache.clear()
+}
+
+// Never store full images in Redux - only thumbnails
+export interface Message {
+  id: string
+  from_peer_id: string
+  from_nickname: string
+  content: string
+  timestamp: number
+  isOutgoing: boolean
+  isGroup?: boolean
+  messageType?: 'text' | 'image' | 'file'
+  imageId?: string
+  thumbnailData?: string // Base64 thumbnail (from backend, cached in Redux)
+  thumbnailPath?: string // Path to thumbnail file from backend (used to load thumbnail)
+  filePath?: string // Local file path (used to get thumbnail from thumbnail_store)
+  imageData?: string // NEVER stored in Redux - only temporary in component state
+  filename?: string
+  fileSize?: number
+  fileType?: string
+  shareCode?: string
+  isDownloading?: boolean
+  downloadProgress?: number
+  downloadId?: string // Unique ID to track specific download
+  isUploading?: boolean // For showing upload progress
+}
+
 // Serializable version of Group for Redux state (Date converted to string)
 interface SerializableGroup {
   id: string
@@ -38,27 +94,6 @@ export const generateMessageId = () => {
   const counter = ++messageIdCounter
   const random = Math.random().toString(36).substring(2, 8)
   return `${now}-${counter}-${random}`
-}
-
-export interface Message {
-  id: string
-  from_peer_id: string
-  from_nickname: string
-  content: string
-  timestamp: number
-  isOutgoing: boolean
-  isGroup?: boolean
-  messageType?: 'text' | 'image' | 'file'
-  imageId?: string
-  imageData?: string
-  filename?: string
-  fileSize?: number
-  fileType?: string
-  shareCode?: string
-  isDownloading?: boolean
-  downloadProgress?: number
-  downloadId?: string // Unique ID to track specific download
-  isUploading?: boolean // For showing upload progress
 }
 
 export interface ChatRoomState {
@@ -239,6 +274,70 @@ export const sendMessageAsync = createAsyncThunk(
   }
 )
 
+// Load messages from backend
+export const loadMessagesFromBackendAsync = createAsyncThunk(
+  'chatRoom/loadMessagesFromBackend',
+  async ({
+    peerId,
+    limit = 50,
+    offset = 0,
+  }: {
+    peerId: string
+    limit?: number
+    offset?: number
+  }) => {
+    try {
+      const data = await MessagingClient.getMessages(peerId, { limit, offset })
+      return { messages: data.messages || [], prepend: offset > 0 }
+    } catch (error) {
+      console.error('Failed to load messages from backend:', error)
+      throw error
+    }
+  }
+)
+
+// Search messages in backend
+export const searchMessagesAsync = createAsyncThunk(
+  'chatRoom/searchMessages',
+  async ({ query, peerId }: { query: string; peerId?: string }) => {
+    try {
+      const data = await MessagingClient.searchMessages(query, peerId)
+      return { query, peerId, messages: data.messages || [] }
+    } catch (error) {
+      console.error('Failed to search messages:', error)
+      throw error
+    }
+  }
+)
+
+// Load thumbnail from backend
+export const loadThumbnailAsync = createAsyncThunk(
+  'chatRoom/loadThumbnail',
+  async (filePath: string, { rejectWithValue }) => {
+    try {
+      const thumbnail = await MessagingClient.getFileThumbnail(filePath)
+      return { filePath, thumbnail }
+    } catch (error) {
+      console.error('Failed to load thumbnail:', error)
+      return rejectWithValue({ filePath, error: String(error) })
+    }
+  }
+)
+
+// Load full image from backend
+export const loadFullImageAsync = createAsyncThunk(
+  'chatRoom/loadFullImage',
+  async (shareCode: string, { rejectWithValue }) => {
+    try {
+      const imageData = await MessagingClient.getFullImage(shareCode)
+      return { shareCode, imageData }
+    } catch (error) {
+      console.error('Failed to load full image:', error)
+      return rejectWithValue({ shareCode, error: String(error) })
+    }
+  }
+)
+
 const chatRoomSlice = createSlice({
   name: 'chatRoom',
   initialState,
@@ -352,6 +451,8 @@ const chatRoomSlice = createSlice({
         shareCode?: string
         content?: string
         imageData?: string
+        thumbnailData?: string
+        filePath?: string
         newId?: string
         isDownloading?: boolean
         downloadProgress?: number
@@ -364,6 +465,8 @@ const chatRoomSlice = createSlice({
         downloadId,
         content,
         imageData,
+        thumbnailData,
+        filePath,
         newId,
         isDownloading,
         downloadProgress,
@@ -418,6 +521,8 @@ const chatRoomSlice = createSlice({
         // Redux Toolkit uses Immer - direct mutations are allowed but let's be explicit
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData
+        if (thumbnailData !== undefined) message.thumbnailData = thumbnailData
+        if (filePath !== undefined) message.filePath = filePath
         if (newId !== undefined) message.id = newId
         if (isDownloading !== undefined) message.isDownloading = isDownloading
         if (downloadProgress !== undefined)
@@ -427,6 +532,8 @@ const chatRoomSlice = createSlice({
         console.log('✅ Message updated in Redux:', {
           id: message.id,
           messageType: message.messageType,
+          hasThumbnailData: !!message.thumbnailData,
+          thumbnailDataLength: message.thumbnailData?.length,
           hasImageData: !!message.imageData,
           imageDataLength: message.imageData?.length,
           content: message.content?.substring(0, 50),
@@ -450,6 +557,8 @@ const chatRoomSlice = createSlice({
         downloadId?: string
         content?: string
         imageData?: string
+        thumbnailData?: string
+        filePath?: string
         newId?: string
         isDownloading?: boolean
         downloadProgress?: number
@@ -461,6 +570,8 @@ const chatRoomSlice = createSlice({
         downloadId,
         content,
         imageData,
+        thumbnailData,
+        filePath,
         newId,
         isDownloading,
         downloadProgress,
@@ -478,6 +589,8 @@ const chatRoomSlice = createSlice({
       if (message) {
         if (content !== undefined) message.content = content
         if (imageData !== undefined) message.imageData = imageData
+        if (thumbnailData !== undefined) message.thumbnailData = thumbnailData
+        if (filePath !== undefined) message.filePath = filePath
         if (newId !== undefined) message.id = newId
         if (isDownloading !== undefined) message.isDownloading = isDownloading
         if (downloadProgress !== undefined)
@@ -543,6 +656,81 @@ const chatRoomSlice = createSlice({
         state.sending = false
         state.error = action.error.message || 'Failed to send message'
       })
+
+      // Load messages from backend
+      .addCase(loadMessagesFromBackendAsync.pending, state => {
+        state.isLoading = true
+      })
+      .addCase(loadMessagesFromBackendAsync.fulfilled, (state, action) => {
+        state.isLoading = false
+        const { messages, prepend } = action.payload
+        console.log('📥 loadMessagesFromBackendAsync.fulfilled:', {
+          messageCount: messages.length,
+          prepend,
+          messages: messages.map(m => ({
+            id: m.id,
+            messageType: m.messageType,
+            isOutgoing: m.isOutgoing,
+            hasThumbnailData: !!m.thumbnailData,
+            hasFilePath: !!m.filePath,
+          })),
+        })
+        if (prepend) {
+          // Prepend messages (for pagination)
+          state.messages = [...messages, ...state.messages]
+        } else {
+          // Replace messages (initial load)
+          state.messages = messages
+        }
+      })
+      .addCase(loadMessagesFromBackendAsync.rejected, (state, action) => {
+        state.isLoading = false
+        state.error =
+          action.error.message || 'Failed to load messages from backend'
+      })
+
+      // Search messages
+      .addCase(searchMessagesAsync.pending, state => {
+        state.isLoading = true
+      })
+      .addCase(searchMessagesAsync.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.messages = action.payload.messages
+      })
+      .addCase(searchMessagesAsync.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.error.message || 'Failed to search messages'
+      })
+
+      // Load thumbnail - with LRU cache
+      .addCase(loadThumbnailAsync.fulfilled, (state, action) => {
+        const { filePath, thumbnail } = action.payload
+        // Only cache non-empty thumbnails
+        if (thumbnail) {
+          // Cache thumbnail using LRU (use filePath as key)
+          setCachedThumbnail(filePath, thumbnail)
+          // Update message with thumbnail
+          const message = state.messages.find(m => m.filePath === filePath)
+          if (message) {
+            message.thumbnailData = thumbnail
+          }
+        }
+      })
+      .addCase(loadThumbnailAsync.rejected, (state, action) => {
+        console.error('Failed to load thumbnail:', action.payload)
+      })
+
+      // Load full image - NEVER store in Redux!
+      // This thunk only exists for component-level temporary usage
+      .addCase(loadFullImageAsync.fulfilled, (state, _action) => {
+        // DO NOT store imageData in Redux - only return to component
+        console.warn(
+          '⚠️ loadFullImageAsync fulfilled - image data not stored in Redux (by design)'
+        )
+      })
+      .addCase(loadFullImageAsync.rejected, (state, action) => {
+        console.error('Failed to load full image:', action.payload)
+      })
   },
 })
 
@@ -566,5 +754,8 @@ export const {
   clearMessages,
   resetChatRoomState,
 } = chatRoomSlice.actions
+
+// Export cache control functions
+export { clearThumbnailCache }
 
 export default chatRoomSlice.reducer

@@ -73,17 +73,24 @@ export function useGroupActions() {
     isGroupChat: boolean,
     chatName: string
   ) => {
+    console.log('🗑️ handleClearMessages called:', { chatId, isGroupChat, chatName })
+
     const confirmed = await ask(`Remove messages for ${chatName}?`, {
       title: 'Confirm',
       kind: 'warning',
     })
 
+    console.log('User confirmation:', confirmed)
+
     if (!confirmed) {
+      console.log('❌ User cancelled clear messages')
       return
     }
 
     try {
+      console.log('🚀 Dispatching clearChatMessagesAsync...')
       await dispatch(clearChatMessagesAsync({ chatId, isGroupChat })).unwrap()
+      console.log('✅ clearChatMessagesAsync completed, dispatching clearMessages()')
       dispatch(clearMessages())
 
       dispatch(
@@ -94,7 +101,7 @@ export function useGroupActions() {
         })
       )
     } catch (error) {
-      console.error('Failed to clear messages:', error)
+      console.error('❌ Failed to clear messages:', error)
       dispatch(
         addLog({
           event: 'messages_clear_failed',
@@ -102,6 +109,7 @@ export function useGroupActions() {
           type: 'error',
         })
       )
+      throw error
     }
   }
 

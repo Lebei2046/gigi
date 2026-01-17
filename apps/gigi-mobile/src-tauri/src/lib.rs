@@ -3,7 +3,14 @@
 
 /// Initialize logging for mobile application
 fn init_logging() {
-    gigi_p2p::init_tracing();
+    // Check if RUST_LOG is set, if not use default level
+    if std::env::var("RUST_LOG").is_err() {
+        // Default: only warnings and errors, disable INFO logs
+        gigi_p2p::init_tracing_with_level(tracing::Level::WARN);
+    } else {
+        // Use the level specified by RUST_LOG
+        gigi_p2p::init_tracing();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

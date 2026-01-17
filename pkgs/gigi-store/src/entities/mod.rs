@@ -5,9 +5,11 @@ pub mod message_acknowledgments;
 pub mod messages;
 pub mod offline_queue;
 pub mod shared_files;
+pub mod thumbnails;
 
 pub use app_data::Entity;
 pub use message_acknowledgments::Entity as MessageAcknowledgment;
 pub use messages::Entity as Message;
 pub use offline_queue::Entity as OfflineQueue;
 pub use shared_files::Entity as SharedFiles;
+pub use thumbnails::Entity as Thumbnails;

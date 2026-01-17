@@ -106,6 +106,9 @@ pub struct PluginState {
     >,
     pub config: std::sync::Arc<RwLock<Config>>,
     pub active_downloads: std::sync::Arc<Mutex<HashMap<String, DownloadProgress>>>,
+    pub message_store: std::sync::Arc<RwLock<Option<gigi_store::MessageStore>>>,
+    pub file_sharing_store: std::sync::Arc<RwLock<Option<gigi_store::FileSharingStore>>>,
+    pub thumbnail_store: std::sync::Arc<RwLock<Option<gigi_store::ThumbnailStore>>>,
 }
 
 impl PluginState {
@@ -115,6 +118,9 @@ impl PluginState {
             event_receiver: std::sync::Arc::new(Mutex::new(None)),
             config: std::sync::Arc::new(RwLock::new(Config::default())),
             active_downloads: std::sync::Arc::new(Mutex::new(HashMap::new())),
+            message_store: std::sync::Arc::new(RwLock::new(None)),
+            file_sharing_store: std::sync::Arc::new(RwLock::new(None)),
+            thumbnail_store: std::sync::Arc::new(RwLock::new(None)),
         }
     }
 }

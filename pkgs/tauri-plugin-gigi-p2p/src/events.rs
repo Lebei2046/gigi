@@ -5,11 +5,71 @@ use gigi_p2p::P2pEvent;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
+use crate::models::PluginState;
+use chrono::Duration as ChronoDuration;
+use gigi_store::{MessageContent, MessageDirection, MessageType, StoredMessage};
+
 type ActiveDownloads = Arc<Mutex<HashMap<String, DownloadProgress>>>;
+
+/// Generate thumbnail for downloaded image file
+async fn generate_thumbnail_for_image<R: tauri::Runtime>(
+    app_handle: &tauri::AppHandle<R>,
+    file_path: &std::path::PathBuf,
+    _share_code: &str,
+) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+    use gigi_store::thumbnail;
+
+    // Check if it's an image file
+    if !thumbnail::is_image_file(file_path) {
+        return Ok(None);
+    }
+
+    info!("Generating thumbnail for image: {}", file_path.display());
+
+    // Get download directory from app config
+    let download_dir = app_handle
+        .path()
+        .download_dir()
+        .map_err(|e| anyhow::anyhow!("Failed to get download directory: {}", e))?;
+
+    #[cfg(target_os = "android")]
+    let thumbnail_dir = download_dir.join("thumbnails");
+
+    #[cfg(not(target_os = "android"))]
+    let thumbnail_dir = download_dir.join("gigi/thumbnails");
+
+    // Ensure thumbnail directory exists
+    if let Err(e) = tokio::fs::create_dir_all(&thumbnail_dir).await {
+        tracing::warn!("Failed to create thumbnail directory: {}", e);
+        return Ok(None);
+    }
+
+    // Generate thumbnail
+    match thumbnail::generate_thumbnail(file_path, &thumbnail_dir, (200, 200), 70).await {
+        Ok(thumbnail_filename) => {
+            let full_thumbnail_path = thumbnail_dir.join(&thumbnail_filename);
+            info!("Thumbnail generated: {}", full_thumbnail_path.display());
+
+            // Update thumbnail path in database
+            // We need access to the file_sharing_store state
+            // For now, we'll emit an event that the frontend can use to update the thumbnail path
+            // The actual database update should be done via a dedicated command
+            Ok(Some(full_thumbnail_path.to_string_lossy().to_string()))
+        }
+        Err(e) => {
+            tracing::warn!(
+                "Failed to generate thumbnail for {}: {}",
+                file_path.display(),
+                e
+            );
+            Ok(None)
+        }
+    }
+}
 
 /// Handle P2P events and emit corresponding frontend events
 pub async fn handle_p2p_event<R: tauri::Runtime>(
@@ -17,6 +77,7 @@ pub async fn handle_p2p_event<R: tauri::Runtime>(
     p2p_client: &Arc<Mutex<Option<gigi_p2p::P2pClient>>>,
     active_downloads: &ActiveDownloads,
     app_handle: &AppHandle<R>,
+    state: &PluginState,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match event {
         P2pEvent::PeerDiscovered {
@@ -52,7 +113,7 @@ pub async fn handle_p2p_event<R: tauri::Runtime>(
             from,
             from_nickname,
             message,
-        } => handle_direct_message(app_handle, &from, &from_nickname, &message)?,
+        } => handle_direct_message(app_handle, &from, &from_nickname, &message).await?,
         P2pEvent::DirectGroupShareMessage {
             from,
             from_nickname,
@@ -93,7 +154,7 @@ pub async fn handle_p2p_event<R: tauri::Runtime>(
             from_nickname,
             group,
             message,
-        } => handle_group_message(app_handle, &from, &from_nickname, &group, &message)?,
+        } => handle_group_message(app_handle, &from, &from_nickname, &group, &message).await?,
         P2pEvent::FileShareRequest {
             from,
             from_nickname,
@@ -147,6 +208,7 @@ pub async fn handle_p2p_event<R: tauri::Runtime>(
                 &from_peer_id,
                 &from_nickname,
                 &path,
+                state,
             )
             .await?
         }
@@ -265,6 +327,56 @@ async fn handle_direct_file_share_message<R: tauri::Runtime>(
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs();
 
+    // Save file message to database asynchronously (non-blocking)
+    // We save metadata only, not file content or thumbnails
+    let state = app_handle.state::<PluginState>();
+    let message_store = state.message_store.clone();
+    let msg_id = uuid::Uuid::new_v4().to_string();
+    let from_peer_id = from.to_string();
+    let from_nickname_copy = from_nickname.to_string();
+    let share_code_copy = share_code.to_string();
+    let filename_copy = filename.to_string();
+    let file_type_copy = file_type.to_string();
+
+    // Get local nickname before spawning async task
+    let local_nickname = {
+        let config = state.config.read().await;
+        config.nickname.clone()
+    };
+
+    tokio::spawn(async move {
+        if let Some(store) = message_store.read().await.as_ref() {
+            let stored_msg = StoredMessage {
+                id: msg_id.clone(),
+                msg_type: MessageType::Direct,
+                direction: MessageDirection::Received,
+                content: MessageContent::FileShare {
+                    share_code: share_code_copy.clone(),
+                    filename: filename_copy.clone(),
+                    file_size,
+                    file_type: file_type_copy.clone(),
+                },
+                sender_nickname: from_nickname_copy.clone(),
+                recipient_nickname: Some(local_nickname.clone()),
+                group_name: None,
+                peer_id: from_peer_id.clone(),
+                timestamp: chrono::Utc::now(),
+                created_at: chrono::Utc::now(),
+                delivered: false,
+                delivered_at: None,
+                read: false,
+                read_at: None,
+                sync_status: gigi_store::SyncStatus::Synced,
+                sync_attempts: 0,
+                last_sync_attempt: None,
+                expires_at: chrono::Utc::now() + ChronoDuration::days(30),
+            };
+            if let Err(e) = store.store_message(stored_msg).await {
+                tracing::error!("Failed to store file message to database: {}", e);
+            }
+        }
+    });
+
     // Check if it's an image file and auto-download
     if file_type.starts_with("image/") {
         info!("Auto-downloading image file: {}", filename);
@@ -326,14 +438,15 @@ async fn handle_direct_file_share_message<R: tauri::Runtime>(
     Ok(())
 }
 
-fn handle_direct_message<R: tauri::Runtime>(
+async fn handle_direct_message<R: tauri::Runtime>(
     app_handle: &AppHandle<R>,
     from: &libp2p::PeerId,
     from_nickname: &str,
     message: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let msg_id = uuid::Uuid::new_v4().to_string();
     let msg = Message {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: msg_id.clone(),
         from_peer_id: from.to_string(),
         from_nickname: from_nickname.to_string(),
         content: message.to_string(),
@@ -342,6 +455,53 @@ fn handle_direct_message<R: tauri::Runtime>(
             .as_secs(),
     };
     app_handle.emit("message-received", &msg)?;
+
+    // Save message to database asynchronously (non-blocking)
+    // Get local peer nickname from config if available
+    let state = app_handle.state::<PluginState>();
+    let message_store = state.message_store.clone();
+
+    // Clone data for async task
+    let message_copy = message.to_string();
+    let from_id = from.to_string();
+    let from_nick = from_nickname.to_string();
+
+    // Get local nickname before spawning async task
+    let local_nickname = {
+        let config = state.config.read().await;
+        config.nickname.clone()
+    };
+
+    tokio::spawn(async move {
+        if let Some(store) = message_store.read().await.as_ref() {
+            let stored_msg = StoredMessage {
+                id: msg_id.clone(),
+                msg_type: MessageType::Direct,
+                direction: MessageDirection::Received,
+                content: MessageContent::Text {
+                    text: message_copy.clone(),
+                },
+                sender_nickname: from_nick.clone(),
+                recipient_nickname: Some(local_nickname.clone()),
+                group_name: None,
+                peer_id: from_id.clone(),
+                timestamp: chrono::Utc::now(),
+                created_at: chrono::Utc::now(),
+                delivered: false,
+                delivered_at: None,
+                read: false,
+                read_at: None,
+                sync_status: gigi_store::SyncStatus::Synced,
+                sync_attempts: 0,
+                last_sync_attempt: None,
+                expires_at: chrono::Utc::now() + ChronoDuration::days(30),
+            };
+            if let Err(e) = store.store_message(stored_msg).await {
+                tracing::error!("Failed to store message to database: {}", e);
+            }
+        }
+    });
+
     Ok(())
 }
 
@@ -386,6 +546,57 @@ async fn handle_group_file_share_message<R: tauri::Runtime>(
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs();
+
+    // Save group file message to database asynchronously (non-blocking)
+    // We save metadata only, not file content or thumbnails
+    let state = app_handle.state::<PluginState>();
+    let message_store = state.message_store.clone();
+    let msg_id = uuid::Uuid::new_v4().to_string();
+    let from_peer_id = from.to_string();
+    let from_nickname_copy = from_nickname.to_string();
+    let share_code_copy = share_code.to_string();
+    let filename_copy = filename.to_string();
+    let file_type_copy = file_type.to_string();
+    let group_name_copy = group.to_string();
+
+    // Get local nickname before spawning async task
+    let local_nickname = {
+        let config = state.config.read().await;
+        config.nickname.clone()
+    };
+
+    tokio::spawn(async move {
+        if let Some(store) = message_store.read().await.as_ref() {
+            let stored_msg = StoredMessage {
+                id: msg_id.clone(),
+                msg_type: MessageType::Group,
+                direction: MessageDirection::Received,
+                content: MessageContent::FileShare {
+                    share_code: share_code_copy.clone(),
+                    filename: filename_copy.clone(),
+                    file_size,
+                    file_type: file_type_copy.clone(),
+                },
+                sender_nickname: from_nickname_copy.clone(),
+                recipient_nickname: Some(local_nickname.clone()),
+                group_name: Some(group_name_copy.clone()),
+                peer_id: from_peer_id.clone(),
+                timestamp: chrono::Utc::now(),
+                created_at: chrono::Utc::now(),
+                delivered: false,
+                delivered_at: None,
+                read: false,
+                read_at: None,
+                sync_status: gigi_store::SyncStatus::Synced,
+                sync_attempts: 0,
+                last_sync_attempt: None,
+                expires_at: chrono::Utc::now() + ChronoDuration::days(30),
+            };
+            if let Err(e) = store.store_message(stored_msg).await {
+                tracing::error!("Failed to store group file message to database: {}", e);
+            }
+        }
+    });
 
     // Check if it's an image file and auto-download
     if file_type.starts_with("image/") {
@@ -451,7 +662,7 @@ async fn handle_group_file_share_message<R: tauri::Runtime>(
     Ok(())
 }
 
-fn handle_group_message<R: tauri::Runtime>(
+async fn handle_group_message<R: tauri::Runtime>(
     app_handle: &AppHandle<R>,
     from: &libp2p::PeerId,
     from_nickname: &str,
@@ -463,8 +674,9 @@ fn handle_group_message<R: tauri::Runtime>(
     info!("   - Group: {}", group);
     info!("   - Message: {}", message);
 
+    let msg_id = uuid::Uuid::new_v4().to_string();
     let msg = GroupMessage {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: msg_id.clone(),
         group_id: group.to_string(),
         from_peer_id: from.to_string(),
         from_nickname: from_nickname.to_string(),
@@ -482,6 +694,53 @@ fn handle_group_message<R: tauri::Runtime>(
 
     app_handle.emit("group-message", &msg)?;
     info!("'group-message' event emitted successfully");
+
+    // Save message to database asynchronously (non-blocking)
+    let state = app_handle.state::<PluginState>();
+    let message_store = state.message_store.clone();
+    let group_name = group.to_string();
+
+    // Clone data for async task
+    let message_copy = message.to_string();
+    let from_id = from.to_string();
+    let from_nick = from_nickname.to_string();
+
+    // Clone local nickname before moving into async
+    let local_nickname = {
+        let config = state.config.read().await;
+        config.nickname.clone()
+    };
+
+    tokio::spawn(async move {
+        if let Some(store) = message_store.read().await.as_ref() {
+            let stored_msg = StoredMessage {
+                id: msg_id.clone(),
+                msg_type: MessageType::Group,
+                direction: MessageDirection::Received,
+                content: MessageContent::Text {
+                    text: message_copy.clone(),
+                },
+                sender_nickname: from_nick.clone(),
+                recipient_nickname: Some(local_nickname.clone()),
+                group_name: Some(group_name.clone()),
+                peer_id: from_id.clone(),
+                timestamp: chrono::Utc::now(),
+                created_at: chrono::Utc::now(),
+                delivered: false,
+                delivered_at: None,
+                read: false,
+                read_at: None,
+                sync_status: gigi_store::SyncStatus::Synced,
+                sync_attempts: 0,
+                last_sync_attempt: None,
+                expires_at: chrono::Utc::now() + ChronoDuration::days(30),
+            };
+            if let Err(e) = store.store_message(stored_msg).await {
+                tracing::error!("Failed to store group message to database: {}", e);
+            }
+        }
+    });
+
     Ok(())
 }
 
@@ -553,11 +812,37 @@ async fn handle_file_download_completed<R: tauri::Runtime>(
     from_peer_id: &libp2p::PeerId,
     from_nickname: &str,
     path: &std::path::PathBuf,
+    state: &PluginState,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     {
         let mut downloads_guard = active_downloads.lock().await;
         downloads_guard.remove(download_id);
     }
+
+    // Generate thumbnail for image files
+    let thumbnail_filename =
+        if let Some(thumb) = generate_thumbnail_for_image(app_handle, path, share_code).await? {
+            // Store thumbnail path in thumbnail_store using downloaded file path as key
+            if let Some(thumbnail_path_only) = thumb.split('/').last() {
+                let thumbnail_store = state.thumbnail_store.clone();
+                let file_path_str = path.to_string_lossy().to_string();
+                let thumbnail_path_clone = thumbnail_path_only.to_string();
+
+                tokio::spawn(async move {
+                    if let Some(store) = thumbnail_store.read().await.as_ref() {
+                        if let Err(e) = store
+                            .store_thumbnail(&file_path_str, &thumbnail_path_clone)
+                            .await
+                        {
+                            tracing::error!("Failed to store thumbnail mapping: {}", e);
+                        }
+                    }
+                });
+            }
+            Some(thumb)
+        } else {
+            None
+        };
 
     app_handle.emit(
         "file-download-completed",
@@ -567,7 +852,8 @@ async fn handle_file_download_completed<R: tauri::Runtime>(
             "share_code": share_code,
             "from_peer_id": from_peer_id.to_string(),
             "from_nickname": from_nickname,
-            "path": path.to_string_lossy()
+            "path": path.to_string_lossy(),
+            "thumbnail_filename": thumbnail_filename
         }),
     )?;
     Ok(())

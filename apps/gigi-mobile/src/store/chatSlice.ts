@@ -102,14 +102,31 @@ export const loadPeersAsync = createAsyncThunk('chat/loadPeers', async () => {
 export const clearChatMessagesAsync = createAsyncThunk(
   'chat/clearMessages',
   async ({ chatId, isGroupChat }: { chatId: string; isGroupChat: boolean }) => {
+    console.log('🗑️ clearChatMessagesAsync called:', { chatId, isGroupChat })
+
     // Clear from localStorage
     const historyKey = isGroupChat
       ? `chat_history_group_${chatId}`
       : `chat_history_${chatId}`
     localStorage.removeItem(historyKey)
 
+    console.log('✅ Cleared localStorage for:', historyKey)
+
+    // Clear messages from backend database and delete thumbnail files for incoming images
+    const { MessagingClient } = await import('@/utils/messaging')
+    try {
+      console.log('📞 Calling clearMessagesWithThumbnails with chatId:', chatId)
+      const result = await MessagingClient.clearMessagesWithThumbnails(chatId)
+      console.log('✅ clearMessagesWithThumbnails succeeded, cleared', result, 'messages')
+    } catch (error) {
+      console.error('❌ Failed to clear messages from backend:', error)
+      throw error
+    }
+
     // Reset chat info in IndexedDB
     await updateChatInfo(chatId, '', '', 0, isGroupChat)
+
+    console.log('✅ Chat info reset for chatId:', chatId)
 
     return { chatId, isGroupChat }
   }

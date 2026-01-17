@@ -14,6 +14,7 @@ thiserror = "2"
 anyhow = "1.0"
 base64 = "0.22"
 hex = "0.4"
+chrono = "0.4"
 
 # Workspace dependencies
 gigi-p2p.workspace = true
@@ -27,6 +28,8 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace = true
 mime_guess.workspace = true
+sea-orm = { version = "1.1.19", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros"] }
+sea-orm-migration = "1.1.19"
 
 [build-dependencies]
 tauri-plugin = { version = "2.3.1", features = ["build"] }

@@ -14,6 +14,7 @@ pub struct SharedFileInfo {
     pub file_size: u64,
     pub hash: String,
     pub chunk_count: usize,
+    pub thumbnail_path: Option<String>,
     pub created_at: i64,
     pub revoked: bool,
 }
@@ -36,6 +37,7 @@ impl SharedFileInfo {
             file_size,
             hash,
             chunk_count,
+            thumbnail_path: None,
             created_at,
             revoked: false,
         }
@@ -73,6 +75,7 @@ impl FileSharingStore {
             active_model.file_size = Set(info.file_size as i64);
             active_model.hash = Set(info.hash.clone());
             active_model.chunk_count = Set(info.chunk_count as i32);
+            active_model.thumbnail_path = Set(info.thumbnail_path.clone());
             active_model.revoked = Set(info.revoked);
             active_model
                 .update(&self.db)
@@ -87,6 +90,7 @@ impl FileSharingStore {
                 file_size: Set(info.file_size as i64),
                 hash: Set(info.hash.clone()),
                 chunk_count: Set(info.chunk_count as i32),
+                thumbnail_path: Set(info.thumbnail_path.clone()),
                 created_at: Set(info.created_at),
                 revoked: Set(info.revoked),
             };
@@ -121,6 +125,7 @@ impl FileSharingStore {
             file_size: data.file_size as u64,
             hash: data.hash,
             chunk_count: data.chunk_count as usize,
+            thumbnail_path: data.thumbnail_path,
             created_at: data.created_at,
             revoked: data.revoked,
         }))
@@ -144,6 +149,7 @@ impl FileSharingStore {
                 file_size: data.file_size as u64,
                 hash: data.hash,
                 chunk_count: data.chunk_count as usize,
+                thumbnail_path: data.thumbnail_path,
                 created_at: data.created_at,
                 revoked: data.revoked,
             })
@@ -200,5 +206,45 @@ impl FileSharingStore {
 
         info!("Cleaned up {} revoked shared files", result.rows_affected);
         Ok(result.rows_affected)
+    }
+
+    /// Update thumbnail path for a file
+    pub async fn update_thumbnail_path(
+        &self,
+        share_code: &str,
+        thumbnail_path: &str,
+    ) -> Result<()> {
+        use crate::entities::shared_files;
+
+        let existing = shared_files::Entity::find()
+            .filter(shared_files::Column::ShareCode.eq(share_code))
+            .one(&self.db)
+            .await
+            .context("Failed to query shared file")?;
+
+        if let Some(existing) = existing {
+            let mut active_model: shared_files::ActiveModel = existing.into();
+            active_model.thumbnail_path = Set(Some(thumbnail_path.to_string()));
+            active_model
+                .update(&self.db)
+                .await
+                .context("Failed to update thumbnail path")?;
+            info!("Updated thumbnail path for: {}", share_code);
+        }
+
+        Ok(())
+    }
+
+    /// Get thumbnail path by share code
+    pub async fn get_thumbnail_path(&self, share_code: &str) -> Result<Option<String>> {
+        use crate::entities::shared_files;
+
+        let result = shared_files::Entity::find()
+            .filter(shared_files::Column::ShareCode.eq(share_code))
+            .one(&self.db)
+            .await
+            .context("Failed to query shared file")?;
+
+        Ok(result.and_then(|r| r.thumbnail_path))
     }
 }

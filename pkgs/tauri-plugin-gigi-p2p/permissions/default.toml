@@ -18,6 +18,12 @@ permissions = [
   "allow-messaging-join-group",
   "allow-messaging-send-group-message",
   "allow-emit-current-state",
+  "allow-get-messages",
+  "allow-search-messages",
+  "allow-clear-messages-with-thumbnails",
+  "allow-get-file-thumbnail",
+  "allow-get-full-image-by-path",
+  "allow-get-full-image",
   # File commands
   "allow-messaging-send-file-message-with-path",
   "allow-messaging-send-group-file-message-with-path",

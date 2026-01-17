@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { addLog } from '@/store/logsSlice'
@@ -7,6 +7,7 @@ import {
   loadMessageHistoryAsync,
   initializeChatInfoAsync,
   resetChatRoomState,
+  loadMessagesFromBackendAsync,
 } from '@/store/chatRoomSlice'
 
 export function useChatRoomInitialization() {
@@ -16,6 +17,7 @@ export function useChatRoomInitialization() {
   const dispatch = useAppDispatch()
 
   const chatRoomState = useAppSelector(state => state.chatRoom)
+  const messagesLoadedRef = useRef(false)
 
   // Initialize chat room
   useEffect(() => {
@@ -73,7 +75,7 @@ export function useChatRoomInitialization() {
       })
   }, [id, navigate, dispatch])
 
-  // Load message history and initialize chat info when chat room is ready
+  // Load message history from backend and initialize chat info when chat room is ready
   useEffect(() => {
     if (
       chatRoomState.isLoading ||
@@ -82,13 +84,32 @@ export function useChatRoomInitialization() {
     )
       return
 
+    // Prevent re-dispatching if messages have already been loaded for this chat room
+    if (messagesLoadedRef.current) {
+      return
+    }
+
+    // Load messages from backend (new unified storage approach)
+    // For both peer chats and group chats, use chatId (full peer ID or group ID)
+    const peerId = chatRoomState.chatId
+
+    console.log('📥 Loading messages from backend:', {
+      isGroupChat: chatRoomState.isGroupChat,
+      peerId,
+      chatId: chatRoomState.chatId,
+      chatName: chatRoomState.chatName,
+    })
+
+    console.log('🔄 Dispatching loadMessagesFromBackendAsync...')
     dispatch(
-      loadMessageHistoryAsync({
-        chatId: chatRoomState.chatId,
-        isGroupChat: chatRoomState.isGroupChat,
+      loadMessagesFromBackendAsync({
+        peerId,
+        limit: 50,
+        offset: 0,
       })
     )
 
+    // Still initialize chat info (reset unread counts, etc.)
     dispatch(
       initializeChatInfoAsync({
         chatId: chatRoomState.chatId,
@@ -97,6 +118,9 @@ export function useChatRoomInitialization() {
         unreadResetDone: chatRoomState.unreadResetDone,
       })
     )
+
+    // Mark messages as loaded
+    messagesLoadedRef.current = true
   }, [
     chatRoomState.isLoading,
     chatRoomState.chatId,
@@ -105,6 +129,11 @@ export function useChatRoomInitialization() {
     chatRoomState.unreadResetDone,
     dispatch,
   ])
+
+  // Reset the ref when chat room changes OR when navigating (location.key changes)
+  useEffect(() => {
+    messagesLoadedRef.current = false
+  }, [id, location.key])
 
   return chatRoomState
 }

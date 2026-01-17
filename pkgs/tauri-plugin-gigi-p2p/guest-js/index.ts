@@ -43,6 +43,7 @@ export interface ImageMessageReceived {
   timestamp: number
   download_error?: string
   download_id?: string
+  thumbnailPath?: string
 }
 
 export interface GroupImageMessageReceived {
@@ -55,6 +56,7 @@ export interface GroupImageMessageReceived {
   file_type: string
   timestamp: number
   download_id?: string
+  thumbnailPath?: string
 }
 
 export interface FileMessageReceived {
@@ -120,6 +122,7 @@ export interface FileDownloadCompleted {
   share_code: string
   from_nickname: string
   path: string
+  thumbnail_filename?: string
   timestamp: number
 }
 
@@ -212,6 +215,30 @@ export async function messaging_get_message_history(...args: any[]): Promise<any
 
 export async function messaging_save_shared_files(...args: any[]): Promise<any> {
   return await invoke('plugin:gigi-p2p|messaging_save_shared_files', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function get_messages(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|get_messages', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function search_messages(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|search_messages', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function clear_messages_with_thumbnails(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|clear_messages_with_thumbnails', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function get_file_thumbnail(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|get_file_thumbnail', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function get_full_image_by_path(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|get_full_image_by_path', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function get_full_image(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|get_full_image', args.length === 1 ? args[0] : { ...args });
 }
 
 export async function messaging_send_file_message_with_path(...args: any[]): Promise<any> {

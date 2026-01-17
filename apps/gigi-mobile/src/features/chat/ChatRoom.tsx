@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { resetChatRoomState, setNewMessage } from '@/store/chatRoomSlice'
+import {
+  resetChatRoomState,
+  setNewMessage,
+  clearThumbnailCache,
+} from '@/store/chatRoomSlice'
 import {
   ChatRoomHeader,
   MessageList,
@@ -122,6 +126,8 @@ export default function ChatRoom() {
 
   const goBack = () => {
     saveFinalMessage()
+    // Clear thumbnail cache to free memory when leaving chat
+    clearThumbnailCache()
     dispatch(resetChatRoomState())
     navigate('/chat')
   }
@@ -131,6 +137,8 @@ export default function ChatRoom() {
     return () => {
       clearSaveTimeout()
       saveFinalMessage()
+      // Clear thumbnail cache to free memory when unmounting
+      clearThumbnailCache()
       // Don't reset state on unmount - this causes message loss during remounts
       // dispatch(resetChatRoomState())
       // Don't clear module-level storage - persist across remounts

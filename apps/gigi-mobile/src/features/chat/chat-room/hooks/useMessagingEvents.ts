@@ -277,13 +277,34 @@ export function useMessagingEvents({
 
       if (isImage) {
         try {
-          console.log('📸 Getting image data from path:', data.path)
-          const imageData = await MessagingClient.getImageData(data.path)
-          console.log('✅ Image data received, length:', imageData?.length)
-          updatedMessage = {
-            ...updatedMessage,
-            content: `📷 Image: ${actualFilename}`,
-            imageData,
+          // If thumbnail_filename is available, load thumbnail using it
+          if (data.thumbnail_filename) {
+            console.log(
+              '📸 Loading thumbnail from file:',
+              data.thumbnail_filename
+            )
+            const thumbnailData = await MessagingClient.getImageData(
+              data.thumbnail_filename
+            )
+            console.log(
+              '✅ Thumbnail data received, length:',
+              thumbnailData?.length
+            )
+            updatedMessage = {
+              ...updatedMessage,
+              content: `📷 Image: ${actualFilename}`,
+              thumbnailData,
+            }
+          } else {
+            // Fallback: load full image
+            console.log('📸 Getting image data from path:', data.path)
+            const imageData = await MessagingClient.getImageData(data.path)
+            console.log('✅ Image data received, length:', imageData?.length)
+            updatedMessage = {
+              ...updatedMessage,
+              content: `📷 Image: ${actualFilename}`,
+              thumbnailData: imageData, // Use as thumbnail for display
+            }
           }
           console.log('📝 Updated message with image data:', updatedMessage)
         } catch (error) {
@@ -291,12 +312,15 @@ export function useMessagingEvents({
             '❌ Failed to convert downloaded image to base64:',
             error
           )
+          // Don't set imageData on error - just show filename with file:// fallback
           updatedMessage = {
             ...updatedMessage,
             content: `📷 Image: ${actualFilename}`,
-            imageData: `file://${data.path}`,
           }
-          console.log('📝 Updated message with fallback path:', updatedMessage)
+          console.log(
+            '📝 Updated message with fallback (no imageData):',
+            updatedMessage
+          )
         }
       } else {
         const fileIcon = getFileIcon(data.file_type, actualFilename)
