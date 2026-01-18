@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-save-shared-files"
+description = "Enables the messaging_save_shared_files command without any pre-configured scope."
+commands.allow = ["messaging_save_shared_files"]
+
+[[permission]]
+identifier = "deny-messaging-save-shared-files"
+description = "Denies the messaging_save_shared_files command without any pre-configured scope."
+commands.deny = ["messaging_save_shared_files"]

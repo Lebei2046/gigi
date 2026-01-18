@@ -109,6 +109,7 @@ pub struct PluginState {
     pub message_store: std::sync::Arc<RwLock<Option<gigi_store::MessageStore>>>,
     pub file_sharing_store: std::sync::Arc<RwLock<Option<gigi_store::FileSharingStore>>>,
     pub thumbnail_store: std::sync::Arc<RwLock<Option<gigi_store::ThumbnailStore>>>,
+    pub conversation_store: std::sync::Arc<RwLock<Option<gigi_store::ConversationStore>>>,
 }
 
 impl PluginState {
@@ -121,6 +122,7 @@ impl PluginState {
             message_store: std::sync::Arc::new(RwLock::new(None)),
             file_sharing_store: std::sync::Arc::new(RwLock::new(None)),
             thumbnail_store: std::sync::Arc::new(RwLock::new(None)),
+            conversation_store: std::sync::Arc::new(RwLock::new(None)),
         }
     }
 }

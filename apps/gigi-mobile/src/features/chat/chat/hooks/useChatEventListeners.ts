@@ -9,7 +9,7 @@ import {
   updateDirectMessage,
   updateGroupMessage,
 } from '@/store/chatSlice'
-import { updateLatestMessage, ensureMilliseconds } from '@/utils/chatUtils'
+import { updateLatestMessage, ensureMilliseconds } from '@/utils/conversationUtils'
 
 /**
  * Hook for setting up all messaging event listeners
@@ -64,21 +64,8 @@ export function useChatEventListeners() {
           return
         }
 
-        // Save message to localStorage
-        try {
-          const historyKey = `chat_history_${message.from_peer_id}`
-          const savedHistory = localStorage.getItem(historyKey)
-          let history = savedHistory ? JSON.parse(savedHistory) : []
-          const newMessage = {
-            ...message,
-            isOutgoing: false,
-          }
-          history = [...history, newMessage]
-          localStorage.setItem(historyKey, JSON.stringify(history))
-        } catch (error) {
-          console.error('Failed to save received message to history:', error)
-        }
-
+        // Note: Messages are automatically saved to backend SQLite database
+        // We only update the conversation metadata here
         const timestampMs = message.timestamp
           ? ensureMilliseconds(message.timestamp)
           : Date.now()
@@ -118,24 +105,8 @@ export function useChatEventListeners() {
           return
         }
 
-        try {
-          const historyKey = `chat_history_group_${message.group_id}`
-          const savedHistory = localStorage.getItem(historyKey)
-          let history = savedHistory ? JSON.parse(savedHistory) : []
-          const newMessage = {
-            ...message,
-            isOutgoing: false,
-            isGroup: true,
-          }
-          history = [...history, newMessage]
-          localStorage.setItem(historyKey, JSON.stringify(history))
-        } catch (error) {
-          console.error(
-            'Failed to save received group message to history:',
-            error
-          )
-        }
-
+        // Note: Messages are automatically saved to backend SQLite database
+        // We only update the conversation metadata here
         const timestampMs = message.timestamp
           ? ensureMilliseconds(message.timestamp)
           : Date.now()

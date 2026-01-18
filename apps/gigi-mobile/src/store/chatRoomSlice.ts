@@ -3,12 +3,11 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 import type { Peer } from '@/utils/messaging'
 import type { Group } from '@/models/db'
 import {
-  getChatInfo,
-  updateChatInfo,
+  getConversationInfo,
+  updateConversationInfo,
   resetUnreadCount,
-  getGroup,
-  ensureMilliseconds,
-} from '@/utils/chatUtils'
+} from '@/utils/conversationUtils'
+import { getGroup, ensureMilliseconds } from '@/utils/chatUtils'
 import { MessagingClient } from '@/utils/messaging'
 
 // LRU Cache for thumbnails to prevent memory leaks
@@ -224,10 +223,10 @@ export const initializeChatInfoAsync = createAsyncThunk(
       )
     }
 
-    const existingChat = await getChatInfo(chatId)
+    const existingChat = await getConversationInfo(chatId)
     if (!existingChat) {
-      // Only create new chat entry if it doesn't exist
-      await updateChatInfo(chatId, chatName, '', Date.now(), isGroupChat)
+      // Only create new conversation entry if it doesn't exist
+      await updateConversationInfo(chatId, chatName, '', Date.now(), isGroupChat)
     } else if (!unreadResetDone) {
       // Reset unread count when user opens the chat (only once)
 
@@ -359,15 +358,40 @@ const chatRoomSlice = createSlice({
     },
 
     addMessage: (state, action: PayloadAction<Message>) => {
-      state.messages.push(action.payload)
+      // Check if message already exists to prevent duplicates
+      const existingIndex = state.messages.findIndex(
+        msg => msg.id === action.payload.id
+      )
+      if (existingIndex === -1) {
+        console.log('➕ Adding message to state:', action.payload.id, action.payload.content)
+        state.messages.push(action.payload)
+      } else {
+        console.log('🔁 Skipping duplicate message in addMessage:', action.payload.id)
+      }
     },
 
     addImageMessage: (state, action: PayloadAction<Message>) => {
-      state.messages.push(action.payload)
+      // Check if message already exists to prevent duplicates
+      const existingIndex = state.messages.findIndex(
+        msg => msg.id === action.payload.id
+      )
+      if (existingIndex === -1) {
+        state.messages.push(action.payload)
+      } else {
+        console.log('🔁 Skipping duplicate image message in addImageMessage:', action.payload.id)
+      }
     },
 
     addGroupImageMessage: (state, action: PayloadAction<Message>) => {
-      state.messages.push(action.payload)
+      // Check if message already exists to prevent duplicates
+      const existingIndex = state.messages.findIndex(
+        msg => msg.id === action.payload.id
+      )
+      if (existingIndex === -1) {
+        state.messages.push(action.payload)
+      } else {
+        console.log('🔁 Skipping duplicate group image message in addGroupImageMessage:', action.payload.id)
+      }
     },
 
     removeMessage: (state, action: PayloadAction<string>) => {
@@ -664,24 +688,39 @@ const chatRoomSlice = createSlice({
       .addCase(loadMessagesFromBackendAsync.fulfilled, (state, action) => {
         state.isLoading = false
         const { messages, prepend } = action.payload
+
         console.log('📥 loadMessagesFromBackendAsync.fulfilled:', {
           messageCount: messages.length,
+          currentMessageCount: state.messages.length,
+          currentMessages: state.messages.map(m => ({ id: m.id, content: m.content })),
+          newMessages: messages.map(m => ({ id: m.id, content: m.content })),
           prepend,
-          messages: messages.map(m => ({
-            id: m.id,
-            messageType: m.messageType,
-            isOutgoing: m.isOutgoing,
-            hasThumbnailData: !!m.thumbnailData,
-            hasFilePath: !!m.filePath,
-          })),
         })
-        if (prepend) {
-          // Prepend messages (for pagination)
-          state.messages = [...messages, ...state.messages]
-        } else {
-          // Replace messages (initial load)
-          state.messages = messages
+
+        // Deduplicate messages by ID to prevent duplicates
+        const uniqueMessages = prepend
+          ? [...messages, ...state.messages]
+          : messages
+
+        console.log('🔍 Before deduplication:', uniqueMessages.length, 'messages')
+        console.log('🔍 Messages before dedup:', uniqueMessages.map(m => ({ id: m.id, content: m.content })))
+
+        const seenIds = new Set<string>()
+        const deduplicatedMessages: typeof uniqueMessages = []
+
+        for (const msg of uniqueMessages) {
+          if (!seenIds.has(msg.id)) {
+            seenIds.add(msg.id)
+            deduplicatedMessages.push(msg)
+          } else {
+            console.log('🔁 Skipping duplicate message:', msg.id, msg.content)
+          }
         }
+
+        console.log('🔍 After deduplication:', deduplicatedMessages.length, 'messages')
+        console.log('🔍 Messages after dedup:', deduplicatedMessages.map(m => ({ id: m.id, content: m.content })))
+
+        state.messages = deduplicatedMessages
       })
       .addCase(loadMessagesFromBackendAsync.rejected, (state, action) => {
         state.isLoading = false

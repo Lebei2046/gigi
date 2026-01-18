@@ -1,6 +1,7 @@
 //! Sea-ORM entities for gigi-store
 
 pub mod app_data;
+pub mod conversations;
 pub mod message_acknowledgments;
 pub mod messages;
 pub mod offline_queue;
@@ -8,6 +9,7 @@ pub mod shared_files;
 pub mod thumbnails;
 
 pub use app_data::Entity;
+pub use conversations::Entity as Conversation;
 pub use message_acknowledgments::Entity as MessageAcknowledgment;
 pub use messages::Entity as Message;
 pub use offline_queue::Entity as OfflineQueue;

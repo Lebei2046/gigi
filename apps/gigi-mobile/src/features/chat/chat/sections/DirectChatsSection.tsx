@@ -1,11 +1,12 @@
 import type { Peer } from '@/utils/messaging'
-import type { Chat } from '@/models/db'
+import type { Conversation } from '@/utils/conversationUtils'
 import { PeerCard } from '../cards'
 import DirectChatsEmptyState from '../cards/DirectChatsEmptyState'
+import { ensureMilliseconds, isValidTimestamp } from '@/utils/conversationUtils'
 
 interface DirectChatsSectionProps {
   peers: Peer[]
-  chats: Chat[]
+  conversations: Conversation[]
   latestMessages: Record<string, string>
   onPeerClick: (peer: Peer) => void
   onClearMessages: (
@@ -17,7 +18,7 @@ interface DirectChatsSectionProps {
 
 export default function DirectChatsSection({
   peers,
-  chats,
+  conversations,
   latestMessages,
   onPeerClick,
   onClearMessages,
@@ -36,8 +37,13 @@ export default function DirectChatsSection({
       ) : (
         <div className="space-y-3">
           {peers.map(peer => {
-            const chatInfo = chats.find(chat => chat.id === peer.id)
-            const unreadCount = chatInfo?.unreadCount || 0
+            const conversationInfo = conversations.find(c => c.id === peer.id)
+            const unreadCount = conversationInfo?.unread_count || 0
+            const timestamp = conversationInfo?.last_message_timestamp
+
+            const lastMessageTime = timestamp && isValidTimestamp(timestamp)
+              ? new Date(typeof timestamp === 'string' ? timestamp : ensureMilliseconds(timestamp)).toLocaleString()
+              : undefined
 
             return (
               <PeerCard
@@ -45,7 +51,7 @@ export default function DirectChatsSection({
                 peer={peer}
                 latestMessage={latestMessages[peer.id]}
                 unreadCount={unreadCount}
-                lastMessageTime={chatInfo?.lastMessageTime}
+                lastMessageTime={lastMessageTime}
                 onPeerClick={onPeerClick}
                 onClearMessages={(peerId, peerNickname) =>
                   onClearMessages(peerId, false, peerNickname)

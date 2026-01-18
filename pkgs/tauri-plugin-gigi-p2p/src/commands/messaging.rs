@@ -185,6 +185,17 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
             *message_store_guard = Some(message_store);
             drop(message_store_guard);
 
+            // Initialize conversation_store for chat list management
+            let conversation_store = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(async { gigi_store::ConversationStore::new(db_path_clone.clone()).await })
+            })
+            .map_err(|e| Error::Io(format!("Failed to create conversation store: {}", e)))?;
+
+            let mut conversation_store_guard = state.conversation_store.write().await;
+            *conversation_store_guard = Some(conversation_store);
+            drop(conversation_store_guard);
+
             // Start listening on a random port
             let addr = "/ip4/0.0.0.0/tcp/0"
                 .parse()

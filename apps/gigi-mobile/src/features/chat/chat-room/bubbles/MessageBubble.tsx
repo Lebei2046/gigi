@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { Message } from '@/store/chatRoomSlice'
 import TextMessageBubble from './TextMessageBubble'
 import ImageMessageBubble from './ImageMessageBubble'
@@ -12,7 +13,7 @@ interface MessageBubbleProps {
   ) => void
 }
 
-export default function MessageBubble({
+function MessageBubble({
   message,
   onDownloadRequest,
 }: MessageBubbleProps) {
@@ -46,3 +47,8 @@ export default function MessageBubble({
     </>
   )
 }
+
+// Memoize to prevent unnecessary re-renders in React Strict Mode
+export default memo(MessageBubble, (prevProps, nextProps) => {
+  return prevProps.message.id === nextProps.message.id
+})

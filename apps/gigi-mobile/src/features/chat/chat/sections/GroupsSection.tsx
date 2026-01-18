@@ -1,9 +1,10 @@
 import type { Group } from '@/models/db'
+import type { Conversation } from '@/utils/conversationUtils'
 import { GroupCard } from '../cards'
 
 interface GroupsSectionProps {
   groups: Group[]
-  chats: Array<{ id: string; unreadCount?: number }>
+  conversations: Conversation[]
   latestMessages: Record<string, string>
   onGroupClick: (groupId: string) => void
   onShare: (group: Group) => void
@@ -16,7 +17,7 @@ interface GroupsSectionProps {
 
 export default function GroupsSection({
   groups,
-  chats,
+  conversations,
   latestMessages,
   onGroupClick,
   onShare,
@@ -27,8 +28,8 @@ export default function GroupsSection({
   }
 
   const totalGroupUnread = groups.reduce((sum, group) => {
-    const chatInfo = chats.find(chat => chat.id === group.id)
-    return sum + (chatInfo?.unreadCount || 0)
+    const conversationInfo = conversations.find(c => c.id === group.id)
+    return sum + (conversationInfo?.unread_count || 0)
   }, 0)
 
   return (
@@ -47,8 +48,8 @@ export default function GroupsSection({
       </div>
       <div className="space-y-3">
         {groups.map(group => {
-          const chatInfo = chats.find(chat => chat.id === group.id)
-          const unreadCount = chatInfo?.unreadCount || 0
+          const conversationInfo = conversations.find(c => c.id === group.id)
+          const unreadCount = conversationInfo?.unread_count || 0
 
           return (
             <GroupCard

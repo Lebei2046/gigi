@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, memo } from 'react'
 import type { Message } from '@/store/chatRoomSlice'
 import { MessageBubble } from './bubbles'
 
@@ -12,7 +12,7 @@ interface MessageListProps {
   ) => void
 }
 
-export default function MessageList({
+function MessageList({
   messages,
   isGroupChat,
   onDownloadRequest,
@@ -69,3 +69,11 @@ export default function MessageList({
     </>
   )
 }
+
+// Memoize to prevent unnecessary re-renders
+export default memo(MessageList, (prevProps, nextProps) => {
+  return (
+    prevProps.messages.length === nextProps.messages.length &&
+    prevProps.messages.every((msg, i) => msg.id === nextProps.messages[i]?.id)
+  )
+})

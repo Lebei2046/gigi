@@ -13,7 +13,7 @@ import {
   updateGroupMessage,
   generateMessageId,
 } from '@/store/chatRoomSlice'
-import { updateLatestMessage, ensureMilliseconds } from '@/utils/chatUtils'
+import { updateLatestMessage, ensureMilliseconds } from '@/utils/conversationUtils'
 import {
   createIncomingImageMessage,
   createIncomingFileMessage,
@@ -60,6 +60,19 @@ export function useMessagingEvents({
       }
 
       if (!isGroupChat && message.from_peer_id === peer?.id) {
+        // Check if message already exists in state (to prevent duplicates from backend)
+        const existingMessage = messagesRef.current.find(
+          m =>
+            m.content === message.content &&
+            m.from_peer_id === message.from_peer_id &&
+            Math.abs(m.timestamp - message.timestamp * 1000) < 1000 // Within 1 second
+        )
+
+        if (existingMessage) {
+          console.log('🔁 Message already in state, skipping:', message.content)
+          return
+        }
+
         dispatch(
           handleDirectMessage({
             from_peer_id: message.from_peer_id,
@@ -427,19 +440,9 @@ export function useMessagingEvents({
 
 function saveMessageForLater(message: any) {
   try {
+    // Note: Messages are now automatically saved to the backend SQLite database
+    // We only need to update the conversation metadata (latest message, unread count)
     if (message.group_id) {
-      const historyKey = `chat_history_group_${message.group_id}`
-      const savedHistory = localStorage.getItem(historyKey)
-      let history = savedHistory ? JSON.parse(savedHistory) : []
-
-      const newMessage = {
-        ...message,
-        isOutgoing: false,
-        isGroup: true,
-      }
-      history = [...history, newMessage]
-      localStorage.setItem(historyKey, JSON.stringify(history))
-
       setTimeout(() => {
         updateLatestMessage(
           message.group_id,
@@ -451,18 +454,6 @@ function saveMessageForLater(message: any) {
         )
       }, 0)
     } else {
-      const historyKey = `chat_history_${message.from_peer_id}`
-      const savedHistory = localStorage.getItem(historyKey)
-      let history = savedHistory ? JSON.parse(savedHistory) : []
-
-      const newMessage = {
-        ...message,
-        isOutgoing: false,
-        isGroup: false,
-      }
-      history = [...history, newMessage]
-      localStorage.setItem(historyKey, JSON.stringify(history))
-
       setTimeout(() => {
         updateLatestMessage(
           message.from_peer_id,

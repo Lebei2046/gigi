@@ -18,12 +18,19 @@ export function useChatRoomInitialization() {
 
   const chatRoomState = useAppSelector(state => state.chatRoom)
   const messagesLoadedRef = useRef(false)
+  const initializationRef = useRef(false)
 
   // Initialize chat room
   useEffect(() => {
     if (!id) {
       console.log('❌ ChatRoom: No id provided, navigating to /chat')
       navigate('/chat')
+      return
+    }
+
+    // Prevent duplicate initialization
+    if (initializationRef.current) {
+      console.log('🔁 Skipping duplicate initialization for id:', id)
       return
     }
 
@@ -132,6 +139,8 @@ export function useChatRoomInitialization() {
 
   // Reset the ref when chat room changes OR when navigating (location.key changes)
   useEffect(() => {
+    console.log('🔄 Resetting refs for chat room change:', id)
+    initializationRef.current = false
     messagesLoadedRef.current = false
   }, [id, location.key])
 

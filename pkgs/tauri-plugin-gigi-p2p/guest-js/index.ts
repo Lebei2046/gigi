@@ -293,6 +293,34 @@ export async function clear_app_data(...args: any[]): Promise<any> {
   return await invoke('plugin:gigi-p2p|clear_app_data', args.length === 1 ? args[0] : { ...args });
 }
 
+export async function get_conversations(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|get_conversations', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function get_conversation(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|get_conversation', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function upsert_conversation(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|upsert_conversation', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function update_conversation_last_message(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|update_conversation_last_message', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function increment_conversation_unread(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|increment_conversation_unread', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function mark_conversation_as_read(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|mark_conversation_as_read', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function delete_conversation(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|delete_conversation', args.length === 1 ? args[0] : { ...args });
+}
+
 // Event listeners
 // Note: Tauri plugin system automatically handles the plugin prefix, so we don't need to add it manually
 

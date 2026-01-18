@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { loadChatsAsync, loadGroupsAsync } from '@/store/chatSlice'
+import { loadConversationsAsync, loadGroupsAsync } from '@/store/chatSlice'
 
 /**
  * Hook for handling periodic refreshes of chat data
@@ -12,20 +12,20 @@ import { loadChatsAsync, loadGroupsAsync } from '@/store/chatSlice'
  */
 export function useChatDataRefresh() {
   const dispatch = useAppDispatch()
-  const { peers, chats, groups } = useAppSelector(state => state.chat)
+  const { peers, conversations, groups } = useAppSelector(state => state.chat)
   const lastUnreadCounts = useRef<any[]>([])
 
-  const refreshChats = async () => {
+  const refreshConversations = async () => {
     try {
-      const currentState = await dispatch(loadChatsAsync()).unwrap()
-      const unreadChats = currentState.filter(
-        chat => (chat.unreadCount || 0) > 0
+      const currentState = await dispatch(loadConversationsAsync()).unwrap()
+      const unreadConversations = currentState.filter(
+        conv => (conv.unread_count || 0) > 0
       )
-      const currentUnreadCounts = unreadChats.map(chat => ({
-        id: chat.id,
-        name: chat.name,
-        isGroup: chat.isGroup,
-        unreadCount: chat.unreadCount,
+      const currentUnreadCounts = unreadConversations.map(conv => ({
+        id: conv.id,
+        name: conv.name,
+        isGroup: conv.is_group,
+        unreadCount: conv.unread_count,
       }))
 
       const lastUnreadCountsStr = JSON.stringify(lastUnreadCounts.current)
@@ -39,20 +39,20 @@ export function useChatDataRefresh() {
 
         // Check for potential duplicates
         const nameGroups = currentUnreadCounts.reduce(
-          (groups, chat) => {
-            const key = chat.name.toLowerCase()
+          (groups, conv) => {
+            const key = conv.name.toLowerCase()
             if (!groups[key]) groups[key] = []
-            groups[key].push(chat)
+            groups[key].push(conv)
             return groups
           },
           {} as Record<string, typeof currentUnreadCounts>
         )
 
-        Object.entries(nameGroups).forEach(([name, chats]) => {
-          if (chats.length > 1) {
+        Object.entries(nameGroups).forEach(([name, convs]) => {
+          if (convs.length > 1) {
             console.warn(
-              `⚠️ Found ${chats.length} chat entries with similar name "${name}":`,
-              chats
+              `⚠️ Found ${convs.length} conversation entries with similar name "${name}":`,
+              convs
             )
           }
         })
@@ -60,7 +60,7 @@ export function useChatDataRefresh() {
         lastUnreadCounts.current = currentUnreadCounts
       }
     } catch (error) {
-      console.error('Failed to load chats:', error)
+      console.error('Failed to load conversations:', error)
     }
   }
 
@@ -75,13 +75,13 @@ export function useChatDataRefresh() {
   useEffect(() => {
     // Set up periodic refresh
     const refreshInterval = setInterval(() => {
-      refreshChats()
+      refreshConversations()
       refreshGroups()
     }, 3000)
 
     // Refresh when window gets focus
     const handleFocus = () => {
-      refreshChats()
+      refreshConversations()
       refreshGroups()
     }
     window.addEventListener('focus', handleFocus)
@@ -89,7 +89,7 @@ export function useChatDataRefresh() {
     // Refresh when document becomes visible
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        refreshChats()
+        refreshConversations()
         refreshGroups()
       }
     }
@@ -98,7 +98,7 @@ export function useChatDataRefresh() {
     // Refresh on route change
     const handleRouteChange = () => {
       setTimeout(() => {
-        refreshChats()
+        refreshConversations()
         refreshGroups()
       }, 50)
     }
@@ -110,7 +110,7 @@ export function useChatDataRefresh() {
       if (customEvent?.detail) {
         console.log('📊 Event details:', customEvent.detail)
       }
-      refreshChats()
+      refreshConversations()
       refreshGroups()
     }
     window.addEventListener(
@@ -127,5 +127,5 @@ export function useChatDataRefresh() {
     }
   }, [])
 
-  return { refreshChats, refreshGroups }
+  return { refreshConversations, refreshGroups }
 }

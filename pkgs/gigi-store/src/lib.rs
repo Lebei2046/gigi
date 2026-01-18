@@ -6,6 +6,7 @@
 //! It also manages application-wide data such as private keys and nicknames,
 //! and shared file information.
 
+pub mod conversation_store;
 pub mod entities;
 pub mod file_sharing_store;
 pub mod key_manager;
@@ -15,6 +16,7 @@ pub mod sync_manager;
 pub mod thumbnail;
 pub mod thumbnail_store;
 
+pub use conversation_store::{Conversation, ConversationStore};
 pub use file_sharing_store::{FileSharingStore, SharedFileInfo};
 pub use key_manager::{AppData, KeyManager};
 pub use message_store::MessageStore;

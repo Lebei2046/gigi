@@ -52,6 +52,14 @@ const commands = [
   'messaging_share_content_uri',
   // Utils commands
   'clear_app_data',
+  // Conversation commands
+  'get_conversations',
+  'get_conversation',
+  'upsert_conversation',
+  'update_conversation_last_message',
+  'increment_conversation_unread',
+  'mark_conversation_as_read',
+  'delete_conversation',
 ];
 
 // Events that the plugin emits

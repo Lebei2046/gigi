@@ -319,6 +319,18 @@
           "markdownDescription": "Denies the clear_messages_with_thumbnails command without any pre-configured scope."
         },
         {
+          "description": "Enables the delete_conversation command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-delete-conversation",
+          "markdownDescription": "Enables the delete_conversation command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the delete_conversation command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-delete-conversation",
+          "markdownDescription": "Denies the delete_conversation command without any pre-configured scope."
+        },
+        {
           "description": "Enables the emit_current_state command without any pre-configured scope.",
           "type": "string",
           "const": "allow-emit-current-state",
@@ -329,6 +341,30 @@
           "type": "string",
           "const": "deny-emit-current-state",
           "markdownDescription": "Denies the emit_current_state command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_conversation command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-conversation",
+          "markdownDescription": "Enables the get_conversation command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_conversation command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-conversation",
+          "markdownDescription": "Denies the get_conversation command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_conversations command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-conversations",
+          "markdownDescription": "Enables the get_conversations command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_conversations command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-conversations",
+          "markdownDescription": "Denies the get_conversations command without any pre-configured scope."
         },
         {
           "description": "Enables the get_file_thumbnail command without any pre-configured scope.",
@@ -389,6 +425,30 @@
           "type": "string",
           "const": "deny-get-peer-id",
           "markdownDescription": "Denies the get_peer_id command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the increment_conversation_unread command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-increment-conversation-unread",
+          "markdownDescription": "Enables the increment_conversation_unread command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the increment_conversation_unread command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-increment-conversation-unread",
+          "markdownDescription": "Denies the increment_conversation_unread command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the mark_conversation_as_read command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-mark-conversation-as-read",
+          "markdownDescription": "Enables the mark_conversation_as_read command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the mark_conversation_as_read command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-mark-conversation-as-read",
+          "markdownDescription": "Denies the mark_conversation_as_read command without any pre-configured scope."
         },
         {
           "description": "Enables the messaging_cancel_download command without any pre-configured scope.",
@@ -461,6 +521,18 @@
           "type": "string",
           "const": "deny-messaging-get-image-data",
           "markdownDescription": "Denies the messaging_get_image_data command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_get_message_history command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-get-message-history",
+          "markdownDescription": "Enables the messaging_get_message_history command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_get_message_history command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-get-message-history",
+          "markdownDescription": "Denies the messaging_get_message_history command without any pre-configured scope."
         },
         {
           "description": "Enables the messaging_get_peers command without any pre-configured scope.",
@@ -557,6 +629,18 @@
           "type": "string",
           "const": "deny-messaging-request-file-from-nickname",
           "markdownDescription": "Denies the messaging_request_file_from_nickname command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the messaging_save_shared_files command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-messaging-save-shared-files",
+          "markdownDescription": "Enables the messaging_save_shared_files command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the messaging_save_shared_files command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-messaging-save-shared-files",
+          "markdownDescription": "Denies the messaging_save_shared_files command without any pre-configured scope."
         },
         {
           "description": "Enables the messaging_select_any_file command without any pre-configured scope.",
@@ -715,10 +799,34 @@
           "markdownDescription": "Denies the try_get_peer_id command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`",
+          "description": "Enables the update_conversation_last_message command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-conversation-last-message",
+          "markdownDescription": "Enables the update_conversation_last_message command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_conversation_last_message command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-conversation-last-message",
+          "markdownDescription": "Denies the update_conversation_last_message command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the upsert_conversation command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-upsert-conversation",
+          "markdownDescription": "Enables the upsert_conversation command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the upsert_conversation command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-upsert-conversation",
+          "markdownDescription": "Denies the upsert_conversation command without any pre-configured scope."
+        },
+        {
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-get-message-history`\n- `allow-messaging-save-shared-files`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`\n- `allow-get-conversations`\n- `allow-get-conversation`\n- `allow-upsert-conversation`\n- `allow-update-conversation-last-message`\n- `allow-increment-conversation-unread`\n- `allow-mark-conversation-as-read`\n- `allow-delete-conversation`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`"
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-get-message-history`\n- `allow-messaging-save-shared-files`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`\n- `allow-get-conversations`\n- `allow-get-conversation`\n- `allow-upsert-conversation`\n- `allow-update-conversation-last-message`\n- `allow-increment-conversation-unread`\n- `allow-mark-conversation-as-read`\n- `allow-delete-conversation`"
         }
       ]
     }

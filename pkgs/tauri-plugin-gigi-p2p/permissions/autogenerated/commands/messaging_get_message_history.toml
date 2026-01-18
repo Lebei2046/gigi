@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-messaging-get-message-history"
+description = "Enables the messaging_get_message_history command without any pre-configured scope."
+commands.allow = ["messaging_get_message_history"]
+
+[[permission]]
+identifier = "deny-messaging-get-message-history"
+description = "Denies the messaging_get_message_history command without any pre-configured scope."
+commands.deny = ["messaging_get_message_history"]

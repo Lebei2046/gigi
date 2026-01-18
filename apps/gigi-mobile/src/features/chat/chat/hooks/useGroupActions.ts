@@ -6,7 +6,7 @@ import {
   setSelectedGroup,
   clearChatMessagesAsync,
   removeGroupShareNotification,
-  loadChatsAsync,
+  loadConversationsAsync,
 } from '@/store/chatSlice'
 import { clearMessages } from '@/store/chatRoomSlice'
 import { MessagingClient } from '@/utils/messaging'
@@ -58,7 +58,7 @@ export function useGroupActions() {
       })
 
       dispatch(removeGroupShareNotification(shareMessage.from_peer_id))
-      dispatch(loadChatsAsync())
+      dispatch(loadConversationsAsync())
     } catch (error) {
       console.error('Failed to accept group share:', error)
     }

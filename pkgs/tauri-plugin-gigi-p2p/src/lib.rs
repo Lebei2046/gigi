@@ -72,6 +72,14 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::file::messaging_select_any_file,
             commands::file::messaging_share_content_uri,
             commands::utils::clear_app_data,
+            // Conversation commands
+            commands::conversations::get_conversations,
+            commands::conversations::get_conversation,
+            commands::conversations::upsert_conversation,
+            commands::conversations::update_conversation_last_message,
+            commands::conversations::increment_conversation_unread,
+            commands::conversations::mark_conversation_as_read,
+            commands::conversations::delete_conversation,
         ])
         .setup(|app, api| {
             #[cfg(mobile)]

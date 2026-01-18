@@ -1,8 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type { Peer, GroupShareMessage } from '@/utils/messaging'
-import type { Chat } from '@/models/db'
-import { getAllChats, getAllGroups, updateChatInfo } from '@/utils/chatUtils'
+import type { Conversation } from '@/utils/conversationUtils'
+import { getAllConversations, updateConversationInfo } from '@/utils/conversationUtils'
+import { getAllGroups } from '@/utils/chatUtils'
 import { MessagingClient } from '@/utils/messaging'
 
 // Redux-compatible Group type with serializable dates
@@ -17,7 +18,7 @@ export interface ChatState {
   peers: Peer[]
   loading: boolean
   error: string | null
-  chats: Chat[]
+  conversations: Conversation[]
   groups: ReduxGroup[]
   latestMessages: Record<string, string>
   groupShareNotifications: GroupShareMessage[]
@@ -30,7 +31,7 @@ const initialState: ChatState = {
   peers: [],
   loading: true,
   error: null,
-  chats: [],
+  conversations: [],
   groups: [],
   latestMessages: {},
   groupShareNotifications: [],
@@ -40,9 +41,9 @@ const initialState: ChatState = {
 }
 
 // Async thunks for complex operations
-export const loadChatsAsync = createAsyncThunk('chat/loadChats', async () => {
-  const allChats = await getAllChats()
-  return allChats
+export const loadConversationsAsync = createAsyncThunk('chat/loadConversations', async () => {
+  const allConversations = await getAllConversations()
+  return allConversations
 })
 
 export const loadGroupsAsync = createAsyncThunk('chat/loadGroups', async () => {
@@ -127,10 +128,10 @@ export const clearChatMessagesAsync = createAsyncThunk(
       throw error
     }
 
-    // Reset chat info in IndexedDB
-    await updateChatInfo(chatId, '', '', 0, isGroupChat)
+    // Reset conversation info in backend
+    await updateConversationInfo(chatId, '', '', 0, isGroupChat)
 
-    console.log('✅ Chat info reset for chatId:', chatId)
+    console.log('✅ Conversation info reset for chatId:', chatId)
 
     return { chatId, isGroupChat }
   }
@@ -163,8 +164,8 @@ const chatSlice = createSlice({
       state.error = action.payload
     },
 
-    setChats: (state, action: PayloadAction<Chat[]>) => {
-      state.chats = action.payload
+    setConversations: (state, action: PayloadAction<Conversation[]>) => {
+      state.conversations = action.payload
     },
 
     setGroups: (state, action: PayloadAction<ReduxGroup[]>) => {
@@ -229,15 +230,11 @@ const chatSlice = createSlice({
       // Update latest message
       state.latestMessages[from_peer_id] = content
 
-      // Update in chats as well
-      const chatIndex = state.chats.findIndex(chat => chat.id === from_peer_id)
-      if (chatIndex !== -1) {
-        state.chats[chatIndex].lastMessage = content
-        state.chats[chatIndex].lastMessageTime = new Date(
-          timestamp
-        ).toLocaleString()
-        state.chats[chatIndex].unreadCount =
-          (state.chats[chatIndex].unreadCount || 0) + 1
+      // Update in conversations as well
+      const conversationIndex = state.conversations.findIndex(c => c.id === from_peer_id)
+      if (conversationIndex !== -1) {
+        state.conversations[conversationIndex].last_message = content
+        state.conversations[conversationIndex].unread_count += 1
       }
     },
 
@@ -255,15 +252,11 @@ const chatSlice = createSlice({
       // Update latest message
       state.latestMessages[group_id] = content
 
-      // Update in chats as well
-      const chatIndex = state.chats.findIndex(chat => chat.id === group_id)
-      if (chatIndex !== -1) {
-        state.chats[chatIndex].lastMessage = content
-        state.chats[chatIndex].lastMessageTime = new Date(
-          timestamp
-        ).toLocaleString()
-        state.chats[chatIndex].unreadCount =
-          (state.chats[chatIndex].unreadCount || 0) + 1
+      // Update in conversations as well
+      const conversationIndex = state.conversations.findIndex(c => c.id === group_id)
+      if (conversationIndex !== -1) {
+        state.conversations[conversationIndex].last_message = content
+        state.conversations[conversationIndex].unread_count += 1
       }
     },
 
@@ -277,32 +270,31 @@ const chatSlice = createSlice({
       // Remove from latestMessages
       delete state.latestMessages[chatId]
 
-      // Update chat info to remove last message
-      const chatIndex = state.chats.findIndex(chat => chat.id === chatId)
-      if (chatIndex !== -1) {
-        state.chats[chatIndex].lastMessage = ''
-        state.chats[chatIndex].lastMessageTime = ''
-        state.chats[chatIndex].lastMessageTimestamp = 0
-        state.chats[chatIndex].unreadCount = 0
+      // Update conversation info to remove last message
+      const conversationIndex = state.conversations.findIndex(c => c.id === chatId)
+      if (conversationIndex !== -1) {
+        state.conversations[conversationIndex].last_message = ''
+        state.conversations[conversationIndex].unread_count = 0
       }
     },
   },
   extraReducers: builder => {
     builder
-      .addCase(loadChatsAsync.fulfilled, (state, action) => {
-        state.chats = action.payload
+      .addCase(loadConversationsAsync.fulfilled, (state, action) => {
+        console.log('[chatSlice] Loaded conversations:', action.payload)
+        state.conversations = action.payload
 
-        // Update latestMessages from chats
-        const messagesFromChats: Record<string, string> = {}
-        action.payload.forEach(chat => {
-          if (chat.lastMessage) {
-            messagesFromChats[chat.id] = chat.lastMessage
+        // Update latestMessages from conversations
+        const messagesFromConversations: Record<string, string> = {}
+        action.payload.forEach(conv => {
+          if (conv.last_message) {
+            messagesFromConversations[conv.id] = conv.last_message
           }
         })
-        state.latestMessages = messagesFromChats
+        state.latestMessages = messagesFromConversations
       })
-      .addCase(loadChatsAsync.rejected, (_state, action) => {
-        console.error('Failed to load chats:', action.error)
+      .addCase(loadConversationsAsync.rejected, (_state, action) => {
+        console.error('Failed to load conversations:', action.error)
       })
 
       .addCase(loadGroupsAsync.fulfilled, (state, action) => {
@@ -328,13 +320,11 @@ const chatSlice = createSlice({
         // Remove from latestMessages
         delete state.latestMessages[chatId]
 
-        // Update chat info to remove last message
-        const chatIndex = state.chats.findIndex(chat => chat.id === chatId)
-        if (chatIndex !== -1) {
-          state.chats[chatIndex].lastMessage = ''
-          state.chats[chatIndex].lastMessageTime = ''
-          state.chats[chatIndex].lastMessageTimestamp = 0
-          state.chats[chatIndex].unreadCount = 0
+        // Update conversation info to remove last message
+        const conversationIndex = state.conversations.findIndex(c => c.id === chatId)
+        if (conversationIndex !== -1) {
+          state.conversations[conversationIndex].last_message = ''
+          state.conversations[conversationIndex].unread_count = 0
         }
       })
       .addCase(clearChatMessagesAsync.rejected, (_state, action) => {
@@ -349,7 +339,7 @@ export const {
   removePeer,
   setLoading,
   setError,
-  setChats,
+  setConversations,
   setGroups,
   setLatestMessages,
   updateSingleLatestMessage,

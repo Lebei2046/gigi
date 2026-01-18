@@ -13,11 +13,14 @@ permissions = [
   "allow-messaging-get-config",
   # Messaging commands
   "allow-messaging-initialize-with-key",
+  "allow-messaging-send-message",
   "allow-messaging-send-message-to-nickname",
   "allow-messaging-send-direct-share-group-message",
   "allow-messaging-join-group",
   "allow-messaging-send-group-message",
   "allow-emit-current-state",
+  "allow-messaging-get-message-history",
+  "allow-messaging-save-shared-files",
   "allow-get-messages",
   "allow-search-messages",
   "allow-clear-messages-with-thumbnails",
@@ -28,6 +31,7 @@ permissions = [
   "allow-messaging-send-file-message-with-path",
   "allow-messaging-send-group-file-message-with-path",
   "allow-messaging-share-file",
+  "allow-messaging-request-file",
   "allow-messaging-request-file-from-nickname",
   "allow-messaging-cancel-download",
   "allow-messaging-get-shared-files",
@@ -38,4 +42,12 @@ permissions = [
   "allow-messaging-share-content-uri",
   # Utils commands
   "allow-clear-app-data",
+  # Conversation commands
+  "allow-get-conversations",
+  "allow-get-conversation",
+  "allow-upsert-conversation",
+  "allow-update-conversation-last-message",
+  "allow-increment-conversation-unread",
+  "allow-mark-conversation-as-read",
+  "allow-delete-conversation",
 ]

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-increment-conversation-unread"
+description = "Enables the increment_conversation_unread command without any pre-configured scope."
+commands.allow = ["increment_conversation_unread"]
+
+[[permission]]
+identifier = "deny-increment-conversation-unread"
+description = "Denies the increment_conversation_unread command without any pre-configured scope."
+commands.deny = ["increment_conversation_unread"]

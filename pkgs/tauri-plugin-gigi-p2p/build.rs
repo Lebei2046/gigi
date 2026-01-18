@@ -17,10 +17,19 @@ const COMMANDS: &[&str] = &[
     "messaging_join_group",
     "messaging_send_group_message",
     "emit_current_state",
+    "messaging_get_message_history",
+    "messaging_save_shared_files",
+    "get_messages",
+    "search_messages",
+    "clear_messages_with_thumbnails",
+    "get_file_thumbnail",
+    "get_full_image_by_path",
+    "get_full_image",
     // File commands
     "messaging_send_file_message_with_path",
     "messaging_send_group_file_message_with_path",
     "messaging_share_file",
+    "messaging_request_file",
     "messaging_request_file_from_nickname",
     "messaging_cancel_download",
     "messaging_get_shared_files",
@@ -31,6 +40,14 @@ const COMMANDS: &[&str] = &[
     "messaging_share_content_uri",
     // Utils commands
     "clear_app_data",
+    // Conversation commands
+    "get_conversations",
+    "get_conversation",
+    "upsert_conversation",
+    "update_conversation_last_message",
+    "increment_conversation_unread",
+    "mark_conversation_as_read",
+    "delete_conversation",
 ];
 
 fn main() {

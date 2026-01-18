@@ -12,16 +12,6 @@ interface Group {
   createdAt: Date
 }
 
-interface Chat {
-  id: string // peer-id or group-id for both direct chats and groups
-  name: string // peer nickname for direct chat, group name for groups
-  isGroup?: boolean // false = direct chat, true = group chat
-  lastMessage?: string
-  lastMessageTime?: string
-  lastMessageTimestamp?: number // for sorting
-  unreadCount?: number
-}
-
 // Add image storage interface
 interface Image {
   id: string
@@ -48,7 +38,6 @@ interface Settings {
 const db = new Dexie('GigiDatabase') as Dexie & {
   contacts: EntityTable<Contact, 'id'>
   groups: EntityTable<Group, 'id'>
-  chats: EntityTable<Chat, 'id'>
   images: EntityTable<Image, 'id'>
   avatars: EntityTable<Avatar, 'id'>
   settings: EntityTable<Settings, 'key'>
@@ -58,23 +47,10 @@ db.version(2)
   .stores({
     contacts: 'id, name',
     groups: 'id, name, joined, createdAt',
-    chats:
-      'id, name, isGroup, lastMessageTime, lastMessageTimestamp, unreadCount',
     images: 'id, createdAt',
     avatars: 'id, imageId, createdAt, updatedAt',
     settings: 'key, updatedAt',
   })
-  .upgrade(tx => {
-    // Initialize unreadCount for existing chats
-    return tx
-      .table('chats')
-      .toCollection()
-      .modify(chat => {
-        if (chat.unreadCount === undefined) {
-          chat.unreadCount = 0
-        }
-      })
-  })
 
-export type { Contact, Group, Chat, Image, Avatar, Settings }
+export type { Contact, Group, Image, Avatar, Settings }
 export { db }

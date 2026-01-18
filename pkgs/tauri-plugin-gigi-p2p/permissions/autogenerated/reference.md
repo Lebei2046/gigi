@@ -13,11 +13,14 @@ Default permissions for the plugin
 - `allow-messaging-update-config`
 - `allow-messaging-get-config`
 - `allow-messaging-initialize-with-key`
+- `allow-messaging-send-message`
 - `allow-messaging-send-message-to-nickname`
 - `allow-messaging-send-direct-share-group-message`
 - `allow-messaging-join-group`
 - `allow-messaging-send-group-message`
 - `allow-emit-current-state`
+- `allow-messaging-get-message-history`
+- `allow-messaging-save-shared-files`
 - `allow-get-messages`
 - `allow-search-messages`
 - `allow-clear-messages-with-thumbnails`
@@ -27,6 +30,7 @@ Default permissions for the plugin
 - `allow-messaging-send-file-message-with-path`
 - `allow-messaging-send-group-file-message-with-path`
 - `allow-messaging-share-file`
+- `allow-messaging-request-file`
 - `allow-messaging-request-file-from-nickname`
 - `allow-messaging-cancel-download`
 - `allow-messaging-get-shared-files`
@@ -36,6 +40,13 @@ Default permissions for the plugin
 - `allow-messaging-select-any-file`
 - `allow-messaging-share-content-uri`
 - `allow-clear-app-data`
+- `allow-get-conversations`
+- `allow-get-conversation`
+- `allow-upsert-conversation`
+- `allow-update-conversation-last-message`
+- `allow-increment-conversation-unread`
+- `allow-mark-conversation-as-read`
+- `allow-delete-conversation`
 
 ## Permission Table
 
@@ -101,6 +112,32 @@ Denies the clear_messages_with_thumbnails command without any pre-configured sco
 <tr>
 <td>
 
+`gigi-p2p:allow-delete-conversation`
+
+</td>
+<td>
+
+Enables the delete_conversation command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-delete-conversation`
+
+</td>
+<td>
+
+Denies the delete_conversation command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `gigi-p2p:allow-emit-current-state`
 
 </td>
@@ -120,6 +157,58 @@ Enables the emit_current_state command without any pre-configured scope.
 <td>
 
 Denies the emit_current_state command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-get-conversation`
+
+</td>
+<td>
+
+Enables the get_conversation command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-get-conversation`
+
+</td>
+<td>
+
+Denies the get_conversation command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-get-conversations`
+
+</td>
+<td>
+
+Enables the get_conversations command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-get-conversations`
+
+</td>
+<td>
+
+Denies the get_conversations command without any pre-configured scope.
 
 </td>
 </tr>
@@ -250,6 +339,58 @@ Enables the get_peer_id command without any pre-configured scope.
 <td>
 
 Denies the get_peer_id command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-increment-conversation-unread`
+
+</td>
+<td>
+
+Enables the increment_conversation_unread command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-increment-conversation-unread`
+
+</td>
+<td>
+
+Denies the increment_conversation_unread command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-mark-conversation-as-read`
+
+</td>
+<td>
+
+Enables the mark_conversation_as_read command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-mark-conversation-as-read`
+
+</td>
+<td>
+
+Denies the mark_conversation_as_read command without any pre-configured scope.
 
 </td>
 </tr>
@@ -406,6 +547,32 @@ Enables the messaging_get_image_data command without any pre-configured scope.
 <td>
 
 Denies the messaging_get_image_data command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-messaging-get-message-history`
+
+</td>
+<td>
+
+Enables the messaging_get_message_history command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-messaging-get-message-history`
+
+</td>
+<td>
+
+Denies the messaging_get_message_history command without any pre-configured scope.
 
 </td>
 </tr>
@@ -614,6 +781,32 @@ Enables the messaging_request_file_from_nickname command without any pre-configu
 <td>
 
 Denies the messaging_request_file_from_nickname command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-messaging-save-shared-files`
+
+</td>
+<td>
+
+Enables the messaging_save_shared_files command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-messaging-save-shared-files`
+
+</td>
+<td>
+
+Denies the messaging_save_shared_files command without any pre-configured scope.
 
 </td>
 </tr>
@@ -952,6 +1145,58 @@ Enables the try_get_peer_id command without any pre-configured scope.
 <td>
 
 Denies the try_get_peer_id command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-update-conversation-last-message`
+
+</td>
+<td>
+
+Enables the update_conversation_last_message command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-update-conversation-last-message`
+
+</td>
+<td>
+
+Denies the update_conversation_last_message command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-upsert-conversation`
+
+</td>
+<td>
+
+Enables the upsert_conversation command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-upsert-conversation`
+
+</td>
+<td>
+
+Denies the upsert_conversation command without any pre-configured scope.
 
 </td>
 </tr>

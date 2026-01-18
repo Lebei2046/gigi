@@ -12,3 +12,6 @@ pub mod config;
 
 // Utility commands
 pub mod utils;
+
+// Conversation commands
+pub mod conversations;

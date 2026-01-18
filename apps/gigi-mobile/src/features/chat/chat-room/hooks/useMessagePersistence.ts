@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useAppSelector } from '@/store'
-import { updateLatestMessage } from '@/utils/chatUtils'
+import { updateLatestMessage } from '@/utils/conversationUtils'
 import type { Message } from '@/store/chatRoomSlice'
 
 interface UseMessagePersistenceParams {

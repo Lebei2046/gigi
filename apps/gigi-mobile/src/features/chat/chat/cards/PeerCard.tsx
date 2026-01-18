@@ -45,6 +45,11 @@ export function PeerCard({
               <div className="text-xs text-gray-500 font-mono truncate">
                 {peer.id}
               </div>
+              {latestMessage && (
+                <div className="text-sm text-gray-600 truncate mt-1">
+                  {latestMessage}
+                </div>
+              )}
               {peer.capabilities.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
                   {peer.capabilities.map((cap, index) => (
@@ -59,29 +64,22 @@ export function PeerCard({
               )}
             </div>
           </div>
-          <div className="text-right ml-3 flex-shrink-0">
+          <div className="text-right ml-3 flex-shrink-0 flex flex-col items-end">
             {lastMessageTime && (
               <div className="text-xs text-gray-400 mb-1">
                 {lastMessageTime}
               </div>
             )}
-            {latestMessage && (
-              <div className="text-xs text-gray-600 max-w-32 truncate font-medium">
-                {latestMessage}
-              </div>
-            )}
-            <div className="flex gap-1 mt-2 justify-end">
-              <button
-                onClick={e => {
-                  e.stopPropagation()
-                  onClearMessages(peer.id, peer.nickname || 'Unknown')
-                }}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Clear messages"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                onClearMessages(peer.id, peer.nickname || 'Unknown')
+              }}
+              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Clear messages"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>

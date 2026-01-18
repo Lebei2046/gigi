@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import {
   loadPeersAsync,
-  loadChatsAsync,
+  loadConversationsAsync,
   loadGroupsAsync,
   setPeers,
   setLoading,
@@ -11,9 +11,8 @@ import {
   setComponentError,
 } from '@/store/chatSlice'
 import {
-  cleanupInvalidTimestamps,
-  ensureChatEntriesForGroups,
-} from '@/utils/chatUtils'
+  ensureConversationsForGroups,
+} from '@/utils/conversationUtils'
 import { MessagingClient } from '@/utils/messaging'
 
 /**
@@ -65,15 +64,14 @@ export function useChatInitialization() {
     return () => clearInterval(pollInterval)
   }, [dispatch])
 
-  // Load chats and groups on mount
+  // Load conversations and groups on mount
   useEffect(() => {
-    cleanupInvalidTimestamps()
-    ensureChatEntriesForGroups()
-
     const loadInitialData = async () => {
       try {
-        await dispatch(loadChatsAsync())
-        await dispatch(loadGroupsAsync())
+        await dispatch(loadConversationsAsync())
+        const groups = await dispatch(loadGroupsAsync()).unwrap()
+        // Ensure conversation entries exist for all groups
+        await ensureConversationsForGroups(groups)
       } catch (error) {
         console.error('Failed to load initial data:', error)
       }
@@ -86,7 +84,7 @@ export function useChatInitialization() {
 
   return {
     peers: state.peers,
-    chats: state.chats,
+    conversations: state.conversations,
     groups: state.groups,
     latestMessages: state.latestMessages,
     groupShareNotifications: state.groupShareNotifications,
@@ -95,7 +93,7 @@ export function useChatInitialization() {
     loading: state.loading,
     error: state.error,
     componentError: state.componentError,
-    loadChats: () => dispatch(loadChatsAsync()),
+    loadConversations: () => dispatch(loadConversationsAsync()),
     loadGroups: () => dispatch(loadGroupsAsync()),
   }
 }

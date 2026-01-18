@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/store'
-import { loadChatsAsync } from '@/store/chatSlice'
-import { getChatInfo, updateChatInfo } from '@/utils/chatUtils'
+import { loadConversationsAsync } from '@/store/chatSlice'
+import { getConversationInfo, updateConversationInfo } from '@/utils/conversationUtils'
 import type { Peer } from '@/utils/messaging'
 
 /**
@@ -13,20 +13,20 @@ export function usePeerActions() {
 
   const handlePeerClick = async (peer: Peer) => {
     try {
-      const existingChat = await getChatInfo(peer.id)
-      if (!existingChat) {
+      const existingConversation = await getConversationInfo(peer.id)
+      if (!existingConversation) {
         console.log(
-          `➕ Creating new chat entry for peer ${peer.id} (${peer.nickname})`
+          `➕ Creating new conversation entry for peer ${peer.id} (${peer.nickname})`
         )
-        await updateChatInfo(peer.id, peer.nickname, '', Date.now(), false)
-        dispatch(loadChatsAsync())
+        await updateConversationInfo(peer.id, peer.nickname, '', Date.now(), false)
+        dispatch(loadConversationsAsync())
       } else {
         console.log(
-          `✅ Chat entry already exists for peer ${peer.id} (${peer.nickname})`
+          `✅ Conversation entry already exists for peer ${peer.id} (${peer.nickname})`
         )
       }
     } catch (error) {
-      console.error('Error ensuring chat entry exists:', error)
+      console.error('Error ensuring conversation entry exists:', error)
     }
 
     navigate(`/chat/${peer.id}`, { state: { peer } })

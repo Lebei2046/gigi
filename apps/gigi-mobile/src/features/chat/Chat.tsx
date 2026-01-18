@@ -26,7 +26,7 @@ export default function Chat() {
   // Data hooks
   const {
     peers,
-    chats,
+    conversations,
     groups,
     latestMessages,
     groupShareNotifications,
@@ -35,7 +35,7 @@ export default function Chat() {
     loading,
     error,
     componentError,
-    loadChats,
+    loadConversations,
   } = useChatInitialization()
 
   // Event listeners
@@ -51,7 +51,7 @@ export default function Chat() {
 
   // Refresh when location changes (navigating back from ChatRoom)
   useEffect(() => {
-    loadChats()
+    loadConversations()
   }, [location.key])
 
   // Action handlers
@@ -105,7 +105,7 @@ export default function Chat() {
         {/* Groups Section */}
         <GroupsSection
           groups={groups}
-          chats={chats}
+          conversations={conversations}
           latestMessages={latestMessages}
           onGroupClick={groupId => navigate(`/chat/${groupId}`)}
           onShare={handleShareGroup}
@@ -115,7 +115,7 @@ export default function Chat() {
         {/* Direct Chats Section */}
         <DirectChatsSection
           peers={peers}
-          chats={chats}
+          conversations={conversations}
           latestMessages={latestMessages}
           onPeerClick={handlePeerClick}
           onClearMessages={handleClearMessages}
