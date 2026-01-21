@@ -13,10 +13,7 @@ interface MessageBubbleProps {
   ) => void
 }
 
-function MessageBubble({
-  message,
-  onDownloadRequest,
-}: MessageBubbleProps) {
+function MessageBubble({ message, onDownloadRequest }: MessageBubbleProps) {
   console.log('💬 MessageBubble render:', {
     id: message.id,
     messageType: message.messageType,

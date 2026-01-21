@@ -47,6 +47,18 @@ Default permissions for the plugin
 - `allow-increment-conversation-unread`
 - `allow-mark-conversation-as-read`
 - `allow-delete-conversation`
+- `allow-auth-check-account`
+- `allow-auth-signup`
+- `allow-auth-login`
+- `allow-auth-get-account-info`
+- `allow-auth-delete-account`
+- `allow-auth-verify-password`
+- `allow-group-create`
+- `allow-group-join`
+- `allow-group-get-all`
+- `allow-group-get`
+- `allow-group-delete`
+- `allow-group-update`
 
 ## Permission Table
 
@@ -56,6 +68,162 @@ Default permissions for the plugin
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`gigi-p2p:allow-auth-check-account`
+
+</td>
+<td>
+
+Enables the auth_check_account command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-auth-check-account`
+
+</td>
+<td>
+
+Denies the auth_check_account command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-auth-delete-account`
+
+</td>
+<td>
+
+Enables the auth_delete_account command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-auth-delete-account`
+
+</td>
+<td>
+
+Denies the auth_delete_account command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-auth-get-account-info`
+
+</td>
+<td>
+
+Enables the auth_get_account_info command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-auth-get-account-info`
+
+</td>
+<td>
+
+Denies the auth_get_account_info command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-auth-login`
+
+</td>
+<td>
+
+Enables the auth_login command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-auth-login`
+
+</td>
+<td>
+
+Denies the auth_login command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-auth-signup`
+
+</td>
+<td>
+
+Enables the auth_signup command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-auth-signup`
+
+</td>
+<td>
+
+Denies the auth_signup command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-auth-verify-password`
+
+</td>
+<td>
+
+Enables the auth_verify_password command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-auth-verify-password`
+
+</td>
+<td>
+
+Denies the auth_verify_password command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
@@ -339,6 +507,162 @@ Enables the get_peer_id command without any pre-configured scope.
 <td>
 
 Denies the get_peer_id command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-group-create`
+
+</td>
+<td>
+
+Enables the group_create command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-group-create`
+
+</td>
+<td>
+
+Denies the group_create command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-group-delete`
+
+</td>
+<td>
+
+Enables the group_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-group-delete`
+
+</td>
+<td>
+
+Denies the group_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-group-get`
+
+</td>
+<td>
+
+Enables the group_get command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-group-get`
+
+</td>
+<td>
+
+Denies the group_get command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-group-get-all`
+
+</td>
+<td>
+
+Enables the group_get_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-group-get-all`
+
+</td>
+<td>
+
+Denies the group_get_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-group-join`
+
+</td>
+<td>
+
+Enables the group_join command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-group-join`
+
+</td>
+<td>
+
+Denies the group_join command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:allow-group-update`
+
+</td>
+<td>
+
+Enables the group_update command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi-p2p:deny-group-update`
+
+</td>
+<td>
+
+Denies the group_update command without any pre-configured scope.
 
 </td>
 </tr>

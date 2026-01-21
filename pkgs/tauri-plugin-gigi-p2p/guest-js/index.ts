@@ -321,6 +321,54 @@ export async function delete_conversation(...args: any[]): Promise<any> {
   return await invoke('plugin:gigi-p2p|delete_conversation', args.length === 1 ? args[0] : { ...args });
 }
 
+export async function auth_check_account(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|auth_check_account', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function auth_signup(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|auth_signup', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function auth_login(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|auth_login', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function auth_get_account_info(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|auth_get_account_info', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function auth_delete_account(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|auth_delete_account', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function auth_verify_password(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|auth_verify_password', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function group_create(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|group_create', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function group_join(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|group_join', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function group_get_all(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|group_get_all', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function group_get(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|group_get', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function group_delete(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|group_delete', args.length === 1 ? args[0] : { ...args });
+}
+
+export async function group_update(...args: any[]): Promise<any> {
+  return await invoke('plugin:gigi-p2p|group_update', args.length === 1 ? args[0] : { ...args });
+}
+
 // Event listeners
 // Note: Tauri plugin system automatically handles the plugin prefix, so we don't need to add it manually
 

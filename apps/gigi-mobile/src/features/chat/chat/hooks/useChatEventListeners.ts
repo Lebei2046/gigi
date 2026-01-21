@@ -9,7 +9,10 @@ import {
   updateDirectMessage,
   updateGroupMessage,
 } from '@/store/chatSlice'
-import { updateLatestMessage, ensureMilliseconds } from '@/utils/conversationUtils'
+import {
+  updateLatestMessage,
+  ensureMilliseconds,
+} from '@/utils/conversationUtils'
 
 /**
  * Hook for setting up all messaging event listeners

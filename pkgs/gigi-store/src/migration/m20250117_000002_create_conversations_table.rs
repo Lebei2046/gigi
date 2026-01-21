@@ -48,8 +48,16 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(0),
                     )
-                    .col(ColumnDef::new(Conversations::CreatedAt).big_integer().not_null())
-                    .col(ColumnDef::new(Conversations::UpdatedAt).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(Conversations::CreatedAt)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Conversations::UpdatedAt)
+                            .big_integer()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await

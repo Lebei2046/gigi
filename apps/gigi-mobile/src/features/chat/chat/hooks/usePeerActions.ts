@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/store'
 import { loadConversationsAsync } from '@/store/chatSlice'
-import { getConversationInfo, updateConversationInfo } from '@/utils/conversationUtils'
+import {
+  getConversationInfo,
+  updateConversationInfo,
+} from '@/utils/conversationUtils'
 import type { Peer } from '@/utils/messaging'
 
 /**
@@ -18,7 +21,13 @@ export function usePeerActions() {
         console.log(
           `➕ Creating new conversation entry for peer ${peer.id} (${peer.nickname})`
         )
-        await updateConversationInfo(peer.id, peer.nickname, '', Date.now(), false)
+        await updateConversationInfo(
+          peer.id,
+          peer.nickname,
+          '',
+          Date.now(),
+          false
+        )
         dispatch(loadConversationsAsync())
       } else {
         console.log(

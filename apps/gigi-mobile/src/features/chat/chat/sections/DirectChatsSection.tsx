@@ -41,9 +41,14 @@ export default function DirectChatsSection({
             const unreadCount = conversationInfo?.unread_count || 0
             const timestamp = conversationInfo?.last_message_timestamp
 
-            const lastMessageTime = timestamp && isValidTimestamp(timestamp)
-              ? new Date(typeof timestamp === 'string' ? timestamp : ensureMilliseconds(timestamp)).toLocaleString()
-              : undefined
+            const lastMessageTime =
+              timestamp && isValidTimestamp(timestamp)
+                ? new Date(
+                    typeof timestamp === 'string'
+                      ? timestamp
+                      : ensureMilliseconds(timestamp)
+                  ).toLocaleString()
+                : undefined
 
             return (
               <PeerCard

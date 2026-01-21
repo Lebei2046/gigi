@@ -50,4 +50,18 @@ permissions = [
   "allow-increment-conversation-unread",
   "allow-mark-conversation-as-read",
   "allow-delete-conversation",
+  # Auth commands
+  "allow-auth-check-account",
+  "allow-auth-signup",
+  "allow-auth-login",
+  "allow-auth-get-account-info",
+  "allow-auth-delete-account",
+  "allow-auth-verify-password",
+  # Group commands
+  "allow-group-create",
+  "allow-group-join",
+  "allow-group-get-all",
+  "allow-group-get",
+  "allow-group-delete",
+  "allow-group-update",
 ]

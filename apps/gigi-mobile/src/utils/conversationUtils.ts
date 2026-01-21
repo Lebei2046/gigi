@@ -40,7 +40,9 @@ export function ensureMilliseconds(timestamp: number): number {
  * Check if a timestamp represents a valid date (after year 2000)
  * Handles both seconds and milliseconds format, and string timestamps
  */
-export function isValidTimestamp(timestamp: number | string | undefined | null): boolean {
+export function isValidTimestamp(
+  timestamp: number | string | undefined | null
+): boolean {
   if (!timestamp || timestamp === 0 || timestamp === '') return false
 
   // Convert string timestamp to number if needed
@@ -75,7 +77,9 @@ export async function getAllConversations(): Promise<Conversation[]> {
 /**
  * Get a single conversation by ID
  */
-export async function getConversationInfo(id: string): Promise<Conversation | undefined> {
+export async function getConversationInfo(
+  id: string
+): Promise<Conversation | undefined> {
   try {
     const conversation = await get_conversation({ id })
     return conversation
@@ -164,7 +168,9 @@ export async function resetUnreadCount(conversationId: string): Promise<void> {
 /**
  * Delete a conversation
  */
-export async function removeConversation(conversationId: string): Promise<void> {
+export async function removeConversation(
+  conversationId: string
+): Promise<void> {
   try {
     await delete_conversation({ id: conversationId })
   } catch (error) {

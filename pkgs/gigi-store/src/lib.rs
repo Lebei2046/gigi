@@ -9,17 +9,24 @@
 pub mod conversation_store;
 pub mod entities;
 pub mod file_sharing_store;
+pub mod group_manager;
 pub mod key_manager;
 pub mod message_store;
 pub mod migration;
+pub mod settings_manager;
 pub mod sync_manager;
 pub mod thumbnail;
 pub mod thumbnail_store;
 
+// Re-export from gigi-auth
+pub use gigi_auth::{AccountInfo, AuthManager, LoginResult};
+
 pub use conversation_store::{Conversation, ConversationStore};
 pub use file_sharing_store::{FileSharingStore, SharedFileInfo};
+pub use group_manager::{GroupInfo, GroupManager};
 pub use key_manager::{AppData, KeyManager};
 pub use message_store::MessageStore;
+pub use settings_manager::SettingsManager;
 pub use sync_manager::{AckType, SyncAction, SyncManager, SyncMessage, SyncMessageHandler};
 pub use thumbnail_store::ThumbnailStore;
 

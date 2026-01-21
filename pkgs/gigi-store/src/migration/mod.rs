@@ -7,9 +7,10 @@ mod m20250113_000002_create_offline_queue_table;
 mod m20250113_000003_create_message_acknowledgments_table;
 mod m20250113_000004_create_app_data_table;
 mod m20250114_000001_create_shared_files_table;
-mod m20250115_000001_add_thumbnail_path;
 mod m20250117_000001_create_thumbnails_table;
 mod m20250117_000002_create_conversations_table;
+mod m20250120_000001_create_settings_table;
+mod m20250120_000002_create_groups_table;
 
 pub struct Migrator;
 
@@ -22,9 +23,10 @@ impl MigratorTrait for Migrator {
             Box::new(m20250113_000003_create_message_acknowledgments_table::Migration),
             Box::new(m20250113_000004_create_app_data_table::Migration),
             Box::new(m20250114_000001_create_shared_files_table::Migration),
-            Box::new(m20250115_000001_add_thumbnail_path::Migration),
             Box::new(m20250117_000001_create_thumbnails_table::Migration),
             Box::new(m20250117_000002_create_conversations_table::Migration),
+            Box::new(m20250120_000001_create_settings_table::Migration),
+            Box::new(m20250120_000002_create_groups_table::Migration),
         ]
     }
 }

@@ -1,29 +1,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { getStorageItem, clearStorageItem } from '../utils/settingStorage'
 import {
-  decryptMnemonics,
-  getAddress,
-  getPrivateKeyFromMnemonic,
-} from '../utils/crypto'
+  authCheckAccount,
+  authGetAccountInfo,
+  authLogin,
+  authDeleteAccount,
+} from '../utils/tauriCommands'
 import { MessagingClient } from '../utils/messaging'
 
 type AuthState = {
   status: 'unregistered' | 'unauthenticated' | 'authenticated'
-  mnemonic: string | null
-  nonce: string | null
   address: string | null
   peerId: string | null
+  groupId: string | null
   name: string | null
   error: string | null
 }
 
 const initialState: AuthState = {
   status: 'unregistered',
-  mnemonic: null,
-  nonce: null,
   address: null,
   peerId: null,
+  groupId: null,
   name: null,
   error: null,
 }
@@ -38,37 +36,27 @@ const authSlice = createSlice({
     setUnregistered: state => {
       state.status = 'unregistered'
     },
-    login: (state, action: PayloadAction<{ password: string }>) => {
-      if (!state.mnemonic || !state.nonce || !state.address) {
-        return
-      }
-      const { password } = action.payload
-      try {
-        const decryptedMnemonics = decryptMnemonics(
-          state.mnemonic,
-          password,
-          state.nonce
-        )
-        const generatedAddress = getAddress(decryptedMnemonics)
-        if (generatedAddress === state.address) {
-          state.status = 'authenticated'
-          state.error = null
-        } else {
-          state.error = 'Password is incorrect, please re-enter!'
-        }
-      } catch (error) {
-        state.error =
-          error instanceof Error
-            ? error.message
-            : 'Decryption failed, please check if data or password is correct'
-      }
+    login: (
+      state,
+      action: PayloadAction<{
+        address: string
+        peerId: string
+        groupId: string
+        name: string
+      }>
+    ) => {
+      state.status = 'authenticated'
+      state.address = action.payload.address
+      state.peerId = action.payload.peerId
+      state.groupId = action.payload.groupId
+      state.name = action.payload.name
+      state.error = null
     },
     resetState: state => {
       state.status = 'unregistered'
-      state.mnemonic = null
-      state.nonce = null
       state.address = null
       state.peerId = null
+      state.groupId = null
       state.name = null
       state.error = null
     },
@@ -80,51 +68,60 @@ const authSlice = createSlice({
     builder.addCase(
       'auth/initAuth/fulfilled' as any,
       (state, action: PayloadAction<any>) => {
-        const gigiData = action.payload
-        state.mnemonic = gigiData.mnemonic || null
-        state.nonce = gigiData.nonce || null
-        state.address = gigiData.address || null
-        state.peerId = gigiData.peerId || null
-        state.name = gigiData.name || null
+        const accountInfo = action.payload
+        state.address = accountInfo.address || null
+        state.peerId = accountInfo.peer_id || null
+        state.groupId = accountInfo.group_id || null
+        state.name = accountInfo.name || null
         state.status = 'unauthenticated'
       }
     )
   },
 })
 
-// Async action to load auth data from IndexedDB
-export const loadAuthData = () => async (dispatch: any) => {
+// Async action to load auth data from backend
+export const loadAuthData = () => async (dispatch: any, getState: any) => {
   try {
-    const gigiData = await getStorageItem<{
-      mnemonic?: string
-      nonce?: string
-      address?: string
-      peerId?: string
-      name?: string
-    }>('gigi')
+    const hasAccount = await authCheckAccount()
 
-    if (!gigiData) {
+    // Don't reset status if already authenticated (prevents race condition after login)
+    const currentStatus = getState().auth.status
+
+    if (!hasAccount) {
+      if (currentStatus === 'unregistered') return // Skip if already set
       dispatch(setUnregistered())
     } else {
-      dispatch({
-        type: 'auth/initAuth/fulfilled',
-        payload: gigiData,
-      })
+      const accountInfo = await authGetAccountInfo()
+      if (accountInfo) {
+        // Only set unauthenticated if not already authenticated
+        if (currentStatus !== 'authenticated') {
+          dispatch({
+            type: 'auth/initAuth/fulfilled',
+            payload: accountInfo,
+          })
+        }
+      } else {
+        if (currentStatus === 'unregistered') return // Skip if already set
+        dispatch(setUnregistered())
+      }
     }
   } catch (error) {
     console.error('Failed to load auth data:', error)
-    dispatch(setUnregistered())
+    if (currentStatus !== 'authenticated') {
+      // Don't override authenticated status on error
+      dispatch(setUnregistered())
+    }
   }
 }
 
 // Async action to reset auth data
 export const resetAuth = () => async (dispatch: any) => {
   try {
-    await clearStorageItem('gigi')
+    await authDeleteAccount()
     dispatch(resetState())
   } catch (error) {
     console.error('Failed to reset auth data:', error)
-    dispatch(resetState()) // Still reset state even if storage clear fails
+    dispatch(resetState()) // Still reset state even if delete fails
   }
 }
 
@@ -132,41 +129,40 @@ export const resetAuth = () => async (dispatch: any) => {
 export const loginWithP2P =
   (password: string) => async (dispatch: any, getState: any) => {
     const state = getState().auth
-    if (!state.mnemonic || !state.nonce || !state.address) {
-      return { success: false, error: 'No auth data available' }
-    }
 
     try {
-      const decryptedMnemonics = decryptMnemonics(
-        state.mnemonic,
-        password,
-        state.nonce
-      )
-      const generatedAddress = getAddress(decryptedMnemonics)
+      const loginResult = await authLogin(password)
 
-      if (generatedAddress !== state.address) {
-        return {
-          success: false,
-          error: 'Password is incorrect, please re-enter!',
-        }
+      // Convert hex string to Uint8Array
+      const privateKeyHex = loginResult.private_key
+      const privateKeyBytes = new Uint8Array(privateKeyHex.length / 2)
+      for (let i = 0; i < privateKeyHex.length; i += 2) {
+        privateKeyBytes[i / 2] = parseInt(privateKeyHex.substr(i, 2), 16)
       }
 
-      // Extract private key and initialize P2P
-      const privateKey = getPrivateKeyFromMnemonic(decryptedMnemonics)
-      // Use the stored name as nickname, fallback to "Anonymous" if not available
-      const nickname = state.name || 'Anonymous'
+      // Use the account name as nickname, fallback to "Anonymous" if not available
+      const nickname = loginResult.account_info.name || 'Anonymous'
       const peerId = await MessagingClient.initializeWithKey(
-        privateKey,
+        privateKeyBytes,
         nickname
       )
 
-      dispatch(login({ password }))
+      // Use the generated action creator instead of manually creating action object
+      // This ensures the action type matches the reducer exactly
+      dispatch(
+        login({
+          address: loginResult.account_info.address,
+          peerId: loginResult.account_info.peer_id,
+          groupId: loginResult.account_info.group_id,
+          name: loginResult.account_info.name,
+        })
+      )
 
       return { success: true, peerId }
     } catch (error) {
-      console.error('P2P initialization error:', error)
+      console.error('Login error:', error)
       const errorMessage =
-        error instanceof Error ? error.message : 'P2P initialization failed'
+        error instanceof Error ? error.message : 'Login failed'
       return { success: false, error: errorMessage }
     }
   }

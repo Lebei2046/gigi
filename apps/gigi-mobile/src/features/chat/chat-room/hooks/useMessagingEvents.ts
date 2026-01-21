@@ -13,7 +13,10 @@ import {
   updateGroupMessage,
   generateMessageId,
 } from '@/store/chatRoomSlice'
-import { updateLatestMessage, ensureMilliseconds } from '@/utils/conversationUtils'
+import {
+  updateLatestMessage,
+  ensureMilliseconds,
+} from '@/utils/conversationUtils'
 import {
   createIncomingImageMessage,
   createIncomingFileMessage,

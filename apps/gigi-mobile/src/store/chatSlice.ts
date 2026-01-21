@@ -2,7 +2,10 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type { Peer, GroupShareMessage } from '@/utils/messaging'
 import type { Conversation } from '@/utils/conversationUtils'
-import { getAllConversations, updateConversationInfo } from '@/utils/conversationUtils'
+import {
+  getAllConversations,
+  updateConversationInfo,
+} from '@/utils/conversationUtils'
 import { getAllGroups } from '@/utils/chatUtils'
 import { MessagingClient } from '@/utils/messaging'
 
@@ -41,10 +44,13 @@ const initialState: ChatState = {
 }
 
 // Async thunks for complex operations
-export const loadConversationsAsync = createAsyncThunk('chat/loadConversations', async () => {
-  const allConversations = await getAllConversations()
-  return allConversations
-})
+export const loadConversationsAsync = createAsyncThunk(
+  'chat/loadConversations',
+  async () => {
+    const allConversations = await getAllConversations()
+    return allConversations
+  }
+)
 
 export const loadGroupsAsync = createAsyncThunk('chat/loadGroups', async () => {
   const allGroups = await getAllGroups()
@@ -231,7 +237,9 @@ const chatSlice = createSlice({
       state.latestMessages[from_peer_id] = content
 
       // Update in conversations as well
-      const conversationIndex = state.conversations.findIndex(c => c.id === from_peer_id)
+      const conversationIndex = state.conversations.findIndex(
+        c => c.id === from_peer_id
+      )
       if (conversationIndex !== -1) {
         state.conversations[conversationIndex].last_message = content
         state.conversations[conversationIndex].unread_count += 1
@@ -253,7 +261,9 @@ const chatSlice = createSlice({
       state.latestMessages[group_id] = content
 
       // Update in conversations as well
-      const conversationIndex = state.conversations.findIndex(c => c.id === group_id)
+      const conversationIndex = state.conversations.findIndex(
+        c => c.id === group_id
+      )
       if (conversationIndex !== -1) {
         state.conversations[conversationIndex].last_message = content
         state.conversations[conversationIndex].unread_count += 1
@@ -271,7 +281,9 @@ const chatSlice = createSlice({
       delete state.latestMessages[chatId]
 
       // Update conversation info to remove last message
-      const conversationIndex = state.conversations.findIndex(c => c.id === chatId)
+      const conversationIndex = state.conversations.findIndex(
+        c => c.id === chatId
+      )
       if (conversationIndex !== -1) {
         state.conversations[conversationIndex].last_message = ''
         state.conversations[conversationIndex].unread_count = 0
@@ -321,7 +333,9 @@ const chatSlice = createSlice({
         delete state.latestMessages[chatId]
 
         // Update conversation info to remove last message
-        const conversationIndex = state.conversations.findIndex(c => c.id === chatId)
+        const conversationIndex = state.conversations.findIndex(
+          c => c.id === chatId
+        )
         if (conversationIndex !== -1) {
           state.conversations[conversationIndex].last_message = ''
           state.conversations[conversationIndex].unread_count = 0

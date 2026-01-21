@@ -1,0 +1,30 @@
+[package]
+name = "gigi-auth"
+version = "0.0.1"
+edition = "2021"
+description = "Authentication and account management for Gigi"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-repo/gigi"
+
+[dependencies]
+anyhow = "1.0"
+bip32 = "0.5"
+bip39 = "2.2"
+chacha20poly1305 = "0.10.1"
+chrono = { version = "0.4", features = ["serde"] }
+hex = "0.4"
+hkdf = "0.12"
+keccak-hash = "0.11"
+libp2p = { workspace = true }
+rand = "0.8"
+secp256k1 = "0.31"
+sea-orm = { workspace = true }
+sea-orm-migration = "1.1.19"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = { workspace = true }
+tracing = "0.1"
+thiserror = "2"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }

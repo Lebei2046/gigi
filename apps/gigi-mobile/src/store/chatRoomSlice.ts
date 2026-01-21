@@ -226,7 +226,13 @@ export const initializeChatInfoAsync = createAsyncThunk(
     const existingChat = await getConversationInfo(chatId)
     if (!existingChat) {
       // Only create new conversation entry if it doesn't exist
-      await updateConversationInfo(chatId, chatName, '', Date.now(), isGroupChat)
+      await updateConversationInfo(
+        chatId,
+        chatName,
+        '',
+        Date.now(),
+        isGroupChat
+      )
     } else if (!unreadResetDone) {
       // Reset unread count when user opens the chat (only once)
 
@@ -363,10 +369,17 @@ const chatRoomSlice = createSlice({
         msg => msg.id === action.payload.id
       )
       if (existingIndex === -1) {
-        console.log('➕ Adding message to state:', action.payload.id, action.payload.content)
+        console.log(
+          '➕ Adding message to state:',
+          action.payload.id,
+          action.payload.content
+        )
         state.messages.push(action.payload)
       } else {
-        console.log('🔁 Skipping duplicate message in addMessage:', action.payload.id)
+        console.log(
+          '🔁 Skipping duplicate message in addMessage:',
+          action.payload.id
+        )
       }
     },
 
@@ -378,7 +391,10 @@ const chatRoomSlice = createSlice({
       if (existingIndex === -1) {
         state.messages.push(action.payload)
       } else {
-        console.log('🔁 Skipping duplicate image message in addImageMessage:', action.payload.id)
+        console.log(
+          '🔁 Skipping duplicate image message in addImageMessage:',
+          action.payload.id
+        )
       }
     },
 
@@ -390,7 +406,10 @@ const chatRoomSlice = createSlice({
       if (existingIndex === -1) {
         state.messages.push(action.payload)
       } else {
-        console.log('🔁 Skipping duplicate group image message in addGroupImageMessage:', action.payload.id)
+        console.log(
+          '🔁 Skipping duplicate group image message in addGroupImageMessage:',
+          action.payload.id
+        )
       }
     },
 
@@ -692,7 +711,10 @@ const chatRoomSlice = createSlice({
         console.log('📥 loadMessagesFromBackendAsync.fulfilled:', {
           messageCount: messages.length,
           currentMessageCount: state.messages.length,
-          currentMessages: state.messages.map(m => ({ id: m.id, content: m.content })),
+          currentMessages: state.messages.map(m => ({
+            id: m.id,
+            content: m.content,
+          })),
           newMessages: messages.map(m => ({ id: m.id, content: m.content })),
           prepend,
         })
@@ -702,8 +724,15 @@ const chatRoomSlice = createSlice({
           ? [...messages, ...state.messages]
           : messages
 
-        console.log('🔍 Before deduplication:', uniqueMessages.length, 'messages')
-        console.log('🔍 Messages before dedup:', uniqueMessages.map(m => ({ id: m.id, content: m.content })))
+        console.log(
+          '🔍 Before deduplication:',
+          uniqueMessages.length,
+          'messages'
+        )
+        console.log(
+          '🔍 Messages before dedup:',
+          uniqueMessages.map(m => ({ id: m.id, content: m.content }))
+        )
 
         const seenIds = new Set<string>()
         const deduplicatedMessages: typeof uniqueMessages = []
@@ -717,8 +746,15 @@ const chatRoomSlice = createSlice({
           }
         }
 
-        console.log('🔍 After deduplication:', deduplicatedMessages.length, 'messages')
-        console.log('🔍 Messages after dedup:', deduplicatedMessages.map(m => ({ id: m.id, content: m.content })))
+        console.log(
+          '🔍 After deduplication:',
+          deduplicatedMessages.length,
+          'messages'
+        )
+        console.log(
+          '🔍 Messages after dedup:',
+          deduplicatedMessages.map(m => ({ id: m.id, content: m.content }))
+        )
 
         state.messages = deduplicatedMessages
       })

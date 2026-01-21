@@ -5,13 +5,7 @@ import {
   type SignupAction,
   type SignupState,
 } from './signupReducer'
-import {
-  encryptMnemonics,
-  generateAddress,
-  generateGroupPeerId,
-} from '@/utils/crypto'
-import { setStorageItem } from '@/utils/settingStorage'
-import { db } from '@/models/db'
+import { authSignup } from '@/utils/tauriCommands'
 
 type SignupContextType = {
   state: SignupState
@@ -26,52 +20,32 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(signupReducer, initialState)
 
   const saveAccountInfo = async () => {
-    const { address, peerId } = await generateAddress(state.mnemonic)
-    const { mnemonic: cryptedMnemonic, nonce } = encryptMnemonics(
-      state.mnemonic,
-      state.password
-    )
+    try {
+      const accountInfo = await authSignup(
+        state.mnemonic.join(' '),
+        state.password,
+        state.name,
+        state.createGroup ? state.groupName : undefined
+      )
 
-    // Save to IndexedDB
-    await setStorageItem('gigi', {
-      nonce,
-      mnemonic: cryptedMnemonic,
-      address,
-      peerId,
-      name: state.name,
-    })
-
-    // Update state after successful save
-    dispatch({ type: 'ACCOUNT_INFO_SAVED', payload: { address, peerId } })
+      // Update state after successful save
+      dispatch({
+        type: 'ACCOUNT_INFO_SAVED',
+        payload: {
+          address: accountInfo.address,
+          peerId: accountInfo.peer_id,
+        },
+      })
+    } catch (error) {
+      console.error('Failed to save account info:', error)
+      throw error
+    }
   }
 
   const saveGroupInfo = async () => {
-    if (!state.createGroup || !state.groupName.trim()) {
-      return
-    }
-
-    try {
-      // Derive group peer ID from user's mnemonic
-      const groupPeerId = await generateGroupPeerId(state.mnemonic)
-
-      // Save group to IndexedDB
-      await db.groups.add({
-        id: groupPeerId,
-        name: state.groupName.trim(),
-        joined: false, // false = group creator/owner, true = invited member
-        createdAt: new Date(),
-      })
-
-      console.log('Group saved successfully:', {
-        id: groupPeerId,
-        name: state.groupName.trim(),
-        joined: false, // group creator/owner
-        createdAt: new Date(),
-      })
-    } catch (error) {
-      console.error('Failed to save group:', error)
-      throw error
-    }
+    // Group is already created in saveAccountInfo if groupName was provided
+    // This function is kept for compatibility but does nothing
+    console.log('Group info already saved during account creation')
   }
 
   return (

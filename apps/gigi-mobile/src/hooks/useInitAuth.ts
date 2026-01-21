@@ -6,13 +6,11 @@ export default function useInitAuth() {
   const dispatch = useAppDispatch()
   const { status } = useAppSelector(state => state.auth)
 
+  // Only run once on mount to check authentication status
+  // Empty dependency array ensures this doesn't re-run on every render
   useEffect(() => {
-    const initAuth = async () => {
-      dispatch(loadAuthData())
-    }
-
-    initAuth()
-  }, [dispatch])
+    dispatch(loadAuthData())
+  }, []) // Empty deps = run once on mount
 
   return {
     status,

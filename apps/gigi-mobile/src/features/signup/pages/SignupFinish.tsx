@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch } from '@/store'
@@ -8,6 +8,8 @@ import { useSignupContext } from '../context/SignupContext'
 export default function SignupFinish() {
   const navigate = useNavigate()
   const appDispatch = useAppDispatch()
+  const [isSaving, setIsSaving] = useState(true)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const {
     state: { address, peerId, name, createGroup, groupName },
     saveAccountInfo,
@@ -16,11 +18,20 @@ export default function SignupFinish() {
 
   useEffect(() => {
     const saveInfo = async () => {
-      await saveAccountInfo()
+      try {
+        await saveAccountInfo()
 
-      // Save group info if user chose to create a group
-      if (createGroup && groupName.trim()) {
-        await saveGroupInfo()
+        // Save group info if user chose to create a group
+        if (createGroup && groupName.trim()) {
+          await saveGroupInfo()
+        }
+        setIsSaving(false)
+      } catch (error) {
+        console.error('Error saving account:', error)
+        setSaveError(
+          error instanceof Error ? error.message : 'Failed to save account'
+        )
+        setIsSaving(false)
       }
     }
     saveInfo()
@@ -29,6 +40,49 @@ export default function SignupFinish() {
   const handleLogin = async () => {
     await appDispatch(loadAuthData())
     navigate('/login')
+  }
+
+  if (isSaving) {
+    return (
+      <div className="space-y-6 flex flex-col items-center justify-center py-12">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-600">Creating your account...</p>
+      </div>
+    )
+  }
+
+  if (saveError) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg
+              className="w-8 h-8 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Failed to Create Account
+          </h1>
+          <p className="text-red-600">{saveError}</p>
+        </div>
+        <Button
+          onClick={() => window.location.reload()}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+        >
+          Try Again
+        </Button>
+      </div>
+    )
   }
 
   return (

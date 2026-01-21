@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-group-get-all"
+description = "Enables the group_get_all command without any pre-configured scope."
+commands.allow = ["group_get_all"]
+
+[[permission]]
+identifier = "deny-group-get-all"
+description = "Denies the group_get_all command without any pre-configured scope."
+commands.deny = ["group_get_all"]

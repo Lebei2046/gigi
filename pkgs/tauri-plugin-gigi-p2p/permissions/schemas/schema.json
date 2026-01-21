@@ -295,6 +295,78 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the auth_check_account command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-auth-check-account",
+          "markdownDescription": "Enables the auth_check_account command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the auth_check_account command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-auth-check-account",
+          "markdownDescription": "Denies the auth_check_account command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the auth_delete_account command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-auth-delete-account",
+          "markdownDescription": "Enables the auth_delete_account command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the auth_delete_account command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-auth-delete-account",
+          "markdownDescription": "Denies the auth_delete_account command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the auth_get_account_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-auth-get-account-info",
+          "markdownDescription": "Enables the auth_get_account_info command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the auth_get_account_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-auth-get-account-info",
+          "markdownDescription": "Denies the auth_get_account_info command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the auth_login command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-auth-login",
+          "markdownDescription": "Enables the auth_login command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the auth_login command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-auth-login",
+          "markdownDescription": "Denies the auth_login command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the auth_signup command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-auth-signup",
+          "markdownDescription": "Enables the auth_signup command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the auth_signup command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-auth-signup",
+          "markdownDescription": "Denies the auth_signup command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the auth_verify_password command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-auth-verify-password",
+          "markdownDescription": "Enables the auth_verify_password command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the auth_verify_password command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-auth-verify-password",
+          "markdownDescription": "Denies the auth_verify_password command without any pre-configured scope."
+        },
+        {
           "description": "Enables the clear_app_data command without any pre-configured scope.",
           "type": "string",
           "const": "allow-clear-app-data",
@@ -425,6 +497,78 @@
           "type": "string",
           "const": "deny-get-peer-id",
           "markdownDescription": "Denies the get_peer_id command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the group_create command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-group-create",
+          "markdownDescription": "Enables the group_create command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the group_create command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-group-create",
+          "markdownDescription": "Denies the group_create command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the group_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-group-delete",
+          "markdownDescription": "Enables the group_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the group_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-group-delete",
+          "markdownDescription": "Denies the group_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the group_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-group-get",
+          "markdownDescription": "Enables the group_get command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the group_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-group-get",
+          "markdownDescription": "Denies the group_get command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the group_get_all command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-group-get-all",
+          "markdownDescription": "Enables the group_get_all command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the group_get_all command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-group-get-all",
+          "markdownDescription": "Denies the group_get_all command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the group_join command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-group-join",
+          "markdownDescription": "Enables the group_join command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the group_join command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-group-join",
+          "markdownDescription": "Denies the group_join command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the group_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-group-update",
+          "markdownDescription": "Enables the group_update command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the group_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-group-update",
+          "markdownDescription": "Denies the group_update command without any pre-configured scope."
         },
         {
           "description": "Enables the increment_conversation_unread command without any pre-configured scope.",
@@ -823,10 +967,10 @@
           "markdownDescription": "Denies the upsert_conversation command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-get-message-history`\n- `allow-messaging-save-shared-files`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`\n- `allow-get-conversations`\n- `allow-get-conversation`\n- `allow-upsert-conversation`\n- `allow-update-conversation-last-message`\n- `allow-increment-conversation-unread`\n- `allow-mark-conversation-as-read`\n- `allow-delete-conversation`",
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-get-message-history`\n- `allow-messaging-save-shared-files`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`\n- `allow-get-conversations`\n- `allow-get-conversation`\n- `allow-upsert-conversation`\n- `allow-update-conversation-last-message`\n- `allow-increment-conversation-unread`\n- `allow-mark-conversation-as-read`\n- `allow-delete-conversation`\n- `allow-auth-check-account`\n- `allow-auth-signup`\n- `allow-auth-login`\n- `allow-auth-get-account-info`\n- `allow-auth-delete-account`\n- `allow-auth-verify-password`\n- `allow-group-create`\n- `allow-group-join`\n- `allow-group-get-all`\n- `allow-group-get`\n- `allow-group-delete`\n- `allow-group-update`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-get-message-history`\n- `allow-messaging-save-shared-files`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`\n- `allow-get-conversations`\n- `allow-get-conversation`\n- `allow-upsert-conversation`\n- `allow-update-conversation-last-message`\n- `allow-increment-conversation-unread`\n- `allow-mark-conversation-as-read`\n- `allow-delete-conversation`"
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-peer-id`\n- `allow-try-get-peer-id`\n- `allow-messaging-get-peers`\n- `allow-messaging-set-nickname`\n- `allow-messaging-get-public-key`\n- `allow-messaging-get-active-downloads`\n- `allow-messaging-update-config`\n- `allow-messaging-get-config`\n- `allow-messaging-initialize-with-key`\n- `allow-messaging-send-message`\n- `allow-messaging-send-message-to-nickname`\n- `allow-messaging-send-direct-share-group-message`\n- `allow-messaging-join-group`\n- `allow-messaging-send-group-message`\n- `allow-emit-current-state`\n- `allow-messaging-get-message-history`\n- `allow-messaging-save-shared-files`\n- `allow-get-messages`\n- `allow-search-messages`\n- `allow-clear-messages-with-thumbnails`\n- `allow-get-file-thumbnail`\n- `allow-get-full-image-by-path`\n- `allow-get-full-image`\n- `allow-messaging-send-file-message-with-path`\n- `allow-messaging-send-group-file-message-with-path`\n- `allow-messaging-share-file`\n- `allow-messaging-request-file`\n- `allow-messaging-request-file-from-nickname`\n- `allow-messaging-cancel-download`\n- `allow-messaging-get-shared-files`\n- `allow-messaging-remove-shared-file`\n- `allow-messaging-get-image-data`\n- `allow-messaging-get-file-info`\n- `allow-messaging-select-any-file`\n- `allow-messaging-share-content-uri`\n- `allow-clear-app-data`\n- `allow-get-conversations`\n- `allow-get-conversation`\n- `allow-upsert-conversation`\n- `allow-update-conversation-last-message`\n- `allow-increment-conversation-unread`\n- `allow-mark-conversation-as-read`\n- `allow-delete-conversation`\n- `allow-auth-check-account`\n- `allow-auth-signup`\n- `allow-auth-login`\n- `allow-auth-get-account-info`\n- `allow-auth-delete-account`\n- `allow-auth-verify-password`\n- `allow-group-create`\n- `allow-group-join`\n- `allow-group-get-all`\n- `allow-group-get`\n- `allow-group-delete`\n- `allow-group-update`"
         }
       ]
     }

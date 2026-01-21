@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "apps/gigi-app/src-tauri",
   "apps/gigi-mobile/src-tauri",
+  "pkgs/gigi-auth",
   "pkgs/gigi-p2p",
   "pkgs/gigi-dns",
   "pkgs/gigi-file-sharing",
@@ -33,6 +34,7 @@ libp2p = { version = "0.56.0", features = [
   "identify",
   "cbor",
   "json",
+  "secp256k1",
 ] }
 libp2p-identity = "0.2"
 libp2p-swarm = "0.44"
@@ -47,12 +49,14 @@ indicatif = "0.17"
 console = "0.15"
 blake3 = "1.5"
 chrono = { version = "0.4", features = ["serde"] }
+sea-orm = { version = "1.1.19", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4.0", features = ["derive"] }
 gigi-p2p = { version = "0.0.1", path = "./pkgs/gigi-p2p" }
 gigi-file-sharing = { version = "0.1.0", path = "./pkgs/gigi-file-sharing" }
 gigi-store = { version = "0.0.1", path = "./pkgs/gigi-store" }
+gigi-auth = { version = "0.0.1", path = "./pkgs/gigi-auth" }
 
 
 [profile.release]

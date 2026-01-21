@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-auth-signup"
+description = "Enables the auth_signup command without any pre-configured scope."
+commands.allow = ["auth_signup"]
+
+[[permission]]
+identifier = "deny-auth-signup"
+description = "Denies the auth_signup command without any pre-configured scope."
+commands.deny = ["auth_signup"]

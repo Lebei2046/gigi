@@ -60,6 +60,20 @@ const commands = [
   'increment_conversation_unread',
   'mark_conversation_as_read',
   'delete_conversation',
+  // Auth commands
+  'auth_check_account',
+  'auth_signup',
+  'auth_login',
+  'auth_get_account_info',
+  'auth_delete_account',
+  'auth_verify_password',
+  // Group commands
+  'group_create',
+  'group_join',
+  'group_get_all',
+  'group_get',
+  'group_delete',
+  'group_update',
 ];
 
 // Events that the plugin emits

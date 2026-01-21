@@ -28,6 +28,26 @@ impl MessageStore {
         .await
     }
 
+    /// Create a message store with an existing database connection
+    pub async fn with_connection(db: DatabaseConnection) -> Result<Self> {
+        // Run migrations
+        crate::migration::Migrator::up(&db, None)
+            .await
+            .context("Failed to run migrations")?;
+
+        // Create indexes
+        Self::create_indexes(&db)
+            .await
+            .context("Failed to create indexes")?;
+
+        info!("Message store initialized with existing connection");
+
+        Ok(Self {
+            db,
+            config: PersistenceConfig::default(),
+        })
+    }
+
     /// Create a message store with custom config
     pub async fn with_config(config: PersistenceConfig) -> Result<Self> {
         // Create database URL - Use sqlx-sqlite format for Sea-ORM 1.x

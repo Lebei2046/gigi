@@ -38,6 +38,13 @@ impl ConversationStore {
         Ok(Self { db })
     }
 
+    /// Create a conversation store with an existing database connection
+    pub async fn with_connection(db: DatabaseConnection) -> Result<Self> {
+        info!("Conversation store initialized with existing connection");
+
+        Ok(Self { db })
+    }
+
     /// Create or update a conversation
     pub async fn upsert_conversation(
         &self,
@@ -90,21 +97,38 @@ impl ConversationStore {
 
             match new_conv.insert(&self.db).await {
                 Ok(_) => (),
-                Err(DbErr::Exec(exec_err)) if exec_err.to_string().contains("UNIQUE constraint failed") => {
-                    // UNIQUE constraint violation - another process inserted it concurrently
-                    // Try to update instead
-                    let model = conversations::Entity::find()
-                        .filter(conversations::Column::Id.eq(&id))
-                        .one(&self.db)
-                        .await?
-                        .ok_or_else(|| anyhow::anyhow!("Conversation not found after concurrent insert"))?;
+                Err(e) => {
+                    // Check if it's a RecordNotFound error and the conversation might actually exist
+                    let err_str = e.to_string();
+                    if err_str.contains("RecordNotFound") {
+                        // Try to query the conversation to see if it actually exists
+                        if let Ok(Some(_)) = conversations::Entity::find()
+                            .filter(conversations::Column::Id.eq(&id))
+                            .one(&self.db)
+                            .await
+                        {
+                            info!("Conversation '{}' already exists, treating as success", id);
+                            return Ok(());
+                        }
+                    } else if err_str.contains("UNIQUE constraint failed") {
+                        // UNIQUE constraint violation - another process inserted it concurrently
+                        // Try to update instead
+                        let model = conversations::Entity::find()
+                            .filter(conversations::Column::Id.eq(&id))
+                            .one(&self.db)
+                            .await?
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("Conversation not found after concurrent insert")
+                            })?;
 
-                    let mut active: conversations::ActiveModel = model.into();
-                    active.name = Set(name);
-                    active.updated_at = Set(now);
-                    active.update(&self.db).await?;
+                        let mut active: conversations::ActiveModel = model.into();
+                        active.name = Set(name);
+                        active.updated_at = Set(now);
+                        active.update(&self.db).await?;
+                    } else {
+                        return Err(e.into());
+                    }
                 }
-                Err(e) => return Err(e.into()),
             }
         }
 
@@ -118,7 +142,10 @@ impl ConversationStore {
             .all(&self.db)
             .await?;
 
-        Ok(convs.into_iter().map(|m| self.model_to_conversation(m)).collect())
+        Ok(convs
+            .into_iter()
+            .map(|m| self.model_to_conversation(m))
+            .collect())
     }
 
     /// Get a single conversation by ID
@@ -206,8 +233,12 @@ impl ConversationStore {
             is_group: model.is_group,
             peer_id: model.peer_id,
             last_message: model.last_message,
-            last_message_time: model.last_message_time.and_then(|t| Utc.timestamp_opt(t, 0).single()),
-            last_message_timestamp: model.last_message_timestamp.and_then(|t| Utc.timestamp_millis_opt(t).single()),
+            last_message_time: model
+                .last_message_time
+                .and_then(|t| Utc.timestamp_opt(t, 0).single()),
+            last_message_timestamp: model
+                .last_message_timestamp
+                .and_then(|t| Utc.timestamp_millis_opt(t).single()),
             unread_count: model.unread_count,
         }
     }

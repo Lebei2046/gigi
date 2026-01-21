@@ -110,6 +110,10 @@ pub struct PluginState {
     pub file_sharing_store: std::sync::Arc<RwLock<Option<gigi_store::FileSharingStore>>>,
     pub thumbnail_store: std::sync::Arc<RwLock<Option<gigi_store::ThumbnailStore>>>,
     pub conversation_store: std::sync::Arc<RwLock<Option<gigi_store::ConversationStore>>>,
+    pub auth_manager: std::sync::Arc<Mutex<Option<gigi_store::AuthManager>>>,
+    pub group_manager: std::sync::Arc<Mutex<Option<gigi_store::GroupManager>>>,
+    pub db_connection: std::sync::Arc<RwLock<Option<sea_orm::DatabaseConnection>>>,
+    pub initialized: std::sync::Arc<tokio::sync::Notify>,
 }
 
 impl PluginState {
@@ -123,6 +127,10 @@ impl PluginState {
             file_sharing_store: std::sync::Arc::new(RwLock::new(None)),
             thumbnail_store: std::sync::Arc::new(RwLock::new(None)),
             conversation_store: std::sync::Arc::new(RwLock::new(None)),
+            auth_manager: std::sync::Arc::new(Mutex::new(None)),
+            group_manager: std::sync::Arc::new(Mutex::new(None)),
+            db_connection: std::sync::Arc::new(RwLock::new(None)),
+            initialized: std::sync::Arc::new(tokio::sync::Notify::new()),
         }
     }
 }

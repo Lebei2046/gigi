@@ -43,14 +43,13 @@ const db = new Dexie('GigiDatabase') as Dexie & {
   settings: EntityTable<Settings, 'key'>
 }
 
-db.version(2)
-  .stores({
-    contacts: 'id, name',
-    groups: 'id, name, joined, createdAt',
-    images: 'id, createdAt',
-    avatars: 'id, imageId, createdAt, updatedAt',
-    settings: 'key, updatedAt',
-  })
+db.version(2).stores({
+  contacts: 'id, name',
+  groups: 'id, name, joined, createdAt',
+  images: 'id, createdAt',
+  avatars: 'id, imageId, createdAt, updatedAt',
+  settings: 'key, updatedAt',
+})
 
 export type { Contact, Group, Image, Avatar, Settings }
 export { db }

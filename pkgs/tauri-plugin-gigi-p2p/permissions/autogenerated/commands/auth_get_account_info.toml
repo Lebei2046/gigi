@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-auth-get-account-info"
+description = "Enables the auth_get_account_info command without any pre-configured scope."
+commands.allow = ["auth_get_account_info"]
+
+[[permission]]
+identifier = "deny-auth-get-account-info"
+description = "Denies the auth_get_account_info command without any pre-configured scope."
+commands.deny = ["auth_get_account_info"]

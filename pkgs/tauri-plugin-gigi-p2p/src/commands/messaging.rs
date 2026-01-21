@@ -5,7 +5,6 @@ use crate::{events::handle_p2p_event, models::PluginState, Error, Result};
 use chrono::Duration as ChronoDuration;
 use futures::StreamExt;
 use gigi_store::{MessageContent, MessageDirection, MessageType, StoredMessage};
-use sea_orm_migration::MigratorTrait;
 
 /// Setup file sharing chunk reader for Android
 #[cfg(target_os = "android")]
@@ -106,8 +105,6 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
     // Get config for download directory
     let config_guard = state.config.read().await;
     let output_dir = std::path::PathBuf::from(&config_guard.download_folder);
-    let db_path = output_dir.join(format!("{}.db", config_guard.nickname));
-    let db_path_clone = db_path.clone();
     let final_nickname = config_guard.nickname.clone();
     drop(config_guard);
 
@@ -117,7 +114,14 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
 
     tracing::info!("Download directory set to: {:?}", output_dir);
 
-    // Create persistence config for file sharing storage
+    // Get unified database path for P2P client
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| Error::Io(format!("Failed to get app data dir: {}", e)))?;
+    let db_path = app_data_dir.join("gigi/gigi.db");
+
+    // Create persistence config with the unified database path
     let persistence_config = PersistenceConfig {
         db_path,
         ..Default::default()
@@ -130,26 +134,17 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
         Some(persistence_config),
     ) {
         Ok((mut client, event_receiver)) => {
-            // Run migrations for the database to add thumbnail_path column
-            let db_conn = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    sea_orm::Database::connect(format!(
-                        "sqlite://{}?mode=rwc",
-                        db_path_clone.display()
-                    ))
-                    .await
-                })
-            })
-            .map_err(|e| Error::Io(format!("Failed to connect to database: {}", e)))?;
+            // Use the existing database connection that was already initialized in mobile.rs/desktop.rs
+            // This prevents running migrations twice and ensures we use the same database
+            let db_conn = {
+                let conn_guard = state.db_connection.read().await;
+                conn_guard
+                    .as_ref()
+                    .ok_or_else(|| Error::Io("Database not initialized".to_string()))?
+                    .clone()
+            };
 
-            tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    gigi_store::migration::Migrator::up(&db_conn, None)
-                        .await
-                        .map_err(|e| anyhow::anyhow!("Migration failed: {}", e))
-                })
-            })
-            .map_err(|e| Error::Io(format!("Failed to run migrations: {}", e)))?;
+            // No need to run migrations here - they were already run in mobile.rs/desktop.rs
 
             // Initialize file_sharing_store for thumbnail commands
             let db_conn_clone = db_conn.clone();
@@ -166,7 +161,7 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
             // Initialize thumbnail_store for mapping file paths to thumbnails
             let thumbnail_store = tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current()
-                    .block_on(async { gigi_store::ThumbnailStore::new(db_conn).await })
+                    .block_on(async { gigi_store::ThumbnailStore::new(db_conn.clone()).await })
             })
             .map_err(|e| Error::Io(format!("Failed to create thumbnail store: {}", e)))?;
 
@@ -176,8 +171,9 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
 
             // Initialize message_store for get_messages and search_messages commands
             let message_store = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current()
-                    .block_on(async { gigi_store::MessageStore::new(db_path_clone.clone()).await })
+                tokio::runtime::Handle::current().block_on(async {
+                    gigi_store::MessageStore::with_connection(db_conn.clone()).await
+                })
             })
             .map_err(|e| Error::Io(format!("Failed to create message store: {}", e)))?;
 
@@ -187,8 +183,9 @@ pub(crate) async fn messaging_initialize_with_key<R: tauri::Runtime>(
 
             // Initialize conversation_store for chat list management
             let conversation_store = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current()
-                    .block_on(async { gigi_store::ConversationStore::new(db_path_clone.clone()).await })
+                tokio::runtime::Handle::current().block_on(async {
+                    gigi_store::ConversationStore::with_connection(db_conn.clone()).await
+                })
             })
             .map_err(|e| Error::Io(format!("Failed to create conversation store: {}", e)))?;
 

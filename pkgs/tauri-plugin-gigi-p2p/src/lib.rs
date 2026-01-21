@@ -80,6 +80,20 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::conversations::increment_conversation_unread,
             commands::conversations::mark_conversation_as_read,
             commands::conversations::delete_conversation,
+            // Auth commands
+            commands::auth::auth_check_account,
+            commands::auth::auth_signup,
+            commands::auth::auth_login,
+            commands::auth::auth_get_account_info,
+            commands::auth::auth_delete_account,
+            commands::auth::auth_verify_password,
+            // Group commands
+            commands::groups::group_create,
+            commands::groups::group_join,
+            commands::groups::group_get_all,
+            commands::groups::group_get,
+            commands::groups::group_delete,
+            commands::groups::group_update,
         ])
         .setup(|app, api| {
             #[cfg(mobile)]
