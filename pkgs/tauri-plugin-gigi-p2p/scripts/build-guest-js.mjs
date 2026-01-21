@@ -22,7 +22,6 @@ const commands = [
   'messaging_update_config',
   'messaging_get_config',
   // Messaging commands
-  'messaging_initialize_with_key',
   'messaging_send_message',
   'messaging_send_message_to_nickname',
   'messaging_send_direct_share_group_message',
@@ -63,7 +62,6 @@ const commands = [
   // Auth commands
   'auth_check_account',
   'auth_signup',
-  'auth_login',
   'auth_get_account_info',
   'auth_delete_account',
   'auth_verify_password',

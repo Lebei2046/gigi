@@ -12,7 +12,6 @@ permissions = [
   "allow-messaging-update-config",
   "allow-messaging-get-config",
   # Messaging commands
-  "allow-messaging-initialize-with-key",
   "allow-messaging-send-message",
   "allow-messaging-send-message-to-nickname",
   "allow-messaging-send-direct-share-group-message",
@@ -53,7 +52,7 @@ permissions = [
   # Auth commands
   "allow-auth-check-account",
   "allow-auth-signup",
-  "allow-auth-login",
+  "allow-auth-login-with-p2p",
   "allow-auth-get-account-info",
   "allow-auth-delete-account",
   "allow-auth-verify-password",

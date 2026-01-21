@@ -1,7 +1,6 @@
 //! Event handling for P2P client swarm events
 
 use anyhow::Result;
-use chrono::Utc;
 use libp2p::{swarm::SwarmEvent, PeerId};
 use tracing::info;
 

@@ -3,7 +3,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import {
   authCheckAccount,
   authGetAccountInfo,
-  authLogin,
+  authLoginWithP2P,
   authDeleteAccount,
 } from '../utils/tauriCommands'
 import { MessagingClient } from '../utils/messaging'
@@ -125,40 +125,25 @@ export const resetAuth = () => async (dispatch: any) => {
   }
 }
 
-// Async action for login with P2P initialization
+// Async action for login with P2P initialization (combined command)
 export const loginWithP2P =
   (password: string) => async (dispatch: any, getState: any) => {
     const state = getState().auth
 
     try {
-      const loginResult = await authLogin(password)
+      const accountInfo = await authLoginWithP2P(password)
 
-      // Convert hex string to Uint8Array
-      const privateKeyHex = loginResult.private_key
-      const privateKeyBytes = new Uint8Array(privateKeyHex.length / 2)
-      for (let i = 0; i < privateKeyHex.length; i += 2) {
-        privateKeyBytes[i / 2] = parseInt(privateKeyHex.substr(i, 2), 16)
-      }
-
-      // Use the account name as nickname, fallback to "Anonymous" if not available
-      const nickname = loginResult.account_info.name || 'Anonymous'
-      const peerId = await MessagingClient.initializeWithKey(
-        privateKeyBytes,
-        nickname
-      )
-
-      // Use the generated action creator instead of manually creating action object
-      // This ensures the action type matches the reducer exactly
+      // Use the generated action creator to update Redux state
       dispatch(
         login({
-          address: loginResult.account_info.address,
-          peerId: loginResult.account_info.peer_id,
-          groupId: loginResult.account_info.group_id,
-          name: loginResult.account_info.name,
+          address: accountInfo.address,
+          peerId: accountInfo.peer_id,
+          groupId: accountInfo.group_id,
+          name: accountInfo.name,
         })
       )
 
-      return { success: true, peerId }
+      return { success: true, peerId: accountInfo.peer_id }
     } catch (error) {
       console.error('Login error:', error)
       const errorMessage =

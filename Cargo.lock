@@ -7788,6 +7788,7 @@ dependencies = [
  "gigi-store",
  "hex",
  "libp2p 0.56.0",
+ "log",
  "mime_guess",
  "sea-orm",
  "sea-orm-migration",

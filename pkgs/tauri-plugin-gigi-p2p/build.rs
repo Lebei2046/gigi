@@ -10,7 +10,6 @@ const COMMANDS: &[&str] = &[
     "messaging_update_config",
     "messaging_get_config",
     // Messaging commands
-    "messaging_initialize_with_key",
     "messaging_send_message",
     "messaging_send_message_to_nickname",
     "messaging_send_direct_share_group_message",
@@ -40,6 +39,13 @@ const COMMANDS: &[&str] = &[
     "messaging_share_content_uri",
     // Utils commands
     "clear_app_data",
+    // Auth commands
+    "auth_check_account",
+    "auth_signup",
+    "auth_login_with_p2p",
+    "auth_get_account_info",
+    "auth_delete_account",
+    "auth_verify_password",
     // Conversation commands
     "get_conversations",
     "get_conversation",

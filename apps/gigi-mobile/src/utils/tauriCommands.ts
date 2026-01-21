@@ -31,11 +31,13 @@ export async function authSignup(
 }
 
 /**
- * Login with password
+ * Login with password and initialize P2P client (combined command)
  * @param password - The password to decrypt the mnemonic
  */
-export async function authLogin(password: string): Promise<LoginResult> {
-  return await invoke<LoginResult>('plugin:gigi-p2p|auth_login', { password })
+export async function authLoginWithP2P(password: string): Promise<AccountInfo> {
+  return await invoke<AccountInfo>('plugin:gigi-p2p|auth_login_with_p2p', {
+    password,
+  })
 }
 
 /**

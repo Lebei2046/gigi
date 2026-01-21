@@ -97,25 +97,6 @@ export interface Config {
 
 // Command functions for the messaging backend
 export class MessagingClient {
-  // Initialize messaging with existing private key
-  static async initializeWithKey(
-    privateKey: Uint8Array,
-    nickname: string
-  ): Promise<string> {
-    console.log('Initializing P2P with key, nickname:', nickname)
-    try {
-      const result = await GigiP2p.messaging_initialize_with_key({
-        privateKey: Array.from(privateKey),
-        nickname,
-      })
-      console.log('P2P initialization succeeded, peerId:', result)
-      return result
-    } catch (error) {
-      console.error('P2P initialization failed:', error)
-      throw error
-    }
-  }
-
   // Send direct message
   static async sendMessage(toPeerId: string, message: string): Promise<string> {
     return GigiP2p.messaging_send_message({ toPeerId, message })

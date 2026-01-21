@@ -12,7 +12,6 @@ Default permissions for the plugin
 - `allow-messaging-get-active-downloads`
 - `allow-messaging-update-config`
 - `allow-messaging-get-config`
-- `allow-messaging-initialize-with-key`
 - `allow-messaging-send-message`
 - `allow-messaging-send-message-to-nickname`
 - `allow-messaging-send-direct-share-group-message`
@@ -49,7 +48,7 @@ Default permissions for the plugin
 - `allow-delete-conversation`
 - `allow-auth-check-account`
 - `allow-auth-signup`
-- `allow-auth-login`
+- `allow-auth-login-with-p2p`
 - `allow-auth-get-account-info`
 - `allow-auth-delete-account`
 - `allow-auth-verify-password`
@@ -150,12 +149,12 @@ Denies the auth_get_account_info command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-auth-login`
+`gigi-p2p:allow-auth-login-with-p2p`
 
 </td>
 <td>
 
-Enables the auth_login command without any pre-configured scope.
+Enables the auth_login_with_p2p command without any pre-configured scope.
 
 </td>
 </tr>
@@ -163,12 +162,12 @@ Enables the auth_login command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-auth-login`
+`gigi-p2p:deny-auth-login-with-p2p`
 
 </td>
 <td>
 
-Denies the auth_login command without any pre-configured scope.
+Denies the auth_login_with_p2p command without any pre-configured scope.
 
 </td>
 </tr>
@@ -975,32 +974,6 @@ Enables the messaging_get_shared_files command without any pre-configured scope.
 <td>
 
 Denies the messaging_get_shared_files command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`gigi-p2p:allow-messaging-initialize-with-key`
-
-</td>
-<td>
-
-Enables the messaging_initialize_with_key command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`gigi-p2p:deny-messaging-initialize-with-key`
-
-</td>
-<td>
-
-Denies the messaging_initialize_with_key command without any pre-configured scope.
 
 </td>
 </tr>

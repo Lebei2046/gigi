@@ -47,7 +47,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::config::messaging_get_active_downloads,
             commands::config::messaging_update_config,
             commands::config::messaging_get_config,
-            commands::messaging::messaging_initialize_with_key,
             commands::messaging::messaging_send_message,
             commands::messaging::messaging_send_message_to_nickname,
             commands::messaging::messaging_send_direct_share_group_message,
@@ -83,7 +82,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             // Auth commands
             commands::auth::auth_check_account,
             commands::auth::auth_signup,
-            commands::auth::auth_login,
+            commands::auth::auth_login_with_p2p,
             commands::auth::auth_get_account_info,
             commands::auth::auth_delete_account,
             commands::auth::auth_verify_password,

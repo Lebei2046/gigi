@@ -181,10 +181,6 @@ export async function messaging_get_config(...args: any[]): Promise<any> {
   return await invoke('plugin:gigi-p2p|messaging_get_config', args.length === 1 ? args[0] : { ...args });
 }
 
-export async function messaging_initialize_with_key(...args: any[]): Promise<any> {
-  return await invoke('plugin:gigi-p2p|messaging_initialize_with_key', args.length === 1 ? args[0] : { ...args });
-}
-
 export async function messaging_send_message(...args: any[]): Promise<any> {
   return await invoke('plugin:gigi-p2p|messaging_send_message', args.length === 1 ? args[0] : { ...args });
 }
@@ -327,10 +323,6 @@ export async function auth_check_account(...args: any[]): Promise<any> {
 
 export async function auth_signup(...args: any[]): Promise<any> {
   return await invoke('plugin:gigi-p2p|auth_signup', args.length === 1 ? args[0] : { ...args });
-}
-
-export async function auth_login(...args: any[]): Promise<any> {
-  return await invoke('plugin:gigi-p2p|auth_login', args.length === 1 ? args[0] : { ...args });
 }
 
 export async function auth_get_account_info(...args: any[]): Promise<any> {

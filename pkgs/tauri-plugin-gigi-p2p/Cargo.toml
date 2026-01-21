@@ -15,6 +15,7 @@ anyhow = "1.0"
 base64 = "0.22"
 hex = "0.4"
 chrono = "0.4"
+log = "0.4"
 
 # Workspace dependencies
 gigi-p2p.workspace = true
