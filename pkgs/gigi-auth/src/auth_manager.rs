@@ -136,10 +136,10 @@ impl AuthManager {
             return Err(anyhow::anyhow!("Invalid password"));
         }
 
-        // Derive group_id and private key
+        // Derive group_id and private keys
         let group_id = key_derivation::derive_group_id(&mnemonic)?;
         let address = encrypted_data.address.clone();
-        let private_key = key_derivation::derive_private_key(&mnemonic)?;
+        let private_key = key_derivation::derive_peer_private_key(&mnemonic)?;
 
         info!("Login successful for peer_id: {}", derived_peer_id);
 

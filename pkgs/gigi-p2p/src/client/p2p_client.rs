@@ -14,7 +14,7 @@ use libp2p::{
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, instrument, warn};
+use tracing::{error, info, instrument, warn};
 
 use super::{
     download_manager::DownloadManager, event_handler::SwarmEventHandler,
@@ -126,6 +126,9 @@ impl P2pClient {
             .with_behaviour(|_| behaviour)?
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
+
+        // Log peer ID when swarm starts
+        info!("P2pClient started with peer ID: {}", swarm.local_peer_id());
 
         let file_manager = FileSharingManager::new();
         let download_manager = DownloadManager::new(output_directory);

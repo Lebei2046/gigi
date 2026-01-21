@@ -3,17 +3,18 @@
 use anyhow::{Context, Result};
 use bip32::{DerivationPath, XPrv};
 use bip39::Mnemonic;
+use ed25519_compact::KeyPair;
 use hex;
 use keccak_hash::keccak;
 use libp2p::{identity, PeerId};
 use secp256k1::{PublicKey, Secp256k1};
 
-/// Derive peer_id from mnemonic using BIP-32 path m/44'/60'/0'/0/0
+/// Derive peer_id (Ed25519) from mnemonic using BIP-32 path m/44'/60'/2'/0/0
 /// Returns peer_id_string
 ///
-/// This uses proper BIP-32/BIP-39 derivation and generates a libp2p PeerId.
+/// This uses Ed25519 for better P2P performance and compatibility with libp2p.
 pub fn derive_peer_id(mnemonic: &str) -> Result<String> {
-    // Parse the BIP-39 mnemonic
+    // Parse BIP-39 mnemonic
     let mnemonic = Mnemonic::parse_in_normalized(bip39::Language::English, mnemonic)
         .context("Failed to parse mnemonic")?;
 
@@ -22,22 +23,28 @@ pub fn derive_peer_id(mnemonic: &str) -> Result<String> {
     let seed_bytes: &[u8] = seed.as_ref();
 
     // Derive directly from path
-    let derivation_path: DerivationPath = "m/44'/60'/0'/0/0"
+    let derivation_path: DerivationPath = "m/44'/60'/2'/0/0"
         .parse()
         .context("Failed to parse derivation path")?;
     let child_key = XPrv::derive_from_path(seed_bytes, &derivation_path)
         .context("Failed to derive private key")?;
 
-    // Convert k256 SigningKey to libp2p secp256k1 SecretKey, then to Keypair
-    let signing_key = child_key.private_key().clone();
-    let secret_key =
-        identity::secp256k1::SecretKey::try_from_bytes(&mut signing_key.to_bytes().to_vec())
-            .context("Failed to create libp2p secret key")?;
-    let keypair = identity::secp256k1::Keypair::from(secret_key);
+    // Get the 32-byte seed from the derived private key
+    let signing_key = child_key.private_key();
+    let private_bytes = signing_key.to_bytes();
+    let seed_array: [u8; 32] = private_bytes.into();
 
-    // Get PeerId from keypair
-    let public_key = keypair.public().clone();
-    let peer_id = PeerId::from(identity::PublicKey::from(public_key));
+    // Create Ed25519 keypair from the 32-byte seed
+    let keypair = KeyPair::from_seed(ed25519_compact::Seed::from_slice(&seed_array)?);
+
+    // Convert to libp2p Keypair by converting to array
+    let mut keypair_array: [u8; 64] = (*keypair).into();
+    let libp2p_keypair = identity::ed25519::Keypair::try_from_bytes(&mut keypair_array)
+        .context("Failed to convert to libp2p keypair")?;
+
+    // Convert to generic Keypair and then to PeerId
+    let generic_keypair: identity::Keypair = libp2p_keypair.into();
+    let peer_id = PeerId::from_public_key(&generic_keypair.public());
 
     Ok(peer_id.to_string())
 }
@@ -45,9 +52,9 @@ pub fn derive_peer_id(mnemonic: &str) -> Result<String> {
 /// Derive group_id from mnemonic using BIP-32 path m/44'/60'/1'/0/0
 /// Returns group_id_string
 ///
-/// This uses proper BIP-32/BIP-39 derivation and generates a libp2p PeerId.
+/// This uses Ed25519 for group identity in P2P network.
 pub fn derive_group_id(mnemonic: &str) -> Result<String> {
-    // Parse the BIP-39 mnemonic
+    // Parse BIP-39 mnemonic
     let mnemonic = Mnemonic::parse_in_normalized(bip39::Language::English, mnemonic)
         .context("Failed to parse mnemonic")?;
 
@@ -62,16 +69,22 @@ pub fn derive_group_id(mnemonic: &str) -> Result<String> {
     let child_key = XPrv::derive_from_path(seed_bytes, &derivation_path)
         .context("Failed to derive private key")?;
 
-    // Convert k256 SigningKey to libp2p secp256k1 SecretKey, then to Keypair
-    let signing_key = child_key.private_key().clone();
-    let secret_key =
-        identity::secp256k1::SecretKey::try_from_bytes(&mut signing_key.to_bytes().to_vec())
-            .context("Failed to create libp2p secret key")?;
-    let keypair = identity::secp256k1::Keypair::from(secret_key);
+    // Get the 32-byte seed from the derived private key
+    let signing_key = child_key.private_key();
+    let private_bytes = signing_key.to_bytes();
+    let seed_array: [u8; 32] = private_bytes.into();
 
-    // Get PeerId from keypair
-    let public_key = keypair.public().clone();
-    let peer_id = PeerId::from(identity::PublicKey::from(public_key));
+    // Create Ed25519 keypair from the 32-byte seed
+    let keypair = KeyPair::from_seed(ed25519_compact::Seed::from_slice(&seed_array)?);
+
+    // Convert to libp2p Keypair by converting to array
+    let mut keypair_array: [u8; 64] = (*keypair).into();
+    let libp2p_keypair = identity::ed25519::Keypair::try_from_bytes(&mut keypair_array)
+        .context("Failed to convert to libp2p keypair")?;
+
+    // Convert to generic Keypair and then to PeerId
+    let generic_keypair: identity::Keypair = libp2p_keypair.into();
+    let peer_id = PeerId::from_public_key(&generic_keypair.public());
 
     Ok(peer_id.to_string())
 }
@@ -81,7 +94,7 @@ pub fn derive_group_id(mnemonic: &str) -> Result<String> {
 ///
 /// This uses proper BIP-32/BIP-39 derivation and Ethereum address generation.
 pub fn derive_evm_address(mnemonic: &str) -> Result<String> {
-    // Parse the BIP-39 mnemonic
+    // Parse BIP-39 mnemonic
     let mnemonic = Mnemonic::parse_in_normalized(bip39::Language::English, mnemonic)
         .context("Failed to parse mnemonic")?;
 
@@ -112,13 +125,13 @@ pub fn derive_evm_address(mnemonic: &str) -> Result<String> {
     // Get public key in uncompressed format (65 bytes: 0x04 + 32-byte X + 32-byte Y)
     let public_key_bytes = public_key.serialize_uncompressed();
 
-    // Take the last 64 bytes (skip the 0x04 prefix)
+    // Take last 64 bytes (skip the 0x04 prefix)
     let xy_coordinates = &public_key_bytes[1..];
 
     // Calculate Keccak-256 hash
     let keccak_hash = keccak(xy_coordinates);
 
-    // Take last 20 bytes of the hash as the address
+    // Take last 20 bytes of hash as address
     let address_bytes = &keccak_hash.0[12..32]; // Keccak-256 produces 32 bytes
 
     // Encode as hex and add 0x prefix
@@ -127,12 +140,12 @@ pub fn derive_evm_address(mnemonic: &str) -> Result<String> {
     Ok(address)
 }
 
-/// Derive private key from mnemonic using path m/44'/60'/0'/0/0
+/// Derive private key (Secp256k1 for EVM) from mnemonic using path m/44'/60'/0'/0/0
 /// Returns private key as hex string
 ///
-/// This uses proper BIP-32/BIP-39 derivation.
+/// This uses proper BIP-32/BIP-39 derivation for EVM address.
 pub fn derive_private_key(mnemonic: &str) -> Result<String> {
-    // Parse the BIP-39 mnemonic
+    // Parse BIP-39 mnemonic
     let mnemonic = Mnemonic::parse_in_normalized(bip39::Language::English, mnemonic)
         .context("Failed to parse mnemonic")?;
 
@@ -154,6 +167,35 @@ pub fn derive_private_key(mnemonic: &str) -> Result<String> {
 
     // Return as hex string
     Ok(hex::encode(bytes))
+}
+
+/// Derive peer private key (Ed25519) from mnemonic using path m/44'/60'/2'/0/0
+/// Returns private key as hex string (64 hex chars = 32 bytes)
+///
+/// This uses Ed25519 for P2P peer identity.
+pub fn derive_peer_private_key(mnemonic: &str) -> Result<String> {
+    // Parse BIP-39 mnemonic
+    let mnemonic = Mnemonic::parse_in_normalized(bip39::Language::English, mnemonic)
+        .context("Failed to parse mnemonic")?;
+
+    // Generate seed from mnemonic (no passphrase)
+    let seed = mnemonic.to_seed("");
+    let seed_bytes: &[u8] = seed.as_ref();
+
+    // Derive directly from path
+    let derivation_path: DerivationPath = "m/44'/60'/2'/0/0"
+        .parse()
+        .context("Failed to parse derivation path")?;
+    let child_key = XPrv::derive_from_path(seed_bytes, &derivation_path)
+        .context("Failed to derive private key")?;
+
+    // Get the 32-byte seed from the derived private key
+    let signing_key = child_key.private_key();
+    let private_bytes = signing_key.to_bytes();
+    let seed_array: [u8; 32] = private_bytes.into();
+
+    // Return 32-byte private key as hex (for libp2p's ed25519_from_bytes)
+    Ok(hex::encode(seed_array))
 }
 
 #[cfg(test)]
