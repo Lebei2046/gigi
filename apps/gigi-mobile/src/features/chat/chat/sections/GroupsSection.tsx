@@ -1,4 +1,4 @@
-import type { Group } from '@/models/db'
+import type { Group } from '@/utils/chatUtils'
 import type { Conversation } from '@/utils/conversationUtils'
 import { GroupCard } from '../cards'
 

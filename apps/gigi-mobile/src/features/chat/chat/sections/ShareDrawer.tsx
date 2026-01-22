@@ -1,5 +1,5 @@
 import type { Peer } from '@/utils/messaging'
-import type { Group } from '@/models/db'
+import type { Group } from '@/utils/chatUtils'
 
 interface ShareDrawerProps {
   isOpen: boolean

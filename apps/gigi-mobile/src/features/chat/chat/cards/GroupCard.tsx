@@ -1,4 +1,4 @@
-import type { Group } from '@/models/db'
+import type { Group } from '@/utils/chatUtils'
 import { Trash2 } from 'lucide-react'
 
 interface GroupCardProps {

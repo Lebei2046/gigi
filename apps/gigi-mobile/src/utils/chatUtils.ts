@@ -3,13 +3,22 @@
  */
 
 import { db } from '@/models/db'
-import type { Chat, Group } from '@/models/db'
+import type { Chat } from '@/models/db'
+import type { GroupInfo } from '@/utils/tauriCommands'
 import {
   groupGetAll,
   groupCreate,
   groupUpdate,
   groupGet,
 } from '@/utils/tauriCommands'
+
+// Local Group type (no longer stored in IndexedDB)
+export interface Group {
+  id: string
+  name: string
+  joined: boolean
+  createdAt: Date
+}
 
 /**
  * Convert timestamp to milliseconds if it's in seconds
@@ -133,33 +142,18 @@ export async function getAllGroups(): Promise<Group[]> {
     // Fetch groups from backend group store
     const backendGroups = await groupGetAll()
 
-    // Map backend groups to local Group type
-    const localGroups: Group[] = backendGroups.map(g => ({
-      id: g.id,
-      name: g.name,
-      joined: g.joined,
-      createdAt: new Date(g.created_at),
-    }))
-
-    // Sync with local IndexedDB for offline access
-    for (const group of localGroups) {
-      await db.groups.put(group)
-    }
-
-    // Return from local DB for consistent ordering
-    return await db.groups.orderBy('createdAt').reverse().toArray()
+    // Map backend groups to local Group type and return sorted by createdAt
+    return backendGroups
+      .map(g => ({
+        id: g.group_id,
+        name: g.name,
+        joined: g.joined,
+        createdAt: new Date(g.created_at),
+      }))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   } catch (error) {
-    console.error(
-      'Failed to get all groups from backend, falling back to local:',
-      error
-    )
-    // Fallback to local IndexedDB if backend fails
-    try {
-      return await db.groups.orderBy('createdAt').reverse().toArray()
-    } catch (localError) {
-      console.error('Failed to get groups from local storage:', localError)
-      return []
-    }
+    console.error('Failed to get all groups from backend:', error)
+    return []
   }
 }
 
@@ -189,33 +183,21 @@ export async function ensureChatEntriesForGroups(): Promise<void> {
 
 export async function getGroup(id: string): Promise<Group | undefined> {
   try {
-    // Try to fetch from backend first
+    // Fetch from backend
     const backendGroup = await groupGet(id)
     if (backendGroup) {
       // Map backend group to local Group type
-      const localGroup: Group = {
-        id: backendGroup.id,
+      return {
+        id: backendGroup.group_id,
         name: backendGroup.name,
         joined: backendGroup.joined,
         createdAt: new Date(backendGroup.created_at),
       }
-      // Sync with local IndexedDB
-      await db.groups.put(localGroup)
-      return localGroup
     }
-    // Fallback to local IndexedDB
-    return await db.groups.get(id)
+    return undefined
   } catch (error) {
-    console.error(
-      'Failed to get group from backend, falling back to local:',
-      error
-    )
-    try {
-      return await db.groups.get(id)
-    } catch (localError) {
-      console.error('Failed to get group from local storage:', localError)
-      return undefined
-    }
+    console.error('Failed to get group from backend:', error)
+    return undefined
   }
 }
 
@@ -225,28 +207,15 @@ export async function saveGroup(
   try {
     const groupId = group.id || crypto.randomUUID()
 
-    // Save to backend group store
-    try {
-      const existingGroup = await db.groups.get(groupId)
-      if (existingGroup) {
-        // Update existing group in backend
-        await groupUpdate(groupId, group.name, group.joined)
-      } else {
-        // Create new group in backend
-        await groupCreate(groupId, group.name, group.joined)
-      }
-    } catch (backendError) {
-      console.warn('Failed to sync group to backend:', backendError)
-      // Continue with local save even if backend fails
+    // Check if group already exists in backend
+    const existingGroup = await groupGet(groupId)
+    if (existingGroup) {
+      // Update existing group in backend
+      await groupUpdate(groupId, group.name, group.joined)
+    } else {
+      // Create new group in backend
+      await groupCreate(groupId, group.name, group.joined)
     }
-
-    // Save to local IndexedDB
-    await db.groups.put({
-      id: groupId,
-      name: group.name,
-      joined: group.joined,
-      createdAt: group.createdAt,
-    })
   } catch (error) {
     console.error('Failed to save group:', error)
   }

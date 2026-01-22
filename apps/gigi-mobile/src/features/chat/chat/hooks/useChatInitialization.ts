@@ -70,6 +70,8 @@ export function useChatInitialization() {
         const groups = await dispatch(loadGroupsAsync()).unwrap()
         // Ensure conversation entries exist for all groups
         await ensureConversationsForGroups(groups)
+        // Reload conversations to include newly created group conversations
+        await dispatch(loadConversationsAsync())
       } catch (error) {
         console.error('Failed to load initial data:', error)
       }

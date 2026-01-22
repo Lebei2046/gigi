@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type { Peer } from '@/utils/messaging'
-import type { Group } from '@/models/db'
+import type { Group } from '@/utils/chatUtils'
 import {
   getConversationInfo,
   updateConversationInfo,

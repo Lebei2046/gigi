@@ -159,7 +159,7 @@ export interface LoginResult {
 }
 
 export interface GroupInfo {
-  id: string
+  group_id: string
   name: string
   joined: boolean
   created_at: number
