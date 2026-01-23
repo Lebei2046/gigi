@@ -19,24 +19,24 @@ mod models;
 pub use error::{Error, Result};
 
 #[cfg(desktop)]
-use desktop::GigiP2p;
+use desktop::Gigi;
 #[cfg(mobile)]
-use mobile::GigiP2p;
+use mobile::Gigi;
 
-/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the gigi-p2p APIs.
-pub trait GigiP2pExt<R: Runtime> {
-    fn gigi_p2p(&self) -> &GigiP2p<R>;
+/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the gigi APIs.
+pub trait GigiExt<R: Runtime> {
+    fn gigi(&self) -> &Gigi<R>;
 }
 
-impl<R: Runtime, T: Manager<R>> crate::GigiP2pExt<R> for T {
-    fn gigi_p2p(&self) -> &GigiP2p<R> {
-        self.state::<GigiP2p<R>>().inner()
+impl<R: Runtime, T: Manager<R>> crate::GigiExt<R> for T {
+    fn gigi(&self) -> &Gigi<R> {
+        self.state::<Gigi<R>>().inner()
     }
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("gigi-p2p")
+    Builder::new("gigi")
         .invoke_handler(tauri::generate_handler![
             // Add all the commands
             commands::peer::get_peer_id,
@@ -93,13 +93,19 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::groups::group_get,
             commands::groups::group_delete,
             commands::groups::group_update,
+            // Contact commands
+            commands::contacts::contact_add,
+            commands::contacts::contact_remove,
+            commands::contacts::contact_update,
+            commands::contacts::contact_get,
+            commands::contacts::contact_get_all,
         ])
         .setup(|app, api| {
             #[cfg(mobile)]
-            let gigi_p2p = mobile::init(app, api)?;
+            let gigi = mobile::init(app, api)?;
             #[cfg(desktop)]
-            let gigi_p2p = desktop::init(app, api)?;
-            app.manage(gigi_p2p);
+            let gigi = desktop::init(app, api)?;
+            app.manage(gigi);
             Ok(())
         })
         .build()

@@ -7,6 +7,9 @@ pub mod auth;
 // Groups commands
 pub mod groups;
 
+// Contacts commands
+pub mod contacts;
+
 // Messaging commands
 pub mod messaging;
 

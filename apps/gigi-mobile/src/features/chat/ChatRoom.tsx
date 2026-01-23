@@ -74,6 +74,7 @@ export default function ChatRoom() {
     peer,
     group,
     messages,
+    downloadIdToMessageIdRef,
   })
 
   // Debug log (only on mount and when state changes)

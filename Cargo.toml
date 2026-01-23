@@ -8,7 +8,7 @@ members = [
   "pkgs/gigi-dns",
   "pkgs/gigi-file-sharing",
   "pkgs/gigi-store",
-  "pkgs/tauri-plugin-gigi-p2p",
+  "pkgs/tauri-plugin-gigi",
 ]
 
 [workspace.package]

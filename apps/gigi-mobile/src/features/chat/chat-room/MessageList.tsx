@@ -72,8 +72,22 @@ function MessageList({
 
 // Memoize to prevent unnecessary re-renders
 export default memo(MessageList, (prevProps, nextProps) => {
-  return (
-    prevProps.messages.length === nextProps.messages.length &&
-    prevProps.messages.every((msg, i) => msg.id === nextProps.messages[i]?.id)
-  )
+  // Quick length check first
+  if (prevProps.messages.length !== nextProps.messages.length) {
+    return false
+  }
+
+  // Check if any message has changed
+  return prevProps.messages.every((prevMsg, i) => {
+    const nextMsg = nextProps.messages[i]
+    if (!nextMsg) return false
+
+    // Compare fields that affect rendering
+    return (
+      prevMsg.id === nextMsg.id &&
+      prevMsg.content === nextMsg.content &&
+      prevMsg.isDownloading === nextMsg.isDownloading &&
+      prevMsg.downloadProgress === nextMsg.downloadProgress
+    )
+  })
 })

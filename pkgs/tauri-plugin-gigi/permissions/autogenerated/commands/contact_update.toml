@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-contact-update"
+description = "Enables the contact_update command without any pre-configured scope."
+commands.allow = ["contact_update"]
+
+[[permission]]
+identifier = "deny-contact-update"
+description = "Denies the contact_update command without any pre-configured scope."
+commands.deny = ["contact_update"]

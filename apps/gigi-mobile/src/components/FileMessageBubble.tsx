@@ -83,6 +83,14 @@ export default function FileMessageBubble({
     return '📎'
   }
 
+  console.log('🔍 FileMessageBubble render:', {
+    messageId: message.id,
+    isDownloading: message.isDownloading,
+    downloadProgress: message.downloadProgress,
+    isOutgoing: message.isOutgoing,
+    filePath: message.filePath,
+  })
+
   const isDownloading =
     message.isDownloading && message.downloadProgress !== undefined
   const isDownloaded =
@@ -91,6 +99,12 @@ export default function FileMessageBubble({
     (message.downloadProgress === 100 || message.filePath !== undefined)
   const isDownloadable =
     !message.isOutgoing && message.shareCode && !isDownloading && !isDownloaded
+
+  console.log('📊 FileMessageBubble flags:', {
+    isDownloading,
+    isDownloaded,
+    isDownloadable,
+  })
 
   return (
     <div className="flex flex-col gap-2">

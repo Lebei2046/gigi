@@ -9,13 +9,13 @@ use crate::models::PluginState;
 use sea_orm::{Database, DatabaseConnection};
 
 #[cfg(target_os = "ios")]
-tauri::ios_plugin_binding!(init_plugin_gigi_p2p);
+tauri::ios_plugin_binding!(init_plugin_gigi);
 
 // initializes the Kotlin or Swift plugin classes
 pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     api: PluginApi<R, C>,
-) -> crate::Result<GigiP2p<R>> {
+) -> crate::Result<Gigi<R>> {
     let state = PluginState::new();
     app.manage(state);
 
@@ -32,7 +32,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
     #[cfg(target_os = "ios")]
     let handle = api.register_ios_plugin(init_plugin_gigi_p2p)?;
 
-    Ok(GigiP2p(handle))
+    Ok(Gigi(handle))
 }
 
 async fn initialize_database_and_managers<R: Runtime>(
@@ -68,6 +68,9 @@ async fn initialize_database_and_managers<R: Runtime>(
     // Initialize GroupManager
     let group_manager = gigi_store::GroupManager::new(db.clone());
 
+    // Initialize ContactManager
+    let contact_manager = gigi_store::ContactManager::new(db.clone());
+
     // Get state and update it
     let state = app.state::<PluginState>();
     let mut db_connection_guard = state.db_connection.write().await;
@@ -82,6 +85,10 @@ async fn initialize_database_and_managers<R: Runtime>(
     *group_manager_guard = Some(group_manager);
     drop(group_manager_guard);
 
+    let mut contact_manager_guard = state.contact_manager.lock().await;
+    *contact_manager_guard = Some(contact_manager);
+    drop(contact_manager_guard);
+
     // Notify that initialization is complete
     state.initialized.notify_one();
 
@@ -89,10 +96,10 @@ async fn initialize_database_and_managers<R: Runtime>(
     Ok(())
 }
 
-/// Access to the gigi-p2p APIs.
-pub struct GigiP2p<R: Runtime>(PluginHandle<R>);
+/// Access to the gigi APIs.
+pub struct Gigi<R: Runtime>(PluginHandle<R>);
 
-impl<R: Runtime> GigiP2p<R> {
+impl<R: Runtime> Gigi<R> {
     pub fn get_state(&self) -> PluginState {
         // For mobile, state is managed by the app handle, not the plugin handle
         // This is a placeholder - the actual implementation would depend on how

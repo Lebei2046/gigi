@@ -1,10 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
 
-interface Contact {
-  id: string // peer-id as unique identifier
-  name: string
-}
-
 // Add image storage interface
 interface Image {
   id: string
@@ -22,16 +17,14 @@ interface Avatar {
 }
 
 const db = new Dexie('GigiDatabase') as Dexie & {
-  contacts: EntityTable<Contact, 'id'>
   images: EntityTable<Image, 'id'>
   avatars: EntityTable<Avatar, 'id'>
 }
 
 db.version(2).stores({
-  contacts: 'id, name',
   images: 'id, createdAt',
   avatars: 'id, imageId, createdAt, updatedAt',
 })
 
-export type { Contact, Image, Avatar }
+export type { Image, Avatar }
 export { db }

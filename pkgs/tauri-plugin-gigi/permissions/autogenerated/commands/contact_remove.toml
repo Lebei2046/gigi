@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-contact-remove"
+description = "Enables the contact_remove command without any pre-configured scope."
+commands.allow = ["contact_remove"]
+
+[[permission]]
+identifier = "deny-contact-remove"
+description = "Denies the contact_remove command without any pre-configured scope."
+commands.deny = ["contact_remove"]

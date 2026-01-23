@@ -77,7 +77,7 @@
         "react-redux": "^9.2.0",
         "react-router-dom": "^7.9.4",
         "tailwind-merge": "^3.3.1",
-        "tauri-plugin-gigi-p2p-api": "workspace:*",
+        "tauri-plugin-gigi-api": "workspace:*",
       },
       "devDependencies": {
         "@babel/preset-react": "^7.28.5",
@@ -102,8 +102,8 @@
         "vitest": "^4.0.3",
       },
     },
-    "pkgs/tauri-plugin-gigi-p2p": {
-      "name": "tauri-plugin-gigi-p2p-api",
+    "pkgs/tauri-plugin-gigi": {
+      "name": "tauri-plugin-gigi-api",
       "version": "0.1.0",
       "dependencies": {
         "@tauri-apps/api": ">=2.0.0-beta.6",
@@ -1119,7 +1119,7 @@
 
     "tapable": ["tapable@2.2.2", "", {}, "sha512-Re10+NauLTMCudc7T5WLFLAwDhQ0JWdrMK+9B2M8zR5hRExKmsRDCBA7/aV/pNJFltmBFO5BAMlQFi/vq3nKOg=="],
 
-    "tauri-plugin-gigi-p2p-api": ["tauri-plugin-gigi-p2p-api@workspace:pkgs/tauri-plugin-gigi-p2p"],
+    "tauri-plugin-gigi-api": ["tauri-plugin-gigi-api@workspace:pkgs/tauri-plugin-gigi"],
 
     "tinybench": ["tinybench@2.9.0", "", {}, "sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg=="],
 

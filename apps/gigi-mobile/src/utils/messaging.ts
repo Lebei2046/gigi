@@ -1,5 +1,5 @@
 import { open } from '@tauri-apps/plugin-dialog'
-import * as GigiP2p from 'tauri-plugin-gigi-p2p-api'
+import * as GigiP2p from 'tauri-plugin-gigi-api'
 
 // Re-export event types from plugin API for convenience
 export type {
@@ -20,7 +20,7 @@ export type {
   PeerConnected,
   PeerDisconnected,
   P2pError,
-} from 'tauri-plugin-gigi-p2p-api'
+} from 'tauri-plugin-gigi-api'
 
 // Check if running on Android
 const isAndroid = () => {

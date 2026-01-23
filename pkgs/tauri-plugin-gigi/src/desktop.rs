@@ -8,7 +8,7 @@ use sea_orm::{Database, DatabaseConnection};
 pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
-) -> crate::Result<GigiP2p<R>> {
+) -> crate::Result<Gigi<R>> {
     let state = PluginState::new();
     app.manage(state);
 
@@ -20,7 +20,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
         }
     });
 
-    Ok(GigiP2p(app.clone()))
+    Ok(Gigi(app.clone()))
 }
 
 async fn initialize_database_and_managers<R: Runtime>(
@@ -56,6 +56,9 @@ async fn initialize_database_and_managers<R: Runtime>(
     // Initialize GroupManager
     let group_manager = gigi_store::GroupManager::new(db.clone());
 
+    // Initialize ContactManager
+    let contact_manager = gigi_store::ContactManager::new(db.clone());
+
     // Get state and update it
     let state = app.state::<PluginState>();
     let mut db_connection_guard = state.db_connection.write().await;
@@ -70,6 +73,10 @@ async fn initialize_database_and_managers<R: Runtime>(
     *group_manager_guard = Some(group_manager);
     drop(group_manager_guard);
 
+    let mut contact_manager_guard = state.contact_manager.lock().await;
+    *contact_manager_guard = Some(contact_manager);
+    drop(contact_manager_guard);
+
     // Notify that initialization is complete
     state.initialized.notify_one();
 
@@ -77,10 +84,10 @@ async fn initialize_database_and_managers<R: Runtime>(
     Ok(())
 }
 
-/// Access to the gigi-p2p APIs.
-pub struct GigiP2p<R: Runtime>(AppHandle<R>);
+/// Access to the gigi APIs.
+pub struct Gigi<R: Runtime>(AppHandle<R>);
 
-impl<R: Runtime> GigiP2p<R> {
+impl<R: Runtime> Gigi<R> {
     pub fn get_state(&self) -> PluginState {
         self.0.state::<PluginState>().inner().clone()
     }

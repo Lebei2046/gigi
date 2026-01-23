@@ -253,7 +253,7 @@ export interface P2pError {
 // Generate functions for each command
 commands.forEach(cmd => {
   tsCode += `export async function ${cmd}(...args: any[]): Promise<any> {
-  return await invoke('plugin:gigi-p2p|${cmd}', args.length === 1 ? args[0] : { ...args });
+  return await invoke('plugin:gigi|${cmd}', args.length === 1 ? args[0] : { ...args });
 }
 
 `;

@@ -19,7 +19,7 @@ pub fn run() {
 
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_gigi_p2p::init());
+        .plugin(tauri_plugin_gigi::init());
 
     builder
         .run(tauri::generate_context!())

@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core'
  * Check if an account exists
  */
 export async function authCheckAccount(): Promise<boolean> {
-  return await invoke<boolean>('plugin:gigi-p2p|auth_check_account')
+  return await invoke<boolean>('plugin:gigi|auth_check_account')
 }
 
 /**
@@ -22,7 +22,7 @@ export async function authSignup(
   name: string,
   groupName?: string
 ): Promise<AccountInfo> {
-  return await invoke<AccountInfo>('plugin:gigi-p2p|auth_signup', {
+  return await invoke<AccountInfo>('plugin:gigi|auth_signup', {
     mnemonic,
     password,
     name,
@@ -35,7 +35,7 @@ export async function authSignup(
  * @param password - The password to decrypt the mnemonic
  */
 export async function authLoginWithP2P(password: string): Promise<AccountInfo> {
-  return await invoke<AccountInfo>('plugin:gigi-p2p|auth_login_with_p2p', {
+  return await invoke<AccountInfo>('plugin:gigi|auth_login_with_p2p', {
     password,
   })
 }
@@ -44,16 +44,14 @@ export async function authLoginWithP2P(password: string): Promise<AccountInfo> {
  * Get account info (without exposing sensitive data)
  */
 export async function authGetAccountInfo(): Promise<AccountInfo | null> {
-  return await invoke<AccountInfo | null>(
-    'plugin:gigi-p2p|auth_get_account_info'
-  )
+  return await invoke<AccountInfo | null>('plugin:gigi|auth_get_account_info')
 }
 
 /**
  * Delete account and all related data
  */
 export async function authDeleteAccount(): Promise<void> {
-  return await invoke<void>('plugin:gigi-p2p|auth_delete_account')
+  return await invoke<void>('plugin:gigi|auth_delete_account')
 }
 
 /**
@@ -61,7 +59,7 @@ export async function authDeleteAccount(): Promise<void> {
  * @param password - The password to verify
  */
 export async function authVerifyPassword(password: string): Promise<boolean> {
-  return await invoke<boolean>('plugin:gigi-p2p|auth_verify_password', {
+  return await invoke<boolean>('plugin:gigi|auth_verify_password', {
     password,
   })
 }
@@ -79,7 +77,7 @@ export async function groupCreate(
   groupName: string,
   joined: boolean
 ): Promise<GroupInfo> {
-  return await invoke<GroupInfo>('plugin:gigi-p2p|group_create', {
+  return await invoke<GroupInfo>('plugin:gigi|group_create', {
     groupId,
     groupName,
     joined,
@@ -95,7 +93,7 @@ export async function groupJoin(
   groupId: string,
   groupName: string
 ): Promise<GroupInfo> {
-  return await invoke<GroupInfo>('plugin:gigi-p2p|group_join', {
+  return await invoke<GroupInfo>('plugin:gigi|group_join', {
     groupId,
     groupName,
   })
@@ -105,7 +103,7 @@ export async function groupJoin(
  * Get all groups
  */
 export async function groupGetAll(): Promise<GroupInfo[]> {
-  return await invoke<GroupInfo[]>('plugin:gigi-p2p|group_get_all')
+  return await invoke<GroupInfo[]>('plugin:gigi|group_get_all')
 }
 
 /**
@@ -113,7 +111,7 @@ export async function groupGetAll(): Promise<GroupInfo[]> {
  * @param groupId - The group ID
  */
 export async function groupGet(groupId: string): Promise<GroupInfo | null> {
-  return await invoke<GroupInfo | null>('plugin:gigi-p2p|group_get', {
+  return await invoke<GroupInfo | null>('plugin:gigi|group_get', {
     groupId,
   })
 }
@@ -123,7 +121,7 @@ export async function groupGet(groupId: string): Promise<GroupInfo | null> {
  * @param groupId - The group ID
  */
 export async function groupDelete(groupId: string): Promise<void> {
-  return await invoke<void>('plugin:gigi-p2p|group_delete', { groupId })
+  return await invoke<void>('plugin:gigi|group_delete', { groupId })
 }
 
 /**
@@ -137,11 +135,68 @@ export async function groupUpdate(
   groupName?: string,
   joined?: boolean
 ): Promise<GroupInfo> {
-  return await invoke<GroupInfo>('plugin:gigi-p2p|group_update', {
+  return await invoke<GroupInfo>('plugin:gigi|group_update', {
     groupId,
     groupName,
     joined,
   })
+}
+
+// Contact Commands
+
+/**
+ * Add a contact
+ * @param peerId - The peer ID
+ * @param name - The contact name
+ */
+export async function contactAdd(
+  peerId: string,
+  name: string
+): Promise<ContactInfo> {
+  return await invoke<ContactInfo>('plugin:gigi|contact_add', {
+    peerId,
+    name,
+  })
+}
+
+/**
+ * Remove a contact
+ * @param peerId - The peer ID
+ */
+export async function contactRemove(peerId: string): Promise<void> {
+  return await invoke<void>('plugin:gigi|contact_remove', { peerId })
+}
+
+/**
+ * Update a contact's name
+ * @param peerId - The peer ID
+ * @param name - The new name
+ */
+export async function contactUpdate(
+  peerId: string,
+  name: string
+): Promise<ContactInfo> {
+  return await invoke<ContactInfo>('plugin:gigi|contact_update', {
+    peerId,
+    name,
+  })
+}
+
+/**
+ * Get a specific contact by peer ID
+ * @param peerId - The peer ID
+ */
+export async function contactGet(peerId: string): Promise<ContactInfo | null> {
+  return await invoke<ContactInfo | null>('plugin:gigi|contact_get', {
+    peerId,
+  })
+}
+
+/**
+ * Get all contacts
+ */
+export async function contactGetAll(): Promise<ContactInfo[]> {
+  return await invoke<ContactInfo[]>('plugin:gigi|contact_get_all')
 }
 
 // Types
@@ -163,4 +218,10 @@ export interface GroupInfo {
   name: string
   joined: boolean
   created_at: number
+}
+
+export interface ContactInfo {
+  peer_id: string
+  name: string
+  added_at: number
 }

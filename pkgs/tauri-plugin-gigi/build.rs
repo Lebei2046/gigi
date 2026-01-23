@@ -54,6 +54,12 @@ const COMMANDS: &[&str] = &[
     "increment_conversation_unread",
     "mark_conversation_as_read",
     "delete_conversation",
+    // Contact commands
+    "contact_add",
+    "contact_remove",
+    "contact_update",
+    "contact_get",
+    "contact_get_all",
 ];
 
 fn main() {

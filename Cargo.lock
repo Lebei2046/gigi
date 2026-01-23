@@ -2557,7 +2557,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
- "tauri-plugin-gigi-p2p",
+ "tauri-plugin-gigi",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -7776,7 +7776,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-plugin-gigi-p2p"
+name = "tauri-plugin-gigi"
 version = "0.1.0"
 dependencies = [
  "anyhow",

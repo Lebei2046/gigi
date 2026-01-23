@@ -63,4 +63,10 @@ permissions = [
   "allow-group-get",
   "allow-group-delete",
   "allow-group-update",
+  # Contact commands
+  "allow-contact-add",
+  "allow-contact-remove",
+  "allow-contact-update",
+  "allow-contact-get",
+  "allow-contact-get-all",
 ]

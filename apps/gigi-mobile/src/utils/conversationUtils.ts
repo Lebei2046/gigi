@@ -10,7 +10,7 @@ import {
   increment_conversation_unread,
   mark_conversation_as_read,
   delete_conversation,
-} from 'tauri-plugin-gigi-p2p-api'
+} from 'tauri-plugin-gigi-api'
 
 // Frontend Conversation type matching backend
 export interface Conversation {

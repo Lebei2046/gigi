@@ -27,6 +27,7 @@ interface UseMessageActionsParams {
   peer?: { id: string; nickname: string } | null
   group?: { id: string; name: string } | null
   messages: Message[]
+  downloadIdToMessageIdRef?: React.MutableRefObject<Map<string, string>>
 }
 
 export function useMessageActions({
@@ -36,6 +37,7 @@ export function useMessageActions({
   peer,
   group,
   messages,
+  downloadIdToMessageIdRef,
 }: UseMessageActionsParams) {
   const dispatch = useAppDispatch()
   const sentMessagesRef = useRef<Set<string>>(new Set())
@@ -244,13 +246,36 @@ export function useMessageActions({
     shareCode: string,
     filename: string
   ) => {
+    console.log('🎯 handleFileDownloadRequest called:', {
+      messageId,
+      shareCode,
+      filename,
+      peer,
+    })
     if (!peer) return
 
     try {
+      console.log(
+        '📞 Calling requestFileFromNickname with:',
+        peer.nickname,
+        shareCode
+      )
       const downloadId = await MessagingClient.requestFileFromNickname(
         peer.nickname,
         shareCode
       )
+      console.log('✅ requestFileFromNickname returned:', downloadId)
+
+      // Store the downloadId -> messageId mapping for event handling
+      if (downloadIdToMessageIdRef) {
+        downloadIdToMessageIdRef.current.set(downloadId, messageId)
+        console.log('📝 Set downloadId mapping for manual download:', {
+          downloadId,
+          messageId,
+        })
+      } else {
+        console.warn('⚠️ downloadIdToMessageIdRef is undefined!')
+      }
 
       const updateAction = isGroupChat
         ? updateGroupMessage({
@@ -267,6 +292,7 @@ export function useMessageActions({
           })
 
       dispatch(updateAction)
+      console.log('📤 Dispatched updateAction with isDownloading: true')
       dispatch(
         addLog({
           event: 'file_download_requested',
@@ -275,7 +301,7 @@ export function useMessageActions({
         })
       )
     } catch (error) {
-      console.error('Failed to request file download:', error)
+      console.error('❌ Failed to request file download:', error)
 
       const resetAction = isGroupChat
         ? updateGroupMessage({

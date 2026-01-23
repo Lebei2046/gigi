@@ -2,7 +2,7 @@ import { useState } from 'react'
 import QRCode from 'react-qr-code'
 import { Button } from '@/components/ui/button'
 import QrScanner from '@/components/QrScanner'
-import { addContact } from '@/models/contact'
+import { addContact } from '@/utils/contactUtils'
 import { formatShortPeerId } from '@/utils/peerUtils'
 
 interface AddFriendProps {
@@ -14,13 +14,15 @@ export default function AddFriend({ name, peerId }: AddFriendProps) {
   const [showQrScanner, setShowQrScanner] = useState(false)
   const qrData = encodeURI(JSON.stringify({ name, peerId }))
 
-  const handleOnClose = (result: string | null) => {
+  const handleOnClose = async (result: string | null) => {
     if (result) {
       const value = decodeURI(result)
       try {
         const obj = JSON.parse(value)
         if (obj.name && obj.peerId) {
-          addContact(obj.name, obj.peerId)
+          // Add contact to backend store
+          await addContact(obj.name, obj.peerId)
+          console.log('Added contact:', obj.name, obj.peerId)
         }
       } catch (error) {
         console.log(error)

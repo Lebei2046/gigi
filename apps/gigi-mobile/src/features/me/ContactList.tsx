@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { HiOutlineSearch } from 'react-icons/hi'
 import ContactListItem from './ContactListItem'
-import { type Contact } from '@/models/db'
-import { useAllContacts } from '@/models/contact'
+import { getAllContacts } from '@/utils/contactUtils'
+import type { Contact } from '@/utils/contactUtils'
 
 // Utility function: Group and sort contacts
 const groupAndSortContacts = (contacts: Contact[], searchTerm: string) => {
@@ -27,8 +27,17 @@ const groupAndSortContacts = (contacts: Contact[], searchTerm: string) => {
 
 const ContactList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
-  const contacts = useAllContacts()
+  const [contacts, setContacts] = useState<Contact[]>([])
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  // Load contacts on mount
+  useEffect(() => {
+    const loadContacts = async () => {
+      const loadedContacts = await getAllContacts()
+      setContacts(loadedContacts)
+    }
+    loadContacts()
+  }, [])
 
   // Cache grouping and sorting results
   const filteredGroups = useMemo(() => {

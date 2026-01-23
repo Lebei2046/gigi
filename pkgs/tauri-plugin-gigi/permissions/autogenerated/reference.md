@@ -58,6 +58,11 @@ Default permissions for the plugin
 - `allow-group-get`
 - `allow-group-delete`
 - `allow-group-update`
+- `allow-contact-add`
+- `allow-contact-remove`
+- `allow-contact-update`
+- `allow-contact-get`
+- `allow-contact-get-all`
 
 ## Permission Table
 
@@ -71,7 +76,7 @@ Default permissions for the plugin
 <tr>
 <td>
 
-`gigi-p2p:allow-auth-check-account`
+`gigi:allow-auth-check-account`
 
 </td>
 <td>
@@ -84,7 +89,7 @@ Enables the auth_check_account command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-auth-check-account`
+`gigi:deny-auth-check-account`
 
 </td>
 <td>
@@ -97,7 +102,7 @@ Denies the auth_check_account command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-auth-delete-account`
+`gigi:allow-auth-delete-account`
 
 </td>
 <td>
@@ -110,7 +115,7 @@ Enables the auth_delete_account command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-auth-delete-account`
+`gigi:deny-auth-delete-account`
 
 </td>
 <td>
@@ -123,7 +128,7 @@ Denies the auth_delete_account command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-auth-get-account-info`
+`gigi:allow-auth-get-account-info`
 
 </td>
 <td>
@@ -136,7 +141,7 @@ Enables the auth_get_account_info command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-auth-get-account-info`
+`gigi:deny-auth-get-account-info`
 
 </td>
 <td>
@@ -149,7 +154,7 @@ Denies the auth_get_account_info command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-auth-login-with-p2p`
+`gigi:allow-auth-login-with-p2p`
 
 </td>
 <td>
@@ -162,7 +167,7 @@ Enables the auth_login_with_p2p command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-auth-login-with-p2p`
+`gigi:deny-auth-login-with-p2p`
 
 </td>
 <td>
@@ -175,7 +180,7 @@ Denies the auth_login_with_p2p command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-auth-signup`
+`gigi:allow-auth-signup`
 
 </td>
 <td>
@@ -188,7 +193,7 @@ Enables the auth_signup command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-auth-signup`
+`gigi:deny-auth-signup`
 
 </td>
 <td>
@@ -201,7 +206,7 @@ Denies the auth_signup command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-auth-verify-password`
+`gigi:allow-auth-verify-password`
 
 </td>
 <td>
@@ -214,7 +219,7 @@ Enables the auth_verify_password command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-auth-verify-password`
+`gigi:deny-auth-verify-password`
 
 </td>
 <td>
@@ -227,7 +232,7 @@ Denies the auth_verify_password command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-clear-app-data`
+`gigi:allow-clear-app-data`
 
 </td>
 <td>
@@ -240,7 +245,7 @@ Enables the clear_app_data command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-clear-app-data`
+`gigi:deny-clear-app-data`
 
 </td>
 <td>
@@ -253,7 +258,7 @@ Denies the clear_app_data command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-clear-messages-with-thumbnails`
+`gigi:allow-clear-messages-with-thumbnails`
 
 </td>
 <td>
@@ -266,7 +271,7 @@ Enables the clear_messages_with_thumbnails command without any pre-configured sc
 <tr>
 <td>
 
-`gigi-p2p:deny-clear-messages-with-thumbnails`
+`gigi:deny-clear-messages-with-thumbnails`
 
 </td>
 <td>
@@ -279,7 +284,137 @@ Denies the clear_messages_with_thumbnails command without any pre-configured sco
 <tr>
 <td>
 
-`gigi-p2p:allow-delete-conversation`
+`gigi:allow-contact-add`
+
+</td>
+<td>
+
+Enables the contact_add command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:deny-contact-add`
+
+</td>
+<td>
+
+Denies the contact_add command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:allow-contact-get`
+
+</td>
+<td>
+
+Enables the contact_get command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:deny-contact-get`
+
+</td>
+<td>
+
+Denies the contact_get command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:allow-contact-get-all`
+
+</td>
+<td>
+
+Enables the contact_get_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:deny-contact-get-all`
+
+</td>
+<td>
+
+Denies the contact_get_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:allow-contact-remove`
+
+</td>
+<td>
+
+Enables the contact_remove command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:deny-contact-remove`
+
+</td>
+<td>
+
+Denies the contact_remove command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:allow-contact-update`
+
+</td>
+<td>
+
+Enables the contact_update command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:deny-contact-update`
+
+</td>
+<td>
+
+Denies the contact_update command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:allow-delete-conversation`
 
 </td>
 <td>
@@ -292,7 +427,7 @@ Enables the delete_conversation command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-delete-conversation`
+`gigi:deny-delete-conversation`
 
 </td>
 <td>
@@ -305,7 +440,7 @@ Denies the delete_conversation command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-emit-current-state`
+`gigi:allow-emit-current-state`
 
 </td>
 <td>
@@ -318,7 +453,7 @@ Enables the emit_current_state command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-emit-current-state`
+`gigi:deny-emit-current-state`
 
 </td>
 <td>
@@ -331,7 +466,7 @@ Denies the emit_current_state command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-get-conversation`
+`gigi:allow-get-conversation`
 
 </td>
 <td>
@@ -344,7 +479,7 @@ Enables the get_conversation command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-get-conversation`
+`gigi:deny-get-conversation`
 
 </td>
 <td>
@@ -357,7 +492,7 @@ Denies the get_conversation command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-get-conversations`
+`gigi:allow-get-conversations`
 
 </td>
 <td>
@@ -370,7 +505,7 @@ Enables the get_conversations command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-get-conversations`
+`gigi:deny-get-conversations`
 
 </td>
 <td>
@@ -383,7 +518,7 @@ Denies the get_conversations command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-get-file-thumbnail`
+`gigi:allow-get-file-thumbnail`
 
 </td>
 <td>
@@ -396,7 +531,7 @@ Enables the get_file_thumbnail command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-get-file-thumbnail`
+`gigi:deny-get-file-thumbnail`
 
 </td>
 <td>
@@ -409,7 +544,7 @@ Denies the get_file_thumbnail command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-get-full-image`
+`gigi:allow-get-full-image`
 
 </td>
 <td>
@@ -422,7 +557,7 @@ Enables the get_full_image command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-get-full-image`
+`gigi:deny-get-full-image`
 
 </td>
 <td>
@@ -435,7 +570,7 @@ Denies the get_full_image command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-get-full-image-by-path`
+`gigi:allow-get-full-image-by-path`
 
 </td>
 <td>
@@ -448,7 +583,7 @@ Enables the get_full_image_by_path command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-get-full-image-by-path`
+`gigi:deny-get-full-image-by-path`
 
 </td>
 <td>
@@ -461,7 +596,7 @@ Denies the get_full_image_by_path command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-get-messages`
+`gigi:allow-get-messages`
 
 </td>
 <td>
@@ -474,7 +609,7 @@ Enables the get_messages command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-get-messages`
+`gigi:deny-get-messages`
 
 </td>
 <td>
@@ -487,7 +622,7 @@ Denies the get_messages command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-get-peer-id`
+`gigi:allow-get-peer-id`
 
 </td>
 <td>
@@ -500,7 +635,7 @@ Enables the get_peer_id command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-get-peer-id`
+`gigi:deny-get-peer-id`
 
 </td>
 <td>
@@ -513,7 +648,7 @@ Denies the get_peer_id command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-group-create`
+`gigi:allow-group-create`
 
 </td>
 <td>
@@ -526,7 +661,7 @@ Enables the group_create command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-group-create`
+`gigi:deny-group-create`
 
 </td>
 <td>
@@ -539,7 +674,7 @@ Denies the group_create command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-group-delete`
+`gigi:allow-group-delete`
 
 </td>
 <td>
@@ -552,7 +687,7 @@ Enables the group_delete command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-group-delete`
+`gigi:deny-group-delete`
 
 </td>
 <td>
@@ -565,7 +700,7 @@ Denies the group_delete command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-group-get`
+`gigi:allow-group-get`
 
 </td>
 <td>
@@ -578,7 +713,7 @@ Enables the group_get command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-group-get`
+`gigi:deny-group-get`
 
 </td>
 <td>
@@ -591,7 +726,7 @@ Denies the group_get command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-group-get-all`
+`gigi:allow-group-get-all`
 
 </td>
 <td>
@@ -604,7 +739,7 @@ Enables the group_get_all command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-group-get-all`
+`gigi:deny-group-get-all`
 
 </td>
 <td>
@@ -617,7 +752,7 @@ Denies the group_get_all command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-group-join`
+`gigi:allow-group-join`
 
 </td>
 <td>
@@ -630,7 +765,7 @@ Enables the group_join command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-group-join`
+`gigi:deny-group-join`
 
 </td>
 <td>
@@ -643,7 +778,7 @@ Denies the group_join command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-group-update`
+`gigi:allow-group-update`
 
 </td>
 <td>
@@ -656,7 +791,7 @@ Enables the group_update command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-group-update`
+`gigi:deny-group-update`
 
 </td>
 <td>
@@ -669,7 +804,7 @@ Denies the group_update command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-increment-conversation-unread`
+`gigi:allow-increment-conversation-unread`
 
 </td>
 <td>
@@ -682,7 +817,7 @@ Enables the increment_conversation_unread command without any pre-configured sco
 <tr>
 <td>
 
-`gigi-p2p:deny-increment-conversation-unread`
+`gigi:deny-increment-conversation-unread`
 
 </td>
 <td>
@@ -695,7 +830,7 @@ Denies the increment_conversation_unread command without any pre-configured scop
 <tr>
 <td>
 
-`gigi-p2p:allow-mark-conversation-as-read`
+`gigi:allow-mark-conversation-as-read`
 
 </td>
 <td>
@@ -708,7 +843,7 @@ Enables the mark_conversation_as_read command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-mark-conversation-as-read`
+`gigi:deny-mark-conversation-as-read`
 
 </td>
 <td>
@@ -721,7 +856,7 @@ Denies the mark_conversation_as_read command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-cancel-download`
+`gigi:allow-messaging-cancel-download`
 
 </td>
 <td>
@@ -734,7 +869,7 @@ Enables the messaging_cancel_download command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-cancel-download`
+`gigi:deny-messaging-cancel-download`
 
 </td>
 <td>
@@ -747,7 +882,7 @@ Denies the messaging_cancel_download command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-active-downloads`
+`gigi:allow-messaging-get-active-downloads`
 
 </td>
 <td>
@@ -760,7 +895,7 @@ Enables the messaging_get_active_downloads command without any pre-configured sc
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-active-downloads`
+`gigi:deny-messaging-get-active-downloads`
 
 </td>
 <td>
@@ -773,7 +908,7 @@ Denies the messaging_get_active_downloads command without any pre-configured sco
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-config`
+`gigi:allow-messaging-get-config`
 
 </td>
 <td>
@@ -786,7 +921,7 @@ Enables the messaging_get_config command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-config`
+`gigi:deny-messaging-get-config`
 
 </td>
 <td>
@@ -799,7 +934,7 @@ Denies the messaging_get_config command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-file-info`
+`gigi:allow-messaging-get-file-info`
 
 </td>
 <td>
@@ -812,7 +947,7 @@ Enables the messaging_get_file_info command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-file-info`
+`gigi:deny-messaging-get-file-info`
 
 </td>
 <td>
@@ -825,7 +960,7 @@ Denies the messaging_get_file_info command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-folder-content`
+`gigi:allow-messaging-get-folder-content`
 
 </td>
 <td>
@@ -838,7 +973,7 @@ Enables the messaging_get_folder_content command without any pre-configured scop
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-folder-content`
+`gigi:deny-messaging-get-folder-content`
 
 </td>
 <td>
@@ -851,7 +986,7 @@ Denies the messaging_get_folder_content command without any pre-configured scope
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-image-data`
+`gigi:allow-messaging-get-image-data`
 
 </td>
 <td>
@@ -864,7 +999,7 @@ Enables the messaging_get_image_data command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-image-data`
+`gigi:deny-messaging-get-image-data`
 
 </td>
 <td>
@@ -877,7 +1012,7 @@ Denies the messaging_get_image_data command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-message-history`
+`gigi:allow-messaging-get-message-history`
 
 </td>
 <td>
@@ -890,7 +1025,7 @@ Enables the messaging_get_message_history command without any pre-configured sco
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-message-history`
+`gigi:deny-messaging-get-message-history`
 
 </td>
 <td>
@@ -903,7 +1038,7 @@ Denies the messaging_get_message_history command without any pre-configured scop
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-peers`
+`gigi:allow-messaging-get-peers`
 
 </td>
 <td>
@@ -916,7 +1051,7 @@ Enables the messaging_get_peers command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-peers`
+`gigi:deny-messaging-get-peers`
 
 </td>
 <td>
@@ -929,7 +1064,7 @@ Denies the messaging_get_peers command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-public-key`
+`gigi:allow-messaging-get-public-key`
 
 </td>
 <td>
@@ -942,7 +1077,7 @@ Enables the messaging_get_public_key command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-public-key`
+`gigi:deny-messaging-get-public-key`
 
 </td>
 <td>
@@ -955,7 +1090,7 @@ Denies the messaging_get_public_key command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-get-shared-files`
+`gigi:allow-messaging-get-shared-files`
 
 </td>
 <td>
@@ -968,7 +1103,7 @@ Enables the messaging_get_shared_files command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-get-shared-files`
+`gigi:deny-messaging-get-shared-files`
 
 </td>
 <td>
@@ -981,7 +1116,7 @@ Denies the messaging_get_shared_files command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-join-group`
+`gigi:allow-messaging-join-group`
 
 </td>
 <td>
@@ -994,7 +1129,7 @@ Enables the messaging_join_group command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-join-group`
+`gigi:deny-messaging-join-group`
 
 </td>
 <td>
@@ -1007,7 +1142,7 @@ Denies the messaging_join_group command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-remove-shared-file`
+`gigi:allow-messaging-remove-shared-file`
 
 </td>
 <td>
@@ -1020,7 +1155,7 @@ Enables the messaging_remove_shared_file command without any pre-configured scop
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-remove-shared-file`
+`gigi:deny-messaging-remove-shared-file`
 
 </td>
 <td>
@@ -1033,7 +1168,7 @@ Denies the messaging_remove_shared_file command without any pre-configured scope
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-request-file`
+`gigi:allow-messaging-request-file`
 
 </td>
 <td>
@@ -1046,7 +1181,7 @@ Enables the messaging_request_file command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-request-file`
+`gigi:deny-messaging-request-file`
 
 </td>
 <td>
@@ -1059,7 +1194,7 @@ Denies the messaging_request_file command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-request-file-from-nickname`
+`gigi:allow-messaging-request-file-from-nickname`
 
 </td>
 <td>
@@ -1072,7 +1207,7 @@ Enables the messaging_request_file_from_nickname command without any pre-configu
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-request-file-from-nickname`
+`gigi:deny-messaging-request-file-from-nickname`
 
 </td>
 <td>
@@ -1085,7 +1220,7 @@ Denies the messaging_request_file_from_nickname command without any pre-configur
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-save-shared-files`
+`gigi:allow-messaging-save-shared-files`
 
 </td>
 <td>
@@ -1098,7 +1233,7 @@ Enables the messaging_save_shared_files command without any pre-configured scope
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-save-shared-files`
+`gigi:deny-messaging-save-shared-files`
 
 </td>
 <td>
@@ -1111,7 +1246,7 @@ Denies the messaging_save_shared_files command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-select-any-file`
+`gigi:allow-messaging-select-any-file`
 
 </td>
 <td>
@@ -1124,7 +1259,7 @@ Enables the messaging_select_any_file command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-select-any-file`
+`gigi:deny-messaging-select-any-file`
 
 </td>
 <td>
@@ -1137,7 +1272,7 @@ Denies the messaging_select_any_file command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-send-direct-share-group-message`
+`gigi:allow-messaging-send-direct-share-group-message`
 
 </td>
 <td>
@@ -1150,7 +1285,7 @@ Enables the messaging_send_direct_share_group_message command without any pre-co
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-send-direct-share-group-message`
+`gigi:deny-messaging-send-direct-share-group-message`
 
 </td>
 <td>
@@ -1163,7 +1298,7 @@ Denies the messaging_send_direct_share_group_message command without any pre-con
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-send-file-message-with-path`
+`gigi:allow-messaging-send-file-message-with-path`
 
 </td>
 <td>
@@ -1176,7 +1311,7 @@ Enables the messaging_send_file_message_with_path command without any pre-config
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-send-file-message-with-path`
+`gigi:deny-messaging-send-file-message-with-path`
 
 </td>
 <td>
@@ -1189,7 +1324,7 @@ Denies the messaging_send_file_message_with_path command without any pre-configu
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-send-group-file-message-with-path`
+`gigi:allow-messaging-send-group-file-message-with-path`
 
 </td>
 <td>
@@ -1202,7 +1337,7 @@ Enables the messaging_send_group_file_message_with_path command without any pre-
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-send-group-file-message-with-path`
+`gigi:deny-messaging-send-group-file-message-with-path`
 
 </td>
 <td>
@@ -1215,7 +1350,7 @@ Denies the messaging_send_group_file_message_with_path command without any pre-c
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-send-group-message`
+`gigi:allow-messaging-send-group-message`
 
 </td>
 <td>
@@ -1228,7 +1363,7 @@ Enables the messaging_send_group_message command without any pre-configured scop
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-send-group-message`
+`gigi:deny-messaging-send-group-message`
 
 </td>
 <td>
@@ -1241,7 +1376,7 @@ Denies the messaging_send_group_message command without any pre-configured scope
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-send-message`
+`gigi:allow-messaging-send-message`
 
 </td>
 <td>
@@ -1254,7 +1389,7 @@ Enables the messaging_send_message command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-send-message`
+`gigi:deny-messaging-send-message`
 
 </td>
 <td>
@@ -1267,7 +1402,7 @@ Denies the messaging_send_message command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-send-message-to-nickname`
+`gigi:allow-messaging-send-message-to-nickname`
 
 </td>
 <td>
@@ -1280,7 +1415,7 @@ Enables the messaging_send_message_to_nickname command without any pre-configure
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-send-message-to-nickname`
+`gigi:deny-messaging-send-message-to-nickname`
 
 </td>
 <td>
@@ -1293,7 +1428,7 @@ Denies the messaging_send_message_to_nickname command without any pre-configured
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-set-nickname`
+`gigi:allow-messaging-set-nickname`
 
 </td>
 <td>
@@ -1306,7 +1441,7 @@ Enables the messaging_set_nickname command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-set-nickname`
+`gigi:deny-messaging-set-nickname`
 
 </td>
 <td>
@@ -1319,7 +1454,7 @@ Denies the messaging_set_nickname command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-share-content-uri`
+`gigi:allow-messaging-share-content-uri`
 
 </td>
 <td>
@@ -1332,7 +1467,7 @@ Enables the messaging_share_content_uri command without any pre-configured scope
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-share-content-uri`
+`gigi:deny-messaging-share-content-uri`
 
 </td>
 <td>
@@ -1345,7 +1480,7 @@ Denies the messaging_share_content_uri command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-share-file`
+`gigi:allow-messaging-share-file`
 
 </td>
 <td>
@@ -1358,7 +1493,7 @@ Enables the messaging_share_file command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-share-file`
+`gigi:deny-messaging-share-file`
 
 </td>
 <td>
@@ -1371,7 +1506,7 @@ Denies the messaging_share_file command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-messaging-update-config`
+`gigi:allow-messaging-update-config`
 
 </td>
 <td>
@@ -1384,7 +1519,7 @@ Enables the messaging_update_config command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-messaging-update-config`
+`gigi:deny-messaging-update-config`
 
 </td>
 <td>
@@ -1397,7 +1532,7 @@ Denies the messaging_update_config command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-search-messages`
+`gigi:allow-search-messages`
 
 </td>
 <td>
@@ -1410,7 +1545,7 @@ Enables the search_messages command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-search-messages`
+`gigi:deny-search-messages`
 
 </td>
 <td>
@@ -1423,7 +1558,7 @@ Denies the search_messages command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-try-get-peer-id`
+`gigi:allow-try-get-peer-id`
 
 </td>
 <td>
@@ -1436,7 +1571,7 @@ Enables the try_get_peer_id command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-try-get-peer-id`
+`gigi:deny-try-get-peer-id`
 
 </td>
 <td>
@@ -1449,7 +1584,7 @@ Denies the try_get_peer_id command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:allow-update-conversation-last-message`
+`gigi:allow-update-conversation-last-message`
 
 </td>
 <td>
@@ -1462,7 +1597,7 @@ Enables the update_conversation_last_message command without any pre-configured 
 <tr>
 <td>
 
-`gigi-p2p:deny-update-conversation-last-message`
+`gigi:deny-update-conversation-last-message`
 
 </td>
 <td>
@@ -1475,7 +1610,7 @@ Denies the update_conversation_last_message command without any pre-configured s
 <tr>
 <td>
 
-`gigi-p2p:allow-upsert-conversation`
+`gigi:allow-upsert-conversation`
 
 </td>
 <td>
@@ -1488,7 +1623,7 @@ Enables the upsert_conversation command without any pre-configured scope.
 <tr>
 <td>
 
-`gigi-p2p:deny-upsert-conversation`
+`gigi:deny-upsert-conversation`
 
 </td>
 <td>

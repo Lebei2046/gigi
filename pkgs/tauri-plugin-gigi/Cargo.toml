@@ -1,12 +1,12 @@
 [package]
-name = "tauri-plugin-gigi-p2p"
+name = "tauri-plugin-gigi"
 version = "0.1.0"
 authors = [ "You" ]
 description = ""
 edition = "2021"
 rust-version = "1.77.2"
 exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
-links = "tauri-plugin-gigi-p2p"
+links = "tauri-plugin-gigi"
 
 [dependencies]
 tauri = { version = "2.7.0" }

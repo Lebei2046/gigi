@@ -6,6 +6,7 @@
 //! It also manages application-wide data such as private keys and nicknames,
 //! and shared file information.
 
+pub mod contact_manager;
 pub mod conversation_store;
 pub mod entities;
 pub mod file_sharing_store;
@@ -21,6 +22,7 @@ pub mod thumbnail_store;
 // Re-export from gigi-auth
 pub use gigi_auth::{AccountInfo, AuthManager, LoginResult};
 
+pub use contact_manager::{ContactInfo, ContactManager};
 pub use conversation_store::{Conversation, ConversationStore};
 pub use file_sharing_store::{FileSharingStore, SharedFileInfo};
 pub use group_manager::{GroupInfo, GroupManager};

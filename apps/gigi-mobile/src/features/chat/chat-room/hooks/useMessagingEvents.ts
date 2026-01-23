@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { MessagingClient, MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { addLog } from '@/store/logsSlice'
@@ -47,6 +47,11 @@ export function useMessagingEvents({
   const downloadIdToMessageIdRef =
     useRef<Map<string, string>>(downloadIdMapping)
   const messagesRef = useRef<Message[]>(messages)
+
+  // Debounce timeout for download progress updates
+  const progressUpdateTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(
+    new Map()
+  )
 
   // Keep messages ref updated
   useEffect(() => {
@@ -249,20 +254,37 @@ export function useMessagingEvents({
         return
       }
 
-      const progressText = `⬇️ Downloading ${data.filename}: ${data.progress_percent.toFixed(1)}%`
-      const updateFields = {
-        id: messageId,
-        downloadId: data.download_id,
-        content: progressText,
-        downloadProgress: data.progress_percent,
-        isDownloading: data.progress_percent < 100,
+      // Debounce progress updates to prevent excessive Redux updates
+      const timeoutKey = data.download_id
+
+      // Clear any existing timeout for this download
+      const existingTimeout = progressUpdateTimeoutRef.current.get(timeoutKey)
+      if (existingTimeout) {
+        clearTimeout(existingTimeout)
       }
 
-      if (isGroupChat) {
-        dispatch(updateGroupMessage(updateFields))
-      } else {
-        dispatch(updateMessage(updateFields))
-      }
+      // Schedule the update with a small delay
+      const timeout = setTimeout(() => {
+        const progressText = `⬇️ Downloading ${data.filename}: ${data.progress_percent.toFixed(1)}%`
+        const updateFields = {
+          id: messageId,
+          downloadId: data.download_id,
+          content: progressText,
+          downloadProgress: data.progress_percent,
+          isDownloading: data.progress_percent < 100,
+        }
+
+        if (isGroupChat) {
+          dispatch(updateGroupMessage(updateFields))
+        } else {
+          dispatch(updateMessage(updateFields))
+        }
+
+        // Clean up timeout reference
+        progressUpdateTimeoutRef.current.delete(timeoutKey)
+      }, 16) // ~60fps (16ms debounce for smooth UI)
+
+      progressUpdateTimeoutRef.current.set(timeoutKey, timeout)
     }
 
     const handleFileDownloadCompleted = async (data: any) => {
@@ -274,7 +296,7 @@ export function useMessagingEvents({
         return
       }
 
-      const message = messages.find(msg => msg.id === messageId)
+      const message = messagesRef.current.find(msg => msg.id === messageId)
       const originalFilename = message?.filename
       const actualFilename =
         originalFilename ||
@@ -431,6 +453,10 @@ export function useMessagingEvents({
         handleFileDownloadCompleted
       )
       MessagingEvents.off('file-download-failed', handleFileDownloadFailed)
+
+      // Clear any pending debounced progress updates
+      progressUpdateTimeoutRef.current.forEach(timeout => clearTimeout(timeout))
+      progressUpdateTimeoutRef.current.clear()
 
       // Don't clear module-level storage - persist across remounts
       // sentMessagesRef.current.clear()

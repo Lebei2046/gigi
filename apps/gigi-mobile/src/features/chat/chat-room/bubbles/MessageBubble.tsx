@@ -47,5 +47,22 @@ function MessageBubble({ message, onDownloadRequest }: MessageBubbleProps) {
 
 // Memoize to prevent unnecessary re-renders in React Strict Mode
 export default memo(MessageBubble, (prevProps, nextProps) => {
-  return prevProps.message.id === nextProps.message.id
+  // Deep comparison of relevant message fields
+  const prev = prevProps.message
+  const next = nextProps.message
+
+  // Compare critical fields that affect rendering
+  return (
+    prev.id === next.id &&
+    prev.content === next.content &&
+    prev.isDownloading === next.isDownloading &&
+    prev.downloadProgress === next.downloadProgress &&
+    prev.isOutgoing === next.isOutgoing &&
+    prev.messageType === next.messageType &&
+    prev.imageData === next.imageData &&
+    prev.thumbnailData === next.thumbnailData &&
+    prev.filePath === next.filePath &&
+    prev.filename === next.filename &&
+    prev.fileSize === next.fileSize
+  )
 })

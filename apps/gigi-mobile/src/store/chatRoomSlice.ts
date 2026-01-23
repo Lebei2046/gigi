@@ -570,7 +570,9 @@ const chatRoomSlice = createSlice({
         if (isDownloading !== undefined) message.isDownloading = isDownloading
         if (downloadProgress !== undefined)
           message.downloadProgress = downloadProgress
-        if (downloadId !== undefined) message.downloadId = downloadId
+        // Only update downloadId if it's not already set (avoids infinite loop)
+        if (downloadId !== undefined && message.downloadId !== downloadId)
+          message.downloadId = downloadId
         if (isUploading !== undefined) message.isUploading = isUploading
         console.log('✅ Message updated in Redux:', {
           id: message.id,
@@ -638,7 +640,8 @@ const chatRoomSlice = createSlice({
         if (isDownloading !== undefined) message.isDownloading = isDownloading
         if (downloadProgress !== undefined)
           message.downloadProgress = downloadProgress
-        if (downloadId !== undefined) message.downloadId = downloadId
+        if (downloadId !== undefined && message.downloadId !== downloadId)
+          message.downloadId = downloadId
       }
     },
 
