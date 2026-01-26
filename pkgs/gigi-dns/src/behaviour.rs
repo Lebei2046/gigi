@@ -39,7 +39,7 @@ pub struct GigiDnsBehaviour {
     interface_tx: tokio::sync::mpsc::UnboundedSender<InterfaceEvent>,
     // Senders for address updates to interface tasks
     address_update_txs: HashMap<IpAddr, tokio::sync::mpsc::UnboundedSender<Vec<Multiaddr>>>,
-    // Track discovered peers by peer_id for outbound connections
+    // Track discovered peers by peer_id for outbound connections (single source of truth)
     discovered_peers: HashMap<PeerId, GigiPeerInfo>,
 }
 
@@ -85,6 +85,12 @@ impl GigiDnsBehaviour {
     fn spawn_interface_task(&mut self, interface_ip: IpAddr) -> std::io::Result<()> {
         tracing::debug!("Spawning task for interface {}", interface_ip);
 
+        // If task already exists, stop it first to avoid stale tasks
+        if self.if_tasks.contains_key(&interface_ip) {
+            tracing::debug!("Restarting task for interface {}", interface_ip);
+            self.stop_interface_task(interface_ip);
+        }
+
         // Create channel for address updates
         let (address_update_tx, address_update_rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -102,7 +108,16 @@ impl GigiDnsBehaviour {
             .insert(interface_ip, address_update_tx);
 
         // Send current addresses if available
-        let addrs = self.listen_addresses.read().unwrap();
+        let addrs = match self.listen_addresses.read() {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to acquire lock on listen_addresses: {}, using inner state",
+                    e
+                );
+                e.into_inner()
+            }
+        };
         let libp2p_addrs: Vec<Multiaddr> = addrs.iter().cloned().collect();
         if !libp2p_addrs.is_empty() {
             let _ = self
@@ -122,6 +137,20 @@ impl GigiDnsBehaviour {
             handle.abort();
         }
         self.address_update_txs.remove(&interface_ip);
+    }
+}
+
+impl Drop for GigiDnsBehaviour {
+    fn drop(&mut self) {
+        tracing::debug!(
+            "GigiDnsBehaviour dropping, cleaning up {} tasks",
+            self.if_tasks.len()
+        );
+        // Abort all interface tasks
+        for (ip, handle) in self.if_tasks.drain() {
+            tracing::debug!("Aborting task for interface {}", ip);
+            handle.abort();
+        }
     }
 }
 
@@ -194,7 +223,16 @@ impl NetworkBehaviour for GigiDnsBehaviour {
             .on_swarm_event(&event);
 
         // Broadcast listen address changes to all interface tasks
-        let addrs = self.listen_addresses.read().unwrap();
+        let addrs = match self.listen_addresses.read() {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to acquire lock on listen_addresses: {}, using inner state",
+                    e
+                );
+                e.into_inner()
+            }
+        };
         let libp2p_addrs: Vec<Multiaddr> = addrs.iter().cloned().collect();
 
         if !libp2p_addrs.is_empty() {
@@ -231,17 +269,43 @@ impl NetworkBehaviour for GigiDnsBehaviour {
 
             // Process interface task events
             while let Poll::Ready(Some(event)) = self.interface_rx.poll_recv(cx) {
-                match &event {
+                let should_emit = match &event {
                     InterfaceEvent::PeerDiscovered(GigiDnsEvent::Discovered(peer_info)) => {
                         let peer_id = peer_info.peer_id.clone();
-                        self.discovered_peers.insert(peer_id, peer_info.clone());
+                        // Check if this is a new peer or an update
+                        if let Some(old_info) = self.discovered_peers.get(&peer_id) {
+                            if old_info.nickname != peer_info.nickname
+                                || old_info.multiaddr != peer_info.multiaddr
+                            {
+                                // Generate Updated event
+                                self.pending_events.push_back(GigiDnsEvent::Updated {
+                                    peer_id,
+                                    old_info: old_info.clone(),
+                                    new_info: peer_info.clone(),
+                                });
+                                self.discovered_peers.insert(peer_id, peer_info.clone());
+                                false // Don't emit the original Discovered event
+                            } else {
+                                // Update TTL
+                                self.discovered_peers.insert(peer_id, peer_info.clone());
+                                true
+                            }
+                        } else {
+                            // New peer
+                            self.discovered_peers.insert(peer_id, peer_info.clone());
+                            true
+                        }
                     }
-                    InterfaceEvent::PeerExpired(GigiDnsEvent::Expired { peer_id, .. }) => {
+                    InterfaceEvent::PeerExpired(GigiDnsEvent::Expired { peer_id, info: _ }) => {
                         self.discovered_peers.remove(peer_id);
+                        true
                     }
-                    _ => {}
+                    _ => true,
+                };
+
+                if should_emit {
+                    self.pending_events.push_back(event.into());
                 }
-                self.pending_events.push_back(event.into());
             }
 
             // Return any pending GigiDnsEvents

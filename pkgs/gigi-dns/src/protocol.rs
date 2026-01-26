@@ -5,17 +5,18 @@
 use crate::types::*;
 use libp2p::{Multiaddr, PeerId};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     time::{Duration, Instant},
 };
 
 pub struct GigiDnsProtocol {
     config: GigiDnsConfig,
     local_peer_id: PeerId,
-    discovered_peers: HashMap<PeerId, GigiPeerInfo>,
     pending_queries: HashMap<u16, Instant>,
-    next_transaction_id: u16,
+    next_transaction_id: u32,
     listen_addresses: Vec<Multiaddr>,
+    // Error rate limiting: track recent errors
+    recent_errors: VecDeque<Instant>,
 }
 
 impl GigiDnsProtocol {
@@ -23,16 +24,16 @@ impl GigiDnsProtocol {
         Self {
             config,
             local_peer_id,
-            discovered_peers: HashMap::new(),
             pending_queries: HashMap::new(),
-            next_transaction_id: rand::random(),
+            next_transaction_id: rand::random::<u16>() as u32,
             listen_addresses: Vec::new(),
+            recent_errors: VecDeque::new(),
         }
     }
 
     pub fn build_query(&mut self) -> Vec<u8> {
-        let transaction_id = self.next_transaction_id;
-        self.next_transaction_id = self.next_transaction_id.wrapping_add(1);
+        let transaction_id = (self.next_transaction_id % 65536) as u16;
+        self.next_transaction_id += 1;
 
         let mut packet = Vec::with_capacity(64);
 
@@ -89,9 +90,32 @@ impl GigiDnsProtocol {
             append_u16(&mut packet, 0x0010);
             append_u16(&mut packet, 0x0001);
             append_u32(&mut packet, self.config.ttl.as_secs() as u32);
-            append_u16(&mut packet, txt_value.len() as u16);
-            append_u8(&mut packet, txt_value.len() as u8);
-            packet.extend_from_slice(txt_value.as_bytes());
+
+            // DNS TXT record format: RDLENGTH (2 bytes) + TXT-DATA (length-prefixed strings)
+            // TXT-DATA consists of one or more <character-string>, each prefixed with length byte (u8)
+            // For long strings, we need to split into multiple character-strings (max 255 bytes each)
+            let txt_data = txt_value.as_bytes();
+
+            // Calculate total RDLENGTH: length of all character-strings
+            // Each character-string: 1 length byte + up to 255 data bytes
+            let mut rdlength_calculated = 0;
+            let mut pos = 0;
+            while pos < txt_data.len() {
+                let chunk_size = (txt_data.len() - pos).min(255);
+                rdlength_calculated += 1 + chunk_size; // 1 length byte + chunk data
+                pos += chunk_size;
+            }
+
+            append_u16(&mut packet, rdlength_calculated as u16);
+
+            // Append TXT-DATA as multiple character-strings (max 255 bytes each)
+            let mut pos = 0;
+            while pos < txt_data.len() {
+                let chunk_size = (txt_data.len() - pos).min(255);
+                append_u8(&mut packet, chunk_size as u8);
+                packet.extend_from_slice(&txt_data[pos..pos + chunk_size]);
+                pos += chunk_size;
+            }
 
             packets.push(packet);
         }
@@ -100,7 +124,13 @@ impl GigiDnsProtocol {
     }
 
     pub fn handle_packet(&mut self, packet: &[u8]) -> Result<Option<GigiDnsEvent>, String> {
+        // Rate limiting: if too many errors recently, silently drop packet
+        if self.is_rate_limited() {
+            return Ok(None);
+        }
+
         if packet.len() < 12 {
+            self.record_error();
             return Err("Packet too short".to_string());
         }
 
@@ -134,6 +164,7 @@ impl GigiDnsProtocol {
             pos += 1;
 
             if pos + 10 > packet.len() {
+                self.record_error();
                 break;
             }
 
@@ -147,22 +178,48 @@ impl GigiDnsProtocol {
             pos += 2;
 
             if pos + rdlength > packet.len() {
+                self.record_error();
                 return Err("Invalid record length".to_string());
             }
 
             if record_type == 0x0010 {
-                let txt_data = &packet[pos + 1..pos + rdlength];
+                // DNS TXT record: RDLENGTH bytes of TXT-DATA
+                // TXT-DATA consists of one or more <character-string>
+                // Each character-string: 1 length byte (u8) + up to 255 bytes of data
+                let mut txt_data = Vec::new();
+                let mut rdlength_pos = pos;
+                let rdlength_end = pos + rdlength;
 
-                match String::from_utf8(txt_data.to_vec()) {
+                while rdlength_pos < rdlength_end {
+                    if rdlength_pos >= packet.len() {
+                        self.record_error();
+                        return Err("Invalid TXT record format".to_string());
+                    }
+
+                    let chunk_len = packet[rdlength_pos] as usize;
+                    rdlength_pos += 1;
+
+                    if rdlength_pos + chunk_len > rdlength_end {
+                        self.record_error();
+                        return Err("Invalid TXT chunk length".to_string());
+                    }
+
+                    txt_data.extend_from_slice(&packet[rdlength_pos..rdlength_pos + chunk_len]);
+                    rdlength_pos += chunk_len;
+                }
+
+                match String::from_utf8(txt_data) {
                     Ok(txt_str) => match GigiDnsRecord::decode(&txt_str) {
                         Ok(record) => {
                             return Ok(Some(self.process_discovered_peer(record, ttl)?));
                         }
                         Err(e) => {
+                            self.record_error();
                             return Err(format!("Failed to decode record: {}", e));
                         }
                     },
                     Err(_) => {
+                        self.record_error();
                         return Err("Invalid UTF-8 in TXT record".to_string());
                     }
                 }
@@ -174,6 +231,31 @@ impl GigiDnsProtocol {
         Ok(None)
     }
 
+    fn is_rate_limited(&self) -> bool {
+        const MAX_ERRORS_PER_MINUTE: usize = 10;
+        const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(60);
+
+        let now = Instant::now();
+        let recent_count = self
+            .recent_errors
+            .iter()
+            .filter(|&&timestamp| now.duration_since(timestamp) < RATE_LIMIT_WINDOW)
+            .count();
+
+        recent_count >= MAX_ERRORS_PER_MINUTE
+    }
+
+    fn record_error(&mut self) {
+        const MAX_ERROR_HISTORY: usize = 20;
+        let now = Instant::now();
+        self.recent_errors.push_back(now);
+
+        // Cleanup old error records
+        while self.recent_errors.len() > MAX_ERROR_HISTORY {
+            self.recent_errors.pop_front();
+        }
+    }
+
     pub fn is_query(&self, packet: &[u8]) -> bool {
         if packet.len() < 12 {
             return false;
@@ -183,7 +265,7 @@ impl GigiDnsProtocol {
     }
 
     fn process_discovered_peer(
-        &mut self,
+        &self,
         record: GigiDnsRecord,
         ttl: u32,
     ) -> Result<GigiDnsEvent, String> {
@@ -237,19 +319,7 @@ impl GigiDnsProtocol {
             expires_at,
         };
 
-        if let Some(old_info) = self.discovered_peers.get(&peer_id) {
-            if old_info.nickname != new_info.nickname || old_info.multiaddr != new_info.multiaddr {
-                let old_info = old_info.clone();
-                self.discovered_peers.insert(peer_id, new_info.clone());
-                return Ok(GigiDnsEvent::Updated {
-                    peer_id,
-                    old_info,
-                    new_info,
-                });
-            }
-        }
-
-        self.discovered_peers.insert(peer_id, new_info.clone());
+        // Just return Discovered event, behaviour will manage state
         Ok(GigiDnsEvent::Discovered(new_info))
     }
 
@@ -262,36 +332,25 @@ impl GigiDnsProtocol {
     }
 
     pub fn get_discovered_peers(&self) -> Vec<&GigiPeerInfo> {
-        self.discovered_peers.values().collect()
+        Vec::new() // State managed by behaviour
     }
 
-    pub fn find_peer_by_nickname(&self, nickname: &str) -> Option<&GigiPeerInfo> {
-        self.discovered_peers
-            .values()
-            .find(|p| p.nickname == nickname)
+    pub fn find_peer_by_nickname(&self, _nickname: &str) -> Option<&GigiPeerInfo> {
+        None // State managed by behaviour
     }
 
-    pub fn find_peer_by_id(&self, peer_id: &PeerId) -> Option<&GigiPeerInfo> {
-        self.discovered_peers.get(peer_id)
+    pub fn find_peer_by_id(&self, _peer_id: &PeerId) -> Option<&GigiPeerInfo> {
+        None // State managed by behaviour
     }
 
     pub fn cleanup_expired(&mut self) -> Vec<GigiDnsEvent> {
+        // Cleanup expired pending queries (older than 30 seconds)
+        let timeout = Duration::from_secs(30);
         let now = Instant::now();
-        let mut events = Vec::new();
+        self.pending_queries
+            .retain(|_, timestamp| now.duration_since(*timestamp) < timeout);
 
-        let expired: Vec<_> = self
-            .discovered_peers
-            .iter()
-            .filter(|(_, info)| info.expires_at <= now)
-            .map(|(peer_id, info)| (*peer_id, info.clone()))
-            .collect();
-
-        for (peer_id, info) in expired {
-            self.discovered_peers.remove(&peer_id);
-            events.push(GigiDnsEvent::Expired { peer_id, info });
-        }
-
-        events
+        Vec::new() // State managed by behaviour
     }
 }
 

@@ -29,7 +29,7 @@ pub struct GigiDnsConfig {
 
 impl Default for GigiDnsConfig {
     fn default() -> Self {
-        Self {
+        let config = Self {
             nickname: "Anonymous".to_string(),
             ttl: Duration::from_secs(6 * 60),
             query_interval: Duration::from_secs(5 * 60),
@@ -39,7 +39,101 @@ impl Default for GigiDnsConfig {
             capabilities: Vec::new(),
             metadata: HashMap::new(),
             use_localhost: false,
+        };
+        config.validate().expect("Default config should be valid");
+        config
+    }
+}
+
+impl GigiDnsConfig {
+    const MIN_TTL: Duration = Duration::from_secs(60);
+    const MAX_TTL: Duration = Duration::from_secs(24 * 60 * 60); // 24 hours
+    const MIN_QUERY_INTERVAL: Duration = Duration::from_secs(5);
+    const MAX_QUERY_INTERVAL: Duration = Duration::from_secs(60 * 60); // 1 hour
+    const MIN_ANNOUNCE_INTERVAL: Duration = Duration::from_secs(5);
+    const MAX_ANNOUNCE_INTERVAL: Duration = Duration::from_secs(10 * 60); // 10 minutes
+    const MIN_CLEANUP_INTERVAL: Duration = Duration::from_secs(10);
+    const MAX_CLEANUP_INTERVAL: Duration = Duration::from_secs(5 * 60); // 5 minutes
+    const MAX_NICKNAME_LENGTH: usize = 64;
+
+    pub fn validate(&self) -> Result<(), String> {
+        // Validate nickname
+        if self.nickname.is_empty() {
+            return Err("Nickname cannot be empty".to_string());
         }
+        if self.nickname.len() > Self::MAX_NICKNAME_LENGTH {
+            return Err(format!(
+                "Nickname too long: {} chars (max: {})",
+                self.nickname.len(),
+                Self::MAX_NICKNAME_LENGTH
+            ));
+        }
+
+        // Validate TTL
+        if self.ttl < Self::MIN_TTL {
+            return Err(format!(
+                "TTL too short: {:?} (min: {:?})",
+                self.ttl,
+                Self::MIN_TTL
+            ));
+        }
+        if self.ttl > Self::MAX_TTL {
+            return Err(format!(
+                "TTL too long: {:?} (max: {:?})",
+                self.ttl,
+                Self::MAX_TTL
+            ));
+        }
+
+        // Validate query_interval
+        if self.query_interval < Self::MIN_QUERY_INTERVAL {
+            return Err(format!(
+                "Query interval too short: {:?} (min: {:?})",
+                self.query_interval,
+                Self::MIN_QUERY_INTERVAL
+            ));
+        }
+        if self.query_interval > Self::MAX_QUERY_INTERVAL {
+            return Err(format!(
+                "Query interval too long: {:?} (max: {:?})",
+                self.query_interval,
+                Self::MAX_QUERY_INTERVAL
+            ));
+        }
+
+        // Validate announce_interval
+        if self.announce_interval < Self::MIN_ANNOUNCE_INTERVAL {
+            return Err(format!(
+                "Announce interval too short: {:?} (min: {:?})",
+                self.announce_interval,
+                Self::MIN_ANNOUNCE_INTERVAL
+            ));
+        }
+        if self.announce_interval > Self::MAX_ANNOUNCE_INTERVAL {
+            return Err(format!(
+                "Announce interval too long: {:?} (max: {:?})",
+                self.announce_interval,
+                Self::MAX_ANNOUNCE_INTERVAL
+            ));
+        }
+
+        // Validate cleanup_interval
+        if self.cleanup_interval < Self::MIN_CLEANUP_INTERVAL {
+            return Err(format!(
+                "Cleanup interval too short: {:?} (min: {:?})",
+                self.cleanup_interval,
+                Self::MIN_CLEANUP_INTERVAL
+            ));
+        }
+        if self.cleanup_interval > Self::MAX_CLEANUP_INTERVAL {
+            return Err(format!(
+                "Cleanup interval too long: {:?} (max: {:?})",
+                self.cleanup_interval,
+                Self::MAX_CLEANUP_INTERVAL
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -69,7 +163,14 @@ pub enum GigiDnsEvent {
     Offline {
         peer_id: PeerId,
         info: GigiPeerInfo,
+        reason: OfflineReason,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OfflineReason {
+    TtlExpired,
+    HealthCheckFailed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,7 +183,7 @@ pub struct GigiDnsRecord {
 }
 
 impl GigiDnsRecord {
-    pub const MAX_TXT_LENGTH: usize = 255;
+    pub const MAX_TXT_LENGTH: usize = 4096; // Increased to support IPv6 and longer peer_ids
 
     pub fn encode(&self) -> Result<String, String> {
         let mut parts = Vec::new();

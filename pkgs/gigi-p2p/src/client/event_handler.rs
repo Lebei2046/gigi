@@ -121,8 +121,15 @@ impl<'a> GigiDnsEventHandler<'a> {
                     .peer_manager
                     .handle_peer_expired(peer_id, &mut self.client.event_sender)?;
             }
-            gigi_dns::GigiDnsEvent::Offline { peer_id, info } => {
-                info!("gigi-dns peer offline: {} ({})", info.nickname, peer_id);
+            gigi_dns::GigiDnsEvent::Offline {
+                peer_id,
+                info,
+                reason,
+            } => {
+                info!(
+                    "gigi-dns peer offline: {} ({}) - reason: {:?}",
+                    info.nickname, peer_id, reason
+                );
                 self.client
                     .peer_manager
                     .handle_peer_expired(peer_id, &mut self.client.event_sender)?;

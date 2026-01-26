@@ -5,6 +5,7 @@
 use crate::protocol::GigiDnsProtocol;
 use crate::types::*;
 use if_watch::IfEvent;
+use std::collections::VecDeque;
 use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
@@ -50,6 +51,8 @@ pub struct InterfaceTask {
     _io_handle: tokio::task::JoinHandle<()>,
     // Channel to receive address updates from main behaviour
     address_update_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<libp2p::Multiaddr>>,
+    // Query response rate limiting
+    recent_query_responses: std::collections::VecDeque<std::time::Instant>,
 }
 
 // Internal packet type
@@ -87,16 +90,36 @@ impl InterfaceTask {
         let (packet_tx, packet_rx) = unbounded_channel();
         let (send_tx, mut send_rx) = unbounded_channel::<(Vec<u8>, SocketAddr)>();
 
-        // Spawn background I/O task
+        // Spawn background I/O task with adaptive buffer size
         let io_handle = tokio::spawn(async move {
-            let mut buffer = vec![0u8; 4096];
-            tracing::debug!("Interface {} I/O task started", interface_ip);
+            // Start with reasonable buffer size to avoid truncation
+            const INITIAL_BUFFER_SIZE: usize = 4096; // 4KB to accommodate typical DNS packets
+            const MAX_BUFFER_SIZE: usize = 65536; // 64KB max
+            let mut buffer = vec![0u8; INITIAL_BUFFER_SIZE];
+            tracing::debug!(
+                "Interface {} I/O task started with buffer size {}",
+                interface_ip,
+                buffer.len()
+            );
 
             loop {
                 tokio::select! {
                     result = recv_socket.recv_from(&mut buffer) => {
                         match result {
                             Ok((len, src)) => {
+                                // Check if buffer was too small (packet truncated)
+                                if len == buffer.len() && buffer.len() < MAX_BUFFER_SIZE {
+                                    tracing::warn!(
+                                        "Interface {} buffer too small ({}), packet may be truncated. Growing to {}",
+                                        interface_ip,
+                                        buffer.len(),
+                                        buffer.len() * 2
+                                    );
+                                    let new_size = (buffer.len() * 2).min(MAX_BUFFER_SIZE);
+                                    buffer.resize(new_size, 0);
+                                    // Drop this truncated packet and continue
+                                    continue;
+                                }
                                 let packet = buffer[..len].to_vec();
                                 let _ = packet_tx.send(InterfacePacket::Received(packet, src));
                             }
@@ -137,6 +160,7 @@ impl InterfaceTask {
             first_run: true,
             _io_handle: io_handle,
             address_update_rx,
+            recent_query_responses: VecDeque::new(),
         };
 
         // Spawn the task that runs the async logic
@@ -316,6 +340,17 @@ impl InterfaceTask {
                 self.interface_ip,
                 src
             );
+
+            // Rate limiting: check if we're responding too frequently
+            if self.is_query_response_rate_limited() {
+                tracing::debug!(
+                    "Interface {} rate limited query response to {}",
+                    self.interface_ip,
+                    src
+                );
+                return;
+            }
+
             match self.protocol.build_response() {
                 Ok(packets) => {
                     for response in packets {
@@ -367,6 +402,31 @@ impl InterfaceTask {
         }
     }
 
+    fn is_query_response_rate_limited(&mut self) -> bool {
+        const MAX_RESPONSES_PER_SECOND: usize = 10;
+        const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(1);
+
+        let now = Instant::now();
+
+        // Cleanup old response records
+        while let Some(&timestamp) = self.recent_query_responses.front() {
+            if now.duration_since(timestamp) > RATE_LIMIT_WINDOW {
+                self.recent_query_responses.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        // Check if we've exceeded the limit
+        if self.recent_query_responses.len() >= MAX_RESPONSES_PER_SECOND {
+            return true;
+        }
+
+        // Record this response
+        self.recent_query_responses.push_back(now);
+        false
+    }
+
     pub async fn run(mut self) {
         tracing::debug!("Interface {} task starting", self.interface_ip);
 
@@ -392,8 +452,14 @@ impl InterfaceTask {
             .min()
             .unwrap();
 
-            // Calculate delay to next deadline, or sleep indefinitely if all deadlines are past
-            let delay = next_deadline.checked_duration_since(Instant::now());
+            // Calculate delay to next deadline
+            let now = Instant::now();
+            let delay = if next_deadline > now {
+                Some(next_deadline - now)
+            } else {
+                // All deadlines are in the past, process immediately
+                Some(Duration::ZERO)
+            };
 
             tokio::select! {
                 // Process address updates - highest priority
@@ -414,8 +480,8 @@ impl InterfaceTask {
                     }
                 }
                 // Wait until next deadline
-                _ = tokio::time::sleep_until(tokio::time::Instant::from_std(next_deadline)), if delay.is_some() => {
-                    // Deadline reached, check and execute tasks below
+                _ = tokio::time::sleep(delay.unwrap_or(Duration::ZERO)) => {
+                    // Deadline reached or all deadlines were in the past
                 }
             }
 

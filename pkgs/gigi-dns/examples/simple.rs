@@ -148,9 +148,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("⏰ Peer expired: {}", peer_id);
                 println!("");
             }
-            SwarmEvent::Behaviour(gigi_dns::GigiDnsEvent::Offline { peer_id, .. }) => {
+            SwarmEvent::Behaviour(gigi_dns::GigiDnsEvent::Offline {
+                peer_id, reason, ..
+            }) => {
                 println!("");
-                println!("🔌 Peer offline: {}", peer_id);
+                println!("🔌 Peer offline: {} (reason: {:?})", peer_id, reason);
                 println!("");
             }
             event => {
