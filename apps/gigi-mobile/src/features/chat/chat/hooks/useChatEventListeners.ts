@@ -8,6 +8,7 @@ import {
   removePeer,
   updateDirectMessage,
   updateGroupMessage,
+  addGroupShareNotification,
 } from '@/store/chatSlice'
 import {
   updateLatestMessage,
@@ -141,13 +142,30 @@ export function useChatEventListeners() {
       }
 
       const handleImageMessageReceived = (messageData: any) => {
-        dispatch(
-          updateDirectMessage({
-            from_peer_id: messageData.from_peer_id,
-            content: `📷 Image: ${messageData.filename}`,
-            timestamp: messageData.timestamp,
-          })
-        )
+        // Check if this is a group message
+        if (messageData.group_id) {
+          // This is a group image message, update group conversation
+          const messageText = messageData.download_error
+            ? `❌ Image: ${messageData.filename}`
+            : `⬇️ Image: ${messageData.filename}`
+
+          dispatch(
+            updateGroupMessage({
+              group_id: messageData.group_id,
+              content: messageText,
+              timestamp: messageData.timestamp,
+            })
+          )
+        } else {
+          // This is a direct image message
+          dispatch(
+            updateDirectMessage({
+              from_peer_id: messageData.from_peer_id,
+              content: `📷 Image: ${messageData.filename}`,
+              timestamp: messageData.timestamp,
+            })
+          )
+        }
       }
 
       const handleGroupImageMessageReceived = (messageData: any) => {
@@ -165,26 +183,49 @@ export function useChatEventListeners() {
       }
 
       const handleFileMessageReceived = (messageData: any) => {
-        dispatch(
-          updateDirectMessage({
-            from_peer_id: messageData.from_peer_id,
-            content: `📎 File: ${messageData.filename}`,
-            timestamp: messageData.timestamp,
-          })
-        )
+        // Check if this is a group message
+        if (messageData.group_id) {
+          // This is a group file message, update group conversation
+          const messageText = messageData.download_error
+            ? `❌ File: ${messageData.filename}`
+            : `📎 File: ${messageData.filename}`
+
+          dispatch(
+            updateGroupMessage({
+              group_id: messageData.group_id,
+              content: messageText,
+              timestamp: messageData.timestamp,
+            })
+          )
+        } else {
+          // This is a direct file message
+          dispatch(
+            updateDirectMessage({
+              from_peer_id: messageData.from_peer_id,
+              content: `📎 File: ${messageData.filename}`,
+              timestamp: messageData.timestamp,
+            })
+          )
+        }
       }
 
-      const handleFileDownloadCompleted = (messageData: any) => {
+      const handleGroupFileMessageReceived = (messageData: any) => {
+        const messageText = messageData.download_error
+          ? `❌ File: ${messageData.filename}`
+          : `📎 File: ${messageData.filename}`
+
         dispatch(
-          updateDirectMessage({
-            from_peer_id: messageData.from_nickname,
-            content: `📷 Image: ${messageData.filename}`,
+          updateGroupMessage({
+            group_id: messageData.group_id,
+            content: messageText,
             timestamp: messageData.timestamp,
           })
         )
       }
 
       const handleGroupShareReceived = (shareMessage: any) => {
+        console.log('🎉 Group share received:', shareMessage)
+        dispatch(addGroupShareNotification(shareMessage))
         dispatch(
           addLog({
             event: 'group_share_received',
@@ -205,7 +246,10 @@ export function useChatEventListeners() {
         handleGroupImageMessageReceived
       )
       MessagingEvents.on('file-message-received', handleFileMessageReceived)
-      MessagingEvents.on('file-download-completed', handleFileDownloadCompleted)
+      MessagingEvents.on(
+        'group-file-message-received',
+        handleGroupFileMessageReceived
+      )
       MessagingEvents.on('group-share-received', handleGroupShareReceived)
 
       return () => {
@@ -223,8 +267,8 @@ export function useChatEventListeners() {
         )
         MessagingEvents.off('file-message-received', handleFileMessageReceived)
         MessagingEvents.off(
-          'file-download-completed',
-          handleFileDownloadCompleted
+          'group-file-message-received',
+          handleGroupFileMessageReceived
         )
         MessagingEvents.off('group-share-received', handleGroupShareReceived)
         console.log('🧹 Cleaned up Chat event listeners')

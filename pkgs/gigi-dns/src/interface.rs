@@ -46,6 +46,7 @@ pub struct InterfaceTask {
     cleanup_deadline: Instant,
     probe_state: ProbeState,
     has_discovered_peers: bool,
+    first_run: bool,
     _io_handle: tokio::task::JoinHandle<()>,
     // Channel to receive address updates from main behaviour
     address_update_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<libp2p::Multiaddr>>,
@@ -133,6 +134,7 @@ impl InterfaceTask {
             cleanup_deadline: now,
             probe_state: ProbeState::Probing(Duration::from_millis(500)),
             has_discovered_peers: false,
+            first_run: true,
             _io_handle: io_handle,
             address_update_rx,
         };
@@ -367,6 +369,17 @@ impl InterfaceTask {
 
     pub async fn run(mut self) {
         tracing::debug!("Interface {} task starting", self.interface_ip);
+
+        // Send initial query and announcement immediately on startup
+        if self.first_run {
+            tracing::debug!(
+                "Interface {} sending initial query and announcement",
+                self.interface_ip
+            );
+            let _ = self.send_query();
+            let _ = self.send_announcement();
+            self.first_run = false;
+        }
 
         loop {
             // Calculate the next deadline among all timers

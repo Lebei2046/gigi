@@ -118,13 +118,15 @@ export function useMessageActions({
     if (!isGroupChat && !peer) return
     if (isGroupChat && !group) return
 
+    let imageMessage: Message | null = null
+
     try {
       const filePath = await MessagingClient.selectImageFile()
       if (!filePath) return
 
       const timestamp = Date.now()
       const filename = filePath.split(/[\\/]/).pop() || 'image'
-      const imageMessage = createOutgoingImageMessage(
+      imageMessage = createOutgoingImageMessage(
         filename,
         timestamp,
         isGroupChat
@@ -172,12 +174,14 @@ export function useMessageActions({
       console.error('Failed to send image:', error)
 
       // Clear uploading state on error
-      dispatch(
-        (isGroupChat ? updateGroupMessage : updateMessage)({
-          id: imageMessage.id,
-          isUploading: false,
-        })
-      )
+      if (imageMessage) {
+        dispatch(
+          (isGroupChat ? updateGroupMessage : updateMessage)({
+            id: imageMessage.id,
+            isUploading: false,
+          })
+        )
+      }
     }
   }
 
@@ -185,17 +189,15 @@ export function useMessageActions({
     if (!isGroupChat && !peer) return
     if (isGroupChat && !group) return
 
+    let fileMessage: Message | null = null
+
     try {
       const filePath = await MessagingClient.selectAnyFile()
       if (!filePath) return
 
       const timestamp = Date.now()
       const fileInfo = await MessagingClient.getFileInfo(filePath)
-      const fileMessage = createOutgoingFileMessage(
-        fileInfo,
-        timestamp,
-        isGroupChat
-      )
+      fileMessage = createOutgoingFileMessage(fileInfo, timestamp, isGroupChat)
 
       sentMessagesRef.current.add(fileMessage.id)
       dispatch(addMessage(fileMessage))
@@ -209,10 +211,15 @@ export function useMessageActions({
         })
       )
 
-      const response = await MessagingClient.sendFileMessageWithPath(
-        peer!.nickname,
-        filePath
-      )
+      const response = isGroupChat
+        ? await MessagingClient.sendGroupFileMessageWithPath(
+            group!.id,
+            filePath
+          )
+        : await MessagingClient.sendFileMessageWithPath(
+            peer!.nickname,
+            filePath
+          )
 
       const updatedMessage = updateOutgoingFileMessage(
         fileMessage,
@@ -221,7 +228,7 @@ export function useMessageActions({
       )
 
       dispatch(
-        updateMessage({
+        (isGroupChat ? updateGroupMessage : updateMessage)({
           id: fileMessage.id,
           content: updatedMessage.content,
           newId: updatedMessage.id,
@@ -232,12 +239,14 @@ export function useMessageActions({
       console.error('Failed to send file:', error)
 
       // Clear uploading state on error
-      dispatch(
-        updateMessage({
-          id: fileMessage.id,
-          isUploading: false,
-        })
-      )
+      if (fileMessage) {
+        dispatch(
+          (isGroupChat ? updateGroupMessage : updateMessage)({
+            id: fileMessage.id,
+            isUploading: false,
+          })
+        )
+      }
     }
   }
 
@@ -251,17 +260,32 @@ export function useMessageActions({
       shareCode,
       filename,
       peer,
+      isGroupChat,
     })
-    if (!peer) return
+
+    // Find the message to get sender information for group chats
+    const message = messages.find(msg => msg.id === messageId)
+    if (!message) {
+      console.error('❌ Message not found:', messageId)
+      return
+    }
+
+    // For direct chats, use peer nickname
+    // For group chats, use the sender's nickname from the message
+    const senderNickname = isGroupChat ? message.from_nickname : peer?.nickname
+    if (!senderNickname) {
+      console.error('❌ No sender nickname available')
+      return
+    }
 
     try {
       console.log(
         '📞 Calling requestFileFromNickname with:',
-        peer.nickname,
+        senderNickname,
         shareCode
       )
       const downloadId = await MessagingClient.requestFileFromNickname(
-        peer.nickname,
+        senderNickname,
         shareCode
       )
       console.log('✅ requestFileFromNickname returned:', downloadId)
@@ -296,7 +320,7 @@ export function useMessageActions({
       dispatch(
         addLog({
           event: 'file_download_requested',
-          data: `Requested download of ${filename} from ${peer.nickname}`,
+          data: `Requested download of ${filename} from ${senderNickname}`,
           type: 'info',
         })
       )

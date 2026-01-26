@@ -204,6 +204,12 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
         FileSendTarget::Group(group_id) => group_id.to_string(),
     };
 
+    // Get group name for group messages
+    let group_name = match target {
+        FileSendTarget::Group(group_id) => Some(group_id.to_string()),
+        FileSendTarget::Direct(_) => None,
+    };
+
     let message_store = state.message_store.clone();
     let share_code_clone = share_code.clone();
     let filename_clone = file_name.clone();
@@ -249,7 +255,7 @@ pub async fn send_file_message_internal<R: tauri::Runtime>(
                 content,
                 sender_nickname: local_nickname.clone(),
                 recipient_nickname,
-                group_name: None,
+                group_name,
                 peer_id: peer_id_clone,
                 timestamp: Utc::now(),
                 created_at: Utc::now(),

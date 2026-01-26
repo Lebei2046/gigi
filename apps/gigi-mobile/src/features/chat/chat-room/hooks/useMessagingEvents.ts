@@ -196,7 +196,8 @@ export function useMessagingEvents({
 
     const handleGroupFileMessageReceived = (messageData: any) => {
       if (chatId && messageData.group_id === chatId && isGroupChat) {
-        const fileMessage = createIncomingFileMessage(messageData, true, true)
+        // Don't auto-download for group file messages - user should manually download
+        const fileMessage = createIncomingFileMessage(messageData, true, false)
         dispatch(addGroupImageMessage(fileMessage))
       }
     }

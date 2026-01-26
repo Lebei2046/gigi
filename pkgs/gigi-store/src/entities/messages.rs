@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: String,
-    pub msg_type: String,     // Stored as JSON string
-    pub direction: String,    // Stored as JSON string
-    pub content_type: String, // Stored as JSON string
+    pub msg_type: String,     // "Direct" or "Group"
+    pub direction: String,    // "Sent" or "Received"
+    pub content_type: String, // "Text" or "FileShare"
     pub content_json: String, // Full content as JSON
     pub sender_nickname: String,
     pub recipient_nickname: Option<String>,
@@ -22,7 +22,7 @@ pub struct Model {
     pub delivered_at: Option<i64>,
     pub read: bool,
     pub read_at: Option<i64>,
-    pub sync_status: String, // Stored as JSON string
+    pub sync_status: String, // "Pending", "Synced", "Delivered", or "Acknowledged"
     pub sync_attempts: u32,
     pub last_sync_attempt: Option<i64>,
     pub expires_at: i64,

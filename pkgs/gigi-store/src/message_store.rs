@@ -116,10 +116,20 @@ impl MessageStore {
 
     /// Store a message
     pub async fn store_message(&self, msg: StoredMessage) -> Result<()> {
+        // Convert MessageType and MessageDirection to string directly instead of JSON
+        let msg_type_str = match msg.msg_type {
+            crate::events::MessageType::Direct => "Direct".to_string(),
+            crate::events::MessageType::Group => "Group".to_string(),
+        };
+        let direction_str = match msg.direction {
+            crate::events::MessageDirection::Sent => "Sent".to_string(),
+            crate::events::MessageDirection::Received => "Received".to_string(),
+        };
+
         let new_msg = messages::ActiveModel {
             id: Set(msg.id.clone()),
-            msg_type: Set(serde_json::to_string(&msg.msg_type)?),
-            direction: Set(serde_json::to_string(&msg.direction)?),
+            msg_type: Set(msg_type_str),
+            direction: Set(direction_str),
             content_type: Set(match &msg.content {
                 crate::MessageContent::Text { .. } => "Text".to_string(),
                 crate::MessageContent::FileShare { .. } => "FileShare".to_string(),
@@ -137,7 +147,13 @@ impl MessageStore {
             delivered_at: Set(msg.delivered_at.map(|t| t.timestamp_millis())),
             read: Set(msg.read),
             read_at: Set(msg.read_at.map(|t| t.timestamp_millis())),
-            sync_status: Set(serde_json::to_string(&msg.sync_status)?),
+            // Convert SyncStatus to string directly instead of JSON
+            sync_status: Set(match msg.sync_status {
+                crate::events::SyncStatus::Pending => "Pending".to_string(),
+                crate::events::SyncStatus::Synced => "Synced".to_string(),
+                crate::events::SyncStatus::Delivered => "Delivered".to_string(),
+                crate::events::SyncStatus::Acknowledged => "Acknowledged".to_string(),
+            }),
             sync_attempts: Set(msg.sync_attempts),
             last_sync_attempt: Set(msg.last_sync_attempt.map(|t| t.timestamp_millis())),
             expires_at: Set(msg.expires_at.timestamp_millis()),
@@ -237,6 +253,7 @@ impl MessageStore {
                     .add(messages::Column::SenderNickname.eq(peer_nickname))
                     .add(messages::Column::RecipientNickname.eq(peer_nickname)),
             )
+            .filter(messages::Column::MsgType.eq("Direct"))
             .order_by_desc(messages::Column::Timestamp)
             .paginate(&self.db, limit as u64)
             .fetch_page(offset as u64)
@@ -265,6 +282,7 @@ impl MessageStore {
     ) -> Result<Vec<StoredMessage>> {
         let result = messages::Entity::find()
             .filter(messages::Column::PeerId.eq(peer_id))
+            .filter(messages::Column::MsgType.eq("Direct"))
             .order_by_desc(messages::Column::Timestamp)
             .paginate(&self.db, limit as u64)
             .fetch_page(offset as u64)
@@ -337,7 +355,7 @@ impl MessageStore {
             id: Set(message_id.to_string()),
             delivered: Set(true),
             delivered_at: Set(Some(now)),
-            sync_status: Set(serde_json::to_string(&crate::SyncStatus::Delivered)?),
+            sync_status: Set("Delivered".to_string()),
             ..Default::default()
         }
         .update(&self.db)
@@ -658,11 +676,23 @@ impl MessageStore {
 
     /// Convert Sea-ORM model to StoredMessage
     fn model_to_stored_message(&self, model: messages::Model) -> Result<StoredMessage> {
+        // Parse msg_type and direction from string instead of JSON
+        let msg_type = match model.msg_type.as_str() {
+            "Direct" => crate::events::MessageType::Direct,
+            "Group" => crate::events::MessageType::Group,
+            _ => return Err(anyhow::anyhow!("Invalid msg_type: {}", model.msg_type)),
+        };
+
+        let direction = match model.direction.as_str() {
+            "Sent" => crate::events::MessageDirection::Sent,
+            "Received" => crate::events::MessageDirection::Received,
+            _ => return Err(anyhow::anyhow!("Invalid direction: {}", model.direction)),
+        };
+
         Ok(StoredMessage {
             id: model.id,
-            msg_type: serde_json::from_str(&model.msg_type).context("Failed to parse msg_type")?,
-            direction: serde_json::from_str(&model.direction)
-                .context("Failed to parse direction")?,
+            msg_type,
+            direction,
             content: serde_json::from_str(&model.content_json)
                 .context("Failed to parse content")?,
             sender_nickname: model.sender_nickname,
@@ -693,8 +723,19 @@ impl MessageStore {
                         .map(|dt| dt.with_timezone(&Utc))
                 })
                 .transpose()?,
-            sync_status: serde_json::from_str(&model.sync_status)
-                .context("Failed to parse sync_status")?,
+            // Parse sync_status from string instead of JSON
+            sync_status: match model.sync_status.as_str() {
+                "Pending" => crate::events::SyncStatus::Pending,
+                "Synced" => crate::events::SyncStatus::Synced,
+                "Delivered" => crate::events::SyncStatus::Delivered,
+                "Acknowledged" => crate::events::SyncStatus::Acknowledged,
+                _ => {
+                    return Err(anyhow::anyhow!(
+                        "Invalid sync_status: {}",
+                        model.sync_status
+                    ))
+                }
+            },
             sync_attempts: model.sync_attempts,
             last_sync_attempt: model
                 .last_sync_attempt
@@ -742,8 +783,22 @@ impl MessageStore {
         );
 
         // 1. Get all image messages from this conversation
+        // For direct chats: peer_id is the sender's/receiver's peer ID
+        // For group chats: peer_id is the group ID (stored in group_name field)
         let image_messages = messages::Entity::find()
-            .filter(messages::Column::PeerId.eq(peer_id))
+            .filter(
+                Condition::any()
+                    .add(
+                        messages::Column::PeerId
+                            .eq(peer_id)
+                            .and(messages::Column::MsgType.eq("Direct")),
+                    )
+                    .add(
+                        messages::Column::GroupName
+                            .eq(peer_id)
+                            .and(messages::Column::MsgType.eq("Group")),
+                    ),
+            )
             .all(&self.db)
             .await
             .context("Failed to fetch image messages")?;
@@ -846,8 +901,22 @@ impl MessageStore {
         }
 
         // 3. Clear the conversation
+        // For direct chats: delete where peer_id matches AND msg_type is Direct
+        // For group chats: delete where group_name matches AND msg_type is Group
         let delete_result = messages::Entity::delete_many()
-            .filter(messages::Column::PeerId.eq(peer_id))
+            .filter(
+                Condition::any()
+                    .add(
+                        messages::Column::PeerId
+                            .eq(peer_id)
+                            .and(messages::Column::MsgType.eq("Direct")),
+                    )
+                    .add(
+                        messages::Column::GroupName
+                            .eq(peer_id)
+                            .and(messages::Column::MsgType.eq("Group")),
+                    ),
+            )
             .exec(&self.db)
             .await
             .context("Failed to clear conversation")?;
