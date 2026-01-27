@@ -1,6 +1,21 @@
 // Copyright 2024 Gigi Team.
 //
 // Per-interface mDNS handler for gigi-dns
+//
+// This module implements per-interface mDNS communication for the Gigi DNS protocol.
+// Each network interface gets its own background task that handles:
+// - Sending periodic queries for peer discovery
+// - Responding to queries from other peers
+// - Processing responses and extracting peer information
+// - Adaptive probing for faster peer discovery
+// - Rate limiting to prevent DoS attacks
+//
+// Key features:
+// - Separate UDP sockets for sending and receiving
+// - Multi-segment TXT record support (RFC 1035)
+// - Adaptive query intervals (exponential backoff)
+// - Query response rate limiting (10 per second)
+// - Graceful cleanup on interface down events
 
 use crate::protocol::GigiDnsProtocol;
 use crate::types::*;
@@ -11,17 +26,27 @@ use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
-// Adaptive probing state
+/// Adaptive probing state for faster peer discovery
+///
+/// When no peers are discovered, the interface uses shorter query intervals
+/// to rapidly probe the network. Once a peer is found, it switches to the
+/// normal (longer) query interval to reduce network traffic.
 #[derive(Debug, Clone, Copy)]
 enum ProbeState {
-    Probing(Duration), // Current probing interval
-    Finished,          // Probing complete, use normal interval
+    /// Currently probing with the given interval
+    Probing(Duration),
+    /// Probing complete, use normal interval
+    Finished,
 }
 
-// Events sent from interface tasks back to the main behaviour
+/// Events sent from interface tasks back to the main behaviour
+///
+/// These events inform the main behaviour about peer lifecycle changes.
 #[derive(Debug)]
 pub enum InterfaceEvent {
+    /// A new peer was discovered
     PeerDiscovered(GigiDnsEvent),
+    /// A peer's information expired
     PeerExpired(GigiDnsEvent),
 }
 
@@ -34,33 +59,65 @@ impl From<InterfaceEvent> for GigiDnsEvent {
     }
 }
 
-// Per-interface state that runs as a background task
+/// Per-interface state that runs as a background task
+///
+/// Each InterfaceTask manages DNS communication on a single network interface.
+/// It runs in its own async task and communicates with the main behaviour via channels.
 pub struct InterfaceTask {
+    /// Configuration for this interface
     config: GigiDnsConfig,
+    /// IP address of the interface
     interface_ip: IpAddr,
+    /// DNS protocol handler
     protocol: GigiDnsProtocol,
+    /// Channel for sending events to main behaviour
     event_tx: UnboundedSender<InterfaceEvent>,
+    /// Channel for receiving packets from I/O task
     multicast_rx: UnboundedReceiver<InterfacePacket>,
+    /// Channel for sending packets via I/O task
     send_tx: UnboundedSender<(Vec<u8>, SocketAddr)>,
+    /// Deadline for next query
     query_deadline: Instant,
+    /// Deadline for next announcement
     announce_deadline: Instant,
+    /// Deadline for next cleanup
     cleanup_deadline: Instant,
+    /// Current adaptive probing state
     probe_state: ProbeState,
+    /// Whether we've discovered any peers yet
     has_discovered_peers: bool,
+    /// Whether this is the first run (send immediate query/announcement)
     first_run: bool,
+    /// Handle for background I/O task
     _io_handle: tokio::task::JoinHandle<()>,
-    // Channel to receive address updates from main behaviour
+    /// Channel to receive address updates from main behaviour
     address_update_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<libp2p::Multiaddr>>,
-    // Query response rate limiting
+    /// Recent query response timestamps for rate limiting
     recent_query_responses: std::collections::VecDeque<std::time::Instant>,
 }
 
-// Internal packet type
+/// Internal packet type for communication between I/O task and main task
 pub enum InterfacePacket {
+    /// Received packet with source address
     Received(Vec<u8>, SocketAddr),
 }
 
 impl InterfaceTask {
+    /// Spawns a new interface task for the given IP address
+    ///
+    /// Creates separate UDP sockets for sending and receiving, spawns a background
+    /// I/O task, and starts the main async task that handles protocol logic.
+    ///
+    /// # Arguments
+    /// * `interface_ip` - IP address of the network interface
+    /// * `config` - Configuration for DNS behavior
+    /// * `local_peer_id` - Our libp2p peer ID
+    /// * `event_tx` - Channel for sending events to main behaviour
+    /// * `address_update_rx` - Channel for receiving address updates from main behaviour
+    ///
+    /// # Returns
+    /// - `Ok(JoinHandle<()>)` - Handle for the spawned task
+    /// - `Err(std::io::Error)` - Failed to create sockets
     pub fn spawn(
         interface_ip: IpAddr,
         config: GigiDnsConfig,
@@ -94,7 +151,7 @@ impl InterfaceTask {
         let io_handle = tokio::spawn(async move {
             // Start with reasonable buffer size to avoid truncation
             const INITIAL_BUFFER_SIZE: usize = 4096; // 4KB to accommodate typical DNS packets
-            const MAX_BUFFER_SIZE: usize = 65536; // 64KB max
+            const MAX_BUFFER_SIZE: usize = 65536; // 64KB max (UDP packet limit)
             let mut buffer = vec![0u8; INITIAL_BUFFER_SIZE];
             tracing::debug!(
                 "Interface {} I/O task started with buffer size {}",
@@ -171,6 +228,18 @@ impl InterfaceTask {
         Ok(handle)
     }
 
+    /// Creates a UDP socket for receiving multicast packets
+    ///
+    /// This socket is bound to the multicast address and joins the multicast group
+    /// on the specified interface.
+    ///
+    /// # Arguments
+    /// * `interface_ip` - IP address of the network interface
+    /// * `config` - Configuration (for IPv4/IPv6 selection)
+    ///
+    /// # Returns
+    /// - `Ok(UdpSocket)` - Configured receive socket
+    /// - `Err(std::io::Error)` - Failed to create or configure socket
     fn create_recv_socket(
         interface_ip: &IpAddr,
         config: &GigiDnsConfig,
@@ -221,6 +290,17 @@ impl InterfaceTask {
         UdpSocket::from_std(std_socket)
     }
 
+    /// Creates a UDP socket for sending multicast packets
+    ///
+    /// This socket is bound to the interface IP with a random port.
+    ///
+    /// # Arguments
+    /// * `interface_ip` - IP address of the network interface
+    /// * `_config` - Configuration (unused but kept for consistency)
+    ///
+    /// # Returns
+    /// - `Ok(UdpSocket)` - Configured send socket
+    /// - `Err(std::io::Error)` - Failed to create socket
     fn create_send_socket(
         interface_ip: &IpAddr,
         _config: &GigiDnsConfig,
@@ -232,6 +312,10 @@ impl InterfaceTask {
         UdpSocket::from_std(socket)
     }
 
+    /// Gets the current query interval based on probing state
+    ///
+    /// # Returns
+    /// Current query interval (shorter during probing, normal after)
     fn get_current_query_interval(&self) -> Duration {
         match self.probe_state {
             ProbeState::Probing(interval) => interval,
@@ -239,6 +323,10 @@ impl InterfaceTask {
         }
     }
 
+    /// Advances the adaptive probing state
+    ///
+    /// Doubles the probing interval until it reaches the normal interval,
+    /// then switches to Finished state.
     fn advance_probe_state(&mut self) {
         if let ProbeState::Probing(interval) = self.probe_state {
             let next_interval = (interval * 2).min(self.config.query_interval);
@@ -258,6 +346,9 @@ impl InterfaceTask {
         }
     }
 
+    /// Called when a peer is discovered
+    ///
+    /// Stops adaptive probing since we've found at least one peer.
     fn on_peer_discovered(&mut self) {
         if !self.has_discovered_peers {
             self.has_discovered_peers = true;
@@ -269,9 +360,15 @@ impl InterfaceTask {
         }
     }
 
+    /// Sends a DNS query packet to the multicast address
+    ///
+    /// # Returns
+    /// - `Ok(())` - Query sent successfully
+    /// - `Err(std::io::Error)` - Failed to send
     fn send_query(&mut self) -> std::io::Result<()> {
         let query = self.protocol.build_query();
 
+        // Add random jitter to avoid synchronized queries across peers
         let jitter = Duration::from_millis(rand::random::<u64>() % 100);
         let query_interval = self.get_current_query_interval() + jitter;
 
@@ -296,6 +393,13 @@ impl InterfaceTask {
         Ok(())
     }
 
+    /// Sends an announcement packet to the multicast address
+    ///
+    /// Announcements are sent periodically to refresh our presence on the network.
+    ///
+    /// # Returns
+    /// - `Ok(())` - Announcement sent successfully
+    /// - `Err(std::io::Error)` - Failed to send
     fn send_announcement(&mut self) -> std::io::Result<()> {
         let responses = self
             .protocol
@@ -325,6 +429,13 @@ impl InterfaceTask {
         Ok(())
     }
 
+    /// Processes an incoming DNS packet
+    ///
+    /// Handles both queries (responds with our info) and responses (discovers peers).
+    ///
+    /// # Arguments
+    /// * `packet` - Raw DNS packet bytes
+    /// * `src` - Source address of the packet
     fn process_packet(&mut self, packet: &[u8], src: SocketAddr) {
         tracing::debug!(
             "Interface {} received {} bytes from {}",
@@ -402,6 +513,12 @@ impl InterfaceTask {
         }
     }
 
+    /// Checks if query responses are rate-limited
+    ///
+    /// Prevents DoS attacks by limiting responses to 10 per second.
+    ///
+    /// # Returns
+    /// `true` if rate limited (should not respond), `false` otherwise
     fn is_query_response_rate_limited(&mut self) -> bool {
         const MAX_RESPONSES_PER_SECOND: usize = 10;
         const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(1);
@@ -427,6 +544,14 @@ impl InterfaceTask {
         false
     }
 
+    /// Main async loop for the interface task
+    ///
+    /// This loop handles:
+    /// - Address updates from main behaviour
+    /// - Incoming packets from I/O task
+    /// - Periodic queries, announcements, and cleanup
+    ///
+    /// The loop runs until the channel is closed or an error occurs.
     pub async fn run(mut self) {
         tracing::debug!("Interface {} task starting", self.interface_ip);
 
@@ -511,7 +636,16 @@ impl InterfaceTask {
     }
 }
 
-// Handle if-watch events
+/// Handles if-watch events and converts them to interface changes
+///
+/// # Arguments
+/// * `event` - The if-watch event
+/// * `config` - Configuration (for IPv4/IPv6 filtering)
+///
+/// # Returns
+/// - `Some((ip, true))` - Interface came up
+/// - `Some((ip, false))` - Interface went down
+/// - `None` - Event should be ignored (loopback, wrong IP version, error)
 pub fn handle_if_event(
     event: std::io::Result<IfEvent>,
     config: &GigiDnsConfig,

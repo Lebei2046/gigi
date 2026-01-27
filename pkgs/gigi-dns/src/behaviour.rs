@@ -1,6 +1,17 @@
 // Copyright 2024 Gigi Team.
 //
 // Gigi DNS Behaviour - libp2p integration with if-watch for per-interface support
+//
+// This module implements the libp2p NetworkBehaviour trait for Gigi DNS.
+// It orchestrates per-interface mDNS handlers and manages peer discovery state.
+//
+// Key responsibilities:
+// - Monitor network interfaces with if-watch
+// - Spawn and manage per-interface tasks
+// - Aggregate events from all interfaces
+// - Track discovered peers (single source of truth)
+// - Broadcast address changes to all interface tasks
+// - Implement NetworkBehaviour trait for libp2p integration
 
 use crate::interface::{handle_if_event, InterfaceEvent, InterfaceTask};
 use crate::types::*;
@@ -23,33 +34,63 @@ use std::{
 };
 use tokio::task::JoinHandle;
 
+/// Gigi DNS behavior for libp2p
+///
+/// This behavior implements the NetworkBehaviour trait and manages DNS-based peer discovery.
+/// It spawns per-interface tasks for mDNS communication and aggregates discovered peers.
+///
+/// # Architecture
+/// - Uses if-watch to monitor network interface changes
+/// - Spawns one InterfaceTask per network interface
+/// - Each InterfaceTask runs independently and sends events back via channels
+/// - Central peer state management in discovered_peers (single source of truth)
+/// - Drop trait ensures all interface tasks are aborted on shutdown
 pub struct GigiDnsBehaviour {
+    /// Configuration for DNS behavior
     config: GigiDnsConfig,
+    /// Our local peer ID
     #[allow(dead_code)]
     local_peer_id: libp2p_identity::PeerId,
+    /// Queue of events to emit to the swarm
     pending_events: VecDeque<GigiDnsEvent>,
+    /// Shared listen addresses (from libp2p swarm)
     listen_addresses: Arc<RwLock<ListenAddresses>>,
-    // if-watch for monitoring network interfaces
+    /// if-watch for monitoring network interfaces
     if_watcher: IfWatcher,
-    // Per-interface tasks
+    /// Per-interface background tasks
     if_tasks: HashMap<IpAddr, JoinHandle<()>>,
-    // Channel for receiving events from interface tasks
+    /// Channel for receiving events from interface tasks
     interface_rx: tokio::sync::mpsc::UnboundedReceiver<InterfaceEvent>,
-    // Sender that will be passed to all interface tasks
+    /// Sender that will be passed to all interface tasks
     interface_tx: tokio::sync::mpsc::UnboundedSender<InterfaceEvent>,
-    // Senders for address updates to interface tasks
+    /// Senders for address updates to interface tasks
     address_update_txs: HashMap<IpAddr, tokio::sync::mpsc::UnboundedSender<Vec<Multiaddr>>>,
-    // Track discovered peers by peer_id for outbound connections (single source of truth)
+    /// Track discovered peers by peer_id for outbound connections (single source of truth)
     discovered_peers: HashMap<PeerId, GigiPeerInfo>,
 }
 
+/// Commands that can be sent to the GigiDnsBehaviour
+///
+/// These commands allow runtime updates to the advertised information.
 pub enum GigiDnsCommand {
+    /// Update the advertised nickname
     UpdateNickname(String),
+    /// Update the list of capabilities
     UpdateCapabilities(Vec<String>),
+    /// Update or add a metadata key-value pair
     UpdateMetadata(String, String),
 }
 
 impl GigiDnsBehaviour {
+    /// Creates a new GigiDnsBehaviour instance
+    ///
+    /// # Arguments
+    /// * `local_peer_id` - Our libp2p peer ID
+    /// * `config` - Configuration for DNS behavior
+    ///
+    /// # Returns
+    /// - `Ok(Self)` - New behavior instance
+    /// - `Err(std::io::Error)` - Failed to create if-watcher
     pub fn new(
         local_peer_id: libp2p_identity::PeerId,
         config: GigiDnsConfig,
@@ -64,7 +105,7 @@ impl GigiDnsBehaviour {
         let if_tasks = HashMap::new();
 
         // Note: IfWatcher will emit events for existing interfaces during first poll
-        // We'll handle them in the poll() method
+        // We'll handle them in the poll() method to ensure proper async context
 
         tracing::debug!("Gigi DNS behaviour initialized with if-watch support");
 
@@ -82,6 +123,17 @@ impl GigiDnsBehaviour {
         })
     }
 
+    /// Spawns a new interface task for the given IP address
+    ///
+    /// Creates an InterfaceTask that will handle DNS communication on this interface.
+    /// If a task already exists for this interface, it is stopped first.
+    ///
+    /// # Arguments
+    /// * `interface_ip` - IP address of the network interface
+    ///
+    /// # Returns
+    /// - `Ok(())` - Task spawned successfully
+    /// - `Err(std::io::Error)` - Failed to create sockets
     fn spawn_interface_task(&mut self, interface_ip: IpAddr) -> std::io::Result<()> {
         tracing::debug!("Spawning task for interface {}", interface_ip);
 
@@ -91,9 +143,10 @@ impl GigiDnsBehaviour {
             self.stop_interface_task(interface_ip);
         }
 
-        // Create channel for address updates
+        // Create channel for address updates from main behaviour
         let (address_update_tx, address_update_rx) = tokio::sync::mpsc::unbounded_channel();
 
+        // Spawn the interface task
         let handle = InterfaceTask::spawn(
             interface_ip,
             self.config.clone(),
@@ -131,6 +184,12 @@ impl GigiDnsBehaviour {
         Ok(())
     }
 
+    /// Stops the interface task for the given IP address
+    ///
+    /// Aborts the background task and removes its associated channels.
+    ///
+    /// # Arguments
+    /// * `interface_ip` - IP address of the network interface
     fn stop_interface_task(&mut self, interface_ip: IpAddr) {
         if let Some(handle) = self.if_tasks.remove(&interface_ip) {
             tracing::debug!("Stopping task for interface {}", interface_ip);
@@ -146,7 +205,7 @@ impl Drop for GigiDnsBehaviour {
             "GigiDnsBehaviour dropping, cleaning up {} tasks",
             self.if_tasks.len()
         );
-        // Abort all interface tasks
+        // Abort all interface tasks to prevent orphaned background tasks
         for (ip, handle) in self.if_tasks.drain() {
             tracing::debug!("Aborting task for interface {}", ip);
             handle.abort();
