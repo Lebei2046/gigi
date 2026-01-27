@@ -68,7 +68,12 @@ impl SettingsManager {
                 value: Set(value.to_string()),
                 updated_at: Set(now),
             };
-            new_setting.insert(&self.db).await?;
+            // Handle RecordNotFound from insert return value
+            match new_setting.insert(&self.db).await {
+                Ok(_) => {}
+                Err(DbErr::RecordNotFound(_)) => {}
+                Err(e) => return Err(e),
+            }
         }
 
         info!("Setting '{}' updated successfully", key);
@@ -127,21 +132,26 @@ impl SettingsManager {
         for (key, value) in items {
             let existing = settings::Entity::find()
                 .filter(settings::Column::Key.eq(key))
-                .one(&self.db)
+                .one(&txn)
                 .await?;
 
             if let Some(model) = existing {
                 let mut active_model: settings::ActiveModel = model.into();
                 active_model.value = Set(value.clone());
                 active_model.updated_at = Set(now);
-                active_model.update(&self.db).await?;
+                active_model.update(&txn).await?;
             } else {
                 let new_setting = settings::ActiveModel {
                     key: Set(key.clone()),
                     value: Set(value.clone()),
                     updated_at: Set(now),
                 };
-                new_setting.insert(&self.db).await?;
+                // Handle RecordNotFound from insert return value
+                match new_setting.insert(&txn).await {
+                    Ok(_) => {}
+                    Err(DbErr::RecordNotFound(_)) => {}
+                    Err(e) => return Err(e),
+                }
             }
         }
 

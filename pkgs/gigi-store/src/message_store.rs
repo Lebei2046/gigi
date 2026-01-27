@@ -1,4 +1,37 @@
 //! Message store - persistent storage for messages using Sea-ORM and SQLite
+//!
+//! This module provides comprehensive message persistence including:
+//! - Message storage and retrieval
+//! - Offline message queuing with retry logic
+//! - Delivery tracking (delivered, read status)
+//! - Message synchronization status tracking
+//! - Conversation history queries
+//! - Expiration and cleanup of old messages
+//!
+//! # Retry Logic
+//!
+//! Messages sent to offline peers are queued with exponential backoff:
+//! - Attempt 1: 5 minutes
+//! - Attempt 2: 10 minutes
+//! - Attempt 3: 20 minutes
+//! - ... doubling until max_retries (default: 10)
+//!
+//! # Sync Status Flow
+//!
+//! Messages progress through these sync states:
+//! 1. `Pending` - Not yet synchronized
+//! 2. `Synced` - Stored on other device(s)
+//! 3. `Delivered` - Received by recipient
+//! 4. `Acknowledged` - Read by recipient (if read receipts enabled)
+//!
+//! # Performance
+//!
+//! The store uses SQLite indexes for efficient queries:
+//! - Timestamp indexing for history queries
+//! - Sender/recipient indexing for conversation queries
+//! - Group name indexing for group messages
+//! - Sync status indexing for pending message queries
+//! - Expiration indexing for cleanup operations
 
 use crate::entities::{messages, offline_queue};
 use crate::events::StoredMessage;
@@ -13,13 +46,28 @@ use std::path::PathBuf;
 use tracing::{debug, error, info};
 
 /// Message store - manages persistent message storage
+///
+/// This struct handles all message-related database operations including:
+/// - Storing and retrieving messages
+/// - Managing offline queue for message delivery
+/// - Tracking delivery and read status
+/// - Querying conversation history
+/// - Cleaning up expired messages
 pub struct MessageStore {
+    /// Database connection for SQLite
     pub(crate) db: DatabaseConnection,
+    /// Configuration parameters (TTL, retry limits, etc.)
     pub(crate) config: PersistenceConfig,
 }
 
 impl MessageStore {
     /// Create a new message store with default config
+    ///
+    /// # Arguments
+    /// * `db_path` - Path to SQLite database file
+    ///
+    /// # Returns
+    /// Initialized message store with default configuration
     pub async fn new(db_path: PathBuf) -> Result<Self> {
         Self::with_config(PersistenceConfig {
             db_path,
@@ -29,6 +77,12 @@ impl MessageStore {
     }
 
     /// Create a message store with an existing database connection
+    ///
+    /// This is useful when sharing a database connection across multiple stores.
+    /// Migrations and indexes are created if needed.
+    ///
+    /// # Arguments
+    /// * `db` - Existing Sea-ORM database connection
     pub async fn with_connection(db: DatabaseConnection) -> Result<Self> {
         // Run migrations
         crate::migration::Migrator::up(&db, None)
@@ -49,6 +103,12 @@ impl MessageStore {
     }
 
     /// Create a message store with custom config
+    ///
+    /// Creates a new database connection, runs migrations,
+    /// and creates performance indexes.
+    ///
+    /// # Arguments
+    /// * `config` - Configuration for the message store
     pub async fn with_config(config: PersistenceConfig) -> Result<Self> {
         // Create database URL - Use sqlx-sqlite format for Sea-ORM 1.x
         let db_path = config

@@ -49,7 +49,13 @@ impl ContactManager {
             ..Default::default()
         };
 
-        contact.insert(&self.db).await?;
+        // Try to insert, ignoring RecordNotFound errors from the return value
+        // but propagating other errors (like constraint violations)
+        match contact.insert(&self.db).await {
+            Ok(_) => {}
+            Err(DbErr::RecordNotFound(_)) => {}
+            Err(e) => return Err(e),
+        }
 
         debug!("Added contact: {} ({})", name, peer_id);
         Ok(())

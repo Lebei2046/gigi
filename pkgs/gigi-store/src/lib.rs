@@ -3,8 +3,85 @@
 //! This crate provides SQLite-based persistent storage for messages using Sea-ORM,
 //! including offline queuing, message history, and delivery tracking.
 //!
-//! It also manages application-wide data such as private keys and nicknames,
-//! and shared file information.
+//! # Architecture
+//!
+//! The storage layer is organized into several specialized managers:
+//!
+//! - **MessageStore**: Core message persistence, offline queuing, and sync status
+//! - **ConversationStore**: Chat/conversation metadata and last message tracking
+//! - **ContactManager**: Contact book management (add, update, remove contacts)
+//! - **GroupManager**: Group creation and membership tracking
+//! - **FileSharingStore**: Shared file metadata and transfer tracking
+//! - **ThumbnailStore**: Mapping between original files and generated thumbnails
+//! - **SettingsManager**: Application-wide settings (mnemonic, peer_id, etc.)
+//! - **KeyManager**: Storage of cryptographic keys and user identities
+//! - **SyncManager**: Message synchronization and acknowledgment tracking
+//!
+//! # Database Schema
+//!
+//! The database uses Sea-ORM with SQLite and includes these tables:
+//!
+//! - `messages`: Message content, timestamps, delivery status, sync status
+//! - `offline_queue`: Queued messages for offline peers with retry logic
+//! - `conversations`: Chat/conversation metadata and unread counts
+//! - `contacts`: Contact book entries
+//! - `groups`: Group definitions and member lists
+//! - `shared_files`: File share metadata (hash, chunks, transfer status)
+//! - `thumbnails`: File-to-thumbnail path mappings
+//! - `settings`: Key-value settings storage
+//! - `app_data`: Application-wide data (peer_id, nicknames)
+//! - `message_acknowledgments`: Read receipts and delivery confirmations
+//!
+//! # Key Features
+//!
+//! - **Offline Queue**: Messages are queued when recipients are offline
+//! - **Retry Logic**: Exponential backoff for failed message delivery
+//! - **Sync Tracking**: Track message sync status across devices
+//! - **Expiration**: Automatic cleanup of old messages and queue items
+//! - **Pagination**: Efficient pagination for large conversation histories
+//! - **Indexes**: Optimized queries for common access patterns
+//!
+//! # Example Usage
+//!
+//! ```rust,no_run
+//! use gigi_store::{
+//!     MessageContent, MessageDirection, MessageType, SyncStatus, StoredMessage,
+//!     MessageStore, PersistenceConfig,
+//! };
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let config = PersistenceConfig {
+//!     db_path: "gigi.db".into(),
+//!     ..Default::default()
+//! };
+//!
+//! let store = MessageStore::with_config(config).await?;
+//!
+//! // Store a message
+//! let msg = StoredMessage {
+//!     id: uuid::Uuid::new_v4().to_string(),
+//!     msg_type: MessageType::Direct,
+//!     direction: MessageDirection::Sent,
+//!     content: MessageContent::Text { text: "Hello!".to_string() },
+//!     sender_nickname: "Alice".to_string(),
+//!     recipient_nickname: Some("Bob".to_string()),
+//!     group_name: None,
+//!     peer_id: "peer123".to_string(),
+//!     timestamp: chrono::Utc::now(),
+//!     created_at: chrono::Utc::now(),
+//!     delivered: false,
+//!     delivered_at: None,
+//!     read: false,
+//!     read_at: None,
+//!     sync_status: SyncStatus::Pending,
+//!     sync_attempts: 0,
+//!     last_sync_attempt: None,
+//!     expires_at: chrono::Utc::now() + chrono::Duration::days(7),
+//! };
+//! store.store_message(msg).await?;
+//! # Ok(())
+//! # }
+//! ```
 
 pub mod contact_manager;
 pub mod conversation_store;
