@@ -3,6 +3,9 @@ name = "gigi-file-sharing"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+doctest = false
+
 [dependencies]
 anyhow = { workspace = true }
 blake3 = { workspace = true }
