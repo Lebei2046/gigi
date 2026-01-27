@@ -1,4 +1,27 @@
 //! Event handling for P2P client swarm events
+//!
+//! This module contains handlers for processing all swarm events from the libp2p network stack.
+//! Events are dispatched to specialized handlers based on the event type:
+//!
+//! - **SwarmEventHandler**: Top-level swarm events (connection, listening, etc.)
+//! - **GigiDnsEventHandler**: Peer discovery events from gigi-dns
+//! - **DirectMessageEventHandler**: Direct messaging events
+//! - **GossipsubEventHandler**: Group messaging events
+//! - **FileSharingEventHandler**: File transfer events
+//!
+//! # Event Flow
+//!
+//! ```text
+//! Swarm Event
+//!    ↓
+//! SwarmEventHandler::handle_event()
+//!    ↓
+//! UnifiedEvent
+//!    ↓
+//! Specialized Handler::handle_event()
+//!    ↓
+//! P2pEvent (sent to event channel)
+//! ```
 
 use anyhow::Result;
 use libp2p::{swarm::SwarmEvent, PeerId};
@@ -8,25 +31,46 @@ use super::P2pClient;
 use crate::behaviour::UnifiedEvent;
 use crate::events::{P2pEvent, PeerInfo};
 
-/// Handles all swarm-level events
+/// Handles all swarm-level events from the libp2p network stack.
+///
+/// This handler is the entry point for all swarm events. It:
+/// 1. Converts libp2p SwarmEvent to internal UnifiedEvent
+/// 2. Delegates to specialized handlers based on event type
+/// 3. Emits P2pEvent to the event channel for application consumption
+///
+/// # Responsibilities
+///
+/// - Connection lifecycle (established, closed)
+/// - Listening state (started, addresses)
+/// - Routing to appropriate protocol handlers
 pub struct SwarmEventHandler<'a> {
     client: &'a mut P2pClient,
 }
 
 impl<'a> SwarmEventHandler<'a> {
+    /// Create a new swarm event handler
     pub fn new(client: &'a mut P2pClient) -> Self {
         Self { client }
     }
 
-    /// Handle a single swarm event
+    /// Handle a single swarm event from the libp2p network stack.
+    ///
+    /// Routes events to appropriate handlers:
+    /// - **Behaviour events**: Delegated to protocol-specific handlers
+    /// - **NewListenAddr**: Emit ListeningOn event with address
+    /// - **ConnectionEstablished**: Update peer manager, trigger sync if needed
+    /// - **ConnectionClosed**: Update peer manager, notify sync manager
     pub fn handle_event(&mut self, event: SwarmEvent<UnifiedEvent>) -> Result<()> {
         match event {
+            // Protocol events from unified behaviour - delegate to handlers
             SwarmEvent::Behaviour(unified_event) => {
                 self.handle_unified_event(unified_event)?;
             }
+            // New listen address - emit listening event
             SwarmEvent::NewListenAddr { address, .. } => {
                 self.client.send_event(P2pEvent::ListeningOn { address });
             }
+            // New connection - update peer state and trigger sync if persistence enabled
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 info!("Connection established with peer: {}", peer_id);
                 self.client
@@ -61,6 +105,12 @@ impl<'a> SwarmEventHandler<'a> {
     }
 
     /// Handle unified network events by delegating to specific handlers
+    ///
+    /// Routes events from UnifiedBehaviour to their specialized handlers:
+    /// - **GigiDns events**: Peer discovery (Discovered, Updated, Expired, Offline)
+    /// - **DirectMessage events**: Request-response messaging
+    /// - **Gossipsub events**: Group messaging
+    /// - **FileSharing events**: File transfer requests and responses
     fn handle_unified_event(&mut self, event: UnifiedEvent) -> Result<()> {
         match event {
             UnifiedEvent::GigiDns(gigi_dns_event) => {
@@ -81,6 +131,12 @@ impl<'a> SwarmEventHandler<'a> {
 }
 
 /// Handles gigi-dns discovery events
+///
+/// Processes peer discovery events from the gigi-dns protocol:
+/// - **Discovered**: New peer found via mDNS
+/// - **Updated**: Peer metadata updated (nickname, capabilities)
+/// - **Expired**: Peer no longer available (timeout)
+/// - **Offline**: Peer went offline (disconnection)
 pub struct GigiDnsEventHandler<'a> {
     client: &'a mut P2pClient,
 }
@@ -90,6 +146,12 @@ impl<'a> GigiDnsEventHandler<'a> {
         Self { client }
     }
 
+    /// Handle a gigi-dns discovery event
+    ///
+    /// Emits P2pEvent for peer lifecycle:
+    /// - Discovered → PeerDiscovered
+    /// - Updated → NicknameUpdated
+    /// - Expired/Offline → PeerExpired
     pub fn handle_event(&mut self, event: gigi_dns::GigiDnsEvent) -> Result<()> {
         match event {
             gigi_dns::GigiDnsEvent::Discovered(peer_info) => {
@@ -139,7 +201,13 @@ impl<'a> GigiDnsEventHandler<'a> {
     }
 }
 
-/// Handles direct message events
+/// Handles direct message events from request-response protocol
+///
+/// Processes 1-to-1 peer messaging events:
+/// - **Text messages**: Receive and emit DirectMessage event
+/// - **FileShare messages**: Receive share code and emit DirectFileShareMessage event
+/// - **ShareGroup messages**: Receive group invite and emit DirectGroupShareMessage event
+/// - **Outbound requests**: Handle request failures
 pub struct DirectMessageEventHandler<'a> {
     client: &'a mut P2pClient,
 }
@@ -149,6 +217,13 @@ impl<'a> DirectMessageEventHandler<'a> {
         Self { client }
     }
 
+    /// Handle direct message request-response events
+    ///
+    /// Processes inbound direct messages from peers:
+    /// - Text → P2pEvent::DirectMessage
+    /// - FileShare → P2pEvent::DirectFileShareMessage
+    /// - ShareGroup → P2pEvent::DirectGroupShareMessage
+    /// - Outbound request failures → P2pEvent::Error
     pub fn handle_event(
         &mut self,
         event: libp2p::request_response::Event<
@@ -218,7 +293,12 @@ impl<'a> DirectMessageEventHandler<'a> {
     }
 }
 
-/// Handles gossipsub events
+/// Handles GossipSub pub-sub events for group messaging
+///
+/// Processes group messaging events:
+/// - **Subscribed**: Successfully joined a topic (group)
+/// - **Messages**: Incoming group messages
+/// - **Publish failures**: Failed to publish to group
 pub struct GossipsubEventHandler<'a> {
     client: &'a mut P2pClient,
 }
@@ -228,6 +308,12 @@ impl<'a> GossipsubEventHandler<'a> {
         Self { client }
     }
 
+    /// Handle GossipSub events for group messaging
+    ///
+    /// Delegates group events to the GroupManager:
+    /// - Subscribed → Notified to update peer info
+    /// - Messages → P2pEvent::GroupMessage or GroupFileShareMessage
+    /// - Publish failures → P2pEvent::Error
     pub fn handle_event(&mut self, event: libp2p::gossipsub::Event) -> Result<()> {
         // Convert PeerInfo references to owned PeerInfo values for GroupManager
         let peers: std::collections::HashMap<PeerId, PeerInfo> = self
@@ -245,7 +331,16 @@ impl<'a> GossipsubEventHandler<'a> {
     }
 }
 
-/// Handles file sharing events
+/// Handles file sharing events for chunked file transfer
+///
+/// Processes file transfer request-response events:
+/// - **File info requests**: Respond with file metadata
+/// - **Chunk requests**: Serve chunk data with hash verification
+/// - **Outbound requests**: Handle request failures
+/// - **Responses**: Process file info and chunk data from peers
+///
+/// This implements the **pull-based** file transfer model where receivers request
+/// chunks on-demand rather than push-based broadcasting.
 pub struct FileSharingEventHandler<'a> {
     client: &'a mut P2pClient,
 }

@@ -1,4 +1,20 @@
 //! Group management functionality
+//!
+//! This module manages group (pub-sub) state including:
+//! - Group subscription and unsubscription
+//! - Group message publishing
+//! - Group file sharing
+//! - Member tracking
+//!
+//! # GossipSub Groups
+//!
+//! Groups are implemented as GossipSub topics:
+//! - Topic name = group name (e.g., "chat", "work")
+//! - Join = Subscribe to topic
+//! - Leave = Unsubscribe from topic
+//! - Message = Publish to topic
+//!
+//! This provides efficient many-to-many messaging without needing a central server.
 
 use anyhow::Result;
 use futures::channel::mpsc;
@@ -11,19 +27,35 @@ use crate::error::P2pError;
 use crate::events::{GroupInfo, GroupMessage, P2pEvent};
 
 /// Group management functionality
+///
+/// Manages GossipSub-based group subscriptions and messaging.
 pub struct GroupManager {
+    /// Map of group name to group info
     groups: HashMap<String, GroupInfo>,
 }
 
 impl GroupManager {
-    /// Create a new group manager
+    /// Create a new group manager with empty group table
     pub fn new() -> Self {
         Self {
             groups: HashMap::new(),
         }
     }
 
-    /// Join a group
+    /// Join a GossipSub group by subscribing to its topic
+    ///
+    /// # Steps
+    ///
+    /// 1. Create IdentTopic from group name
+    /// 2. Subscribe to topic via GossipSub behaviour
+    /// 3. Add group to tracking table
+    /// 4. Emit GroupJoined event
+    ///
+    /// # Arguments
+    ///
+    /// - `swarm`: Swarm for subscribing to topic
+    /// - `group_name`: Name of group (also topic name)
+    /// - `event_sender`: Channel for emitting P2pEvents
     #[instrument(skip(self, swarm))]
     pub fn join_group(
         &mut self,
@@ -54,7 +86,22 @@ impl GroupManager {
         Ok(())
     }
 
-    /// Leave a group
+    /// Leave a GossipSub group by unsubscribing from its topic
+    ///
+    /// # Steps
+    ///
+    /// 1. Remove group from tracking table
+    /// 2. Unsubscribe from GossipSub topic
+    /// 3. Emit GroupLeft event
+    ///
+    /// # Error Handling
+    ///
+    /// Returns `GroupNotFound` if trying to leave a group that wasn't joined.
+    ///
+    /// # Arguments
+    ///
+    /// - `swarm`: Swarm for unsubscribing from topic
+    /// - `group_name`: Name of group to leave
     pub fn leave_group(
         &mut self,
         swarm: &mut Swarm<UnifiedBehaviour>,
@@ -69,7 +116,28 @@ impl GroupManager {
         Ok(())
     }
 
-    /// Send message to group
+    /// Send a text message to a GossipSub group
+    ///
+    /// # Steps
+    ///
+    /// 1. Verify group exists (subscribed)
+    /// 2. Create GroupMessage with sender nickname and timestamp
+    /// 3. Serialize and publish to GossipSub topic
+    ///
+    /// # Message Format
+    ///
+    /// Group messages include:
+    /// - `sender_nickname`: Who sent the message
+    /// - `content`: The message text
+    /// - `timestamp`: When the message was sent
+    /// - `has_file_share`: Whether a file is attached
+    ///
+    /// # Arguments
+    ///
+    /// - `swarm`: Swarm for publishing message
+    /// - `group_name`: Name of group (also topic name)
+    /// - `message`: Text content of the message
+    /// - `local_nickname`: Sender's nickname (from local peer)
     #[instrument(skip(self, swarm, message))]
     pub fn send_group_message(
         &mut self,

@@ -1,4 +1,17 @@
 //! Peer management functionality
+//!
+//! This module manages peer state including:
+//! - Peer discovery and tracking
+//! - Bidirectional mapping between peer IDs and nicknames
+//! - Connection state management
+//! - Automatic dialing of discovered peers
+//!
+//! # Data Structures
+//!
+//! - **peers**: HashMap<PeerId, PeerInfo> - Lookup by peer ID
+//! - **nickname_to_peer**: HashMap<String, PeerId> - Lookup by nickname
+//!
+//! This dual mapping enables efficient lookups from either direction.
 
 use anyhow::Result;
 use libp2p::{multiaddr::Multiaddr, PeerId, Swarm};
@@ -10,13 +23,18 @@ use crate::error::P2pError;
 use crate::events::{P2pEvent, PeerInfo};
 
 /// Peer management functionality
+///
+/// Maintains peer state including discovery, connection status, and metadata.
+/// Supports bidirectional lookups: peer ID ↔ nickname.
 pub struct PeerManager {
+    /// Map of peer ID to peer info
     peers: HashMap<PeerId, PeerInfo>,
+    /// Map of nickname to peer ID for reverse lookup
     nickname_to_peer: HashMap<String, PeerId>,
 }
 
 impl PeerManager {
-    /// Create a new peer manager
+    /// Create a new peer manager with empty peer tables
     pub fn new() -> Self {
         Self {
             peers: HashMap::new(),
@@ -24,7 +42,21 @@ impl PeerManager {
         }
     }
 
-    /// Handle peer discovery
+    /// Handle peer discovery from gigi-dns
+    ///
+    /// When a peer is discovered via mDNS:
+    /// 1. Check if peer is already tracked
+    /// 2. If new, add to both maps (peer_id ↔ nickname)
+    /// 3. Emit PeerDiscovered event
+    /// 4. Attempt to dial peer for connection
+    ///
+    /// # Arguments
+    ///
+    /// - `peer_id`: Peer's libp2p PeerId
+    /// - `addr`: Multiaddr of the peer
+    /// - `swarm`: Swarm for dialing the peer
+    /// - `nickname`: Peer's nickname (from gigi-dns)
+    /// - `event_sender`: Channel for emitting P2pEvents
     pub fn handle_peer_discovered(
         &mut self,
         peer_id: PeerId,
