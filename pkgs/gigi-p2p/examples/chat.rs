@@ -1,8 +1,6 @@
 use clap::Parser;
 use futures::StreamExt;
 use gigi_p2p::{P2pClient, P2pEvent, PersistenceConfig};
-use gigi_store::migration::MigratorTrait;
-use gigi_store::{AppData, KeyManager};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use tokio::fs;
@@ -719,38 +717,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
 
-    // Initialize KeyManager and handle key storage/retrieval
-    info!("Initializing KeyManager for nickname: {}", args.nickname);
-    let db_path = args.db.join(format!("{}.db", args.nickname));
-    let db_conn =
-        sea_orm::Database::connect(format!("sqlite://{}?mode=rwc", db_path.display())).await?;
-    gigi_store::migration::Migrator::up(&db_conn, None).await?;
-    let key_manager = KeyManager::new(db_conn).await?;
-
-    // Check if we have a stored key for this nickname
-    let keypair = match key_manager.get_key(&args.nickname).await? {
-        Some(_app_data) => {
-            info!("Retrieved existing key for nickname: {}", args.nickname);
-            println!("🔑 Using existing keypair for: {}", args.nickname);
-            // Generate a new keypair (we can't store the full keypair in v0.56.0)
-            // The peer_id is stored for reference
-            libp2p::identity::Keypair::generate_ed25519()
-        }
-        None => {
-            info!(
-                "No existing key found, creating new keypair for nickname: {}",
-                args.nickname
-            );
-            println!("🔑 Creating new keypair for: {}", args.nickname);
-            // Generate new keypair
-            let keypair = libp2p::identity::Keypair::generate_ed25519();
-            // Store the peer_id and nickname
-            let app_data = AppData::from_keypair(&keypair, Some(args.nickname.clone()));
-            key_manager.store_key(&app_data).await?;
-            info!("Stored new key for nickname: {}", args.nickname);
-            keypair
-        }
-    };
+    // Generate a new keypair for this session
+    info!("Generating new keypair for nickname: {}", args.nickname);
+    println!("🔑 Creating new keypair for: {}", args.nickname);
+    let keypair = libp2p::identity::Keypair::generate_ed25519();
 
     // Create P2P client
     info!("Creating P2P client with nickname: {}", args.nickname);

@@ -14,7 +14,6 @@
 //! - **FileSharingStore**: Shared file metadata and transfer tracking
 //! - **ThumbnailStore**: Mapping between original files and generated thumbnails
 //! - **SettingsManager**: Application-wide settings (mnemonic, peer_id, etc.)
-//! - **KeyManager**: Storage of cryptographic keys and user identities
 //! - **SyncManager**: Message synchronization and acknowledgment tracking
 //!
 //! # Database Schema
@@ -29,7 +28,6 @@
 //! - `shared_files`: File share metadata (hash, chunks, transfer status)
 //! - `thumbnails`: File-to-thumbnail path mappings
 //! - `settings`: Key-value settings storage
-//! - `app_data`: Application-wide data (peer_id, nicknames)
 //! - `message_acknowledgments`: Read receipts and delivery confirmations
 //!
 //! # Key Features
@@ -88,7 +86,6 @@ pub mod conversation_store;
 pub mod entities;
 pub mod file_sharing_store;
 pub mod group_manager;
-pub mod key_manager;
 pub mod message_store;
 pub mod migration;
 pub mod settings_manager;
@@ -103,7 +100,6 @@ pub use contact_manager::{ContactInfo, ContactManager};
 pub use conversation_store::{Conversation, ConversationStore};
 pub use file_sharing_store::{FileSharingStore, SharedFileInfo};
 pub use group_manager::{GroupInfo, GroupManager};
-pub use key_manager::{AppData, KeyManager};
 pub use message_store::MessageStore;
 pub use settings_manager::SettingsManager;
 pub use sync_manager::{AckType, SyncAction, SyncManager, SyncMessage, SyncMessageHandler};
