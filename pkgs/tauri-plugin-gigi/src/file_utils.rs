@@ -1,10 +1,35 @@
-// File utility functions for handling images, content URIs, and file operations
+//! File utility functions for handling images, content URIs, and file operations.
+//!
+//! This module provides helper functions for:
+//! - Detecting and validating image files
+//! - Converting image data to base64 encoding
+//! - Handling Android content URIs for file access
 
 use base64::Engine;
 use std::path::PathBuf;
 use tracing::info;
 
-/// Helper function to check if file is an image based on extension
+/// Checks if a file is an image based on its file extension.
+///
+/// This function examines the file extension and returns `true` if it matches
+/// a known image format (jpg, jpeg, png, gif, webp, bmp).
+///
+/// # Arguments
+///
+/// * `file_path` - Path to the file to check
+///
+/// # Returns
+///
+/// `true` if the file has an image extension, `false` otherwise
+///
+/// # Example
+///
+/// ```
+/// # use tauri_plugin_gigi::file_utils::is_image_file;
+/// assert!(is_image_file("photo.jpg"));
+/// assert!(is_image_file("image.png"));
+/// assert!(!is_image_file("document.pdf"));
+/// ```
 pub fn is_image_file(file_path: &str) -> bool {
     let path = PathBuf::from(file_path);
     path.extension()
@@ -18,20 +43,71 @@ pub fn is_image_file(file_path: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Helper function to check if data is an image using magic bytes
+/// Checks if binary data represents an image using magic bytes.
+///
+/// This function examines the first few bytes of the data to determine if it
+/// matches the magic byte signatures of common image formats. This is more
+/// reliable than checking file extensions alone.
+///
+/// # Supported Formats
+///
+/// - JPEG: `0xFF 0xD8 0xFF`
+/// - PNG: `0x89 0x50 0x4E 0x47`
+/// - GIF: `0x47 0x49 0x46`
+/// - WEBP: `WEBP` (at bytes 8-11)
+/// - BMP: `0x42 0x4D` ("BM")
+///
+/// # Arguments
+///
+/// * `data` - The binary data to check
+///
+/// # Returns
+///
+/// `true` if the data starts with a known image signature, `false` otherwise
+///
+/// # Example
+///
+/// ```
+/// # use tauri_plugin_gigi::file_utils::is_image_data;
+/// let jpeg_data = vec![0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46];
+/// assert!(is_image_data(&jpeg_data));
+/// ```
 pub fn is_image_data(data: &[u8]) -> bool {
-    data.len() >= 4
-        && (
-            data.starts_with(&[0xFF, 0xD8, 0xFF]) || // JPEG
-            data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) || // PNG
-            data.starts_with(&[0x47, 0x49, 0x46]) || // GIF
-            data.starts_with(b"WEBP") || // WEBP
-            data.starts_with(b"BM")
-            // BMP
-        )
+    if data.len() < 4 {
+        return false;
+    }
+
+    // Check for image signatures
+    data.starts_with(&[0xFF, 0xD8, 0xFF]) || // JPEG
+        data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) || // PNG
+        data.starts_with(&[0x47, 0x49, 0x46]) || // GIF
+        (data.len() >= 12 && &data[8..12] == b"WEBP") || // WEBP (at bytes 8-11)
+        data.starts_with(b"BM") // BMP
 }
 
-/// Helper function to convert file data to base64 (only for images)
+/// Converts image data to base64 encoding if it represents an image.
+///
+/// This function first checks if the data is an image using magic bytes, then
+/// converts it to a base64 string if it is. Returns `None` if the data is not
+/// recognized as an image.
+///
+/// # Arguments
+///
+/// * `data` - The binary data to potentially convert
+///
+/// # Returns
+///
+/// - `Some(String)` - Base64 encoded string if data is an image
+/// - `None` - If data is not an image
+///
+/// # Example
+///
+/// ```
+/// # use tauri_plugin_gigi::file_utils::convert_to_base64_if_image;
+/// let image_data = vec![0xFF, 0xD8, 0xFF, 0xE0];
+/// let base64 = convert_to_base64_if_image(&image_data);
+/// assert!(base64.is_some());
+/// ```
 pub fn convert_to_base64_if_image(data: &[u8]) -> Option<String> {
     if is_image_data(data) {
         let encoded = base64::engine::general_purpose::STANDARD.encode(data);
@@ -55,7 +131,26 @@ pub mod android {
     use tauri_plugin_android_fs::{AndroidFsExt, FileAccessMode, FileUri};
     use tauri_plugin_fs::FilePath;
 
-    /// Helper function to read content URI on Android
+    /// Reads a content URI on Android.
+    ///
+    /// Android uses content URIs (content://) to access files from other apps.
+    /// This function handles the conversion from URI string to actual file data.
+    ///
+    /// # Arguments
+    ///
+    /// * `app` - Reference to the Tauri AppHandle
+    /// * `uri_str` - The content URI string to read
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the file data as a byte vector or an error message
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let uri = "content://com.android.externalstorage.documents/document/primary:photo.jpg";
+    /// let data = read_content_uri(&app_handle, uri)?;
+    /// ```
     pub fn read_content_uri(app: &AppHandle, uri_str: &str) -> Result<Vec<u8>, String> {
         let android_api = app.android_fs();
 
@@ -77,7 +172,25 @@ pub mod android {
         }
     }
 
-    /// Extract filename from content URI
+    /// Extracts a filename from a content URI.
+    ///
+    /// Android content URIs can contain encoded filenames in various formats.
+    /// This function attempts to extract a meaningful filename from the URI.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - The content URI string
+    /// * `prefix` - A prefix to use if the filename cannot be extracted
+    ///
+    /// # Returns
+    ///
+    /// The extracted filename, or a generated name if extraction fails
+    ///
+    /// # Behavior
+    ///
+    /// 1. Attempts to extract the display name from the URI (after `=` sign)
+    /// 2. Falls back to extracting from the URI path
+    /// 3. As a last resort, generates a hash-based filename using the prefix
     pub fn extract_filename_from_uri(file_path: &str, prefix: &str) -> String {
         if let Some(display_name) = file_path.split('=').last().and_then(|s| {
             let decoded = percent_decode_str(s).decode_utf8().ok()?;
@@ -104,7 +217,33 @@ pub mod android {
         }
     }
 
-    /// Helper function to save content URI to app directory
+    /// Saves content URI data to the app directory.
+    ///
+    /// This function reads data from a content URI, detects the file type,
+    /// generates an appropriate filename, and saves it to the download directory.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - The content URI string
+    /// * `image_data` - The binary data to save
+    /// * `download_dir` - The directory to save the file in
+    /// * `prefix` - A prefix for the filename if needed
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the full path to the saved file or an error message
+    ///
+    /// # File Type Detection
+    ///
+    /// The function examines the binary data to determine the appropriate file
+    /// extension:
+    /// - JPEG: `0xFF 0xD8 0xFF` → `.jpg`
+    /// - PNG: `0x89 0x50 0x4E 0x47` → `.png`
+    /// - GIF: `0x47 0x49 0x46` → `.gif`
+    /// - WEBP: `WEBP` or `RIFF` → `.webp`
+    /// - BMP: `0x42 0x4D` → `.bmp`
+    /// - Video signatures: `.mp4`
+    /// - Otherwise: Uses filename extension or `.dat` as fallback
     pub fn save_content_uri_to_app_dir(
         file_path: &str,
         image_data: &[u8],
