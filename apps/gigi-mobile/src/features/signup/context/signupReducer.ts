@@ -1,5 +1,4 @@
 import type { Reducer } from 'react'
-import type { AddressInfo } from '@/utils/crypto'
 
 export type SignupType = 'create' | 'import' | null
 export type StepType = { index: number; checked: boolean }
@@ -23,11 +22,12 @@ export type SignupAction =
   | { type: 'SET_MNEMONIC'; payload: string[] }
   | { type: 'SET_PASSWORD'; payload: string }
   | { type: 'SET_NAME'; payload: string }
+  | { type: 'SET_ADDRESS'; payload: string }
+  | { type: 'SET_PEER_ID'; payload: string }
   | { type: 'SET_CREATE_GROUP'; payload: boolean }
   | { type: 'SET_GROUP_NAME'; payload: string }
   | { type: 'SET_STEP_CHECKED'; payload: StepType }
   | { type: 'INIT_SIGNUP'; payload: SignupType }
-  | { type: 'ACCOUNT_INFO_SAVED'; payload: AddressInfo }
 
 export const initialState: SignupState = {
   currentStep: 0,
@@ -83,12 +83,10 @@ export const signupReducer: Reducer<SignupState, SignupAction> = (
           index === action.payload.index ? action.payload.checked : step
         ),
       }
-    case 'ACCOUNT_INFO_SAVED':
-      return {
-        ...state,
-        address: action.payload.address,
-        peerId: action.payload.peerId,
-      }
+    case 'SET_ADDRESS':
+      return { ...state, address: action.payload }
+    case 'SET_PEER_ID':
+      return { ...state, peerId: action.payload }
     default:
       return state
   }

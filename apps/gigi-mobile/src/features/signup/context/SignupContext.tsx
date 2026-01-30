@@ -30,11 +30,12 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
 
       // Update state after successful save
       dispatch({
-        type: 'ACCOUNT_INFO_SAVED',
-        payload: {
-          address: accountInfo.address,
-          peerId: accountInfo.peer_id,
-        },
+        type: 'SET_ADDRESS',
+        payload: accountInfo.address,
+      })
+      dispatch({
+        type: 'SET_PEER_ID',
+        payload: accountInfo.peer_id,
       })
     } catch (error) {
       console.error('Failed to save account info:', error)
