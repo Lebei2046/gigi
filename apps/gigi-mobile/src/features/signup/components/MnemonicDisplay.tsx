@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { generateMnemonics } from '@/utils/crypto'
+import { authGenerateMnemonic } from '@/utils/tauriCommands'
 import AgreeToContinue from './AgreeToContinue'
 import { useSignupContext } from '../context/SignupContext'
 
 export default function MnemonicDisplay() {
   const STEP: number = 1
+  const [loading, setLoading] = useState(true)
 
   const {
     state: { mnemonic },
@@ -14,9 +15,21 @@ export default function MnemonicDisplay() {
   } = useSignupContext()
 
   useEffect(() => {
-    const generatedMnemonic = generateMnemonics()
-    dispatch({ type: 'SET_MNEMONIC', payload: generatedMnemonic })
+    const generate = async () => {
+      const generatedMnemonic = await authGenerateMnemonic()
+      dispatch({ type: 'SET_MNEMONIC', payload: generatedMnemonic })
+      setLoading(false)
+    }
+    generate()
   }, [dispatch])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-gray-500">Generating seed phrase...</div>
+      </div>
+    )
+  }
 
   const handleCopy = () => {
     const mnemonicString = mnemonic.join(' ')

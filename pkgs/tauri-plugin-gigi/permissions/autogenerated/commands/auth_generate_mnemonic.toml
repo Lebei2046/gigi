@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-auth-generate-mnemonic"
+description = "Enables the auth_generate_mnemonic command without any pre-configured scope."
+commands.allow = ["auth_generate_mnemonic"]
+
+[[permission]]
+identifier = "deny-auth-generate-mnemonic"
+description = "Denies the auth_generate_mnemonic command without any pre-configured scope."
+commands.deny = ["auth_generate_mnemonic"]

@@ -16,6 +16,7 @@ base64 = "0.22"
 hex = "0.4"
 chrono = "0.4"
 log = "0.4"
+bip39 = { version = "2.2", features = ["rand"] }
 
 # Workspace dependencies
 gigi-p2p.workspace = true

@@ -51,6 +51,7 @@ permissions = [
   "allow-delete-conversation",
   # Auth commands
   "allow-auth-check-account",
+  "allow-auth-generate-mnemonic",
   "allow-auth-signup",
   "allow-auth-login-with-p2p",
   "allow-auth-get-account-info",

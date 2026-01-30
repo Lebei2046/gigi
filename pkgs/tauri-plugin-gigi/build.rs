@@ -41,6 +41,7 @@ const COMMANDS: &[&str] = &[
     "clear_app_data",
     // Auth commands
     "auth_check_account",
+    "auth_generate_mnemonic",
     "auth_signup",
     "auth_login_with_p2p",
     "auth_get_account_info",

@@ -247,6 +247,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::conversations::delete_conversation,
             // Auth commands
             commands::auth::auth_check_account,
+            commands::auth::auth_generate_mnemonic,
             commands::auth::auth_signup,
             commands::auth::auth_login_with_p2p,
             commands::auth::auth_get_account_info,

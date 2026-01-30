@@ -47,6 +47,7 @@ Default permissions for the plugin
 - `allow-mark-conversation-as-read`
 - `allow-delete-conversation`
 - `allow-auth-check-account`
+- `allow-auth-generate-mnemonic`
 - `allow-auth-signup`
 - `allow-auth-login-with-p2p`
 - `allow-auth-get-account-info`
@@ -121,6 +122,32 @@ Enables the auth_delete_account command without any pre-configured scope.
 <td>
 
 Denies the auth_delete_account command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:allow-auth-generate-mnemonic`
+
+</td>
+<td>
+
+Enables the auth_generate_mnemonic command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`gigi:deny-auth-generate-mnemonic`
+
+</td>
+<td>
+
+Denies the auth_generate_mnemonic command without any pre-configured scope.
 
 </td>
 </tr>

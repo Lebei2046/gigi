@@ -10,6 +10,13 @@ export async function authCheckAccount(): Promise<boolean> {
 }
 
 /**
+ * Generate mnemonic words
+ */
+export async function authGenerateMnemonic(): Promise<string[]> {
+  return await invoke<string[]>('plugin:gigi|auth_generate_mnemonic')
+}
+
+/**
  * Signup with mnemonic and password
  * @param mnemonic - The mnemonic phrase
  * @param password - The password for encryption
