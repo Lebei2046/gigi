@@ -141,9 +141,16 @@ pub(crate) async fn auth_delete_account(state: State<'_, PluginState>) -> Result
 /// Generate mnemonic words
 #[tauri::command]
 pub(crate) async fn auth_generate_mnemonic() -> Result<Vec<String>> {
-    let mnemonic = bip39::Mnemonic::from_entropy_in(bip39::Language::English, &bip39::rand::random::<[u8; 16]>())
-        .map_err(|e| Error::Io(format!("Failed to generate mnemonic: {}", e)))?;
-    Ok(mnemonic.to_string().split(' ').map(|s: &str| s.to_string()).collect())
+    let mnemonic = bip39::Mnemonic::from_entropy_in(
+        bip39::Language::English,
+        &bip39::rand::random::<[u8; 16]>(),
+    )
+    .map_err(|e| Error::Io(format!("Failed to generate mnemonic: {}", e)))?;
+    Ok(mnemonic
+        .to_string()
+        .split(' ')
+        .map(|s: &str| s.to_string())
+        .collect())
 }
 
 /// Verify password without exposing account data
