@@ -5,6 +5,7 @@ import authReducer from './authSlice'
 import logsReducer from './logsSlice'
 import chatReducer from './chatSlice'
 import chatRoomReducer from './chatRoomSlice'
+import fileReducer from './fileSlice'
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     logs: logsReducer,
     chat: chatReducer,
     chatRoom: chatRoomReducer,
+    files: fileReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({

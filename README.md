@@ -1,291 +1,166 @@
 # Gigi: P2P Social Application
 
-A comprehensive decentralized peer-to-peer social application built with Rust and TypeScript/React, leveraging Tauri for cross-platform deployment.
+## Project Overview
+
+Gigi is an ambitious peer-to-peer (P2P) social application built for secure, decentralized communication across mobile and desktop platforms. It combines modern web technologies (React/TypeScript) with Rust-based P2P networking to create a privacy-focused messaging and file-sharing platform.
 
 ## Project Structure
 
 ```
-gigi/
 ├── apps/
-│   ├── gigi-app/          # Desktop application (Tauri + React)
-│   └── gigi-mobile/       # Mobile application (Tauri + React)
-├── pkgs/
-│   ├── gigi-p2p/          # Comprehensive P2P networking library
-│   ├── gigi-dns/          # Custom mDNS-based peer discovery protocol
-│   └── tauri-plugin-gigi-p2p/  # Tauri plugin for P2P functionality
-├── Cargo.lock
-├── Cargo.toml             # Rust workspace configuration
-├── package.json           # Node.js workspace configuration
-├── LICENSE
-└── README.md
+│   ├── gigi-app/       # Desktop React/Tauri application
+│   └── gigi-mobile/    # Mobile React/Tauri application
+└── pkgs/               # Rust libraries
+    ├── gigi-auth/      # Account management and key derivation
+    ├── gigi-dns/       # Peer discovery with nicknames
+    ├── gigi-file-sharing/ # Chunked file transfer
+    ├── gigi-p2p/       # Core P2P networking library
+    ├── gigi-store/     # Data persistence
+    └── tauri-plugin-gigi/ # Tauri plugin for frontend integration
 ```
 
-## Core Components
+## Core Architecture
 
-### P2P Networking Libraries
+### P2P Network Layer
 
-#### `pkgs/gigi-dns` - Custom Discovery Protocol
+The **gigi-p2p** library provides unified P2P functionality through a modular architecture:
 
-A custom mDNS-based protocol that automatically discovers peers in local area networks with nicknames, capabilities, and metadata.
+- **UnifiedBehaviour**: Combines multiple libp2p protocols into a single network behavior
+  - **GigiDNS**: Custom DNS-like discovery with nicknames, capabilities, and metadata
+  - **Direct Messaging**: Request-response protocol for 1:1 communication
+  - **GossipSub**: Pub-sub protocol for group messaging
+  - **File Sharing**: Chunked file transfer with integrity verification
 
-**Features:**
-- Auto-discovery peers with nickname + peer_id + multiaddr in ONE protocol
-- Rich metadata including capabilities and key-value pairs
-- Human-readable nicknames instead of cryptic peer IDs
-- libp2p compatible - implements NetworkBehaviour trait
-- Zero configuration - works out of the box
-- Low bandwidth - efficient multicast-based discovery (port 7173)
-- SO_REUSEPORT support for multiple instances on same port
+- **Protocol Stack**:
+  - TCP transport with Noise encryption
+  - Yamux multiplexing for efficient connection management
+  - CBOR serialization for efficient data transfer
 
-**Configuration:**
-- TTL: 6 minutes (peer record expiration)
-- Query interval: 5 minutes (periodic discovery queries)
-- Supports both multicast and broadcast modes
-- IPv4/IPv6 support
+### Peer Discovery (gigi-dns)
 
-#### `pkgs/gigi-p2p` - P2P Networking Library
+GigiDNS implements a DNS-like discovery protocol with:
+- Multicast-based peer announcement
+- Nickname resolution and capability advertising
+- TTL-based cache management
+- Per-interface monitoring for network changes
 
-A comprehensive Rust library built on libp2p that provides complete P2P functionality.
+### File Sharing System
 
-**Core Networking:**
-- **Peer Discovery**: Integration with gigi-dns for custom mDNS-based discovery
-- **Multiple Protocols**: TCP, QUIC support with Noise protocol encryption
-- **Multiplexing**: Yamux for efficient connection management
-- **Request-Response**: Reliable message delivery with acknowledgments
+The file sharing system uses a unique **share code** mechanism:
+1. Files split into 256KB chunks with BLAKE3 hashes
+2. Share code generated for each file (unique per share instance)
+3. Pull-based transfer: receivers request chunks on-demand
+4. SHA256 verification for complete file integrity
+5. Download tracking for UI integration
 
-**Communication Features:**
-- **Direct Messaging**: Text messages and image sharing between peers
-- **Group Messaging**: Gossipsub-based pub/sub group communication
-- **Nicknames**: Human-readable peer identification system
+### Authentication & Identity
 
-**File Sharing System:**
-- **Chunked Transfers**: Large files transferred in 256KB chunks
-- **Progress Tracking**: Real-time download progress events
-- **Hash Verification**: SHA256 integrity checking
-- **Persistent Storage**: Shared files saved to `shared.json`
-- **Share Codes**: Unique codes for file access
-- **Duplicate Detection**: Same files share existing codes
+**gigi-auth** provides secure account management:
+- BIP-39 mnemonic phrase generation
+- ChaCha20-Poly1305 encryption for mnemonics
+- BIP-32 key derivation for multiple identities:
+  - EVM addresses for blockchain interactions
+  - Peer IDs for libp2p identity
+  - Group IDs for P2P groups
 
-#### `pkgs/tauri-plugin-gigi-p2p` - Tauri Integration
+## Frontend-Backend Integration
 
-Tauri plugin that exposes P2P functionality to frontend applications via Tauri's command system, enabling seamless Rust-JavaScript interop.
+### Tauri Plugin Architecture
 
-### Frontend Applications (`apps/`)
+The **tauri-plugin-gigi** exposes Rust P2P functionality to the React frontend:
+- **Commands**: 80+ Tauri commands for all P2P operations
+- **Events**: Real-time event system for:
+  - Peer discovery/expiry
+  - Message reception (direct/group)
+  - File share events
+  - Download progress updates
 
-Modern React-based applications built with TypeScript and Tauri:
+### State Management
 
-#### Desktop Application (`apps/gigi-app`)
-- **Cross-platform desktop app** for Windows, macOS, and Linux
-- **TypeScript + React**: Type-safe frontend development
-- **Vite**: Fast development server and building
-- **Tauri Integration**: Native OS access and performance
-
-#### Mobile Application (`apps/gigi-mobile`)
-- **Mobile-optimized** for iOS and Android deployment
-- **Responsive Design**: Adaptive UI for mobile screens
-- **Touch-optimized**: Gestures and mobile interactions
-- **React Router**: Navigation between chat screens
-- **Comprehensive Documentation**: Detailed notes for backend, DM, file sharing, group messaging, and refactoring
-
-Both applications feature:
-- **Modern UI**: Clean, intuitive user interface
-- **Real-time Updates**: Live P2P event handling
-- **File Management**: Download and file sharing interfaces
-- **Peer Management**: Visual peer discovery and connection status
-- **Group Chat**: Multi-user communication interfaces
-
-## Technology Stack
-
-### Backend (Rust Workspace)
-- **Rust**: Core language for P2P libraries
-- **libp2p**: Comprehensive P2P networking framework
-  - Custom mDNS via gigi-dns (port 7173)
-  - Gossipsub, Request-Response protocols
-  - TCP/QUIC transport with Noise encryption
-  - Yamux multiplexing and Kademlia DHT
-- **Tokio**: High-performance async runtime
-- **socket2**: Low-level socket configuration for SO_REUSEPORT
-- **Serde**: JSON/CBOR serialization
-- **Tauri**: Native app framework and plugin system
-- **Additional Libraries**: blake3, sha2, chrono, uuid, tracing
-
-### Frontend (TypeScript/React)
-- **TypeScript**: Type-safe JavaScript development
-- **React**: Modern UI framework with hooks
-- **Tauri**: Cross-platform app wrapper and native bridge
-- **Vite**: Fast development server and build tool
-- **React Router**: Client-side routing
-- **Bun**: JavaScript runtime and package manager
-- **ESLint**: Code quality and style enforcement
+- **PluginState**: Global state managing all P2P components
+- **Managers**: Specialized managers for:
+  - Authentication (AuthManager)
+  - Contact management (ContactManager)
+  - File sharing (FileSharingManager)
+  - Group management (GroupManager)
+  - Message persistence (MessageStore)
 
 ## Key Features
 
-### P2P Network Infrastructure
-- **Zero-Configuration**: Automatic peer discovery via custom mDNS (port 7173)
-- **Multi-Protocol**: TCP and QUIC transport support
-- **Encrypted Communication**: Noise protocol for all connections
-- **Identity Management**: Ed25519 key pairs and nickname system
-- **Connection Multiplexing**: Efficient resource usage
-- **Multi-Instance Support**: SO_REUSEPORT allows multiple instances on same port
+1. **Auto-discovery**: Peers find each other without centralized servers
+2. **Nickname System**: Human-friendly identifiers instead of cryptic IDs
+3. **Secure Communication**: End-to-end encryption for messages and files
+4. **Cross-platform**: Mobile (iOS/Android) and desktop (Windows/macOS/Linux)
+5. **Offline Support**: Message persistence for offline viewing
+6. **File Sharing**: Secure, integrity-verified file transfer
+7. **Group Messaging**: Pub-sub based group chats with nickname support
+8. **Download Tracking**: Real-time progress updates for mobile UI
 
-### Communication System
-- **Direct Messaging**: Real-time text and image sharing between peers
-- **Group Communication**: Gossipsub-based broadcast messaging with bidirectional communication
-  - **Group Creation**: Users can create groups and invite other peers
-  - **Owner/Member Roles**: Distinguished access between group creators and invited members
-  - **Topic Subscription**: Both owners and members automatically subscribe to group topics for messaging
-- **File Sharing**: Comprehensive file transfer system
-  - Share any file type with unique codes
-  - Chunked downloads with progress tracking
-  - Automatic integrity verification
-  - Persistent sharing registry
-- **Media Support**: Image sharing with metadata (PNG, JPEG, GIF, WebP)
+## Technology Stack
 
-### User Experience
-- **Cross-Platform**: Desktop and mobile applications
-- **Real-time UI**: Live updates for all P2P events
-- **Intuitive Interface**: Clean, modern design
-- **Mobile-Optimized**: Touch gestures and responsive layouts
-- **Native Integration**: OS-level features via Tauri
+- **Frontend**: React 18, TypeScript, Tauri
+- **Backend**: Rust, libp2p, Tokio, SeaORM (SQLite)
+- **Networking**: TCP, Noise encryption, Yamux, GossipSub, mDNS
+- **Security**: ChaCha20-Poly1305, BIP-32/BIP-39, BLAKE3, SHA256
+- **Build Tools**: Cargo, Vite, Tauri CLI
 
-### Developer Experience
-- **Type Safety**: Full TypeScript support
-- **Hot Reload**: Fast development cycles
-- **Monorepo**: Shared dependencies and build system
-- **Comprehensive APIs**: Well-documented P2P functionality
-- **Example Applications**: Chat app with full feature demonstration
+## Development Workflow
 
-## Getting Started
+### Getting Started
 
-### Prerequisites
-- **Rust**: Install via [rustup](https://rustup.rs/) (latest stable)
-- **Bun**: Install via [bun.sh](https://bun.sh/) for JavaScript tooling
-- **Tauri CLI**: Install via `cargo install tauri-cli`
-- **Node.js**: For frontend development (if not using Bun)
+1. **Install dependencies**:
+   ```bash
+   # Rust dependencies
+   cargo install tauri-cli
+   
+   # Frontend dependencies
+   cd apps/gigi-mobile
+   bun install
+   ```
 
-### Installation
+2. **Run development server**:
+   ```bash
+   # Mobile app
+   cd apps/gigi-mobile
+   bun run tauri dev
+   
+   # Desktop app  
+   cd apps/gigi-app
+   bun run tauri dev
+   ```
 
-```bash
-# Clone the repository
-git clone https://gitee.com/gigi-w/gigi.git
-# Or
-git clone https://github.com/Lebei2046/gigi.git
-cd gigi
+3. **Build for production**:
+   ```bash
+   cd apps/gigi-mobile
+   bun run tauri build
+   ```
 
-# Install JavaScript/TypeScript dependencies
-bun install
+### Key Development Features
 
-# Build all Rust workspace packages
-cargo build
+- **Hot reload** for React components
+- **Type-safe API** between frontend and backend
+- **Comprehensive logging** with tracing
+- **Unit/integration tests** for all Rust libraries
+- **Cross-compilation** support
 
-# Run tests
-cargo test
-```
+## Security Considerations
 
-### Running the Applications
+- **No centralized servers** to compromise
+- **End-to-end encryption** for all communication
+- **Secure key storage** with platform-native mechanisms
+- **File integrity verification** at every step
+- **Defense-in-depth** with multiple security layers
 
-**Desktop App:**
-```bash
-cd apps/gigi-app
-bun install
-bun run tauri dev
-```
+## Future Enhancements
 
-**Mobile App:**
-```bash
-cd apps/gigi-mobile
-bun install
-# For iOS
-bun run tauri ios dev
-# For Android
-bun run tauri android dev
-```
+- Enhanced NAT traversal for better connectivity
+- Support for larger file transfers
+- Audio/video calls over P2P
+- Improved mobile performance optimizations
+- Additional P2P discovery mechanisms
 
-## Workspace Architecture
+## Conclusion
 
-This project uses a monorepo structure with Rust and JavaScript workspaces:
+Gigi represents a modern approach to decentralized communication, leveraging Rust's memory safety and performance with React's developer experience. Its modular architecture allows for easy extension and maintenance, while its P2P design provides strong privacy guarantees. The project demonstrates a sophisticated understanding of distributed systems, cryptography, and cross-platform development.
 
-### Rust Workspace (Cargo.toml)
-- **Shared Dependencies**: Managed at workspace level
-- **Version Sync**: All packages use the same version
-- **Optimized Builds**: LTO and size optimization for release
-- **Dev Features**: Test builds with additional debugging
-
-**Workspace Members:**
-- `apps/gigi-app/src-tauri` - Desktop app backend
-- `apps/gigi-mobile/src-tauri` - Mobile app backend
-- `pkgs/gigi-p2p` - P2P networking library
-- `pkgs/gigi-dns` - Custom discovery protocol
-- `pkgs/tauri-plugin-gigi-p2p` - Tauri plugin
-
-### JavaScript Workspace (package.json)
-- **Package Management**: Bun for fast operations
-- **Shared Config**: ESLint, TypeScript configurations
-- **Cross-Platform**: Consistent development environment
-
-## Contributing
-
-### Development Workflow
-1. **Fork** the repository
-2. **Create** a feature branch from `main`
-3. **Make changes** with comprehensive tests
-4. **Test** across both Rust and TypeScript
-5. **Update documentation** as needed
-6. **Submit** a pull request with clear description
-
-## Troubleshooting
-
-### Common Issues and Solutions
-
-#### Group Messaging Issues
-**Problem**: Group owner cannot send messages, group members don't receive messages
-
-**Root Cause**: Group owners (`joined: false`) and members (`joined: true`) both need to subscribe to the gossipsub topic to participate in group messaging.
-
-**Solution**: The application now automatically subscribes both group owners and members to group topics when opening group chats, regardless of the `joined` flag status.
-
-**Debugging Steps**:
-1. Check console logs for "✅ Successfully joined group" messages
-2. Verify both instances show "📊 Total groups in local storage: 1"
-3. Ensure "📤 Sending group message" and "✅ Group message published successfully" appear
-4. Check for "🔥 Raw gossipsub message received" on receiver side
-
-#### Mobile Development Setup
-**Android Emulator Setup**:
-```bash
-# List available emulators
-$ANDROID_HOME/emulator/emulator -list-avds
-
-# Start emulator
-$ANDROID_HOME/emulator/emulator -avd Medium_Phone_API_36.1
-```
-
-**Common Build Issues**:
-- Ensure Android Studio and Android SDK are properly installed
-- Verify `$ANDROID_HOME` environment variable is set
-- Run `bun run tauri android init` before first mobile build
-
-### Code Standards
-- **Rust**: Follow `rustfmt` and `clippy` recommendations
-- **TypeScript**: ESLint configuration with strict rules
-- **Commit Messages**: Conventional commit format
-- **Documentation**: Keep README files current
-- **Tests**: Ensure all tests pass before PR
-
-### Areas for Contribution
-- **UI/UX Improvements**: Enhanced frontend interfaces
-- **Protocol Extensions**: Additional P2P protocols
-- **Mobile Features**: Platform-specific optimizations
-- **Performance**: Network efficiency and speed improvements
-- **Security**: Enhanced encryption and verification
-- **Discovery Protocol**: Improvements to gigi-dns (custom mDNS)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- **libp2p**: The foundational P2P networking library
-- **Tauri**: Cross-platform application framework
-- **Rust Community**: Tools and ecosystem support
+This analysis provides a comprehensive overview of the Gigi P2P social application, highlighting its architecture, key features, and technical implementation details.

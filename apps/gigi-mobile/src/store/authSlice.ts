@@ -6,7 +6,6 @@ import {
   authLoginWithP2P,
   authDeleteAccount,
 } from '../utils/tauriCommands'
-import { MessagingClient } from '../utils/messaging'
 
 type AuthState = {
   status: 'unregistered' | 'unauthenticated' | 'authenticated'
@@ -30,9 +29,6 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    clearAuth: state => {
-      state.status = 'unauthenticated'
-    },
     setUnregistered: state => {
       state.status = 'unregistered'
     },
@@ -81,11 +77,11 @@ const authSlice = createSlice({
 
 // Async action to load auth data from backend
 export const loadAuthData = () => async (dispatch: any, getState: any) => {
+  // Don't reset status if already authenticated (prevents race condition after login)
+  const currentStatus = getState().auth.status
+
   try {
     const hasAccount = await authCheckAccount()
-
-    // Don't reset status if already authenticated (prevents race condition after login)
-    const currentStatus = getState().auth.status
 
     if (!hasAccount) {
       if (currentStatus === 'unregistered') return // Skip if already set
@@ -152,6 +148,6 @@ export const loginWithP2P =
     }
   }
 
-export const { clearAuth, setUnregistered, login, resetState, setError } =
+export const { setUnregistered, login, resetState, setError } =
   authSlice.actions
 export default authSlice.reducer

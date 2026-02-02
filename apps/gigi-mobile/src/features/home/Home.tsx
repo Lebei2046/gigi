@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fa'
 import Me from '../me/Me'
 import Chat from '../chat/Chat'
+import Files from '../files/Files'
 import P2PLogs from '@/components/P2PLogs'
 import { useAppSelector, useAppDispatch } from '@/store'
 import { addLog, clearLogs } from '@/store/logsSlice'
@@ -21,6 +22,8 @@ export default function Home() {
   const mePage = useMemo(() => <Me />, [])
 
   const chatPage = useMemo(() => <Chat />, [])
+
+  const filesPage = useMemo(() => <Files />, [])
 
   const logsPage = useMemo(
     () => (
@@ -52,17 +55,7 @@ export default function Home() {
           value="archive"
           className="flex-grow w-full data-[state=active]:flex data-[state=active]:flex-col m-0"
         >
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center space-y-4">
-              <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
-                <ArchiveIcon className="w-12 h-12 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900">Files</h3>
-              <p className="text-gray-600 text-sm px-6">
-                File sharing and management features coming soon
-              </p>
-            </div>
-          </div>
+          {filesPage}
         </TabsContent>
         <TabsContent
           value="notes"
