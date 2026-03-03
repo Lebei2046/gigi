@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-  "apps/gigi-app/src-tauri",
   "apps/gigi-mobile/src-tauri",
+  "apps/gigi-node",
   "pkgs/gigi-auth",
   "pkgs/gigi-p2p",
   "pkgs/gigi-dns",
@@ -35,6 +35,8 @@ libp2p = { version = "0.56.0", features = [
   "cbor",
   "json",
   "secp256k1",
+  "ping",
+  "relay",
 ] }
 libp2p-identity = "0.2"
 libp2p-swarm = "0.44"

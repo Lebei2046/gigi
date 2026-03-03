@@ -210,6 +210,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::config::messaging_get_active_downloads,
             commands::config::messaging_update_config,
             commands::config::messaging_get_config,
+            commands::config::messaging_set_bootstrap_nodes,
             // Messaging commands
             commands::messaging::messaging_send_message,
             commands::messaging::messaging_send_message_to_nickname,

@@ -1,7 +1,8 @@
 //! Gigi P2P - A comprehensive peer-to-peer networking library
 //!
 //! This library provides unified P2P functionality for the Gigi ecosystem including:
-//! - **Auto Discovery**: Automatic peer discovery via gigi-dns (with nicknames, capabilities, metadata)
+//! - **Auto Discovery**: Automatic peer discovery via gigi-dns (local network) and Kademlia DHT (WAN)
+//! - **NAT Traversal**: Circuit relay for connecting peers behind routers
 //! - **Direct Messaging**: 1-to-1 peer communication via request-response protocol
 //! - **Group Messaging**: Publish-subscribe model using GossipSub for group chats
 //! - **File Transfer**: Request-response protocol for file sharing with integrity verification
@@ -23,6 +24,8 @@
 //! | Protocol | Purpose | Type |
 //! |-----------|---------|------|
 //! | gigi-dns | Peer discovery + nicknames + metadata | mDNS + custom protocol |
+//! | Kademlia | WAN peer discovery and routing | DHT |
+//! | Circuit Relay | NAT traversal | Relay |
 //! | Direct Messaging | 1-to-1 communication | Request-Response (CBOR) |
 //! | Group Messaging | Group chat with pub/sub | GossipSub |
 //! | File Sharing | Chunked file transfer | Request-Response (CBOR) |
@@ -191,6 +194,7 @@ pub fn init_tracing_with_level(level: tracing::Level) {
 
 // Re-export public API
 pub use client::P2pClient;
+pub use client::P2pConfig;
 pub use client::CHUNK_SIZE;
 pub use error::P2pError;
 

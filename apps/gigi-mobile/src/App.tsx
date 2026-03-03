@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import React from 'react'
 import useInitAuth from './hooks/useInitAuth.ts'
+import useInitP2P from './hooks/useInitP2P.ts'
 import {
   unregisteredRoutes,
   unauthenticatedRoutes,
@@ -14,6 +15,9 @@ const DEBUG_MODE = import.meta.env.DEV
 
 export default function App() {
   const { status } = useInitAuth()
+  
+  // Initialize P2P configuration (bootstrap nodes)
+  useInitP2P()
 
   const routes =
     status === 'unregistered'

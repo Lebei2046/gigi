@@ -77,6 +77,13 @@ pub struct Config {
     pub max_concurrent_downloads: usize,
     /// Network port for P2P communication (0 for auto-selection)
     pub port: u16,
+    /// Bootstrap nodes for DHT discovery
+    /// Format: ["/ip4/x.x.x.x/tcp/port/p2p/peer_id", ...]
+    pub bootstrap_nodes: Vec<String>,
+    /// Enable Kademlia DHT for WAN discovery
+    pub enable_kademlia: bool,
+    /// Enable circuit relay for NAT traversal
+    pub enable_relay: bool,
 }
 
 /// Default configuration values.
@@ -88,6 +95,9 @@ impl Default for Config {
             download_folder: String::new(),
             max_concurrent_downloads: 3,
             port: 0,
+            bootstrap_nodes: Vec::new(),
+            enable_kademlia: true,
+            enable_relay: true,
         }
     }
 }

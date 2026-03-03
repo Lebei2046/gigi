@@ -5,7 +5,7 @@ use futures::channel::mpsc;
 use gigi_dns::GigiDnsConfig;
 use libp2p::{
     identity::Keypair,
-    multiaddr::Multiaddr,
+    kad, multiaddr::Multiaddr, relay,
     request_response::{self, ProtocolSupport},
     swarm::SwarmEvent,
     PeerId, StreamProtocol,
@@ -28,6 +28,36 @@ use crate::error::P2pError;
 use crate::events::{ActiveDownload, GroupInfo, P2pEvent, PeerInfo};
 use gigi_store::migration::MigratorTrait;
 use gigi_store::{MessageStore, PersistenceConfig, SyncManager};
+
+/// P2P Client configuration
+///
+/// Configuration options for creating a P2pClient with custom settings.
+#[derive(Clone, Debug)]
+pub struct P2pConfig {
+    /// Bootstrap nodes for DHT discovery
+    /// Format: "/ip4/x.x.x.x/tcp/port/p2p/peer_id"
+    pub bootstrap_nodes: Vec<String>,
+    /// Enable Kademlia DHT for WAN discovery
+    pub enable_kademlia: bool,
+    /// Enable circuit relay for NAT traversal
+    pub enable_relay: bool,
+    /// Kademlia mode: Client or Server
+    pub kademlia_mode: kad::Mode,
+    /// Listen addresses
+    pub listen_addrs: Vec<Multiaddr>,
+}
+
+impl Default for P2pConfig {
+    fn default() -> Self {
+        Self {
+            bootstrap_nodes: Vec::new(),
+            enable_kademlia: true,
+            enable_relay: true,
+            kademlia_mode: kad::Mode::Client,
+            listen_addrs: vec!["/ip4/0.0.0.0/tcp/0".parse().unwrap()],
+        }
+    }
+}
 
 /// Main P2P client
 ///
@@ -120,6 +150,28 @@ impl P2pClient {
         Self::new_with_config_and_persistence(keypair, nickname, output_directory, None)
     }
 
+    /// Create a new P2P client with custom configuration
+    ///
+    /// Creates a P2P client with custom P2P configuration for WAN connectivity.
+    ///
+    /// # Arguments
+    /// * `keypair` - The cryptographic keypair for this peer's identity
+    /// * `nickname` - Display name for this peer in the network
+    /// * `output_directory` - Directory where downloaded files will be saved
+    /// * `p2p_config` - P2P configuration including bootstrap nodes
+    ///
+    /// # Returns
+    /// A tuple containing the P2pClient instance and an event receiver
+    #[instrument(skip(keypair))]
+    pub fn new_with_config(
+        keypair: Keypair,
+        nickname: String,
+        output_directory: PathBuf,
+        p2p_config: P2pConfig,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
+        Self::new_with_full_config(keypair, nickname, output_directory, None, p2p_config)
+    }
+
     /// Create a new P2P client with persistence enabled
     ///
     /// Creates a P2P client with optional message persistence for offline messaging.
@@ -141,7 +193,33 @@ impl P2pClient {
         output_directory: PathBuf,
         persistence_config: Option<PersistenceConfig>,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
+        Self::new_with_full_config(keypair, nickname, output_directory, persistence_config, P2pConfig::default())
+    }
+
+    /// Create a new P2P client with full configuration
+    ///
+    /// Creates a P2P client with both persistence and P2P configuration options.
+    /// This is the main constructor used internally.
+    ///
+    /// # Arguments
+    /// * `keypair` - The cryptographic keypair for this peer's identity
+    /// * `nickname` - Display name for this peer in the network
+    /// * `output_directory` - Directory where downloaded files will be saved
+    /// * `persistence_config` - Optional configuration for message persistence
+    /// * `p2p_config` - P2P configuration including bootstrap nodes
+    ///
+    /// # Returns
+    /// A tuple containing the P2pClient instance and an event receiver
+    #[instrument(skip(keypair))]
+    pub fn new_with_full_config(
+        keypair: Keypair,
+        nickname: String,
+        output_directory: PathBuf,
+        persistence_config: Option<PersistenceConfig>,
+        p2p_config: P2pConfig,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
         let (event_sender, event_receiver) = mpsc::unbounded();
+        let local_peer_id = keypair.public().to_peer_id();
 
         // Create gigi-dns config
         // GigiDns enables peer discovery through a distributed DNS-like service
@@ -158,7 +236,25 @@ impl P2pClient {
         };
 
         // Create gigi-dns behaviour
-        let gigi_dns = gigi_dns::GigiDnsBehaviour::new(keypair.public().to_peer_id(), dns_config)?;
+        let gigi_dns = gigi_dns::GigiDnsBehaviour::new(local_peer_id, dns_config)?;
+
+        // Create Kademlia DHT behaviour
+        let kademlia_config = kad::Config::default();
+        let kademlia_store = kad::store::MemoryStore::new(local_peer_id);
+        let mut kademlia = kad::Behaviour::with_config(local_peer_id, kademlia_store, kademlia_config);
+
+        // Add bootstrap nodes to Kademlia
+        for bootstrap_addr in &p2p_config.bootstrap_nodes {
+            if let Some((peer_id, addr)) = parse_bootstrap_addr(bootstrap_addr) {
+                info!("Adding bootstrap node: {} at {}", peer_id, addr);
+                kademlia.add_address(&peer_id, addr);
+            } else {
+                warn!("Failed to parse bootstrap address: {}", bootstrap_addr);
+            }
+        }
+
+        // Create relay behaviour
+        let relay = relay::Behaviour::new(local_peer_id, Default::default());
 
         // Create other behaviours
         // Direct messaging: 1:1 peer-to-peer communication using request/response pattern
@@ -185,6 +281,8 @@ impl P2pClient {
         // Each protocol handles its own events and message types
         let behaviour = UnifiedBehaviour {
             gigi_dns,
+            kademlia,
+            relay,
             direct_msg,
             gossipsub,
             file_sharing,
@@ -1320,5 +1418,54 @@ impl P2pClient {
             .clear_conversation(nickname)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to clear conversation: {}", e))
+    }
+
+    /// Bootstrap the Kademlia DHT
+    ///
+    /// Initiates a bootstrap process to join the Kademlia DHT network.
+    /// This should be called after starting to listen on addresses.
+    ///
+    /// # Returns
+    /// Ok if bootstrap was initiated successfully
+    pub fn bootstrap_dht(&mut self) -> Result<()> {
+        info!("Starting Kademlia DHT bootstrap...");
+        self.swarm
+            .behaviour_mut()
+            .kademlia
+            .bootstrap()
+            .map_err(|e| anyhow::anyhow!("Failed to bootstrap DHT: {:?}", e))?;
+        Ok(())
+    }
+}
+
+/// Parse a bootstrap address string
+///
+/// Parses addresses in the format: "/ip4/x.x.x.x/tcp/port/p2p/peer_id"
+///
+/// # Arguments
+/// * `addr_str` - The bootstrap address string
+///
+/// # Returns
+/// Option containing (PeerId, Multiaddr) if parsing succeeds
+fn parse_bootstrap_addr(addr_str: &str) -> Option<(PeerId, Multiaddr)> {
+    let addr: Multiaddr = addr_str.parse().ok()?;
+    let iter = addr.iter();
+    let mut last_protocol = None;
+    let mut addr_parts = Vec::new();
+
+    for protocol in iter {
+        if let libp2p::multiaddr::Protocol::P2p(peer_id) = protocol {
+            last_protocol = Some(peer_id);
+        } else {
+            addr_parts.push(protocol);
+        }
+    }
+
+    if let Some(peer_id) = last_protocol {
+        // Reconstruct address without P2p protocol
+        let addr_without_peer: Multiaddr = addr_parts.into_iter().collect();
+        Some((peer_id, addr_without_peer))
+    } else {
+        None
     }
 }

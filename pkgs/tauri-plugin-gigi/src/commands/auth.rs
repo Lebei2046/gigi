@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use tauri::{Emitter, Manager, State};
+use tracing::{info, warn};
 
 use crate::{models::PluginState, Error, Result};
 
@@ -263,12 +264,28 @@ pub(crate) async fn auth_login_with_p2p<R: tauri::Runtime>(
             .map_err(|e| Error::CommandFailed(format!("Failed to encode public key: {}", e)))?,
     );
 
-    // Create P2P client
-    match P2pClient::new_with_config_and_persistence(
+    // Get P2P configuration from plugin state
+    let p2p_config = {
+        let config_guard = state.config.read().await;
+        gigi_p2p::P2pConfig {
+            bootstrap_nodes: config_guard.bootstrap_nodes.clone(),
+            enable_kademlia: config_guard.enable_kademlia,
+            enable_relay: config_guard.enable_relay,
+            kademlia_mode: libp2p::kad::Mode::Client,
+            listen_addrs: vec![format!("/ip4/0.0.0.0/tcp/{}", config_guard.port).parse().unwrap_or_else(|_| "/ip4/0.0.0.0/tcp/0".parse().unwrap())],
+        }
+    };
+
+    // Store bootstrap node count before moving p2p_config
+    let bootstrap_node_count = p2p_config.bootstrap_nodes.len();
+
+    // Create P2P client with custom configuration
+    match P2pClient::new_with_full_config(
         keypair,
         final_nickname,
         output_dir,
         Some(persistence_config),
+        p2p_config,
     ) {
         Ok((mut client, event_receiver)) => {
             // Use existing database connection
@@ -329,6 +346,14 @@ pub(crate) async fn auth_login_with_p2p<R: tauri::Runtime>(
                 .map_err(|e| Error::P2p(format!("Failed to parse address: {}", e)))?;
             if let Err(e) = client.start_listening(addr) {
                 return Err(Error::P2p(format!("Failed to start listening: {}", e)));
+            }
+
+            // Bootstrap DHT if bootstrap nodes are configured
+            if bootstrap_node_count > 0 {
+                info!("Bootstrapping Kademlia DHT with {} bootstrap nodes", bootstrap_node_count);
+                if let Err(e) = client.bootstrap_dht() {
+                    warn!("Failed to bootstrap DHT: {:?}", e);
+                }
             }
 
             // Store client and receiver

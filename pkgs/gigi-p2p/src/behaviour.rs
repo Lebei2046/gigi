@@ -61,6 +61,7 @@ use blake3::Hasher;
 use gigi_dns::GigiDnsBehaviour;
 use libp2p::{
     gossipsub::{self, MessageAuthenticity, MessageId, ValidationMode},
+    kad, relay,
     request_response::{self},
     swarm::NetworkBehaviour,
 };
@@ -170,12 +171,14 @@ pub enum FileSharingResponse {
 
 /// Unified network behaviour combining all protocols
 ///
-/// Combines four libp2p behaviours into a single NetworkBehaviour implementation.
+/// Combines multiple libp2p behaviours into a single NetworkBehaviour implementation.
 /// This allows the swarm to handle all protocol events through a unified event stream.
 ///
 /// # Behaviours
 ///
-/// - **gigi_dns**: mDNS-based discovery with nicknames and metadata
+/// - **gigi_dns**: mDNS-based discovery with nicknames and metadata (local network)
+/// - **kademlia**: Kademlia DHT for WAN peer discovery and routing
+/// - **relay**: Circuit relay for NAT traversal
 /// - **direct_msg**: Request-response for 1-to-1 messaging
 /// - **gossipsub**: Pub-sub for group messaging
 /// - **file_sharing**: Request-response for chunked file transfer
@@ -187,8 +190,14 @@ pub enum FileSharingResponse {
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "UnifiedEvent")]
 pub struct UnifiedBehaviour {
-    /// mDNS-based discovery with nicknames and capabilities
+    /// mDNS-based discovery with nicknames and capabilities (local network)
     pub gigi_dns: GigiDnsBehaviour,
+
+    /// Kademlia DHT for WAN peer discovery and content routing
+    pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
+
+    /// Circuit relay for NAT traversal
+    pub relay: relay::Behaviour,
 
     /// Request-response for direct peer communication
     pub direct_msg: request_response::cbor::Behaviour<DirectMessage, DirectResponse>,
@@ -202,18 +211,22 @@ pub struct UnifiedBehaviour {
 
 /// Unified event from network behaviour
 ///
-/// Enum containing all possible events from the four behaviours.
+/// Enum containing all possible events from the behaviours.
 /// Used by the event handler to delegate to specialized handlers.
 ///
 /// # Event Categories
 ///
 /// - **GigiDns**: Peer discovery events (Discovered, Updated, Expired, Offline)
+/// - **Kademlia**: DHT events (routing updates, query results)
+/// - **Relay**: Circuit relay events
 /// - **DirectMessage**: Direct messaging events (requests, responses, failures)
 /// - **Gossipsub**: Group messaging events (subscribed, published, etc.)
 /// - **FileSharing**: File transfer events (requests, responses, failures)
 #[derive(Debug)]
 pub enum UnifiedEvent {
     GigiDns(gigi_dns::GigiDnsEvent),
+    Kademlia(kad::Event),
+    Relay(relay::Event),
     DirectMessage(request_response::Event<DirectMessage, DirectResponse>),
     Gossipsub(gossipsub::Event),
     FileSharing(request_response::Event<FileSharingRequest, FileSharingResponse>),
@@ -222,6 +235,18 @@ pub enum UnifiedEvent {
 impl From<gigi_dns::GigiDnsEvent> for UnifiedEvent {
     fn from(event: gigi_dns::GigiDnsEvent) -> Self {
         Self::GigiDns(event)
+    }
+}
+
+impl From<kad::Event> for UnifiedEvent {
+    fn from(event: kad::Event) -> Self {
+        Self::Kademlia(event)
+    }
+}
+
+impl From<relay::Event> for UnifiedEvent {
+    fn from(event: relay::Event) -> Self {
+        Self::Relay(event)
     }
 }
 

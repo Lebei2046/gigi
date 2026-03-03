@@ -8,4 +8,4 @@ mod group_manager;
 mod peer_manager;
 
 pub use file_sharing::{FileChunkReader, FileSharingManager, CHUNK_SIZE};
-pub use p2p_client::P2pClient;
+pub use p2p_client::{P2pClient, P2pConfig};

@@ -31,6 +31,9 @@ target
 
 # AI prompts
 .marscode/
+.qoder/
+arms_cache/
+.qoderignore
 
 # file-sharing
 downloads

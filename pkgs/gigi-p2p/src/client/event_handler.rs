@@ -125,6 +125,10 @@ impl<'a> SwarmEventHandler<'a> {
             UnifiedEvent::FileSharing(file_event) => {
                 FileSharingEventHandler::new(self.client).handle_event(file_event)?
             }
+            UnifiedEvent::Kademlia(_) | UnifiedEvent::Relay(_) => {
+                // Kademlia and Relay events are handled internally by the swarm
+                // We can add specific logging here if needed
+            }
         }
         Ok(())
     }

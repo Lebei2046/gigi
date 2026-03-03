@@ -240,3 +240,52 @@ pub(crate) async fn messaging_get_config<R: tauri::Runtime>(
     let config_guard = state.config.read().await;
     Ok(config_guard.clone())
 }
+
+/// Sets the bootstrap nodes for DHT discovery.
+///
+/// This command updates the list of bootstrap nodes used for Kademlia DHT
+/// peer discovery. Bootstrap nodes are essential for connecting to the
+/// wider P2P network beyond the local network.
+///
+/// # Arguments
+///
+/// * `bootstrap_nodes` - Vector of bootstrap node addresses in multiaddr format
+///   Example: ["/ip4/203.0.113.10/tcp/4001/p2p/12D3KooW..."]
+/// * `app` - The Tauri app handle for emitting events
+/// * `state` - The plugin state containing the configuration
+///
+/// # Returns
+///
+/// A `Result` indicating success or failure
+///
+/// # Events
+///
+/// Emits a `config-changed` event when successful
+///
+/// # Example
+///
+/// ```typescript,ignore
+/// await invoke('messaging_set_bootstrap_nodes', {
+///   bootstrapNodes: [
+///     '/ip4/203.0.113.10/tcp/4001/p2p/12D3KooWABC...',
+///     '/ip4/203.0.113.11/tcp/4002/p2p/12D3KooWDEF...'
+///   ]
+/// });
+/// ```
+#[tauri::command]
+pub(crate) async fn messaging_set_bootstrap_nodes<R: tauri::Runtime>(
+    bootstrap_nodes: Vec<String>,
+    app: AppHandle<R>,
+    state: State<'_, PluginState>,
+) -> Result<()> {
+    let config = {
+        let mut config_guard = state.config.write().await;
+        config_guard.bootstrap_nodes = bootstrap_nodes;
+        config_guard.clone()
+    };
+
+    app.emit("config-changed", &config).map_err(|e| {
+        crate::Error::CommandFailed(format!("Failed to emit config-changed: {}", e))
+    })?;
+    Ok(())
+}
