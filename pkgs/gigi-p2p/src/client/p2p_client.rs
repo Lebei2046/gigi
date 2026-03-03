@@ -28,6 +28,7 @@ use crate::behaviour::{
 };
 use crate::error::P2pError;
 use crate::events::{ActiveDownload, GroupInfo, P2pEvent, PeerInfo};
+use crate::validation;
 use gigi_store::migration::MigratorTrait;
 use gigi_store::{MessageStore, PersistenceConfig, SyncManager};
 
@@ -56,7 +57,9 @@ impl Default for P2pConfig {
             enable_kademlia: true,
             enable_relay: true,
             kademlia_mode: kad::Mode::Client,
-            listen_addrs: vec!["/ip4/0.0.0.0/tcp/0".parse().unwrap()],
+            listen_addrs: vec!["/ip4/0.0.0.0/tcp/0"
+                .parse()
+                .expect("Default multiaddr parse should never fail")],
         }
     }
 }
@@ -563,6 +566,11 @@ impl P2pClient {
     /// Ok if sent successfully or stored for delivery
     /// Error if peer not found and persistence is disabled
     pub async fn send_persistent_message(&mut self, nickname: &str, message: String) -> Result<()> {
+        // Validate inputs
+        validation::validate_nickname(nickname)
+            .map_err(|e| anyhow::anyhow!("Invalid nickname: {}", e))?;
+        validation::validate_message(&message)
+            .map_err(|e| anyhow::anyhow!("Invalid message: {}", e))?;
         let peer_id = self.peer_manager.get_peer_id_by_nickname(nickname);
 
         match peer_id {
@@ -676,6 +684,11 @@ impl P2pClient {
     /// Ok if sent successfully or stored for delivery
     /// Error if peer not found
     pub fn send_direct_message(&mut self, nickname: &str, message: String) -> Result<()> {
+        // Validate inputs
+        validation::validate_nickname(nickname)
+            .map_err(|e| anyhow::anyhow!("Invalid nickname: {}", e))?;
+        validation::validate_message(&message)
+            .map_err(|e| anyhow::anyhow!("Invalid message: {}", e))?;
         let peer_id = self.peer_manager.get_peer_id_by_nickname(nickname);
 
         match peer_id {
@@ -845,6 +858,9 @@ impl P2pClient {
     /// Groups are identified by name. Multiple peers can join the same group
     /// to exchange messages in a many-to-many fashion.
     pub fn join_group(&mut self, group_name: &str) -> Result<()> {
+        // Validate input
+        validation::validate_group_name(group_name)
+            .map_err(|e| P2pError::InvalidInput(format!("Invalid group name: {}", e)))?;
         self.group_manager
             .join_group(&mut self.swarm, group_name, &mut self.event_sender)
     }
@@ -874,6 +890,11 @@ impl P2pClient {
     /// # Returns
     /// Ok on success
     pub fn send_group_message(&mut self, group_name: &str, message: String) -> Result<()> {
+        // Validate inputs
+        validation::validate_group_name(group_name)
+            .map_err(|e| P2pError::InvalidInput(format!("Invalid group name: {}", e)))?;
+        validation::validate_message(&message)
+            .map_err(|e| P2pError::InvalidInput(format!("Invalid message: {}", e)))?;
         self.group_manager.send_group_message(
             &mut self.swarm,
             group_name,
@@ -958,6 +979,13 @@ impl P2pClient {
     /// # Note
     /// Requires `set_chunk_reader` to be called first to provide file reading capability.
     pub async fn share_content_uri(&mut self, uri: &str, name: &str, size: u64) -> Result<String> {
+        // Validate inputs
+        validation::validate_uri(uri).map_err(|e| anyhow::anyhow!("Invalid URI: {}", e))?;
+        validation::validate_nickname(name)
+            .map_err(|e| anyhow::anyhow!("Invalid file name: {}", e))?;
+        validation::validate_file_size(size)
+            .map_err(|e| anyhow::anyhow!("Invalid file size: {}", e))?;
+
         self.file_manager.share_content_uri(uri, name, size).await
     }
 
@@ -1022,6 +1050,11 @@ impl P2pClient {
     /// # Events
     /// The client will emit `P2pEvent` updates for download progress.
     pub fn download_file(&mut self, nickname: &str, share_code: &str) -> Result<String> {
+        // Validate inputs
+        validation::validate_nickname(nickname)
+            .map_err(|e| P2pError::InvalidInput(format!("Invalid nickname: {}", e)))?;
+        validation::validate_share_code(share_code)
+            .map_err(|e| P2pError::InvalidInput(format!("Invalid share code: {}", e)))?;
         let peer_id = self
             .peer_manager
             .get_peer_id_by_nickname(nickname)

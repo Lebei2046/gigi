@@ -483,20 +483,14 @@ impl<'a> FileSharingEventHandler<'a> {
         use crate::behaviour::FileSharingRequest;
 
         // Find the pending download_id using the request_id
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| anyhow::anyhow!("System time error: {}", e))?;
         let pending_download_id = self
             .client
             .download_manager
             .get_download_by_request_id(&request_id)
-            .unwrap_or_else(|| {
-                format!(
-                    "pending_unknown_{}_{}",
-                    request_id,
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_nanos()
-                )
-            });
+            .unwrap_or_else(|| format!("pending_unknown_{}_{}", request_id, now.as_nanos()));
 
         // Clean up the request mapping
         self.client

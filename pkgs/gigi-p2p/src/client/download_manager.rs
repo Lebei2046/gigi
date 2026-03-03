@@ -68,14 +68,10 @@ impl DownloadManager {
 
         // Create unique download_id for this specific download
         // Use nanos for uniqueness when multiple downloads start at same time
-        let download_id = format!(
-            "pending_{}_{}",
-            share_code,
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_else(|_| std::time::Duration::from_secs(0));
+        let download_id = format!("pending_{}_{}", share_code, now.as_nanos());
 
         let active_download = ActiveDownload {
             download_id: download_id.clone(),
@@ -338,7 +334,7 @@ impl DownloadManager {
         // Fallback to timestamp
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_else(|_| std::time::Duration::from_secs(0))
             .as_secs();
         format!("{}_{}.{}", stem, timestamp, extension)
     }
@@ -364,7 +360,7 @@ impl DownloadManager {
             // Fallback: use info.id with timestamp for uniqueness
             let timestamp = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .map_err(|e| anyhow::anyhow!("System time error: {}", e))?
                 .as_nanos();
             self.output_directory
                 .join(format!("{}_{}.downloading", info.id, timestamp))

@@ -126,4 +126,10 @@ pub enum P2pError {
     /// `get_conversation_history`) without initializing the message store.
     #[error("Message persistence is not enabled")]
     PersistenceNotEnabled,
+
+    /// Invalid input
+    ///
+    /// Occurs when user input fails validation (e.g., malicious content, too long).
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
 }

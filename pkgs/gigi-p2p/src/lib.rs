@@ -148,6 +148,7 @@ pub mod behaviour;
 pub mod client;
 pub mod error;
 pub mod events;
+pub mod validation;
 
 /// Initialize tracing subscriber for library
 ///

@@ -306,7 +306,7 @@ pub fn create_gossipsub_config(
             MessageId::from(hasher.finalize().as_bytes())
         })
         .build()
-        .expect("Valid config");
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
     Ok(gossipsub_config)
 }

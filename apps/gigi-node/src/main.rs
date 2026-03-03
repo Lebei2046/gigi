@@ -318,13 +318,20 @@ async fn load_or_create_identity(path: Option<&str>) -> anyhow::Result<identity:
     if let Some(path) = path {
         if std::path::Path::new(path).exists() {
             info!("Loading identity from {}", path);
-            let bytes = tokio::fs::read(path).await?;
-            Ok(identity::Keypair::from_protobuf_encoding(&bytes)?)
+            let bytes = tokio::fs::read(path)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to read identity file: {}", e))?;
+            identity::Keypair::from_protobuf_encoding(&bytes)
+                .map_err(|e| anyhow::anyhow!("Failed to parse identity: {}", e))
         } else {
             info!("Generating new identity and saving to {}", path);
             let keypair = identity::Keypair::generate_ed25519();
-            let bytes = keypair.to_protobuf_encoding()?;
-            tokio::fs::write(path, bytes).await?;
+            let bytes = keypair
+                .to_protobuf_encoding()
+                .map_err(|e| anyhow::anyhow!("Failed to encode identity: {}", e))?;
+            tokio::fs::write(path, bytes)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to save identity file: {}", e))?;
             Ok(keypair)
         }
     } else {
