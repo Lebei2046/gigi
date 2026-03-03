@@ -272,7 +272,9 @@ pub(crate) async fn auth_login_with_p2p<R: tauri::Runtime>(
             enable_kademlia: config_guard.enable_kademlia,
             enable_relay: config_guard.enable_relay,
             kademlia_mode: libp2p::kad::Mode::Client,
-            listen_addrs: vec![format!("/ip4/0.0.0.0/tcp/{}", config_guard.port).parse().unwrap_or_else(|_| "/ip4/0.0.0.0/tcp/0".parse().unwrap())],
+            listen_addrs: vec![format!("/ip4/0.0.0.0/tcp/{}", config_guard.port)
+                .parse()
+                .unwrap_or_else(|_| "/ip4/0.0.0.0/tcp/0".parse().unwrap())],
         }
     };
 
@@ -350,7 +352,10 @@ pub(crate) async fn auth_login_with_p2p<R: tauri::Runtime>(
 
             // Bootstrap DHT if bootstrap nodes are configured
             if bootstrap_node_count > 0 {
-                info!("Bootstrapping Kademlia DHT with {} bootstrap nodes", bootstrap_node_count);
+                info!(
+                    "Bootstrapping Kademlia DHT with {} bootstrap nodes",
+                    bootstrap_node_count
+                );
                 if let Err(e) = client.bootstrap_dht() {
                     warn!("Failed to bootstrap DHT: {:?}", e);
                 }

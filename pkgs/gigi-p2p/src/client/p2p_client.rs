@@ -5,7 +5,9 @@ use futures::channel::mpsc;
 use gigi_dns::GigiDnsConfig;
 use libp2p::{
     identity::Keypair,
-    kad, multiaddr::Multiaddr, relay,
+    kad,
+    multiaddr::Multiaddr,
+    relay,
     request_response::{self, ProtocolSupport},
     swarm::SwarmEvent,
     PeerId, StreamProtocol,
@@ -193,7 +195,13 @@ impl P2pClient {
         output_directory: PathBuf,
         persistence_config: Option<PersistenceConfig>,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)> {
-        Self::new_with_full_config(keypair, nickname, output_directory, persistence_config, P2pConfig::default())
+        Self::new_with_full_config(
+            keypair,
+            nickname,
+            output_directory,
+            persistence_config,
+            P2pConfig::default(),
+        )
     }
 
     /// Create a new P2P client with full configuration
@@ -241,7 +249,8 @@ impl P2pClient {
         // Create Kademlia DHT behaviour
         let kademlia_config = kad::Config::default();
         let kademlia_store = kad::store::MemoryStore::new(local_peer_id);
-        let mut kademlia = kad::Behaviour::with_config(local_peer_id, kademlia_store, kademlia_config);
+        let mut kademlia =
+            kad::Behaviour::with_config(local_peer_id, kademlia_store, kademlia_config);
 
         // Add bootstrap nodes to Kademlia
         for bootstrap_addr in &p2p_config.bootstrap_nodes {

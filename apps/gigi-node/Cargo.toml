@@ -16,3 +16,7 @@ futures = { workspace = true }
 
 [dependencies.libp2p-identity]
 workspace = true
+
+[[example]]
+name = "group_messaging"
+path = "examples/group_messaging.rs"

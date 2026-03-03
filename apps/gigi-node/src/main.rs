@@ -104,7 +104,10 @@ impl GigiNode {
             swarm.add_external_address(addr);
         }
 
-        Ok(Self { swarm, mode: args.mode })
+        Ok(Self {
+            swarm,
+            mode: args.mode,
+        })
     }
 
     async fn run(&mut self, args: &Args) -> anyhow::Result<()> {
@@ -147,19 +150,22 @@ impl GigiNode {
         }
     }
 
-    async fn handle_event(
-        &mut self,
-        event: SwarmEvent<NodeBehaviourEvent>,
-    ) -> anyhow::Result<()> {
+    async fn handle_event(&mut self, event: SwarmEvent<NodeBehaviourEvent>) -> anyhow::Result<()> {
         match event {
             SwarmEvent::NewListenAddr { address, .. } => {
                 info!("Listening on: {}", address);
             }
-            SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+            SwarmEvent::ConnectionEstablished {
+                peer_id, endpoint, ..
+            } => {
                 info!(
                     "Connected to: {} (via {})",
                     peer_id,
-                    if endpoint.is_dialer() { "outbound" } else { "inbound" }
+                    if endpoint.is_dialer() {
+                        "outbound"
+                    } else {
+                        "inbound"
+                    }
                 );
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
@@ -187,21 +193,21 @@ impl GigiNode {
 
     async fn handle_kademlia_event(&mut self, event: kad::Event) -> anyhow::Result<()> {
         match event {
-            kad::Event::OutboundQueryProgressed { result, .. } => {
-                match result {
-                    kad::QueryResult::Bootstrap(Ok(result)) => {
-                        info!("DHT bootstrap complete, peer: {:?}", result.peer);
-                    }
-                    kad::QueryResult::Bootstrap(Err(e)) => {
-                        warn!("DHT bootstrap failed: {:?}", e);
-                    }
-                    kad::QueryResult::GetClosestPeers(Ok(peers)) => {
-                        info!("Found {} closest peers", peers.peers.len());
-                    }
-                    _ => {}
+            kad::Event::OutboundQueryProgressed { result, .. } => match result {
+                kad::QueryResult::Bootstrap(Ok(result)) => {
+                    info!("DHT bootstrap complete, peer: {:?}", result.peer);
                 }
-            }
-            kad::Event::RoutingUpdated { peer, is_new_peer, .. } => {
+                kad::QueryResult::Bootstrap(Err(e)) => {
+                    warn!("DHT bootstrap failed: {:?}", e);
+                }
+                kad::QueryResult::GetClosestPeers(Ok(peers)) => {
+                    info!("Found {} closest peers", peers.peers.len());
+                }
+                _ => {}
+            },
+            kad::Event::RoutingUpdated {
+                peer, is_new_peer, ..
+            } => {
                 if is_new_peer {
                     info!("New peer added to routing table: {}", peer);
                 }
