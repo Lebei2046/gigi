@@ -19,8 +19,9 @@ use std::time::Duration;
 use tracing::{error, info, instrument, warn};
 
 use super::{
-    download_manager::DownloadManager, event_handler::SwarmEventHandler,
-    file_sharing::FileSharingManager, group_manager::GroupManager, peer_manager::PeerManager,
+    connection_recovery::ConnectionRecovery, download_manager::DownloadManager,
+    event_handler::SwarmEventHandler, file_sharing::FileSharingManager,
+    group_manager::GroupManager, peer_manager::PeerManager,
 };
 use crate::behaviour::{
     create_gossipsub_behaviour, create_gossipsub_config, DirectMessage, FileSharingRequest,
@@ -116,6 +117,11 @@ pub struct P2pClient {
     /// Manages message synchronization when peers come back online
     #[allow(dead_code)]
     pub(super) sync_manager: Option<SyncManager>,
+
+    // Connection recovery
+    /// Manages automatic reconnection to disconnected peers with exponential backoff
+    #[allow(dead_code)]
+    pub(super) connection_recovery: ConnectionRecovery,
 }
 
 impl P2pClient {
@@ -374,6 +380,7 @@ impl P2pClient {
             event_sender,
             message_store,
             sync_manager,
+            connection_recovery: ConnectionRecovery::new(10), // Max 10 reconnection attempts
         };
 
         // Load existing shared files from store if available

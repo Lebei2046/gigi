@@ -2503,6 +2503,7 @@ dependencies = [
  "gigi-store",
  "indicatif",
  "libp2p",
+ "lru",
  "mime_guess",
  "sea-orm",
  "serde",

@@ -6,6 +6,7 @@ import logsReducer from './logsSlice'
 import chatReducer from './chatSlice'
 import chatRoomReducer from './chatRoomSlice'
 import fileReducer from './fileSlice'
+import persistenceReducer from './persistenceSlice'
 
 export const store = configureStore({
   reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
     chat: chatReducer,
     chatRoom: chatRoomReducer,
     files: fileReducer,
+    persistence: persistenceReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({

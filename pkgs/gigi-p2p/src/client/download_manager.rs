@@ -5,7 +5,7 @@ use sha2::Digest;
 use std::collections::HashMap;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::events::{ActiveDownload, FileInfo};
 
@@ -200,6 +200,32 @@ impl DownloadManager {
     pub fn cleanup_downloads(&mut self) {
         self.active_downloads
             .retain(|_, download| !download.completed && !download.failed);
+    }
+
+    /// Cleanup old downloads based on age
+    /// Removes completed downloads older than max_age
+    pub fn cleanup_old_downloads(&mut self, max_age: Duration) {
+        let now = Instant::now();
+        let downloads_to_remove: Vec<String> = self
+            .active_downloads
+            .iter()
+            .filter(|(_, download)| {
+                download.completed
+                    || download.failed && now.duration_since(download.started_at) > max_age
+            })
+            .map(|(download_id, _)| download_id.clone())
+            .collect();
+
+        for download_id in downloads_to_remove {
+            tracing::debug!("Removing old download: {}", download_id);
+            self.active_downloads.remove(&download_id);
+            self.download_share_codes.remove(&download_id);
+            self.downloading_files.remove(&download_id);
+        }
+
+        // Clean up stale request_id mappings
+        self.request_id_to_download
+            .retain(|_, download_id| self.active_downloads.contains_key(download_id));
     }
 
     /// Get downloads from a specific peer

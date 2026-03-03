@@ -15,8 +15,10 @@
 
 use anyhow::Result;
 use libp2p::{multiaddr::Multiaddr, PeerId, Swarm};
+use lru::LruCache;
 use std::collections::HashMap;
-use std::time::Instant;
+use std::num::NonZeroUsize;
+use std::time::{Duration, Instant};
 
 use crate::behaviour::UnifiedBehaviour;
 use crate::error::P2pError;
@@ -26,19 +28,25 @@ use crate::events::{P2pEvent, PeerInfo};
 ///
 /// Maintains peer state including discovery, connection status, and metadata.
 /// Supports bidirectional lookups: peer ID ↔ nickname.
+/// Uses LRU cache for unconnected peers to prevent memory leaks.
 pub struct PeerManager {
-    /// Map of peer ID to peer info
+    /// Map of peer ID to peer info (for connected peers only)
     peers: HashMap<PeerId, PeerInfo>,
-    /// Map of nickname to peer ID for reverse lookup
+    /// Map of nickname to peer ID for reverse lookup (for connected peers only)
     nickname_to_peer: HashMap<String, PeerId>,
+    /// LRU cache for unconnected peers (limited to prevent memory leaks)
+    unconnected_peers: LruCache<PeerId, PeerInfo>,
 }
 
 impl PeerManager {
     /// Create a new peer manager with empty peer tables
     pub fn new() -> Self {
+        // Limit unconnected peers to 1000 to prevent memory leaks
+        let capacity = NonZeroUsize::new(1000).unwrap();
         Self {
             peers: HashMap::new(),
             nickname_to_peer: HashMap::new(),
+            unconnected_peers: LruCache::new(capacity),
         }
     }
 
@@ -46,7 +54,7 @@ impl PeerManager {
     ///
     /// When a peer is discovered via mDNS:
     /// 1. Check if peer is already tracked
-    /// 2. If new, add to both maps (peer_id ↔ nickname)
+    /// 2. If new, add to LRU cache (unconnected peers) or main map (connected peers)
     /// 3. Emit PeerDiscovered event
     /// 4. Attempt to dial peer for connection
     ///
@@ -65,33 +73,35 @@ impl PeerManager {
         nickname: &str,
         event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
     ) -> Result<()> {
+        // Check if peer is already in connected peers
         if !self.peers.contains_key(&peer_id) {
-            // Nickname is now provided by gigi-dns, no need to request it
-            let nickname = nickname.to_string();
+            // Check if peer is already in unconnected cache
+            if !self.unconnected_peers.contains(&peer_id) {
+                let nickname = nickname.to_string();
 
-            self.nickname_to_peer.insert(nickname.clone(), peer_id);
+                let _ = event_sender.unbounded_send(P2pEvent::PeerDiscovered {
+                    peer_id,
+                    nickname: nickname.clone(),
+                    address: addr.clone(),
+                });
 
-            let _ = event_sender.unbounded_send(P2pEvent::PeerDiscovered {
-                peer_id,
-                nickname: nickname.clone(),
-                address: addr.clone(),
-            });
+                let peer_info = PeerInfo {
+                    peer_id,
+                    nickname,
+                    addresses: vec![addr.clone()],
+                    last_seen: Instant::now(),
+                    connected: false,
+                };
 
-            let peer_info = PeerInfo {
-                peer_id,
-                nickname,
-                addresses: vec![addr.clone()],
-                last_seen: Instant::now(),
-                connected: false,
-            };
+                // Store in LRU cache for unconnected peers
+                self.unconnected_peers.put(peer_id, peer_info);
 
-            self.peers.insert(peer_id, peer_info);
-
-            // Attempt to dial the discovered peer
-            if let Err(e) = swarm.dial(addr.clone()) {
-                tracing::warn!("Failed to dial discovered peer {}: {}", peer_id, e);
-            } else {
-                tracing::info!("Dialing discovered peer: {}", peer_id);
+                // Attempt to dial the discovered peer
+                if let Err(e) = swarm.dial(addr.clone()) {
+                    tracing::warn!("Failed to dial discovered peer {}: {}", peer_id, e);
+                } else {
+                    tracing::info!("Dialing discovered peer: {}", peer_id);
+                }
             }
         }
         Ok(())
@@ -201,7 +211,17 @@ impl PeerManager {
         peer_id: PeerId,
         event_sender: &mut futures::channel::mpsc::UnboundedSender<P2pEvent>,
     ) {
-        if let Some(peer) = self.peers.get_mut(&peer_id) {
+        // Check if peer is in unconnected cache and move to connected peers
+        if let Some(mut peer) = self.unconnected_peers.pop(&peer_id) {
+            peer.connected = true;
+            peer.last_seen = Instant::now();
+
+            let nickname = peer.nickname.clone();
+            self.nickname_to_peer.insert(nickname.clone(), peer_id);
+            self.peers.insert(peer_id, peer);
+
+            let _ = event_sender.unbounded_send(P2pEvent::Connected { peer_id, nickname });
+        } else if let Some(peer) = self.peers.get_mut(&peer_id) {
             peer.connected = true;
             peer.last_seen = Instant::now();
 
@@ -236,6 +256,33 @@ impl PeerManager {
     /// Get connected peers count
     pub fn connected_peers_count(&self) -> usize {
         self.peers.values().filter(|p| p.connected).count()
+    }
+
+    /// Cleanup old unconnected peers that haven't been seen recently
+    /// This is called periodically to free up memory in the LRU cache
+    pub fn cleanup_old_peers(&mut self, max_age: Duration) {
+        let now = Instant::now();
+        let mut peers_to_remove = Vec::new();
+
+        // Collect peers older than max_age
+        for (&peer_id, peer_info) in self.unconnected_peers.iter() {
+            if now.duration_since(peer_info.last_seen) > max_age {
+                peers_to_remove.push(peer_id);
+            }
+        }
+
+        // Remove old peers
+        for peer_id in peers_to_remove {
+            if let Some(peer) = self.unconnected_peers.pop(&peer_id) {
+                tracing::debug!("Removing old unconnected peer: {}", peer.nickname);
+            }
+        }
+
+        // Clean up nickname_to_peer for disconnected peers
+        let connected_peer_ids: std::collections::HashSet<PeerId> =
+            self.peers.keys().copied().collect();
+        self.nickname_to_peer
+            .retain(|_, peer_id| connected_peer_ids.contains(peer_id));
     }
 
     /// Get all connected peers
