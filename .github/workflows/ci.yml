@@ -1,0 +1,310 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Code quality and formatting checks
+  formatting:
+    name: Check Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+  # Linting with Clippy
+  lint:
+    name: Lint with Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Run Clippy (all targets)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Clippy (no default features)
+        run: cargo clippy --no-default-features -- -D warnings
+
+  # Unit tests for all packages
+  test-unit:
+    name: Unit Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run unit tests (gigi-p2p)
+        run: cargo test -p gigi-p2p --lib --no-fail-fast
+
+      - name: Run unit tests (gigi-auth)
+        run: cargo test -p gigi-auth --lib --no-fail-fast
+
+      - name: Run unit tests (gigi-dns)
+        run: cargo test -p gigi-dns --lib --no-fail-fast
+
+      - name: Run unit tests (gigi-file-sharing)
+        run: cargo test -p gigi-file-sharing --lib --no-fail-fast
+
+      - name: Run unit tests (gigi-store)
+        run: cargo test -p gigi-store --lib --no-fail-fast
+
+      - name: Run unit tests (tauri-plugin-gigi)
+        run: cargo test -p tauri-plugin-gigi --lib --no-fail-fast
+
+  # Integration tests
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-integ-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-integ-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run integration tests (gigi-p2p)
+        run: cargo test -p gigi-p2p --test '*_test' --no-fail-fast -- --test-threads=2
+
+      - name: Run integration tests (gigi-auth)
+        run: cargo test -p gigi-auth --test '*_test' --no-fail-fast -- --test-threads=2
+
+      - name: Run integration tests (gigi-dns)
+        run: cargo test -p gigi-dns --test '*_test' --no-fail-fast -- --test-threads=2
+
+      - name: Run integration tests (gigi-file-sharing)
+        run: cargo test -p gigi-file-sharing --test '*_test' --no-fail-fast -- --test-threads=2
+
+      - name: Run integration tests (gigi-store)
+        run: cargo test -p gigi-store --test '*_test' --no-fail-fast -- --test-threads=2
+
+  # Comprehensive integration tests
+  test-comprehensive:
+    name: Comprehensive Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-comprehensive-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run comprehensive integration tests
+        run: cargo test -p gigi-p2p --test comprehensive_integration_test --no-fail-fast -- --test-threads=1
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run security audit
+        run: cargo audit
+
+  # Test coverage
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Generate coverage report
+        run: |
+          cargo tarpaulin --all --out xml --output-dir coverage \
+            --exclude-files '*/tests/*' \
+            --exclude-files '*/examples/*'
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/cobertura.xml
+          fail_ci_if_error: false
+          verbose: true
+
+  # Build verification
+  build:
+    name: Build All Targets
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build all packages (release)
+        run: cargo build --all --release --target ${{ matrix.target }}
+
+      - name: Check that examples compile
+        run: cargo build --examples --target ${{ matrix.target }}
+
+  # Documentation generation
+  docs:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Generate documentation
+        run: cargo doc --all --no-deps
+
+      - name: Check documentation links
+        run: cargo doc --all --no-deps --document-private-items
+
+  # Release build (only on main branch)
+  release-build:
+    name: Release Build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [formatting, lint, test-unit, test-integration, test-comprehensive, security, build]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build release binaries
+        run: cargo build --all --release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-binaries
+          path: target/release/gigi-*
+
+  # Summary job
+  summary:
+    name: CI/CD Summary
+    runs-on: ubuntu-latest
+    needs: [formatting, lint, test-unit, test-integration, test-comprehensive, security, build, docs]
+    if: always()
+
+    steps:
+      - name: Check job results
+        run: |
+          echo "CI/CD Pipeline Summary"
+          echo "======================"
+          echo "Formatting: ${{ needs.formatting.result }}"
+          echo "Linting: ${{ needs.lint.result }}"
+          echo "Unit Tests: ${{ needs.test-unit.result }}"
+          echo "Integration Tests: ${{ needs.test-integration.result }}"
+          echo "Comprehensive Tests: ${{ needs.test-comprehensive.result }}"
+          echo "Security Audit: ${{ needs.security.result }}"
+          echo "Build: ${{ needs.build.result }}"
+          echo "Docs: ${{ needs.docs.result }}"

@@ -281,6 +281,9 @@ mod tests {
             download_folder: "/path".to_string(),
             max_concurrent_downloads: 5,
             port: 12345,
+            bootstrap_nodes: vec![],
+            enable_kademlia: true,
+            enable_relay: true,
         };
 
         let json = serde_json::to_string(&config).unwrap();
@@ -376,6 +379,9 @@ mod tests {
             download_folder: String::new(),
             max_concurrent_downloads: 0,
             port: 0,
+            bootstrap_nodes: vec![],
+            enable_kademlia: false,
+            enable_relay: false,
         };
         assert_eq!(config.nickname, "");
         assert_eq!(config.max_concurrent_downloads, 0);

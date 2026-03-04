@@ -204,6 +204,7 @@ impl DownloadManager {
 
     /// Cleanup old downloads based on age
     /// Removes completed downloads older than max_age
+    #[allow(dead_code)] // Available for periodic cleanup
     pub fn cleanup_old_downloads(&mut self, max_age: Duration) {
         let now = Instant::now();
         let downloads_to_remove: Vec<String> = self

@@ -8,7 +8,7 @@
 //! - Error handling and edge cases
 
 use gigi_auth::AuthManager;
-use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbErr, Statement};
+use sea_orm::{Database, DatabaseConnection, DbErr};
 
 /// Test mnemonic for all tests
 const TEST_MNEMONIC: &str =

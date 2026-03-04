@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 /// Peer reconnection state
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Fields used internally
 struct ReconnectionState {
     /// The peer's address
     address: Multiaddr,
@@ -31,6 +32,7 @@ impl ReconnectionState {
     }
 
     /// Calculate next backoff with exponential increase (max 60 seconds)
+    #[allow(dead_code)] // Used internally
     fn next_backoff(&mut self) {
         self.backoff = (self.backoff * 2).min(Duration::from_secs(60));
         self.attempts += 1;
@@ -38,12 +40,14 @@ impl ReconnectionState {
     }
 
     /// Reset backoff after successful connection
+    #[allow(dead_code)] // Used internally
     fn reset(&mut self) {
         self.backoff = Duration::from_secs(1);
         self.attempts = 0;
     }
 
     /// Check if reconnection attempt should be made now
+    #[allow(dead_code)] // Used internally
     fn should_attempt_now(&self) -> bool {
         Instant::now() >= self.next_attempt
     }
@@ -56,6 +60,7 @@ pub struct ConnectionRecovery {
     /// Map of peer ID to reconnection state
     reconnecting_peers: HashMap<PeerId, ReconnectionState>,
     /// Maximum number of reconnection attempts before giving up
+    #[allow(dead_code)] // Configurable, tracked for limits
     max_attempts: u32,
     /// Enable/disable auto-reconnection
     enabled: bool,
@@ -76,6 +81,7 @@ impl ConnectionRecovery {
     }
 
     /// Enable or disable auto-reconnection
+    #[allow(dead_code)] // Available for future use
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
@@ -117,6 +123,7 @@ impl ConnectionRecovery {
     /// # Returns
     ///
     /// Number of reconnection attempts made
+    #[allow(dead_code)] // Will be integrated into P2pClient event loop
     pub fn process_reconnections(
         &mut self,
         swarm: &mut Swarm<crate::behaviour::UnifiedBehaviour>,
@@ -176,11 +183,13 @@ impl ConnectionRecovery {
     }
 
     /// Get number of peers currently being tracked for reconnection
+    #[allow(dead_code)] // Available for monitoring
     pub fn reconnecting_count(&self) -> usize {
         self.reconnecting_peers.len()
     }
 
     /// Clear all reconnection tracking
+    #[allow(dead_code)] // Available for cleanup
     pub fn clear(&mut self) {
         self.reconnecting_peers.clear();
     }

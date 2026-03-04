@@ -260,6 +260,7 @@ impl PeerManager {
 
     /// Cleanup old unconnected peers that haven't been seen recently
     /// This is called periodically to free up memory in the LRU cache
+    #[allow(dead_code)] // Available for periodic cleanup
     pub fn cleanup_old_peers(&mut self, max_age: Duration) {
         let now = Instant::now();
         let mut peers_to_remove = Vec::new();
