@@ -1,0 +1,97 @@
+export enum P2pEventType {
+  PEER_DISCOVERED = 'peer-discovered',
+  PEER_EXPIRED = 'peer-expired',
+  NICKNAME_UPDATED = 'nickname-updated',
+  DIRECT_MESSAGE = 'direct-message',
+  DIRECT_FILE_SHARE_MESSAGE = 'direct-file-share-message',
+  DIRECT_GROUP_SHARE_MESSAGE = 'direct-group-share-message',
+  GROUP_MESSAGE = 'group-message',
+  GROUP_FILE_SHARE_MESSAGE = 'group-file-share-message',
+  GROUP_JOINED = 'group-joined',
+  GROUP_LEFT = 'group-left',
+  FILE_SHARE_REQUEST = 'file-share-request',
+  FILE_SHARED = 'file-shared',
+  FILE_REVOKED = 'file-revoked',
+  FILE_INFO_RECEIVED = 'file-info-received',
+  CHUNK_RECEIVED = 'chunk-received',
+  FILE_LIST_RECEIVED = 'file-list-received',
+  FILE_DOWNLOAD_STARTED = 'file-download-started',
+  FILE_DOWNLOAD_PROGRESS = 'file-download-progress',
+  FILE_DOWNLOAD_COMPLETED = 'file-download-completed',
+  FILE_DOWNLOAD_FAILED = 'file-download-failed',
+  LISTENING_ON = 'listening-on',
+  CONNECTED = 'connected',
+  DISCONNECTED = 'disconnected',
+  ERROR = 'error',
+  PENDING_MESSAGES_AVAILABLE = 'pending-messages-available',
+}
+
+export type P2pEvent =
+  | { type: 'peer-discovered'; peerId: string; nickname: string; address: string }
+  | { type: 'peer-expired'; peerId: string; nickname: string }
+  | { type: 'nickname-updated'; peerId: string; nickname: string }
+  | { type: 'direct-message'; from: string; fromNickname: string; message: string }
+  | { type: 'direct-file-share-message'; from: string; fromNickname: string; shareCode: string; filename: string; fileSize: number; fileType: string }
+  | { type: 'direct-group-share-message'; from: string; fromNickname: string; groupId: string; groupName: string }
+  | { type: 'group-message'; from: string; fromNickname: string; group: string; message: string }
+  | { type: 'group-file-share-message'; from: string; fromNickname: string; group: string; shareCode: string; filename: string; fileSize: number; fileType: string; message: string }
+  | { type: 'group-joined'; group: string }
+  | { type: 'group-left'; group: string }
+  | { type: 'file-share-request'; from: string; fromNickname: string; shareCode: string; filename: string; size: number }
+  | { type: 'file-shared'; fileId: string; info: any }
+  | { type: 'file-revoked'; fileId: string }
+  | { type: 'file-info-received'; from: string; info: any }
+  | { type: 'chunk-received'; from: string; fileId: string; chunkIndex: number; data: Uint8Array; hash: string }
+  | { type: 'file-list-received'; from: string; files: any[] }
+  | { type: 'file-download-started'; from: string; fromNickname: string; filename: string; downloadId: string; shareCode: string }
+  | { type: 'file-download-progress'; downloadId: string; filename: string; shareCode: string; fromPeerId: string; fromNickname: string; downloadedChunks: number; totalChunks: number }
+  | { type: 'file-download-completed'; downloadId: string; filename: string; shareCode: string; fromPeerId: string; fromNickname: string; path: string }
+  | { type: 'file-download-failed'; downloadId: string; filename: string; shareCode: string; fromPeerId: string; fromNickname: string; error: string }
+  | { type: 'listening-on'; address: string }
+  | { type: 'connected'; peerId: string; nickname: string }
+  | { type: 'disconnected'; peerId: string; nickname: string }
+  | { type: 'error'; error: string }
+  | { type: 'pending-messages-available'; peer: string; nickname: string };
+
+type Listener = (event: P2pEvent) => void | Promise<void>;
+const listeners: Map<string, Set<Listener>> = new Map();
+
+export const eventEmitter = {
+  on(eventType: string, listener: Listener): () => void {
+    if (!listeners.has(eventType)) {
+      listeners.set(eventType, new Set());
+    }
+    listeners.get(eventType)!.add(listener);
+    return () => listeners.get(eventType)?.delete(listener);
+  },
+
+  off(eventType: string, listener: Listener): void {
+    listeners.get(eventType)?.delete(listener);
+  },
+
+  async emit(event: P2pEvent): Promise<void> {
+    const eventType = event.type;
+    const listenersForEvent = listeners.get(eventType);
+    if (listenersForEvent) {
+      await Promise.all(
+        Array.from(listenersForEvent).map(listener =>
+          Promise.resolve(listener(event)).catch(err =>
+            console.error(`Error in event listener for ${eventType}:`, err)
+          )
+        )
+      );
+    }
+  },
+
+  listenerCount(eventType: string): number {
+    return listeners.get(eventType)?.size ?? 0;
+  },
+
+  removeAllListeners(eventType?: string): void {
+    if (eventType) {
+      listeners.delete(eventType);
+    } else {
+      listeners.clear();
+    }
+  },
+};

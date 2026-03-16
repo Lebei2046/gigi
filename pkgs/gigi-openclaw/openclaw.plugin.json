@@ -1,0 +1,11 @@
+{
+  "type": "channel",
+  "channel": {
+    "id": "gigi",
+    "label": "Gigi P2P",
+    "selectionLabel": "Gigi P2P Network",
+    "blurb": "Connect to Gigi peers via P2P network",
+    "aliases": ["p2p"],
+    "order": 100
+  }
+}
