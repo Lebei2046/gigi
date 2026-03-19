@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Rust
+target/
+
+# Node.js
+node_modules/
+*.log
+
+# Frontend builds
+apps/gigi-mobile/dist/
+apps/gigi-mobile/node_modules/
+
+# IDE
+.marscode/
+.vscode/
+.opencode/
+
+# Temp files
+*.tmp
+*.lock
+
+# Exceptions - include Cargo.lock for Docker build
+!Cargo.lock

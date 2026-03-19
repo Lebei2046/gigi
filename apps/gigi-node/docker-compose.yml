@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  bootstrap:
+    build:
+      context: ../..
+      dockerfile: apps/gigi-node/Dockerfile
+    image: gigi-node:latest
+    container_name: gigi-bootstrap
+    command: >
+      --mode bootstrap
+      --listen /ip4/0.0.0.0/tcp/4001
+    environment:
+      - RUST_LOG=info
+    ports:
+      - "4001:4001"
+    networks:
+      - public-net
+
+  relay:
+    build:
+      context: ../..
+      dockerfile: apps/gigi-node/Dockerfile
+    image: gigi-node:latest
+    container_name: gigi-relay
+    command: >
+      --mode relay
+      --listen /ip4/0.0.0.0/tcp/4002
+      --bootstrap /ip4/host.docker.internal/tcp/4001/p2p/12D3KooWAvTGtDoWUDc4bNSrcf4eGdG6cmGJU5v7BDiCud5P1xKL
+    environment:
+      - RUST_LOG=info
+    ports:
+      - "4002:4002"
+    networks:
+      - public-net
+    depends_on:
+      - bootstrap
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  alice:
+    image: gigi-node:latest
+    container_name: gigi-alice
+    entrypoint: ["/usr/local/bin/docker_group_client"]
+    command: ["sender", "/ip4/host.docker.internal/tcp/4001/p2p/12D3KooWHNcnMbrJtqkx8EPYRRt9VBMrxn3H1wrYZ7qmZFqFLeFG"]
+    environment:
+      - RUST_LOG=info
+    networks:
+      - nat-net-1
+    depends_on:
+      - bootstrap
+      - relay
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  bob:
+    image: gigi-node:latest
+    container_name: gigi-bob
+    entrypoint: ["/usr/local/bin/docker_group_client"]
+    command: ["receiver", "/ip4/host.docker.internal/tcp/4001/p2p/12D3KooWHNcnMbrJtqkx8EPYRRt9VBMrxn3H1wrYZ7qmZFqFLeFG"]
+    environment:
+      - RUST_LOG=info
+    networks:
+      - nat-net-2
+    depends_on:
+      - bootstrap
+      - relay
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  charlie:
+    image: gigi-node:latest
+    container_name: gigi-charlie
+    entrypoint: ["/usr/local/bin/docker_group_client"]
+    command: ["receiver", "/ip4/host.docker.internal/tcp/4001/p2p/12D3KooWHNcnMbrJtqkx8EPYRRt9VBMrxn3H1wrYZ7qmZFqFLeFG"]
+    environment:
+      - RUST_LOG=info
+    networks:
+      - nat-net-3
+    depends_on:
+      - bootstrap
+      - relay
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  public-net:
+    driver: bridge
+  nat-net-1:
+    driver: bridge
+  nat-net-2:
+    driver: bridge
+  nat-net-3:
+    driver: bridge

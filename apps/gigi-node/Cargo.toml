@@ -20,3 +20,11 @@ workspace = true
 [[example]]
 name = "group_messaging"
 path = "examples/group_messaging.rs"
+
+[[bin]]
+name = "gigi-node"
+path = "src/main.rs"
+
+[[example]]
+name = "docker_group_client"
+path = "examples/docker_group_client.rs"
