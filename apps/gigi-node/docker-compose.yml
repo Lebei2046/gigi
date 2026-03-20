@@ -10,12 +10,16 @@ services:
     command: >
       --mode bootstrap
       --listen /ip4/0.0.0.0/tcp/4001
+      --identity /data/bootstrap.key
     environment:
       - RUST_LOG=info
     ports:
       - "4001:4001"
+    volumes:
+      - bootstrap-data:/data
     networks:
-      - public-net
+      public-net:
+        ipv4_address: 172.18.0.2
 
   relay:
     build:
@@ -26,69 +30,97 @@ services:
     command: >
       --mode relay
       --listen /ip4/0.0.0.0/tcp/4002
-      --bootstrap /ip4/host.docker.internal/tcp/4001/p2p/12D3KooWAvTGtDoWUDc4bNSrcf4eGdG6cmGJU5v7BDiCud5P1xKL
+      --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
+      --identity /data/relay.key
     environment:
       - RUST_LOG=info
+      - BOOTSTRAP_PEER_ID=${BOOTSTRAP_PEER_ID}
+      - RELAY_PEER_ID=${RELAY_PEER_ID}
     ports:
       - "4002:4002"
+    volumes:
+      - relay-data:/data
     networks:
       - public-net
     depends_on:
       - bootstrap
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   alice:
     image: gigi-node:latest
     container_name: gigi-alice
     entrypoint: ["/usr/local/bin/docker_group_client"]
-    command: ["sender", "/ip4/host.docker.internal/tcp/4001/p2p/12D3KooWHNcnMbrJtqkx8EPYRRt9VBMrxn3H1wrYZ7qmZFqFLeFG"]
+    command: >
+      --username alice
+      --port 0
+      --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
+      --relay /dns4/gigi-relay/tcp/4002/p2p/${RELAY_PEER_ID}
     environment:
       - RUST_LOG=info
     networks:
       - nat-net-1
+      - public-net
     depends_on:
       - bootstrap
       - relay
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   bob:
     image: gigi-node:latest
     container_name: gigi-bob
     entrypoint: ["/usr/local/bin/docker_group_client"]
-    command: ["receiver", "/ip4/host.docker.internal/tcp/4001/p2p/12D3KooWHNcnMbrJtqkx8EPYRRt9VBMrxn3H1wrYZ7qmZFqFLeFG"]
+    command: >
+      --username bob
+      --port 0
+      --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
+      --relay /dns4/gigi-relay/tcp/4002/p2p/${RELAY_PEER_ID}
     environment:
       - RUST_LOG=info
     networks:
       - nat-net-2
+      - public-net
     depends_on:
       - bootstrap
       - relay
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   charlie:
     image: gigi-node:latest
     container_name: gigi-charlie
     entrypoint: ["/usr/local/bin/docker_group_client"]
-    command: ["receiver", "/ip4/host.docker.internal/tcp/4001/p2p/12D3KooWHNcnMbrJtqkx8EPYRRt9VBMrxn3H1wrYZ7qmZFqFLeFG"]
+    command: >
+      --username charlie
+      --port 0
+      --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
+      --relay /dns4/gigi-relay/tcp/4002/p2p/${RELAY_PEER_ID}
     environment:
       - RUST_LOG=info
     networks:
       - nat-net-3
+      - public-net
     depends_on:
       - bootstrap
       - relay
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
 networks:
   public-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
   nat-net-1:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
   nat-net-2:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
   nat-net-3:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+volumes:
+  bootstrap-data:
+  relay-data:

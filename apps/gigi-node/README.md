@@ -225,11 +225,29 @@ For testing real NAT traversal with distributed nodes:
 #### 1. Build Docker Image
 
 ```bash
+# From project root
+docker build -t gigi-node:latest -f apps/gigi-node/Dockerfile .
+
+# Or from within the gigi-node directory
 cd apps/gigi-node
 docker build -t gigi-node:latest .
 ```
 
-#### 2. Get Bootstrap Peer ID
+#### 2. Clean Up Old Containers and Volumes
+
+If you encounter errors like `KeyError: 'ContainerConfig'`, clean up old containers and volumes:
+
+```bash
+cd apps/gigi-node
+docker-compose down -v --remove-orphans
+```
+
+This will:
+- Remove all containers
+- Remove all volumes
+- Remove orphaned containers
+
+#### 3. Start Network
 
 First, start just the bootstrap node to get its Peer ID:
 
@@ -259,13 +277,13 @@ To stop the network:
 ./stop-network.sh
 ```
 
-#### 3. Start Network
+#### 4. Start Network
 
 ```bash
 docker compose up -d
 ```
 
-#### 4. View Logs
+#### 5. View Logs
 
 ```bash
 docker compose logs -f
@@ -296,26 +314,25 @@ docker compose logs -f
 The `docker_group_client` example can be run manually:
 
 ```bash
-# As sender (publishes messages)
+# Run as alice
 docker run -it --rm gigi-node:latest \
-  /usr/local/bin/docker_group_client sender \
-  /ip4/host.docker.internal/tcp/4001/p2p/12D3KooW...
-
-# As receiver (listens for messages)
-docker run -it --rm gigi-node:latest \
-  /usr/local/bin/docker_group_client receiver \
-  /ip4/host.docker.internal/tcp/4001/p2p/12D3KooW...
+  /usr/local/bin/docker_group_client \
+  --username alice \
+  --port 0 \
+  --bootstrap /ip4/host.docker.internal/tcp/4001/p2p/12D3KooW... \
+  --relay /ip4/host.docker.internal/tcp/4002/p2p/12D3KooW...
 ```
 
-**Sender Behavior**:
-- Publishes 3 messages with 3-second intervals
-- Listens for 60 seconds after publishing
-- Messages: "alice: hello group!", "alice: anyone here?", "alice: this is a test from Docker!"
+**CLI Arguments**:
+- `--username` (required): Your display name in the chat
+- `--port` (default: 0): Port to listen on (0 for auto-assign)
+- `--bootstrap`: Bootstrap node address with peer ID
+- `--relay`: Relay node address with peer ID
 
-**Receiver Behavior**:
-- Subscribes to the GossipSub topic
-- Continuously listens for incoming messages
-- Prints received messages with count
+**Features**:
+- Interactive chat - type messages and press Enter to send
+- Receives messages from other participants via GossipSub
+- Both send and receive capability
 
 ## Troubleshooting
 
@@ -359,10 +376,13 @@ In-process test demonstrating:
 ### docker_group_client.rs
 
 Standalone client for Docker deployment:
-- Lightweight Kademlia + GossipSub implementation
-- Sender/receiver modes
-- Bootstrap connection support
-- Message statistics tracking
+- Uses clap for CLI argument parsing
+- `--username`: Display name in the chat
+- `--port`: Listen port (0 for auto-assign)
+- `--bootstrap`: Bootstrap node address with peer ID
+- `--relay`: Relay node address with peer ID
+- Interactive stdin/stdout chat interface
+- Both send and receive capability via GossipSub
 
 ## License
 

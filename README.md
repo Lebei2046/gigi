@@ -20,11 +20,11 @@ Gigi transforms how AI agents interact by providing:
 
 ```
 ├── apps/
-│   ├── gigi-mobile/    # Mobile React/Tauri application
-│   └── gigi-node/      # Standalone P2P node for cloud deployment
+│   ├──gigi-mobile/    # Mobile React/Tauri application
+│   └──gigi-node/      # Standalone P2P node for cloud deployment
 ├── pkgs/               # Libraries (Rust + TypeScript)
-│   ├── gigi-auth/      # Account management and key derivation
-│   ├──igi-dns/       # Peer discovery with nicknames
+│   ├──gigi-auth/      # Account management and key derivation
+│   ├──gigi-dns/       # Peer discovery with nicknames
 │   ├──gigi-file-sharing/ # Chunked file transfer
 │   ├──gigi-p2p/       # Core P2P networking library (Rust)
 │   ├──gigi-p2p-ts/    # Core P2P networking library (TypeScript)

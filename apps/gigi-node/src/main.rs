@@ -126,17 +126,21 @@ impl GigiNode {
 
         if !args.bootstrap.is_empty() {
             info!("Starting DHT bootstrap...");
-            self.swarm.behaviour_mut().kademlia.bootstrap()?;
+            match self.swarm.behaviour_mut().kademlia.bootstrap() {
+                Ok(_) => info!("DHT bootstrap initiated"),
+                Err(e) => {
+                    warn!("DHT bootstrap failed (will retry later): {:?}", e);
+                    // Don't crash - the node will still work and can bootstrap later
+                }
+            }
         }
 
-        // Subscribe to topics if relay/full mode
-        if matches!(self.mode, NodeMode::Relay | NodeMode::Full) {
-            for topic_str in &args.topics {
-                let topic = gossipsub::IdentTopic::new(topic_str);
-                match self.swarm.behaviour_mut().gossipsub.subscribe(&topic) {
-                    Ok(_) => info!("Subscribed to topic: {}", topic_str),
-                    Err(e) => warn!("Failed to subscribe to topic {}: {:?}", topic_str, e),
-                }
+        // Subscribe to topics for all modes (bootstrap, relay, full)
+        for topic_str in &args.topics {
+            let topic = gossipsub::IdentTopic::new(topic_str);
+            match self.swarm.behaviour_mut().gossipsub.subscribe(&topic) {
+                Ok(_) => info!("Subscribed to topic: {}", topic_str),
+                Err(e) => warn!("Failed to subscribe to topic {}: {:?}", topic_str, e),
             }
         }
 

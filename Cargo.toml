@@ -30,6 +30,10 @@ libp2p = { version = "0.56.0", features = [
   "quic",
   "request-response",
   "kad",
+  "dns",
+  "identify",
+  "ping",
+  "relay",
   "autonat",
   "identify",
   "cbor",
@@ -37,6 +41,7 @@ libp2p = { version = "0.56.0", features = [
   "secp256k1",
   "ping",
   "relay",
+  "dns",
 ] }
 libp2p-identity = "0.2"
 libp2p-swarm = "0.44"
