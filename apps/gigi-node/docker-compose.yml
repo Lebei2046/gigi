@@ -27,7 +27,7 @@ services:
     command: >
       --mode relay
       --listen /ip4/0.0.0.0/tcp/4002
-      --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
+      --bootstrap /ip4/172.18.0.2/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
     environment:
       - RUST_LOG=info
     ports:
@@ -46,8 +46,8 @@ services:
     command: >
       --username alice
       --port 0
-      --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
-      --relay /dns4/gigi-relay/tcp/4002/p2p/${RELAY_PEER_ID}
+      --bootstrap /ip4/172.18.0.2/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
+      --relay /ip4/172.18.0.3/tcp/4002/p2p/${RELAY_PEER_ID}
     environment:
       - RUST_LOG=info
     networks:
@@ -66,8 +66,8 @@ services:
     command: >
       --username bob
       --port 0
-      --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
-      --relay /dns4/gigi-relay/tcp/4002/p2p/${RELAY_PEER_ID}
+      --bootstrap /ip4/172.18.0.2/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
+      --relay /ip4/172.18.0.3/tcp/4002/p2p/${RELAY_PEER_ID}
     environment:
       - RUST_LOG=info
     networks:
@@ -86,8 +86,8 @@ services:
     command: >
       --username charlie
       --port 0
-      --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
-      --relay /dns4/gigi-relay/tcp/4002/p2p/${RELAY_PEER_ID}
+      --bootstrap /ip4/172.18.0.2/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
+      --relay /ip4/172.18.0.3/tcp/4002/p2p/${RELAY_PEER_ID}
     environment:
       - RUST_LOG=info
     networks:

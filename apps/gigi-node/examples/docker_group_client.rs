@@ -30,6 +30,7 @@ struct Stats {
 }
 
 struct PeerRegistry {
+    #[allow(dead_code)]
     peer_addresses: HashMap<PeerId, Multiaddr>,
     connected_peers: Vec<PeerId>,
 }
@@ -99,7 +100,7 @@ async fn main() -> Result<()> {
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build gossipsub config: {}", e))?;
 
-    let mut gossipsub = gossipsub::Behaviour::new(
+    let gossipsub = gossipsub::Behaviour::new(
         gossipsub::MessageAuthenticity::Signed(key.clone()),
         gossipsub_config,
     )
@@ -259,6 +260,11 @@ async fn main() -> Result<()> {
                     )) => {
                         info!("Peer {} unsubscribed from topic {}", peer_id, topic);
                     }
+                    SwarmEvent::Behaviour(ClientBehaviourEvent::Gossipsub(
+                        gossipsub::Event::GossipsubNotSupported { peer_id }
+                    )) => {
+                        warn!("Peer {} does not support GossipSub!", peer_id);
+                    }
                     SwarmEvent::Behaviour(ClientBehaviourEvent::Identify(identify::Event::Received { peer_id, info, .. })) => {
                         debug!("Identify: received info from peer {}", peer_id);
                         for addr in &info.listen_addrs {
@@ -272,9 +278,14 @@ async fn main() -> Result<()> {
                             }
                         }
                     }
-                    SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                        info!("Connected to peer {}", peer_id);
+                    SwarmEvent::ConnectionEstablished { peer_id, connection_id, .. } => {
+                        info!("Connected to peer {} (connection: {:?})", peer_id, connection_id);
+                        // Add to GossipSub mesh so we receive messages from this peer
+                        swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                         peer_registry.lock().unwrap().connected_peers.push(peer_id);
+                    }
+                    SwarmEvent::ConnectionClosed { peer_id, .. } => {
+                        info!("Disconnected from peer {}", peer_id);
                     }
                     SwarmEvent::NewListenAddr { address, .. } => {
                         info!("Listening on: {}", address);
@@ -293,11 +304,24 @@ async fn main() -> Result<()> {
 }
 
 fn parse_peer_addr(s: &str) -> Option<(PeerId, libp2p::Multiaddr)> {
-    let parts: Vec<&str> = s.splitn(2, "/p2p/").collect();
-    if parts.len() != 2 {
-        return None;
+    let addr: libp2p::Multiaddr = s.parse().ok()?;
+    let mut iter = addr.iter();
+    let mut last_protocol = None;
+    let mut addr_parts = Vec::new();
+
+    for protocol in iter {
+        if let libp2p::multiaddr::Protocol::P2p(peer_id) = protocol {
+            last_protocol = Some(peer_id);
+        } else {
+            addr_parts.push(protocol);
+        }
     }
-    let addr: libp2p::Multiaddr = parts[0].parse().ok()?;
-    let peer_id: PeerId = parts[1].parse().ok()?;
-    Some((peer_id, addr))
+
+    if let Some(peer_id) = last_protocol {
+        // Reconstruct address without P2p protocol
+        let addr_without_peer: libp2p::Multiaddr = addr_parts.into_iter().collect();
+        Some((peer_id, addr_without_peer))
+    } else {
+        None
+    }
 }
