@@ -202,7 +202,6 @@ The node handles the following events:
 The fastest way to test group messaging without Docker:
 
 ```bash
-cd apps/gigi-node
 RUST_LOG=info cargo run -p gigi-node --example group_messaging
 ```
 
@@ -227,10 +226,6 @@ For testing real NAT traversal with distributed nodes:
 ```bash
 # From project root
 docker build -t gigi-node:latest -f apps/gigi-node/Dockerfile .
-
-# Or from within the gigi-node directory
-cd apps/gigi-node
-docker build -t gigi-node:latest .
 ```
 
 #### 2. Clean Up Old Containers and Volumes
@@ -238,8 +233,7 @@ docker build -t gigi-node:latest .
 If you encounter errors like `KeyError: 'ContainerConfig'`, clean up old containers and volumes:
 
 ```bash
-cd apps/gigi-node
-docker-compose down -v --remove-orphans
+docker-compose -f apps/gigi-node/docker-compose.yml down -v --remove-orphans
 ```
 
 This will:
@@ -249,20 +243,8 @@ This will:
 
 #### 3. Start Network
 
-First, start just the bootstrap node to get its Peer ID:
-
 ```bash
-docker run -it --rm gigi-node:latest \
-  --mode bootstrap \
-  --listen /ip4/0.0.0.0/tcp/4001
-```
-
-Look for `Local peer ID: 12D3KooW...` in the output, then update `docker-compose.yml` replacing `QmPLACEHOLDER` with the actual Peer ID.
-
-**Or use the automated startup script** (recommended):
-
-```bash
-./start-network.sh
+./apps/gigi-node/start-network.sh
 ```
 
 This script will:
@@ -274,19 +256,38 @@ This script will:
 To stop the network:
 
 ```bash
-./stop-network.sh
+./apps/gigi-node/stop-network.sh
 ```
 
-#### 4. Start Network
+#### 4. View Logs
 
 ```bash
-docker compose up -d
+docker-compose -f apps/gigi-node/docker-compose.yml logs -f
 ```
 
-#### 5. View Logs
+#### 5. Interact with Chat Clients
+
+To chat with alice, bob, or charlie, attach to their containers:
 
 ```bash
-docker compose logs -f
+# Attach to alice
+docker attach gigi-alice
+
+# Or bob
+docker attach gigi-bob
+
+# Or charlie
+docker attach gigi-charlie
+```
+
+Once attached, type your message and press Enter to send.
+
+**To detach without stopping the container:**
+- Press `Ctrl+P` followed by `Ctrl+Q`
+
+Or from another terminal:
+```bash
+docker detach gigi-alice
 ```
 
 ### Docker Network Topology
@@ -308,31 +309,6 @@ docker compose logs -f
 ```
 
 **Network Isolation**: Each client (alice, bob, charlie) is in a separate bridge network, simulating NATed environments. They can only reach the bootstrap node via `host.docker.internal`.
-
-### Using docker_group_client Directly
-
-The `docker_group_client` example can be run manually:
-
-```bash
-# Run as alice
-docker run -it --rm gigi-node:latest \
-  /usr/local/bin/docker_group_client \
-  --username alice \
-  --port 0 \
-  --bootstrap /ip4/host.docker.internal/tcp/4001/p2p/12D3KooW... \
-  --relay /ip4/host.docker.internal/tcp/4002/p2p/12D3KooW...
-```
-
-**CLI Arguments**:
-- `--username` (required): Your display name in the chat
-- `--port` (default: 0): Port to listen on (0 for auto-assign)
-- `--bootstrap`: Bootstrap node address with peer ID
-- `--relay`: Relay node address with peer ID
-
-**Features**:
-- Interactive chat - type messages and press Enter to send
-- Receives messages from other participants via GossipSub
-- Both send and receive capability
 
 ## Troubleshooting
 

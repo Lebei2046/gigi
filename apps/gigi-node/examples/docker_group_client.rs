@@ -95,11 +95,11 @@ async fn main() -> Result<()> {
     let ping = ping::Behaviour::new(ping::Config::new());
 
     let gossipsub_config = gossipsub::ConfigBuilder::default()
-        .heartbeat_interval(Duration::from_secs(5))
+        .heartbeat_interval(Duration::from_secs(1))
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build gossipsub config: {}", e))?;
 
-    let gossipsub = gossipsub::Behaviour::new(
+    let mut gossipsub = gossipsub::Behaviour::new(
         gossipsub::MessageAuthenticity::Signed(key.clone()),
         gossipsub_config,
     )
@@ -124,7 +124,7 @@ async fn main() -> Result<()> {
     let listen_addr = if listen_port > 0 {
         format!("/ip4/0.0.0.0/tcp/{}", listen_port)
     } else {
-        "/ip4/127.0.0.1/tcp/0".to_string()
+        "/ip4/0.0.0.0/tcp/0".to_string()
     };
     info!("Listening on: {}", listen_addr);
     swarm.listen_on(listen_addr.parse()?)?;
@@ -132,6 +132,10 @@ async fn main() -> Result<()> {
     let topic = gossipsub::IdentTopic::new(GROUP);
     swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
     info!("Subscribed to topic: {}", GROUP);
+
+    // Add ourselves as a peer in the topic mesh
+    swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+    info!("Added explicit peer to mesh: {}", peer_id);
 
     let peer_registry = Arc::new(Mutex::new(PeerRegistry::new()));
 
@@ -141,6 +145,10 @@ async fn main() -> Result<()> {
             // Extract the base address from the bootstrap_addr (remove /p2p/peer_id)
             let base_addr = bootstrap_base_addr.to_string();
             info!("Bootstrap peer: {} at base address {}", bootstrap_peer_id, base_addr);
+            
+            // Add bootstrap to explicit peers for GossipSub
+            swarm.behaviour_mut().gossipsub.add_explicit_peer(&bootstrap_peer_id);
+            info!("Added bootstrap as explicit peer for GossipSub");
             
             // Add to Kademlia and dial
             swarm.behaviour_mut().kademlia.add_address(&bootstrap_peer_id, base_addr.parse()?);
@@ -168,6 +176,10 @@ async fn main() -> Result<()> {
             let base_addr = relay_base_addr.to_string();
             info!("Relay peer: {} at base address {}", relay_peer_id, base_addr);
             
+            // Add relay to explicit peers for GossipSub
+            swarm.behaviour_mut().gossipsub.add_explicit_peer(&relay_peer_id);
+            info!("Added relay as explicit peer for GossipSub");
+            
             let full_relay_addr: libp2p::Multiaddr = format!("{}/p2p/{}", base_addr, relay_peer_id).parse()?;
             match swarm.dial(full_relay_addr.clone()) {
                 Ok(_) => {
@@ -180,8 +192,8 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Wait for connections to establish
-    tokio::time::sleep(Duration::from_secs(3)).await;
+    // Wait for connections and GossipSub mesh to establish
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
     let stats = Arc::new(Mutex::new(Stats::default()));
 
@@ -236,6 +248,16 @@ async fn main() -> Result<()> {
                             print!("{}> ", username);
                             let _ = std::io::Write::flush(&mut std::io::stdout());
                         }
+                    }
+                    SwarmEvent::Behaviour(ClientBehaviourEvent::Gossipsub(
+                        gossipsub::Event::Subscribed { peer_id, topic }
+                    )) => {
+                        info!("Peer {} subscribed to topic {}", peer_id, topic);
+                    }
+                    SwarmEvent::Behaviour(ClientBehaviourEvent::Gossipsub(
+                        gossipsub::Event::Unsubscribed { peer_id, topic }
+                    )) => {
+                        info!("Peer {} unsubscribed from topic {}", peer_id, topic);
                     }
                     SwarmEvent::Behaviour(ClientBehaviourEvent::Identify(identify::Event::Received { peer_id, info, .. })) => {
                         debug!("Identify: received info from peer {}", peer_id);

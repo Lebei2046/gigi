@@ -10,13 +10,10 @@ services:
     command: >
       --mode bootstrap
       --listen /ip4/0.0.0.0/tcp/4001
-      --identity /data/bootstrap.key
     environment:
       - RUST_LOG=info
     ports:
       - "4001:4001"
-    volumes:
-      - bootstrap-data:/data
     networks:
       public-net:
         ipv4_address: 172.18.0.2
@@ -31,15 +28,10 @@ services:
       --mode relay
       --listen /ip4/0.0.0.0/tcp/4002
       --bootstrap /dns4/gigi-bootstrap/tcp/4001/p2p/${BOOTSTRAP_PEER_ID}
-      --identity /data/relay.key
     environment:
       - RUST_LOG=info
-      - BOOTSTRAP_PEER_ID=${BOOTSTRAP_PEER_ID}
-      - RELAY_PEER_ID=${RELAY_PEER_ID}
     ports:
       - "4002:4002"
-    volumes:
-      - relay-data:/data
     networks:
       - public-net
     depends_on:
@@ -48,6 +40,8 @@ services:
   alice:
     image: gigi-node:latest
     container_name: gigi-alice
+    stdin_open: true
+    tty: true
     entrypoint: ["/usr/local/bin/docker_group_client"]
     command: >
       --username alice
@@ -66,6 +60,8 @@ services:
   bob:
     image: gigi-node:latest
     container_name: gigi-bob
+    stdin_open: true
+    tty: true
     entrypoint: ["/usr/local/bin/docker_group_client"]
     command: >
       --username bob
@@ -84,6 +80,8 @@ services:
   charlie:
     image: gigi-node:latest
     container_name: gigi-charlie
+    stdin_open: true
+    tty: true
     entrypoint: ["/usr/local/bin/docker_group_client"]
     command: >
       --username charlie
@@ -120,7 +118,3 @@ networks:
     ipam:
       config:
         - subnet: 172.21.0.0/16
-
-volumes:
-  bootstrap-data:
-  relay-data:
