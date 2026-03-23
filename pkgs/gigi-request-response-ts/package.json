@@ -1,0 +1,30 @@
+{
+  "name": "@gigi/request-response-ts",
+  "version": "1.0.0",
+  "description": "Request-response protocol implementation for js-libp2p, based on rust-libp2p",
+  "main": "./src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test"
+  },
+  "keywords": [
+    "libp2p",
+    "request-response",
+    "p2p",
+    "protocol"
+  ],
+  "author": "Gigi P2P Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@libp2p/interface-connection": "^5.1.1",
+    "@libp2p/interface-libp2p": "^1.1.0",
+    "@libp2p/interface-peer-id": "^2.0.1",
+    "@multiformats/multiaddr": "^12.3.0",
+    "cbor-x": "^1.6.0"
+  }
+}
