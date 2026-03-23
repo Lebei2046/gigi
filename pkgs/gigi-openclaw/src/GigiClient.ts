@@ -1,22 +1,50 @@
-import { createLibp2p } from "libp2p";
-import { webSockets } from "@libp2p/websockets";
-import { webTransport } from "@libp2p/webtransport";
-import { mdns } from "@libp2p/mdns";
-import { kadDHT } from "@libp2p/kad-dht";
-import { Multiaddr } from "@multiformats/multiaddr";
-import type { Libp2p } from "libp2p";
+import { P2pClient, P2pClientOptions } from "@gigi/p2p-ts";
 import type { IGigiClient, GigiClientConfig, GigiMessage } from "./types.js";
 
 export class GigiClient implements IGigiClient {
-  private libp2p: Libp2p | null = null;
+  private p2pClient: P2pClient;
   private messageHandlers: ((msg: GigiMessage) => void)[] = [];
   private config: GigiClientConfig;
   private started = false;
 
-  private readonly GIGI_PROTOCOL = "/gigi/direct/1.0.0";
-
   constructor(config: GigiClientConfig) {
     this.config = config;
+    
+    const p2pOptions: P2pClientOptions = {
+      nickname: config.displayName || `gigi-${config.peerId.substring(0, 8)}`,
+      config: {
+        bootstrapNodes: config.bootstrapPeers || [],
+        enableKademlia: config.enableDht !== false,
+        enableRelay: true,
+        enableMdns: config.enableMdns !== false,
+        listenAddrs: config.multiaddrs,
+      },
+    };
+    
+    this.p2pClient = new P2pClient(p2pOptions);
+    
+    // Set up event listeners
+    this.p2pClient.onEvent(async (event) => {
+      if (event.type === 'direct-message') {
+        const message: GigiMessage = {
+          from: event.from,
+          to: this.getPeerId(),
+          content: event.message,
+          timestamp: Date.now(),
+          type: 'direct',
+        };
+        this.emitMessage(message);
+      } else if (event.type === 'group-message') {
+        const message: GigiMessage = {
+          from: event.from,
+          to: event.group,
+          content: event.message,
+          timestamp: Date.now(),
+          type: 'broadcast',
+        };
+        this.emitMessage(message);
+      }
+    });
   }
 
   async start(): Promise<void> {
@@ -24,102 +52,73 @@ export class GigiClient implements IGigiClient {
       throw new Error("GigiClient already started");
     }
 
-    // Create libp2p node
-    this.libp2p = await createLibp2p({
-      addresses: {
-        listen: this.config.multiaddrs,
-      },
-      transports: [webSockets(), webTransport()],
-      peerDiscovery: this.config.enableMdns !== false ? [mdns()] : [],
-      dht: this.config.enableDht !== false ? kadDHT() : undefined,
-    });
-
-    // Set up protocol handler
-    await this.libp2p.handle(this.GIGI_PROTOCOL, async ({ stream, connection }) => {
-      const fromPeerId = connection.remotePeer.toString();
-      
-      try {
-        // Read message from stream
-        const data = [];
-        for await (const chunk of stream) {
-          data.push(chunk);
-        }
-        
-        const messageText = new TextDecoder().decode(Uint8Array.from(data));
-        const message: GigiMessage = JSON.parse(messageText);
-        
-        // Emit to handlers
-        this.emitMessage(message);
-      } catch (error) {
-        console.error(`[GigiClient] Error handling message from ${fromPeerId}:`, error);
-      }
-    });
-
-    // Start libp2p node
-    await this.libp2p.start();
+    await this.p2pClient.start();
     this.started = true;
 
-    console.log(`[GigiClient] Started with peer ID: ${this.libp2p.peerId.toString()}`);
-    console.log(`[GigiClient] Listening on: ${this.libp2p.getMultiaddrs().map(m => m.toString()).join(", ")}`);
-
-    // Connect to bootstrap peers if specified
-    if (this.config.bootstrapPeers) {
-      for (const addr of this.config.bootstrapPeers) {
-        try {
-          const multiaddr = new Multiaddr(addr);
-          await this.libp2p.dial(multiaddr);
-          console.log(`[GigiClient] Connected to bootstrap peer: ${addr}`);
-        } catch (error) {
-          console.error(`[GigiClient] Failed to connect to bootstrap peer ${addr}:`, error);
-        }
-      }
-    }
+    console.log(`[GigiClient] Started with peer ID: ${this.getPeerId()}`);
+    console.log(`[GigiClient] Listening on: ${this.getMultiaddrs().join(", ")}`);
   }
 
   async stop(): Promise<void> {
-    if (!this.started || !this.libp2p) {
+    if (!this.started) {
       return;
     }
 
-    await this.libp2p.stop();
+    await this.p2pClient.stop();
     this.started = false;
-    this.libp2p = null;
     console.log("[GigiClient] Stopped");
   }
 
   async sendMessage(targetPeerId: string, content: string): Promise<void> {
-    if (!this.started || !this.libp2p) {
+    if (!this.started) {
       throw new Error("GigiClient not started");
     }
 
-    const message: GigiMessage = {
-      from: this.getPeerId(),
-      to: targetPeerId,
-      content,
-      timestamp: Date.now(),
-      type: "direct",
-    };
+    await this.p2pClient.sendDirectMessage(targetPeerId, content);
+    console.log(`[GigiClient] Sent message to ${targetPeerId}`);
+  }
 
-    const messageText = JSON.stringify(message);
-    const messageBytes = new TextEncoder().encode(messageText);
-
-    try {
-      // Open stream to target peer
-      const stream = await this.libp2p.dialProtocol(targetPeerId, this.GIGI_PROTOCOL);
-      
-      // Write message to stream
-      const writer = stream.sink([messageBytes]);
-      
-      // Wait for write to complete
-      for await (const _ of writer) {
-        // Sink is done
-      }
-      
-      console.log(`[GigiClient] Sent message to ${targetPeerId}`);
-    } catch (error) {
-      console.error(`[GigiClient] Failed to send message to ${targetPeerId}:`, error);
-      throw error;
+  async sendGroupMessage(groupName: string, content: string): Promise<void> {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
     }
+
+    await this.p2pClient.sendGroupMessage(groupName, content);
+    console.log(`[GigiClient] Sent group message to ${groupName}`);
+  }
+
+  async joinGroup(groupName: string): Promise<void> {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
+    }
+
+    await this.p2pClient.joinGroup(groupName);
+    console.log(`[GigiClient] Joined group: ${groupName}`);
+  }
+
+  async leaveGroup(groupName: string): Promise<void> {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
+    }
+
+    await this.p2pClient.leaveGroup(groupName);
+    console.log(`[GigiClient] Left group: ${groupName}`);
+  }
+
+  async shareFile(filePath: string): Promise<string> {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
+    }
+
+    return await this.p2pClient.shareFile(filePath);
+  }
+
+  async downloadFile(peerId: string, shareCode: string): Promise<string> {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
+    }
+
+    return await this.p2pClient.downloadFile(peerId, shareCode);
   }
 
   onMessage(handler: (msg: GigiMessage) => void): void {
@@ -137,20 +136,34 @@ export class GigiClient implements IGigiClient {
   }
 
   getPeerId(): string {
-    if (!this.libp2p) {
+    if (!this.started) {
       throw new Error("GigiClient not started");
     }
-    return this.libp2p.peerId.toString();
+    return this.p2pClient.getPeerId();
   }
 
   getMultiaddrs(): string[] {
-    if (!this.libp2p) {
+    if (!this.started) {
       throw new Error("GigiClient not started");
     }
-    return this.libp2p.getMultiaddrs().map(m => m.toString());
+    return this.p2pClient.getMultiaddrs();
   }
 
   isConnected(): boolean {
-    return this.started && this.libp2p?.status === "started";
+    return this.started && this.p2pClient.isStarted();
+  }
+
+  listPeers(): any[] {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
+    }
+    return this.p2pClient.listPeers();
+  }
+
+  listGroups(): any[] {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
+    }
+    return this.p2pClient.getJoinedGroups();
   }
 }

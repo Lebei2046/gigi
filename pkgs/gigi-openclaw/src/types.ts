@@ -8,6 +8,10 @@ export const GigiAccountConfigSchema = Type.Object({
   displayName: Type.Optional(Type.String()),
   peerId: Type.String(),
   multiaddrs: Type.Array(Type.String()),
+  bootstrapPeers: Type.Optional(Type.Array(Type.String())),
+  enableMdns: Type.Optional(Type.Boolean()),
+  enableDht: Type.Optional(Type.Boolean()),
+  enableRelay: Type.Optional(Type.Boolean()),
 });
 
 export type GigiAccountConfig = Static<typeof GigiAccountConfigSchema>;
@@ -17,7 +21,7 @@ export type GigiAccountConfig = Static<typeof GigiAccountConfigSchema>;
  */
 export interface GigiMessage {
   from: string; // peerId
-  to: string; // peerId
+  to: string; // peerId or group name
   content: string;
   timestamp: number;
   type: "direct" | "broadcast";
@@ -29,9 +33,11 @@ export interface GigiMessage {
 export interface GigiClientConfig {
   peerId: string;
   multiaddrs: string[];
+  displayName?: string;
   bootstrapPeers?: string[];
   enableMdns?: boolean;
   enableDht?: boolean;
+  enableRelay?: boolean;
 }
 
 /**
@@ -41,10 +47,17 @@ export interface IGigiClient {
   start(): Promise<void>;
   stop(): Promise<void>;
   sendMessage(targetPeerId: string, message: string): Promise<void>;
+  sendGroupMessage(groupName: string, content: string): Promise<void>;
+  joinGroup(groupName: string): Promise<void>;
+  leaveGroup(groupName: string): Promise<void>;
+  shareFile(filePath: string): Promise<string>;
+  downloadFile(peerId: string, shareCode: string): Promise<string>;
   onMessage(handler: (msg: GigiMessage) => void): void;
   getPeerId(): string;
   getMultiaddrs(): string[];
   isConnected(): boolean;
+  listPeers(): any[];
+  listGroups(): any[];
 }
 
 /**
@@ -65,4 +78,9 @@ export interface GigiAccount {
   displayName?: string;
   peerId: string;
   multiaddrs: string[];
+  bootstrapPeers?: string[];
+  enableMdns?: boolean;
+  enableDht?: boolean;
+  enableRelay?: boolean;
+  config?: Record<string, any>;
 }

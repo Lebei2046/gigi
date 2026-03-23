@@ -3,8 +3,8 @@ import type { IGigiClient, GigiMessage } from "./types.js";
 /**
  * Outbound message queue entry
  */
-interface OutboundMessage {
-  targetPeerId: string;
+export interface OutboundMessage {
+  target: string; // peerId or group:groupName
   content: string;
   timestamp: number;
   retryCount: number;
@@ -30,12 +30,12 @@ export class OutboundManager {
   }
 
   /**
-   * Send a message to a target peer
+   * Send a message to a target (peer or group)
    */
-  async sendMessage(targetPeerId: string, content: string): Promise<void> {
+  async sendMessage(target: string, content: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const message: OutboundMessage = {
-        targetPeerId,
+        target,
         content,
         timestamp: Date.now(),
         retryCount: 0,
@@ -65,7 +65,12 @@ export class OutboundManager {
         if (!message) break;
 
         try {
-          await this.client.sendMessage(message.targetPeerId, message.content);
+          if (message.target.startsWith("group:")) {
+            const groupName = message.target.replace("group:", "");
+            await this.client.sendGroupMessage(groupName, message.content);
+          } else {
+            await this.client.sendMessage(message.target, message.content);
+          }
           message.resolve();
         } catch (error) {
           message.retryCount++;
@@ -121,7 +126,7 @@ export function toGigiMessage(
     to: toAccountId,
     content,
     timestamp: Date.now(),
-    type: "direct",
+    type: toAccountId.startsWith("group:") ? "broadcast" : "direct",
     ...extra,
   };
 }

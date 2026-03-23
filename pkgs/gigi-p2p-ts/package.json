@@ -1,5 +1,5 @@
 {
-  "name": "@gigi/p2p",
+  "name": "@gigi/p2p-ts",
   "version": "0.1.0",
   "type": "module",
   "description": "TypeScript port of Gigi P2P networking library",

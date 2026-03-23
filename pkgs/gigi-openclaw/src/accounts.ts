@@ -4,10 +4,14 @@ import type { GigiAccount, GigiAccountConfig } from "./types.js";
  * List all Gigi account IDs from channel config
  */
 export function listGigiAccountIds(cfg: Record<string, any>): string[] {
-  if (!cfg.accounts || typeof cfg.accounts !== "object") {
-    return [];
+  // Check both legacy accounts format and new channels format
+  if (cfg.accounts && typeof cfg.accounts === "object") {
+    return Object.keys(cfg.accounts);
   }
-  return Object.keys(cfg.accounts);
+  if (cfg.channels?.gigi && typeof cfg.channels.gigi === "object") {
+    return ["default"];
+  }
+  return [];
 }
 
 /**
@@ -20,11 +24,18 @@ export function resolveGigiAccount({
   cfg: Record<string, any>;
   accountId: string;
 }): GigiAccount | null {
-  if (!cfg.accounts || typeof cfg.accounts !== "object") {
-    return null;
+  let accountConfig: any = null;
+  
+  // Check legacy accounts format
+  if (cfg.accounts && typeof cfg.accounts === "object") {
+    accountConfig = cfg.accounts[accountId];
   }
   
-  const accountConfig = cfg.accounts[accountId];
+  // Check new channels format
+  if (!accountConfig && cfg.channels?.gigi && typeof cfg.channels.gigi === "object") {
+    accountConfig = cfg.channels.gigi;
+  }
+  
   if (!accountConfig) {
     return null;
   }
@@ -34,6 +45,11 @@ export function resolveGigiAccount({
     displayName: accountConfig.displayName || accountId,
     peerId: accountConfig.peerId,
     multiaddrs: accountConfig.multiaddrs || [],
+    bootstrapPeers: accountConfig.bootstrapPeers || [],
+    enableMdns: accountConfig.enableMdns !== false,
+    enableDht: accountConfig.enableDht !== false,
+    enableRelay: accountConfig.enableRelay !== false,
+    config: accountConfig.config || {},
   };
 }
 

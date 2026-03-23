@@ -7,6 +7,7 @@ export interface HealthCheckResult {
   healthy: boolean;
   peerId?: string;
   peerCount?: number;
+  groupCount?: number;
   multiaddrs?: string[];
   error?: string;
 }
@@ -29,12 +30,18 @@ export async function probeGigiClient(
     const multiaddrs = client.getMultiaddrs();
 
     // Get connected peers count
-    const peerCount = 0; // TODO: Implement peer count tracking in GigiClient
+    const peers = client.listPeers();
+    const peerCount = peers.length;
+
+    // Get joined groups count
+    const groups = client.listGroups();
+    const groupCount = groups.length;
 
     return {
       healthy: true,
       peerId,
       peerCount,
+      groupCount,
       multiaddrs,
     };
   } catch (error) {
@@ -65,10 +72,11 @@ export async function getStatusSummary(client: IGigiClient): Promise<{
 
   return {
     status: "connected",
-    message: `Connected as ${health.peerId}`,
+    message: `Connected as ${health.peerId} (${health.peerCount} peers, ${health.groupCount} groups)`,
     details: {
       peerId: health.peerId,
       peerCount: health.peerCount,
+      groupCount: health.groupCount,
       listeningAddresses: health.multiaddrs,
     },
   };
