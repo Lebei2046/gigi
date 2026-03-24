@@ -303,3 +303,21 @@ Contributions to the Gigi P2P ecosystem are welcome! Please see the project's Gi
 ## Getting Started
 
 For a step-by-step guide to getting started with the Gigi P2P ecosystem, see [docs/quick-start.md](docs/quick-start.md).
+
+## Testing Best Practices for Node.js/TypeScript
+
+Testing is crucial for maintaining code quality, catching bugs early, and ensuring your application works as expected. Follow these guidelines for testing Node.js/TypeScript projects in the Gigi P2P ecosystem:
+
+### Key Testing Principles
+
+- **Framework Selection**: Use Vitest for faster testing with built-in TypeScript support, or Jest for broader compatibility.
+- **Test Organization**: Place tests in `__tests__` directories or use `.test.ts` naming convention.
+- **Type Safety**: Leverage TypeScript's type system in tests to catch errors early.
+- **Mocking**: Properly mock external dependencies like libp2p to isolate tests.
+- **Coverage Targets**: Aim for 80%+ test coverage, focusing on critical paths.
+- **CI/CD Integration**: Automate tests in GitHub Actions for every push and pull request.
+- **Test Quality**: Write descriptive, isolated tests that cover edge cases and error scenarios.
+- **P2P-Specific Testing**: Mock libp2p, test network simulations, and verify file sharing functionality.
+- **Continuous Improvement**: Regularly review coverage reports and update tests as code changes.
+
+For detailed documentation and examples, see [docs/testing-best-practices.md](docs/testing-best-practices.md).

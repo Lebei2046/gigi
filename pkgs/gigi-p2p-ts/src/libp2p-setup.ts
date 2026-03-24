@@ -6,11 +6,11 @@ import { noise } from '@libp2p/noise';
 import { yamux } from '@libp2p/yamux';
 import { mdns } from '@libp2p/mdns';
 import { kadDHT } from '@libp2p/kad-dht';
-import { relay } from '@libp2p/circuit-relay';
+import { circuitRelayServer, circuitRelayTransport } from '@libp2p/circuit-relay-v2';
 import { identify } from '@libp2p/identify';
 import { ping } from '@libp2p/ping';
 import { gossipsub } from '@libp2p/gossipsub';
-import { Multiaddr } from '@multiformats/multiaddr';
+import { multiaddr } from '@multiformats/multiaddr';
 
 export interface SupportedProtocols {
   direct: string;
@@ -42,7 +42,7 @@ export async function createLibp2pInstance(options: CreateLibp2pOptions): Promis
     enableRelay = true,
   } = options;
 
-  const transports = [tcp(), webSockets(), webTransport()];
+  const transports = [tcp(), webSockets(), webTransport(), circuitRelayTransport()];
 
   const peerDiscovery: any[] = [];
 
@@ -57,14 +57,13 @@ export async function createLibp2pInstance(options: CreateLibp2pOptions): Promis
   }
 
   if (enableRelay) {
-    services.relay = relay({ enabled: true });
+    services.relay = circuitRelayServer({});
   }
 
   services.identify = identify();
   services.ping = ping();
 
   services.pubsub = gossipsub({
-    allowSubscribedTopics: true,
     globalSignaturePolicy: 'StrictNoSign',
   });
 
@@ -72,15 +71,15 @@ export async function createLibp2pInstance(options: CreateLibp2pOptions): Promis
     addresses: { listen: listenAddrs },
     transports,
     peerDiscovery,
-    connectionEncryption: [noise()],
+    connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
     services,
   });
 
   for (const addr of bootstrapNodes) {
     try {
-      const multiaddr = new Multiaddr(addr);
-      await libp2p.dial(multiaddr);
+      const multiAddr = multiaddr(addr);
+      await libp2p.dial(multiAddr);
       console.log(`[libp2p] Connected to bootstrap: ${addr}`);
     } catch (error) {
       console.warn(`[libp2p] Failed to connect to bootstrap ${addr}:`, error);

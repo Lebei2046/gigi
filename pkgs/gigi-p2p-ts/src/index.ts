@@ -1,7 +1,8 @@
 export { P2pClient } from './client.js';
-export type { P2pClientOptions, P2pConfig } from './client.js';
-export { P2pEvent, P2pEventType } from './events.js';
-export type { PeerInfo, GroupInfo, FileInfo, ActiveDownload } from './types.js';
+export type { P2pClientOptions } from './client.js';
+export type { P2pConfig, PeerInfo, GroupInfo, FileInfo, ActiveDownload } from './types.js';
+export { P2pEventType } from './events.js';
+export type { P2pEvent } from './events.js';
 export { P2pError, ErrorCode } from './errors.js';
 export { FileSharingManager, CHUNK_SIZE } from './file-sharing.js';
 export { GroupManager } from './group.js';
@@ -19,12 +20,7 @@ import { PeerManager } from './peer-manager.js';
 
 export default {
   P2pClient,
-  P2pEvent,
   P2pEventType,
-  PeerInfo,
-  GroupInfo,
-  FileInfo,
-  ActiveDownload,
   P2pError,
   ErrorCode,
   FileSharingManager,

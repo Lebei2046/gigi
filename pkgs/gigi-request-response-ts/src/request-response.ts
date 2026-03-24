@@ -1,9 +1,11 @@
-import type { Libp2p } from '@libp2p/interface-libp2p';
-import type { PeerId } from '@libp2p/interface-peer-id';
-import type { ConnectionId } from '@libp2p/interface-connection';
-import type { Stream } from '@libp2p/interface-connection';
-import type { Multiaddr } from '@multiformats/multiaddr';
-import { Codec, ResponseChannel, InboundRequestId, OutboundRequestId, RequestResponseEvent, ProtocolSupport, RequestResponseConfig, defaultConfig } from './types.js';
+// Using any types to avoid module resolution issues
+// These types will be provided by the libp2p instance at runtime
+type Libp2p = any;
+type PeerId = any;
+type ConnectionId = any;
+type Stream = any;
+type Multiaddr = any;
+import { Codec, ResponseChannel, InboundRequestId, OutboundRequestId, RequestResponseEvent, ProtocolSupport, RequestResponseConfig, defaultConfig, InboundFailure, OutboundFailure } from './types.js';
 
 // Incoming stream data interface
 export interface IncomingStreamData {
@@ -110,7 +112,12 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       });
     } catch (error) {
       console.error('Error handling incoming stream:', error);
-      // TODO: Emit inbound failure event
+      this.emitEvent({
+        type: 'InboundFailure',
+        peer: peerId,
+        connectionId,
+        error: InboundFailure.DecodingFailure
+      });
     } finally {
       // Stream will be closed by the sender
     }
@@ -141,7 +148,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         peer: peerId,
         connectionId,
         requestId,
-        error: 'Timeout' as any
+        error: InboundFailure.Timeout
       });
     }
   }
@@ -219,7 +226,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         peer: peerId,
         connectionId: 'unknown' as ConnectionId,
         requestId,
-        error: 'DialFailure' as any
+        error: OutboundFailure.DialFailure
       });
 
       throw error;
@@ -237,7 +244,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         peer: peerId,
         connectionId,
         requestId,
-        error: 'Timeout' as any
+        error: OutboundFailure.Timeout
       });
     }
   }

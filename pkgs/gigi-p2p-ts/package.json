@@ -11,12 +11,10 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch"
-  },
   "dependencies": {
+    "@gigi/request-response-ts": "workspace:*",
     "@libp2p/autonat": "^3.0.13",
+    "@libp2p/circuit-relay-v2": "^2.0.15",
     "@libp2p/gossipsub": "^15.0.14",
     "@libp2p/identify": "^4.0.13",
     "@libp2p/kad-dht": "^16.1.5",
@@ -35,6 +33,13 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.3"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
   }
 }

@@ -1,5 +1,48 @@
 import { P2pClient, P2pClientOptions } from "@gigi/p2p-ts";
+import { RequestResponse, JsonCodec } from "@gigi/request-response-ts";
 import type { IGigiClient, GigiClientConfig, GigiMessage } from "./types.js";
+
+// Define file protocol request and response types
+interface FileRequest {
+  type: 'request';
+  action: 'request';
+  shareCode: string;
+  downloadId: string;
+}
+
+interface FileChunkRequest {
+  type: 'chunk';
+  downloadId: string;
+  chunkIndex: number;
+  totalChunks: number;
+  chunk: Uint8Array;
+}
+
+interface FileErrorResponse {
+  type: 'error';
+  message: string;
+}
+
+interface FileInfoResponse {
+  type: 'file-info';
+  fileId: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  chunkCount: number;
+  hash: string;
+}
+
+interface FileChunkResponse {
+  type: 'chunk';
+  downloadId: string;
+  chunkIndex: number;
+  totalChunks: number;
+  chunk: Uint8Array;
+}
+
+type FileRequestMessage = FileRequest | FileChunkRequest;
+type FileResponseMessage = FileErrorResponse | FileInfoResponse | FileChunkResponse;
 
 export class GigiClient implements IGigiClient {
   private p2pClient: P2pClient;

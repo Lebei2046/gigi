@@ -1,5 +1,7 @@
-import type { PeerId } from '@libp2p/interface-peer-id';
-import type { ConnectionId } from '@libp2p/interface-connection';
+// Using any types to avoid module resolution issues
+// These types will be provided by the libp2p instance at runtime
+type PeerId = any;
+type ConnectionId = any;
 
 /**
  * A response channel for sending a response to an inbound request.

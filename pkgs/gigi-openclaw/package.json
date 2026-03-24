@@ -17,8 +17,8 @@
   },
   "dependencies": {
     "@gigi/p2p-ts": "workspace:*",
-    "@sinclair/typebox": "^0.34.0",
-    "openclaw": "^0.1.0"
+    "@gigi/request-response-ts": "workspace:*",
+    "@sinclair/typebox": "^0.34.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

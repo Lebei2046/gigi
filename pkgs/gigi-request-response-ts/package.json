@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "test": "bun test"
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
   },
   "keywords": [
     "libp2p",
@@ -18,7 +19,9 @@
   "license": "MIT",
   "devDependencies": {
     "@types/bun": "latest",
-    "typescript": "^5"
+    "@vitest/coverage-v8": "^4.0.3",
+    "typescript": "^5",
+    "vitest": "^4.0.3"
   },
   "dependencies": {
     "@libp2p/interface-connection": "^5.1.1",
