@@ -21,9 +21,16 @@ vi.mock('crypto', () => ({
 }));
 
 // Mock fs.existsSync
+import * as fs from 'fs';
 vi.mock('fs', () => ({
   existsSync: vi.fn().mockReturnValue(true)
 }));
+
+// Type assertion for mocked fs
+type MockedFs = typeof fs & {
+  existsSync: ReturnType<typeof vi.fn>;
+};
+const mockFs = fs as MockedFs;
 
 describe('FileSharingManager', () => {
   let fileSharingManager: FileSharingManager;
@@ -48,8 +55,7 @@ describe('FileSharingManager', () => {
 
   it('should throw an error when sharing a non-existent file', async () => {
     // Mock existsSync to return false
-    const fs = await import('fs');
-    fs.existsSync.mockReturnValue(false);
+    mockFs.existsSync.mockReturnValue(false);
     
     await expect(fileSharingManager.share('./non-existent-file.txt')).rejects.toThrow('File not found: ./non-existent-file.txt');
   });

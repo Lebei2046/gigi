@@ -42,12 +42,15 @@ export async function createLibp2pInstance(options: CreateLibp2pOptions): Promis
     enableRelay = true,
   } = options;
 
-  const transports = [tcp(), webSockets(), webTransport(), circuitRelayTransport()];
+  const transports = [tcp(), webSockets(), webTransport(), circuitRelayTransport()] as any;
 
   const peerDiscovery: any[] = [];
 
   if (enableMdns) {
-    peerDiscovery.push(mdns());
+    console.log('[libp2p-setup] Enabling mDNS for local peer discovery');
+    peerDiscovery.push(mdns({
+      interval: 10000 // 10 second interval for mDNS queries
+    }));
   }
 
   const services: any = {};
@@ -60,7 +63,9 @@ export async function createLibp2pInstance(options: CreateLibp2pOptions): Promis
     services.relay = circuitRelayServer({});
   }
 
-  services.identify = identify();
+  services.identify = identify({
+    protocolPrefix: 'gigi'
+  });
   services.ping = ping();
 
   services.pubsub = gossipsub({

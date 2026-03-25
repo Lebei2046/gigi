@@ -5,6 +5,7 @@ import { FileSharingManager } from './file-sharing.js';
 import { GroupManager } from './group.js';
 import { PeerManager } from './peer-manager.js';
 import { RequestResponse, JsonCodec } from '@gigi/request-response-ts';
+import { multiaddr as multiaddrFromString } from '@multiformats/multiaddr';
 import type { P2pConfig, PeerInfo, GroupInfo, ActiveDownload } from './types.js';
 
 // Define file protocol request and response types
@@ -182,15 +183,41 @@ export class P2pClient {
 
     if (this.libp2p.services.pubsub) {
       this.libp2p.services.pubsub.addEventListener('message', async (event: any) => {
-        const topic = event.topic;
+        // The event is a CustomEvent, data is in event.detail
+        if (!event.detail) {
+          console.warn('[P2pClient] Pubsub message event without detail:', event);
+          return;
+        }
+        
+        const detail = event.detail;
+        const topic = detail.topic;
+        
+        if (!topic) {
+          console.warn('[P2pClient] Pubsub message event without topic in detail:', event);
+          return;
+        }
+        
         if (topic.startsWith('gigi-group:')) {
+          // Check if detail.data exists (message content is in detail.data as a Buffer)
+          if (!detail.data) {
+            console.warn('[P2pClient] Pubsub message event without data:', detail);
+            return;
+          }
+          
           const groupName = topic.replace('gigi-group:', '');
-          const message = new TextDecoder().decode(event.detail.message.data);
+          // Decode the message from detail.data (Buffer)
+          const message = new TextDecoder().decode(detail.data);
+          
+          // For unsigned messages, we may not have a 'from' field
+          // Use 'unknown' as sender if not available
+          const from = detail.from || 'unknown';
+
+          console.log(`[P2pClient] Received group message in ${groupName} from ${from}: ${message}`);
 
           await eventEmitter.emit({
             type: 'group-message',
-            from: event.detail.from.toString(),
-            fromNickname: this.peerManager.getNickname(event.detail.from.toString()) || event.detail.from.toString(),
+            from: from.toString(),
+            fromNickname: this.peerManager.getNickname(from.toString()) || from.toString(),
             group: groupName,
             message,
           } as P2pEvent);
@@ -199,6 +226,11 @@ export class P2pClient {
     }
 
     this.libp2p.addEventListener('peer:connect', async (event: any) => {
+      if (!event.detail || !event.detail.remotePeer) {
+        console.warn('[P2pClient] peer:connect event without remotePeer:', event);
+        return;
+      }
+      
       const peerId = event.detail.remotePeer.toString();
       this.peerManager.addConnected(peerId, this.nickname);
 
@@ -210,6 +242,11 @@ export class P2pClient {
     });
 
     this.libp2p.addEventListener('peer:disconnect', async (event: any) => {
+      if (!event.detail || !event.detail.remotePeer) {
+        console.warn('[P2pClient] peer:disconnect event without remotePeer:', event);
+        return;
+      }
+      
       const peerId = event.detail.remotePeer.toString();
       this.peerManager.removeConnected(peerId);
 
@@ -223,6 +260,36 @@ export class P2pClient {
 
   private processSwarmEvents(): void {
     if (!this.libp2p) return;
+
+    // Listen for general peer discovery events (includes both DHT and mDNS)
+    this.libp2p.addEventListener('peer:discovery', async (event: any) => {
+      console.log('[P2pClient] Peer discovered event:', event);
+      const peerId = event.detail.id.toString();
+      const multiaddrs = event.detail.multiaddrs.map((m: any) => m.toString());
+
+      console.log(`[P2pClient] Discovered peer: ${peerId} at ${multiaddrs.join(', ')}`);
+
+      this.peerManager.discover(peerId, this.nickname, multiaddrs);
+
+      // Automatically connect to discovered peers
+      try {
+        if (multiaddrs.length > 0) {
+          console.log(`[P2pClient] Attempting to connect to discovered peer: ${peerId}`);
+          const addr = multiaddrFromString(multiaddrs[0]);
+          await this.libp2p.dial(addr);
+          console.log(`[P2pClient] Successfully connected to peer: ${peerId}`);
+        }
+      } catch (error) {
+        console.warn(`[P2pClient] Failed to connect to discovered peer ${peerId}:`, error);
+      }
+
+      await eventEmitter.emit({
+        type: 'peer-discovered',
+        peerId,
+        nickname: this.nickname,
+        address: multiaddrs[0] || '',
+      } as P2pEvent);
+    });
 
     if (this.libp2p.services.dht) {
       this.libp2p.services.dht.addEventListener('peer', async (event: any) => {
@@ -426,7 +493,18 @@ export class P2pClient {
     const topic = `gigi-group:${groupName}`;
     const data = new TextEncoder().encode(message);
 
-    await this.libp2p.services.pubsub?.publish(topic, data);
+    try {
+      await this.libp2p.services.pubsub?.publish(topic, data);
+    } catch (error) {
+      // Handle the case when no peers are subscribed to the topic
+      if (error instanceof Error && error.message.includes('NoPeersSubscribedToTopic')) {
+        // Silently ignore this error since it's expected when no one else is in the group
+        console.log(`[P2pClient] No peers subscribed to topic ${topic}`);
+      } else {
+        // Re-throw other errors
+        throw error;
+      }
+    }
   }
 
   getJoinedGroups(): GroupInfo[] {
@@ -540,6 +618,20 @@ export class P2pClient {
 
   listPeers(): PeerInfo[] {
     return this.peerManager.list();
+  }
+
+  async connectToPeer(multiaddr: string): Promise<void> {
+    if (!this.libp2p || !this.started) {
+      throw P2pError.notStarted();
+    }
+
+    try {
+      const addr = multiaddrFromString(multiaddr);
+      await this.libp2p.dial(addr);
+      console.log(`[P2pClient] Connected to peer at ${multiaddr}`);
+    } catch (error) {
+      throw P2pError.networkError(`Failed to connect to peer at ${multiaddr}`, error as Error);
+    }
   }
 
   onEvent(listener: (event: P2pEvent) => void | Promise<void>): () => void {

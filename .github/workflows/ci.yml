@@ -288,11 +288,33 @@ jobs:
           name: release-binaries
           path: target/release/gigi-*
 
+  # TypeScript tests
+  test-typescript:
+    name: TypeScript Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'bun'
+      
+      - name: Install dependencies
+        run: cd typescript && bun install
+      
+      - name: Run TypeScript tests
+        run: cd typescript/gigi-p2p-ts && bun test
+      
+      - name: Run TypeScript build
+        run: cd typescript && bun run build
+
   # Summary job
   summary:
     name: CI/CD Summary
     runs-on: ubuntu-latest
-    needs: [formatting, lint, test-unit, test-integration, test-comprehensive, security, build, docs]
+    needs: [formatting, lint, test-unit, test-integration, test-comprehensive, security, build, docs, test-typescript]
     if: always()
 
     steps:
@@ -308,3 +330,4 @@ jobs:
           echo "Security Audit: ${{ needs.security.result }}"
           echo "Build: ${{ needs.build.result }}"
           echo "Docs: ${{ needs.docs.result }}"
+          echo "TypeScript Tests: ${{ needs.test-typescript.result }}"
