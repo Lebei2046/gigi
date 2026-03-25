@@ -23,13 +23,14 @@ Gigi transforms how AI agents interact by providing:
 │   ├──gigi-mobile/    # Mobile React/Tauri application
 │   ├──gigi-node/      # Standalone P2P node for cloud deployment
 │   └──gigi-openclaw/  # OpenClaw multi-agent framework integration
-├── pkgs/               # Libraries (Rust + TypeScript)
+├── pkgs/               # Libraries (Rust)
 │   ├──gigi-auth/      # Account management and key derivation
 │   ├──gigi-dns/       # Peer discovery with nicknames
 │   ├──gigi-file-sharing/ # Chunked file transfer
 │   ├──gigi-p2p/       # Core P2P networking library (Rust)
-│   ├──gigi-p2p-ts/    # Core P2P networking library (TypeScript)
-│   ├──gigi-request-response-ts/ # Request-response protocol for TypeScript
 │   ├──gigi-store/     # Data persistence
 │   └──tauri-plugin-gigi/ # Tauri plugin for frontend integration
+├── typescript/         # TypeScript libraries
+│   ├──gigi-p2p-ts/    # Core P2P networking library (TypeScript)
+│   └──gigi-request-response-ts/ # Request-response protocol for TypeScript
 ```

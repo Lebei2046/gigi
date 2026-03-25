@@ -55,7 +55,7 @@
         "vitest": "^4.0.3",
       },
     },
-    "pkgs/gigi-openclaw": {
+    "apps/gigi-openclaw": {
       "name": "@gigi/openclaw",
       "version": "0.1.0",
       "dependencies": {
@@ -68,7 +68,20 @@
         "typescript": "^5.0.0",
       },
     },
-    "pkgs/gigi-p2p-ts": {
+    "pkgs/tauri-plugin-gigi": {
+      "name": "tauri-plugin-gigi-api",
+      "version": "0.1.0",
+      "dependencies": {
+        "@tauri-apps/api": ">=2.0.0-beta.6",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.0.0",
+        "rollup": "^4.9.6",
+        "tslib": "^2.6.2",
+        "typescript": "^5.3.3",
+      },
+    },
+    "typescript/gigi-p2p-ts": {
       "name": "@gigi/p2p-ts",
       "version": "0.1.0",
       "dependencies": {
@@ -97,7 +110,7 @@
         "vitest": "^4.0.3",
       },
     },
-    "pkgs/gigi-request-response-ts": {
+    "typescript/gigi-request-response-ts": {
       "name": "@gigi/request-response-ts",
       "version": "1.0.0",
       "dependencies": {
@@ -112,19 +125,6 @@
         "@vitest/coverage-v8": "^4.0.3",
         "typescript": "^5",
         "vitest": "^4.0.3",
-      },
-    },
-    "pkgs/tauri-plugin-gigi": {
-      "name": "tauri-plugin-gigi-api",
-      "version": "0.1.0",
-      "dependencies": {
-        "@tauri-apps/api": ">=2.0.0-beta.6",
-      },
-      "devDependencies": {
-        "@rollup/plugin-typescript": "^12.0.0",
-        "rollup": "^4.9.6",
-        "tslib": "^2.6.2",
-        "typescript": "^5.3.3",
       },
     },
   },
@@ -279,11 +279,11 @@
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.0", "https://repo.huaweicloud.com/repository/npm/@eslint/plugin-kit/-/plugin-kit-0.4.0.tgz", { "dependencies": { "@eslint/core": "^0.16.0", "levn": "^0.4.1" } }, "sha512-sB5uyeq+dwCWyPi31B2gQlVlo+j5brPlWx4yZBrEaRo/nhdDE8Xke1gsGgtiBdaBTxuTkceLVuVt/pclrasb0A=="],
 
-    "@gigi/openclaw": ["@gigi/openclaw@workspace:pkgs/gigi-openclaw"],
+    "@gigi/openclaw": ["@gigi/openclaw@workspace:apps/gigi-openclaw"],
 
-    "@gigi/p2p-ts": ["@gigi/p2p-ts@workspace:pkgs/gigi-p2p-ts"],
+    "@gigi/p2p-ts": ["@gigi/p2p-ts@workspace:typescript/gigi-p2p-ts"],
 
-    "@gigi/request-response-ts": ["@gigi/request-response-ts@workspace:pkgs/gigi-request-response-ts"],
+    "@gigi/request-response-ts": ["@gigi/request-response-ts@workspace:typescript/gigi-request-response-ts"],
 
     "@humanfs/core": ["@humanfs/core@0.19.1", "https://repo.huaweicloud.com/repository/npm/@humanfs/core/-/core-0.19.1.tgz", {}, "sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA=="],
 

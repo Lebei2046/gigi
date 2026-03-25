@@ -22,7 +22,7 @@ The Gigi P2P ecosystem is a decentralized network of components designed to enab
 |-----------|-------------|---------------|
 | Gigi P2P Rust Client | Core P2P functionality with high performance | [docs/gigi-p2p.md](docs/gigi-p2p.md) |
 | Gigi P2P TypeScript Client | High-level API for TypeScript applications | [docs/gigi-p2p-ts.md](docs/gigi-p2p-ts.md) |
-| Gigi Request-Response TS | Request-response protocol for TypeScript | [pkgs/gigi-request-response-ts/README.md](pkgs/gigi-request-response-ts/README.md) |
+| Gigi Request-Response TS | Request-response protocol for TypeScript | [typescript/gigi-request-response-ts/README.md](typescript/gigi-request-response-ts/README.md) |
 | Gigi Auth | Authentication and key management | [docs/gigi-auth.md](docs/gigi-auth.md) |
 | Gigi DNS | Decentralized name resolution | [docs/gigi-dns.md](docs/gigi-dns.md) |
 | Gigi File Sharing | File sharing utilities | [docs/gigi-file-sharing.md](docs/gigi-file-sharing.md) |

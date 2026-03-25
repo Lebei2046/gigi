@@ -38,14 +38,14 @@ The Gigi P2P TypeScript Client is designed for use in web browsers, Node.js, and
 
 3. **Build the TypeScript client**:
    ```bash
-   cd pkgs/gigi-p2p-ts
+   cd typescript/gigi-p2p-ts
    bun run build
    ```
 
 4. **Install the client in your project**:
    ```bash
    # From your project directory
-   bun add ../gigi/pkgs/gigi-p2p-ts
+   bun add ../gigi/typescript/gigi-p2p-ts
    ```
 
 ## Configuration

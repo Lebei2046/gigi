@@ -27,7 +27,7 @@ The Rust implementation of the Gigi P2P client, providing core P2P functionality
 - **File Transfer**: Handles file sharing between peers
 - **Security**: Implements encryption and authentication
 
-### 2. Gigi P2P TypeScript Client (`pkgs/gigi-p2p-ts`)
+### 2. Gigi P2P TypeScript Client (`typescript/gigi-p2p-ts`)
 
 A TypeScript implementation of the Gigi P2P client, providing a high-level API for P2P communication, group messaging, and file sharing.
 
