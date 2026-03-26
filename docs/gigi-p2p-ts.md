@@ -21,7 +21,7 @@ The Gigi P2P TypeScript Client is designed for use in web browsers, Node.js, and
 ### Prerequisites
 
 - **Node.js**: v18 or later
-- **Bun**: Latest version
+- **pnpm**: Latest version
 
 ### Installation Steps
 
@@ -33,19 +33,19 @@ The Gigi P2P TypeScript Client is designed for use in web browsers, Node.js, and
 
 2. **Install dependencies**:
    ```bash
-   bun install
+   pnpm install
    ```
 
 3. **Build the TypeScript client**:
    ```bash
    cd typescript/gigi-p2p-ts
-   bun run build
+   pnpm run build
    ```
 
 4. **Install the client in your project**:
    ```bash
    # From your project directory
-   bun add ../gigi/typescript/gigi-p2p-ts
+   pnpm add ../gigi/typescript/gigi-p2p-ts
    ```
 
 ## Configuration

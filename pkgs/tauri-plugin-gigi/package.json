@@ -17,11 +17,11 @@
     "README.md"
   ],
   "scripts": {
-    "prebuild": "bun build:guest-js",
+    "prebuild": "pnpm run build:guest-js",
     "build": "rollup -c",
     "build:guest-js": "node scripts/build-guest-js.mjs",
-    "prepublishOnly": "bun build",
-    "pretest": "bun build"
+    "prepublishOnly": "pnpm run build",
+    "pretest": "pnpm run build"
   },
   "dependencies": {
     "@tauri-apps/api": ">=2.0.0-beta.6"

@@ -97,9 +97,16 @@ export interface StoredMessage {
   expiresAt: number;
 }
 
-export type MessageContent =
+// Input type for sending messages (without auto-populated fields)
+export type MessageContentInput =
   | { type: 'text'; text: string }
   | { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string }
+  | { type: 'shareGroup'; groupId: string; groupName: string; inviterNickname: string };
+
+// Full message content type (with all fields populated)
+export type MessageContent =
+  | { type: 'text'; text: string }
+  | { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string; fromPeerId: string; fromNickname: string }
   | { type: 'shareGroup'; groupId: string; groupName: string; inviterNickname: string };
 
 export interface P2pConfig {

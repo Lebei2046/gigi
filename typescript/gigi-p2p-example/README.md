@@ -5,7 +5,7 @@ This is a comprehensive example application demonstrating how to use the Gigi P2
 ## Prerequisites
 
 - Node.js 18 or later
-- Bun (as per project requirements)
+- pnpm (as per project requirements)
 - TypeScript
 
 ## Setup
@@ -13,19 +13,19 @@ This is a comprehensive example application demonstrating how to use the Gigi P2
 1. **Install dependencies in the root directory**:
    ```bash
    cd /home/lebei/dev/gigi
-   bun install
+   pnpm install
    ```
 
 2. **Build the Gigi P2P TypeScript client**:
    ```bash
    cd typescript/gigi-p2p-ts
-   bun run build
+   pnpm run build
    ```
 
 3. **Install dependencies for the example**:
    ```bash
    cd ../gigi-p2p-example
-   bun install
+   pnpm install
    ```
 
 ## Usage
@@ -34,17 +34,17 @@ You'll need to open three separate terminal windows to simulate Alice, Bob, and 
 
 ### Terminal 1 (Alice):
 ```bash
-bun dev Alice
+pnpm dev Alice
 ```
 
 ### Terminal 2 (Bob):
 ```bash
-bun dev Bob
+pnpm dev Bob
 ```
 
 ### Terminal 3 (Charlie):
 ```bash
-bun dev Charlie
+pnpm dev Charlie
 ```
 
 ## Available Commands

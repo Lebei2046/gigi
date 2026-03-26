@@ -5,6 +5,9 @@ import readline from 'readline';
 
 const program = new Command();
 
+// Store file share messages for download lookup
+const fileShareMessages: Map<string, { shareCode: string; fromPeerId: string; fromNickname: string; filename: string }> = new Map();
+
 // Helper function to create a chat client
 async function createChatClient(nickname: string): Promise<P2pClient> {
   const client = new P2pClient({
@@ -24,7 +27,19 @@ async function createChatClient(nickname: string): Promise<P2pClient> {
         break;
       case 'group-message':
         if (event.fromNickname !== nickname) {
-          console.log(`\n[GROUP] ${event.fromNickname}: ${event.message}`);
+          if (event.content.type === 'text') {
+            console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
+          } else if (event.content.type === 'fileShare') {
+            console.log(`\n[GROUP] ${event.fromNickname} shared a file: ${event.content.filename} (${event.content.fileSize} bytes)`);
+            console.log(`Use /download ${event.content.shareCode} to download this file`);
+            // Store the file share message for later download
+            fileShareMessages.set(event.content.shareCode, {
+              shareCode: event.content.shareCode,
+              fromPeerId: event.content.fromPeerId,
+              fromNickname: event.content.fromNickname,
+              filename: event.content.filename
+            });
+          }
         }
         break;
       case 'direct-message':
@@ -38,6 +53,22 @@ async function createChatClient(nickname: string): Promise<P2pClient> {
         break;
       case 'listening-on':
         console.log(`${nickname} listening on: ${event.address}`);
+        break;
+      case 'file-shared':
+        console.log(`\nFile shared successfully with share code: ${event.info.shareCode}`);
+        console.log(`Use /group <group> /file ${event.info.shareCode} ${event.info.name} ${event.info.size} ${event.info.mimeType} to share this file in a group`);
+        break;
+      case 'file-download-started':
+        console.log(`\nDownload started: ${event.filename} (Download ID: ${event.downloadId})`);
+        break;
+      case 'file-download-progress':
+        console.log(`\nDownload progress: ${event.filename} - ${event.downloadedChunks}/${event.totalChunks} chunks`);
+        break;
+      case 'file-download-completed':
+        console.log(`\nDownload completed: ${event.filename} saved to ${event.path}`);
+        break;
+      case 'file-share-request':
+        console.log(`\n${event.fromNickname} requested to download file: ${event.filename}`);
         break;
     }
   });
@@ -70,12 +101,45 @@ function setupReadline(nickname: string, client: P2pClient): void {
       const parts = input.split(' ');
       if (parts.length < 3) {
         console.log('Usage: /group <group-name> <message>');
+        console.log('Usage: /group <group-name> /file <share-code> <filename> <size> <mime-type>');
         rl.prompt();
         return;
       }
       const groupName = parts[1];
-      const message = parts.slice(2).join(' ');
-      await client.sendGroupMessage(groupName, message);
+      
+      if (parts[2] === '/file') {
+        // Handle file share message
+        if (parts.length < 4) {
+          console.log('Usage: /group <group-name> /file <share-code>');
+          rl.prompt();
+          return;
+        }
+        const shareCode = parts[3];
+        
+        // Get file information from share code
+        const file = client.getFileByShareCode(shareCode);
+        if (!file) {
+          console.error(`Error: File with share code ${shareCode} not found. Make sure you've shared this file first with /share command.`);
+          rl.prompt();
+          return;
+        }
+        
+        await client.sendGroupMessage(groupName, {
+          type: 'fileShare',
+          shareCode,
+          filename: file.info.name,
+          fileSize: file.info.size,
+          fileType: file.info.mimeType
+        });
+        console.log(`Shared file ${file.info.name} in group ${groupName}`);
+      } else {
+        // Handle text message
+        const message = parts.slice(2).join(' ');
+        await client.sendGroupMessage(groupName, {
+          type: 'text',
+          text: message
+        });
+      }
     } else if (input.startsWith('/direct ')) {
       const parts = input.split(' ');
       if (parts.length < 3) {
@@ -110,17 +174,63 @@ function setupReadline(nickname: string, client: P2pClient): void {
       } catch (error) {
         console.error(`Error connecting to peer: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    } else if (input.startsWith('/share ')) {
+      const filePath = input.substring(7);
+      try {
+        const shareCode = await client.shareFile(filePath);
+        console.log(`File shared successfully with share code: ${shareCode}`);
+      } catch (error) {
+        console.error(`Error sharing file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (input.startsWith('/download ')) {
+      const parts = input.split(' ');
+      if (parts.length < 2) {
+        console.log('Usage: /download <share-code>');
+        rl.prompt();
+        return;
+      }
+      const shareCode = parts[1];
+      const fileShare = fileShareMessages.get(shareCode);
+      if (!fileShare) {
+        console.error(`Error: File with share code ${shareCode} not found. Make sure you've received the file share message.`);
+        rl.prompt();
+        return;
+      }
+      try {
+        // Use downloadFileByPeerId if we have the peer ID
+        const downloadId = await client.downloadFileByPeerId(fileShare.fromPeerId, fileShare.fromNickname, shareCode);
+        console.log(`Download started with ID: ${downloadId}`);
+      } catch (error) {
+        console.error(`Error downloading file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (input === '/files') {
+      const files = client.listSharedFiles();
+      console.log('Shared files:');
+      files.forEach(file => {
+        console.log(`- ${file.info.name} (${file.info.size} bytes) - Share code: ${file.info.shareCode}`);
+      });
+    } else if (input === '/downloads') {
+      const downloads = client.getActiveDownloads();
+      console.log('Active downloads:');
+      downloads.forEach(download => {
+        console.log(`- ${download.filename} (${download.downloadedChunks}/${download.totalChunks} chunks)`);
+      });
     } else if (input === '/help') {
       console.log('Available commands:');
-      console.log('  /join <group-name>     - Join a group');
-      console.log('  /leave <group-name>    - Leave a group');
-      console.log('  /group <group> <msg>   - Send message to group');
-      console.log('  /direct <nick> <msg>   - Send direct message');
-      console.log('  /connect <multiaddr>   - Connect to a peer');
-      console.log('  /peers                 - List connected peers');
-      console.log('  /groups                - List joined groups');
-      console.log('  /help                  - Show this help');
-      console.log('  /exit                  - Exit the program');
+      console.log('  /join <group-name>                  - Join a group');
+      console.log('  /leave <group-name>                 - Leave a group');
+      console.log('  /group <group> <msg>                - Send text message to group');
+      console.log('  /group <group> /file <share-code>    - Share file in group');
+      console.log('  /share <file-path>                  - Share a file and get share code');
+      console.log('  /download <share-code>              - Download a file using share code');
+      console.log('  /direct <nick> <msg>                - Send direct message');
+      console.log('  /connect <multiaddr>                - Connect to a peer');
+      console.log('  /files                              - List shared files');
+      console.log('  /downloads                          - List active downloads');
+      console.log('  /peers                              - List connected peers');
+      console.log('  /groups                             - List joined groups');
+      console.log('  /help                               - Show this help');
+      console.log('  /exit                               - Exit the program');
     } else if (input === '/exit') {
       await client.stop();
       rl.close();

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { P2pClient } from './client.js';
+import type { MessageContentInput } from './types.js';
 
 // Mock libp2p and dependencies
 vi.mock('./libp2p-setup.js', () => ({
@@ -77,7 +78,7 @@ vi.mock('./group.js', () => ({
         return Promise.resolve();
       }),
       leave: vi.fn().mockImplementation((name: string) => {
-        groups.forEach(group => {
+        groups.forEach((group: any) => {
           if (group.name === name) {
             groups.delete(group);
           }
@@ -175,7 +176,7 @@ describe('Group Chat Functionality', () => {
     
     // Send group message
     await expect(async () => {
-      await alice.sendGroupMessage('general', 'Hello everyone!');
+      await alice.sendGroupMessage('general', { type: 'text', text: 'Hello everyone!' } as MessageContentInput);
     }).not.toThrow();
   });
 
@@ -210,6 +211,6 @@ describe('Group Chat Functionality', () => {
     await expect(client.joinGroup('general')).rejects.toThrow();
     
     // Try to send a group message (should fail)
-    await expect(client.sendGroupMessage('general', 'Hello')).rejects.toThrow();
+    await expect(client.sendGroupMessage('general', { type: 'text', text: 'Hello' } as MessageContentInput)).rejects.toThrow();
   });
 });

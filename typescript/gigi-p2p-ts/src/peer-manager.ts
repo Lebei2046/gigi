@@ -6,14 +6,21 @@ export class PeerManager {
   private connectedPeers: Set<string> = new Set();
 
   discover(peerId: string, nickname: string, addresses: string[]): void {
+    const existing = this.peers.get(peerId);
+    
+    console.log(`[PeerManager] discover: peerId=${peerId}, nickname=${nickname}, addresses=${addresses.join(', ')}`);
+    console.log(`[PeerManager] Existing peer: ${existing ? JSON.stringify(existing) : 'none'}`);
+    
     const peer: PeerInfo = {
       peerId,
       nickname,
-      addresses,
+      addresses: existing && existing.addresses.length > 0 ? existing.addresses : addresses,
       lastSeen: Date.now(),
       connected: this.connectedPeers.has(peerId),
     };
 
+    console.log(`[PeerManager] New peer: ${JSON.stringify(peer)}`);
+    
     this.peers.set(peerId, peer);
     this.nicknameToPeerId.set(nickname, peerId);
   }

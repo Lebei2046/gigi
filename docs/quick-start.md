@@ -8,7 +8,7 @@ Before you begin, make sure you have the following installed:
 
 - **Node.js** (v18+): For TypeScript components
 - **Rust** (v1.60+): For Rust components
-- **Bun** (latest): For package management
+- **pnpm** (latest): For package management
 - **OpenClaw** (latest): For the plugin interface
 
 ## Step 1: Clone the Repository
@@ -22,10 +22,10 @@ cd gigi
 
 ## Step 2: Install Dependencies
 
-Install dependencies using Bun:
+Install dependencies using pnpm:
 
 ```bash
-bun install
+pnpm install
 ```
 
 For Rust components, build them:

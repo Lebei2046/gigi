@@ -18,7 +18,7 @@ This package provides a request-response protocol implementation for js-libp2p t
 ## Installation
 
 ```bash
-bun add @gigi/request-response-ts
+pnpm add @gigi/request-response-ts
 ```
 
 ## Usage

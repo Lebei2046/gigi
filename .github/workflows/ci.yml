@@ -299,16 +299,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          cache: 'bun'
+          cache: 'pnpm'
       
       - name: Install dependencies
-        run: cd typescript && bun install
+        run: cd typescript && pnpm install
       
       - name: Run TypeScript tests
-        run: cd typescript/gigi-p2p-ts && bun test
+        run: cd typescript/gigi-p2p-ts && pnpm test
       
       - name: Run TypeScript build
-        run: cd typescript && bun run build
+        run: cd typescript && pnpm run build
 
   # Summary job
   summary:

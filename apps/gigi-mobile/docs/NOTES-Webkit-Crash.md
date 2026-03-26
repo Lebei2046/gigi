@@ -125,7 +125,7 @@ return () => {
 ### Testing Verification
 ```bash
 # Using Bun package manager (as requested)
-bun run build  # ✅ Build successful after fixes
+pnpm run build  # ✅ Build successful after fixes
 ```
 
 **Test Scenario:**

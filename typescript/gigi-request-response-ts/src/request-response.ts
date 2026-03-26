@@ -53,8 +53,25 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
   private registerProtocolHandler(): void {
     const protocol = this.codec.getProtocol();
     
-    this.libp2p.handle(protocol, async (data: IncomingStreamData) => {
-      await this.handleIncomingStream(data);
+    this.libp2p.handle(protocol, async (stream: any) => {
+      console.log(`[RequestResponse] Received stream: ${JSON.stringify(stream)}`);
+      
+      // Get connection from stream
+      let connection = stream.connection;
+      
+      // Try different ways to get connection from stream
+      if (!connection) {
+        connection = stream.conn || stream._connection;
+      }
+      
+      console.log(`[RequestResponse] Using stream: ${stream}, connection: ${connection}`);
+      
+      // Ensure we have at least a stream
+      if (stream) {
+        await this.handleIncomingStream({ stream, connection });
+      } else {
+        console.error('[RequestResponse] Missing stream in incoming data');
+      }
     });
   }
 
@@ -63,8 +80,20 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
    */
   private async handleIncomingStream(data: IncomingStreamData): Promise<void> {
     const { stream, connection } = data;
-    const peerId = connection.remotePeer;
-    const connectionId = connection.id;
+    console.log(`[RequestResponse] Incoming stream from connection: ${JSON.stringify(connection)}`);
+    
+    // Try to get peerId from different possible locations
+    let peerId: any = 'unknown';
+    if (connection) {
+      peerId = connection.remotePeer || 'unknown';
+    }
+    
+    // Try to get peerId from stream if not found in connection
+    if (peerId === 'unknown' && stream) {
+      peerId = stream.remotePeer || stream.peerId || stream._remotePeer || 'unknown';
+    }
+    
+    const connectionId = connection?.id || stream?.id || 'unknown';
 
     try {
       // Read request from stream
@@ -116,7 +145,8 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         type: 'InboundFailure',
         peer: peerId,
         connectionId,
-        error: InboundFailure.DecodingFailure
+        requestId: new InboundRequestId(0),
+        error: InboundFailure.Timeout
       });
     } finally {
       // Stream will be closed by the sender
@@ -129,11 +159,54 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
   private async sendResponse(stream: Stream, response: TResponse): Promise<void> {
     try {
       const encodedResponse = this.codec.encodeResponse(response);
-      await stream.sink([encodedResponse]);
+      
+      // Check if stream has send method (YamuxStream)
+      if (typeof (stream as any).send === 'function') {
+        console.log(`[RequestResponse] Using send method for response`);
+        await (stream as any).send(encodedResponse);
+        // End the stream
+        if (typeof (stream as any).close === 'function') {
+          await (stream as any).close();
+        }
+      } else if (stream.sink) {
+        console.log(`[RequestResponse] Using sink method for response`);
+        await stream.sink([encodedResponse]);
+      } else if (typeof stream.write === 'function') {
+        // Try to use write method if available
+        console.log(`[RequestResponse] Using write method for response`);
+        await new Promise<void>((resolve, reject) => {
+          stream.write(encodedResponse, (error: Error | null) => {
+            if (error) {
+              reject(error);
+            } else {
+              if (typeof stream.end === 'function') {
+                stream.end(resolve);
+              } else {
+                resolve();
+              }
+            }
+          });
+        });
+      } else if (typeof stream.writable === 'object' && stream.writable.writable) {
+        // Try Web Streams API
+        console.log(`[RequestResponse] Using Web Streams API for response`);
+        const writer = stream.writable.getWriter();
+        await writer.write(encodedResponse);
+        await writer.close();
+      } else {
+        console.error(`[RequestResponse] No valid write method found for stream`);
+        throw new Error('No write method available');
+      }
     } catch (error) {
       console.error('Error sending response:', error);
     } finally {
-      await stream.close();
+      if (typeof stream.close === 'function') {
+        try {
+          await stream.close();
+        } catch (error) {
+          console.error('Error closing stream:', error);
+        }
+      }
     }
   }
 
@@ -167,38 +240,123 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
 
   /**
    * Send a request to a peer.
-   * @param peerId - The peer to send the request to
+   * @param peerId - The peer to send the request to (can be a PeerId object, string peer ID, or multiaddr string)
    * @param request - The request to send
-   * @returns The request ID
+   * @returns The response from the peer
    */
-  async sendRequest(peerId: PeerId, request: TRequest): Promise<OutboundRequestId> {
+  async sendRequest(peerId: PeerId | string, request: TRequest): Promise<TResponse> {
     const requestId = new OutboundRequestId(this.nextOutboundRequestId++);
     const protocol = this.codec.getProtocol();
 
+    // Convert peerId to string if it's a PeerId object
+    const peerIdStr = typeof peerId === 'string' ? peerId : peerId.toString();
+    
+    // Extract just the peer ID from the address if it's a multiaddr
+    const peerIdOnly = peerIdStr.includes('/p2p/') ? peerIdStr.split('/p2p/')[1] : peerIdStr;
+
     try {
-      // Dial the protocol
-      const stream = await this.libp2p.dialProtocol(peerId, protocol);
-      const connectionId = stream.connection.id;
+      console.log(`[RequestResponse] Dialing protocol ${protocol} to peer ${peerIdOnly}`);
+      
+      // Try to dial using the peer ID directly
+      // This will use libp2p's peer store to find addresses
+      let stream;
+      try {
+        // Create a PeerId object from the string peer ID
+        const { peerIdFromString } = await import('@libp2p/peer-id');
+        const peerIdObj = peerIdFromString(peerIdOnly);
+        stream = await this.libp2p.dialProtocol(peerIdObj, protocol);
+      } catch (error) {
+        console.log(`[RequestResponse] Dial attempt failed:`, error);
+        throw error;
+      }
+      const connectionId = stream.connection?.id || 'unknown';
+      
+      console.log(`[RequestResponse] Got stream with connection ID: ${connectionId}`);
 
       // Set up timeout
       const timeout = setTimeout(() => {
-        this.handleOutboundTimeout(peerId, connectionId, requestId);
+        this.handleOutboundTimeout(peerIdOnly, connectionId, requestId);
       }, this.config.requestTimeout);
 
       // Store pending outbound request
       this.pendingOutboundRequests.set(requestId.toString(), {
-        peerId,
+        peerId: peerIdOnly,
         connectionId,
         timeout
       });
 
       // Send request
       const encodedRequest = this.codec.encodeRequest(request);
-      await stream.sink([encodedRequest]);
+      console.log(`[RequestResponse] Sending request: ${JSON.stringify(request)}`);
+      
+      // Log stream object to understand its structure
+      console.log(`[RequestResponse] Stream object:`, stream);
+      console.log(`[RequestResponse] Stream constructor:`, stream.constructor.name);
+      console.log(`[RequestResponse] Stream has sink:`, typeof stream.sink);
+      console.log(`[RequestResponse] Stream has source:`, typeof stream.source);
+      console.log(`[RequestResponse] Stream has write:`, typeof stream.write);
+      console.log(`[RequestResponse] Stream has send:`, typeof stream.send);
+      console.log(`[RequestResponse] Stream has push:`, typeof stream.push);
+      console.log(`[RequestResponse] Stream has end:`, typeof stream.end);
+      console.log(`[RequestResponse] Stream has close:`, typeof stream.close);
+      
+      // Try to use the correct API for Libp2p streams
+      if (typeof stream.send === 'function') {
+        // Try to use send method if available (YamuxStream)
+        console.log(`[RequestResponse] Using send method`);
+        // Convert Uint8Array to Buffer before sending
+        const buffer = Buffer.from(encodedRequest);
+        console.log(`[RequestResponse] Sending buffer length: ${buffer.length}`);
+        // Send the data and wait for it to complete
+        await stream.send(buffer);
+        console.log(`[RequestResponse] Data sent successfully`);
+        // Close only the write side of the stream to signal we're done sending
+        // This allows the other side to know when to stop reading, but leaves the read side open
+        if (typeof stream.sendCloseWrite === 'function') {
+          console.log(`[RequestResponse] Closing write side of stream`);
+          await stream.sendCloseWrite();
+        } else if (typeof stream.close === 'function') {
+          // Fallback to close if sendCloseWrite is not available
+          console.log(`[RequestResponse] Closing stream`);
+          await stream.close();
+        }
+      } else if (typeof stream.write === 'function') {
+        // Try to use write method if available
+        console.log(`[RequestResponse] Using write method`);
+        await new Promise<void>((resolve, reject) => {
+          stream.write(encodedRequest, (error: Error | null) => {
+            if (error) {
+              reject(error);
+            } else {
+              // Don't end the stream yet - we need to read the response
+              resolve();
+            }
+          });
+        });
+      } else if (typeof stream.sink === 'function') {
+        console.log(`[RequestResponse] Using sink method with array`);
+        // Pass an array of Uint8Array chunks directly to sink
+        await stream.sink([encodedRequest]);
+      } else if (typeof stream.writable === 'object' && stream.writable.writable) {
+        // Try Web Streams API
+        console.log(`[RequestResponse] Using Web Streams API`);
+        const writer = stream.writable.getWriter();
+        await writer.write(encodedRequest);
+        // Close the writer to signal we're done sending, but leave the readable side open
+        await writer.close();
+      } else {
+        // Last resort - throw error
+        throw new Error('No write method available');
+      }
+      
+      console.log(`[RequestResponse] Request sent`);
 
       // Wait for response
+      console.log(`[RequestResponse] Waiting for response`);
       const responseData = await this.readStream(stream);
+      console.log(`[RequestResponse] Received response data: ${responseData.length} bytes`);
       const response = this.codec.decodeResponse(responseData);
+      console.log(`[RequestResponse] Decoded response: ${JSON.stringify(response)}`);
 
       // Clear timeout and pending request
       this.clearOutboundRequest(requestId);
@@ -206,7 +364,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       // Emit response event
       this.emitEvent({
         type: 'Message',
-        peer: peerId,
+        peer: peerIdOnly,
         connectionId,
         message: {
           type: 'Response',
@@ -215,15 +373,27 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         }
       });
 
-      return requestId;
+      // Close the stream after processing the response
+      if (typeof stream.close === 'function') {
+        console.log(`[RequestResponse] Closing stream`);
+        try {
+          await stream.close();
+        } catch (error) {
+          console.error(`[RequestResponse] Error closing stream:`, error);
+        }
+      }
+
+      return response;
     } catch (error) {
       // Clear pending request
       this.clearOutboundRequest(requestId);
       
+      console.error(`[RequestResponse] Error in sendRequest:`, error);
+      
       // Emit failure event
       this.emitEvent({
         type: 'OutboundFailure',
-        peer: peerId,
+        peer: peerIdOnly,
         connectionId: 'unknown' as ConnectionId,
         requestId,
         error: OutboundFailure.DialFailure
@@ -266,8 +436,92 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
    */
   private async readStream(stream: Stream): Promise<Uint8Array> {
     const chunks: Uint8Array[] = [];
-    for await (const chunk of stream.source) {
-      chunks.push(chunk);
+    
+    try {
+      
+      // Try for streams with async iterator first (YamuxStream supports this)
+      if (typeof stream[Symbol.asyncIterator] === 'function') {
+        for await (const chunk of stream) {
+          // Handle different chunk types
+          if (Buffer.isBuffer(chunk)) {
+            chunks.push(new Uint8Array(chunk));
+          } else if (chunk instanceof Uint8Array) {
+            chunks.push(chunk);
+          } else if (Array.isArray(chunk)) {
+            chunks.push(new Uint8Array(chunk));
+          } else if (chunk && typeof chunk.toUint8Array === 'function') {
+            // Handle Uint8ArrayList
+            chunks.push(chunk.toUint8Array());
+          } else if (chunk && typeof chunk.slice === 'function') {
+            // Try to slice as a last resort
+            chunks.push(new Uint8Array(chunk.slice(0)));
+          } else {
+            // Try to convert to Uint8Array anyway
+            try {
+              chunks.push(new Uint8Array(chunk));
+            } catch (error) {
+              console.error('[RequestResponse] Error converting chunk:', error);
+            }
+          }
+        }
+      } else if (typeof (stream as any).receive === 'function') {
+        // Try YamuxStream receive method
+        let chunk;
+        while ((chunk = await (stream as any).receive()) !== null) {
+          chunks.push(new Uint8Array(chunk));
+        }
+      } else if (typeof (stream as any).read === 'function') {
+        // Try stream.read() method
+        let chunk;
+        while ((chunk = (stream as any).read()) !== null) {
+          chunks.push(new Uint8Array(chunk));
+        }
+      } 
+      // Try the most common duplex stream API
+      else if (stream.source) {
+        for await (const chunk of stream.source) {
+          chunks.push(chunk);
+        }
+      } 
+      // Try Web Streams API
+      else if (stream.readable) {
+        const reader = stream.readable.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          if (value) {
+            chunks.push(value);
+          }
+        }
+      }
+      // Try event emitter pattern
+      else if (typeof stream.on === 'function') {
+        await new Promise<void>((resolve, reject) => {
+          stream.on('data', (chunk: Buffer) => {
+            chunks.push(new Uint8Array(chunk));
+          });
+          stream.on('end', () => {
+            resolve();
+          });
+          stream.on('error', (error: Error) => {
+            reject(error);
+          });
+        });
+      }
+      // Try to get data from stream directly
+      else {
+        // For some stream types, the data might be available immediately
+        throw new Error('Unsupported stream type');
+      }
+    } catch (error) {
+      console.error('[RequestResponse] Error reading stream:', error);
+      throw error;
+    }
+
+    if (chunks.length === 0) {
+      return new Uint8Array(0);
     }
 
     const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);

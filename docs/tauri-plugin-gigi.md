@@ -26,7 +26,7 @@ The Tauri Plugin Gigi is designed to make it easy for Tauri applications to inte
 - **Tauri**: v1.0 or later
 - **Rust**: v1.60 or later
 - **Node.js**: v16 or later
-- **npm** or **yarn** or **bun**: For package management
+- **npm** or **yarn** or **pnpm**: For package management
 
 ### Installation Steps
 
@@ -38,8 +38,8 @@ The Tauri Plugin Gigi is designed to make it easy for Tauri applications to inte
    # Using yarn
    yarn add tauri-plugin-gigi
    
-   # Using bun
-   bun add tauri-plugin-gigi
+   # Using pnpm
+   pnpm add tauri-plugin-gigi
    ```
 
 2. **Update your Tauri configuration** (`tauri.conf.json`):

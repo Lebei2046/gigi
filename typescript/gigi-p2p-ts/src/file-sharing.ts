@@ -4,10 +4,14 @@ import { existsSync } from 'fs';
 import { join, basename } from 'path';
 import type { FileInfo, SharedFile } from './types.js';
 
-export const CHUNK_SIZE = 256 * 1024;
+interface SharedFileWithPath extends SharedFile {
+  filePath: string;
+}
+
+export const CHUNK_SIZE = 64 * 1024;
 
 export class FileSharingManager {
-  private files: Map<string, SharedFile> = new Map();
+  private files: Map<string, SharedFileWithPath> = new Map();
   private shareCodeIndex: Map<string, string> = new Map();
   private outputDirectory: string;
 
@@ -39,7 +43,7 @@ export class FileSharingManager {
       revoked: false,
     };
 
-    const sharedFile: SharedFile = { fileId, shareCode, info };
+    const sharedFile: SharedFileWithPath = { fileId, shareCode, info, filePath };
 
     this.files.set(fileId, sharedFile);
     this.shareCodeIndex.set(shareCode, fileId);
@@ -53,6 +57,16 @@ export class FileSharingManager {
     const shareCode = this.generateShareCode(name);
     const chunkCount = Math.ceil(content.length / CHUNK_SIZE);
 
+    // Create a temporary directory to store the file
+    const tempDir = join(this.outputDirectory, 'temp');
+    if (!existsSync(tempDir)) {
+      await mkdir(tempDir, { recursive: true });
+    }
+
+    // Write the content to a temporary file
+    const filePath = join(tempDir, `${fileId}_${name}`);
+    await writeFile(filePath, content);
+
     const info: FileInfo = {
       fileId,
       shareCode,
@@ -65,7 +79,7 @@ export class FileSharingManager {
       revoked: false,
     };
 
-    const sharedFile: SharedFile = { fileId, shareCode, info };
+    const sharedFile: SharedFileWithPath = { fileId, shareCode, info, filePath };
 
     this.files.set(fileId, sharedFile);
     this.shareCodeIndex.set(shareCode, fileId);
@@ -119,8 +133,11 @@ export class FileSharingManager {
     return filePath;
   }
 
-  getChunk(fileId: string, chunkIndex: number, _filePath: string): Uint8Array {
-    return new Uint8Array(0);
+  async getChunk(fileId: string, chunkIndex: number, filePath: string): Promise<Uint8Array> {
+    const content = await readFile(filePath);
+    const start = chunkIndex * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, content.length);
+    return new Uint8Array(content.buffer, start, end - start);
   }
 
   private calculateHash(data: Uint8Array): string {
@@ -132,7 +149,7 @@ export class FileSharingManager {
   private generateShareCode(filename: string): string {
     const timestamp = Date.now().toString(36);
     const input = `${filename}:${timestamp}`;
-    const hash = createHash('blake3').update(input).digest('hex');
+    const hash = createHash('sha256').update(input).digest('hex');
     return hash.substring(0, 8);
   }
 

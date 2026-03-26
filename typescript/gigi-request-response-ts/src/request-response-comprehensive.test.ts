@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { RequestResponse, JsonCodec, CborCodec } from './index.js';
 
 // Define test request and response types

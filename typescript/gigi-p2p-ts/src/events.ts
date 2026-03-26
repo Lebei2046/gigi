@@ -1,3 +1,5 @@
+import type { MessageContent } from './types.js';
+
 export enum P2pEventType {
   PEER_DISCOVERED = 'peer-discovered',
   PEER_EXPIRED = 'peer-expired',
@@ -33,7 +35,7 @@ export type P2pEvent =
   | { type: 'direct-message'; from: string; fromNickname: string; message: string }
   | { type: 'direct-file-share-message'; from: string; fromNickname: string; shareCode: string; filename: string; fileSize: number; fileType: string }
   | { type: 'direct-group-share-message'; from: string; fromNickname: string; groupId: string; groupName: string }
-  | { type: 'group-message'; from: string; fromNickname: string; group: string; message: string }
+  | { type: 'group-message'; from: string; fromNickname: string; group: string; content: MessageContent; timestamp: number }
   | { type: 'group-file-share-message'; from: string; fromNickname: string; group: string; shareCode: string; filename: string; fileSize: number; fileType: string; message: string }
   | { type: 'group-joined'; group: string }
   | { type: 'group-left'; group: string }
@@ -77,6 +79,17 @@ export const eventEmitter = {
         Array.from(listenersForEvent).map(listener =>
           Promise.resolve(listener(event)).catch(err =>
             console.error(`Error in event listener for ${eventType}:`, err)
+          )
+        )
+      );
+    }
+    // Also notify 'any' listeners
+    const anyListeners = listeners.get('any');
+    if (anyListeners) {
+      await Promise.all(
+        Array.from(anyListeners).map(listener =>
+          Promise.resolve(listener(event)).catch(err =>
+            console.error(`Error in 'any' event listener:`, err)
           )
         )
       );

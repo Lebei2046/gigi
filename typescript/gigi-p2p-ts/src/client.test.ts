@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { P2pClient } from './client.js';
+import type { MessageContentInput } from './types.js';
 
 // Mock libp2p and dependencies
 vi.mock('./libp2p-setup.js', () => ({
@@ -158,7 +159,7 @@ describe('P2pClient', () => {
 
   it('should send a group message', async () => {
     await client.start();
-    await expect(client.sendGroupMessage('general', 'Hello everyone')).resolves.not.toThrow();
+    await expect(client.sendGroupMessage('general', { type: 'text', text: 'Hello everyone' } as MessageContentInput)).resolves.not.toThrow();
   });
 
   it('should get joined groups', async () => {

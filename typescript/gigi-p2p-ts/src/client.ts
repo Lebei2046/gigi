@@ -6,7 +6,8 @@ import { GroupManager } from './group.js';
 import { PeerManager } from './peer-manager.js';
 import { RequestResponse, JsonCodec } from '@gigi/request-response-ts';
 import { multiaddr as multiaddrFromString } from '@multiformats/multiaddr';
-import type { P2pConfig, PeerInfo, GroupInfo, ActiveDownload } from './types.js';
+import { peerIdFromString } from '@libp2p/peer-id';
+import type { P2pConfig, PeerInfo, GroupInfo, ActiveDownload, MessageContent, MessageContentInput } from './types.js';
 
 // Define file protocol request and response types
 export interface FileRequest {
@@ -19,6 +20,7 @@ export interface FileRequest {
 export interface FileChunkRequest {
   type: 'chunk';
   downloadId: string;
+  shareCode: string;
   chunkIndex: number;
   totalChunks: number;
   chunk: Uint8Array;
@@ -120,7 +122,7 @@ export class P2pClient {
           if (request.type === 'request') {
             await this.handleFileRequest(event.peer.toString(), request, channel);
           } else if (request.type === 'chunk') {
-            await this.handleFileChunk(event.peer.toString(), request, channel);
+            await this.handleFileChunkRequest(event.peer.toString(), request, channel);
           }
         }
       });
@@ -206,48 +208,106 @@ export class P2pClient {
           
           const groupName = topic.replace('gigi-group:', '');
           // Decode the message from detail.data (Buffer)
-          const message = new TextDecoder().decode(detail.data);
+          const messageData = new TextDecoder().decode(detail.data);
           
-          // For unsigned messages, we may not have a 'from' field
-          // Use 'unknown' as sender if not available
-          const from = detail.from || 'unknown';
+          try {
+            // Parse the structured message
+            const structuredMessage = JSON.parse(messageData);
+            
+            // Get the peer ID from the message
+            // In libp2p pubsub, the message sender is in detail.from
+            const from = detail.from || 'unknown';
+            const senderNickname = structuredMessage.senderNickname || 'unknown';
 
-          console.log(`[P2pClient] Received group message in ${groupName} from ${from}: ${message}`);
-
-          await eventEmitter.emit({
-            type: 'group-message',
-            from: from.toString(),
-            fromNickname: this.peerManager.getNickname(from.toString()) || from.toString(),
-            group: groupName,
-            message,
-          } as P2pEvent);
+            console.log(`[P2pClient] Received group message in ${groupName} from ${senderNickname}`);
+            console.log(`[P2pClient] Message from peer ID: ${from}`);
+            console.log(`[P2pClient] Message detail keys: ${Object.keys(detail)}`);
+            
+            // Check if we have any address information for the peer
+            let addresses: string[] = [];
+            if (detail.message && detail.message.multiaddrs) {
+              addresses = detail.message.multiaddrs.map((ma: any) => ma.toString());
+            } else if (detail.multiaddrs) {
+              addresses = detail.multiaddrs.map((ma: any) => ma.toString());
+            }
+            console.log(`[P2pClient] Peer addresses: ${addresses.join(', ')}`);
+            
+            // Add the sender to peer manager if not already present
+            let peerIdToAdd = from.toString();
+            if (peerIdToAdd === 'unknown' && structuredMessage.content.type === 'fileShare' && structuredMessage.content.fromPeerId) {
+              // For file share messages, use the peer ID from the content
+              peerIdToAdd = structuredMessage.content.fromPeerId;
+              console.log(`[P2pClient] Using peer ID from file share content: ${peerIdToAdd}`);
+            }
+            
+            if (peerIdToAdd !== 'unknown' && senderNickname !== 'unknown') {
+              console.log(`[P2pClient] Adding peer ${senderNickname} (${peerIdToAdd}) to peer manager with addresses: ${addresses.join(', ')}`);
+              this.peerManager.discover(peerIdToAdd, senderNickname, addresses);
+              console.log(`[P2pClient] Peers after adding: ${Array.from(this.peerManager.list()).map(p => `${p.nickname} (${p.peerId})`).join(', ')}`);
+            }
+            
+            // Emit the group message event with structured content
+            await eventEmitter.emit({
+              type: 'group-message',
+              from: peerIdToAdd,
+              fromNickname: senderNickname,
+              group: groupName,
+              content: structuredMessage.content,
+              timestamp: structuredMessage.timestamp,
+            } as P2pEvent);
+          } catch (error) {
+            console.warn('[P2pClient] Error parsing structured message:', error);
+            // Fallback to plain text message if parsing fails
+            const from = detail.from || 'unknown';
+            console.log(`[P2pClient] Received plain text message in ${groupName} from ${from}: ${messageData}`);
+            
+            const nickname = this.peerManager.getNickname(from.toString()) || from.toString();
+            
+            // Add the sender to peer manager if not already present
+            if (from !== 'unknown') {
+              this.peerManager.discover(from.toString(), nickname, []);
+            }
+            
+            await eventEmitter.emit({
+              type: 'group-message',
+              from: from.toString(),
+              fromNickname: nickname,
+              group: groupName,
+              content: { type: 'text', text: messageData },
+              timestamp: Date.now(),
+            } as P2pEvent);
+          }
         }
       });
     }
 
     this.libp2p.addEventListener('peer:connect', async (event: any) => {
-      if (!event.detail || !event.detail.remotePeer) {
-        console.warn('[P2pClient] peer:connect event without remotePeer:', event);
+      if (!event.detail) {
+        console.warn('[P2pClient] peer:connect event without detail:', event);
         return;
       }
       
-      const peerId = event.detail.remotePeer.toString();
-      this.peerManager.addConnected(peerId, this.nickname);
+      // Handle both formats: event.detail as PeerId or event.detail.remotePeer
+      const peerId = event.detail.remotePeer ? event.detail.remotePeer.toString() : event.detail.toString();
+      // Get the peer's nickname from the peer store or use peer ID as fallback
+      const peerNickname = this.peerManager.getNickname(peerId) || peerId;
+      this.peerManager.addConnected(peerId, peerNickname);
 
       await eventEmitter.emit({
         type: 'connected',
         peerId,
-        nickname: this.peerManager.getNickname(peerId) || peerId,
+        nickname: peerNickname,
       } as P2pEvent);
     });
 
     this.libp2p.addEventListener('peer:disconnect', async (event: any) => {
-      if (!event.detail || !event.detail.remotePeer) {
-        console.warn('[P2pClient] peer:disconnect event without remotePeer:', event);
+      if (!event.detail) {
+        console.warn('[P2pClient] peer:disconnect event without detail:', event);
         return;
       }
       
-      const peerId = event.detail.remotePeer.toString();
+      // Handle both formats: event.detail as PeerId or event.detail.remotePeer
+      const peerId = event.detail.remotePeer ? event.detail.remotePeer.toString() : event.detail.toString();
       this.peerManager.removeConnected(peerId);
 
       await eventEmitter.emit({
@@ -264,12 +324,14 @@ export class P2pClient {
     // Listen for general peer discovery events (includes both DHT and mDNS)
     this.libp2p.addEventListener('peer:discovery', async (event: any) => {
       console.log('[P2pClient] Peer discovered event:', event);
-      const peerId = event.detail.id.toString();
-      const multiaddrs = event.detail.multiaddrs.map((m: any) => m.toString());
+      // Handle both formats: event.detail.id or event.detail as PeerId
+      const peerId = event.detail.id ? event.detail.id.toString() : event.detail.toString();
+      const multiaddrs = event.detail.multiaddrs ? event.detail.multiaddrs.map((m: any) => m.toString()) : [];
 
       console.log(`[P2pClient] Discovered peer: ${peerId} at ${multiaddrs.join(', ')}`);
 
-      this.peerManager.discover(peerId, this.nickname, multiaddrs);
+      // Use peer ID as nickname for newly discovered peers
+      this.peerManager.discover(peerId, peerId, multiaddrs);
 
       // Automatically connect to discovered peers
       try {
@@ -286,22 +348,24 @@ export class P2pClient {
       await eventEmitter.emit({
         type: 'peer-discovered',
         peerId,
-        nickname: this.nickname,
+        nickname: peerId,
         address: multiaddrs[0] || '',
       } as P2pEvent);
     });
 
     if (this.libp2p.services.dht) {
       this.libp2p.services.dht.addEventListener('peer', async (event: any) => {
-        const peerId = event.detail.id.toString();
-        const multiaddrs = event.detail.multiaddrs.map((m: any) => m.toString());
+        // Handle both formats: event.detail.id or event.detail as PeerId
+        const peerId = event.detail.id ? event.detail.id.toString() : event.detail.toString();
+        const multiaddrs = event.detail.multiaddrs ? event.detail.multiaddrs.map((m: any) => m.toString()) : [];
 
-        this.peerManager.discover(peerId, this.nickname, multiaddrs);
+        // Use peer ID as nickname for newly discovered peers
+        this.peerManager.discover(peerId, peerId, multiaddrs);
 
         await eventEmitter.emit({
           type: 'peer-discovered',
           peerId,
-          nickname: this.nickname,
+          nickname: peerId,
           address: multiaddrs[0] || '',
         } as P2pEvent);
       });
@@ -323,14 +387,20 @@ export class P2pClient {
   }
 
   private async handleFileRequest(peerId: string, request: FileRequest, channel: any): Promise<void> {
+    console.log(`[P2pClient] ************* Handling file request from ${peerId}`);
+    console.log(`[P2pClient] Request: ${JSON.stringify(request)}`);
+    
     const file = this.fileManager.getByShareCode(request.shareCode);
     if (!file) {
+      console.log(`[P2pClient] File not found for share code: ${request.shareCode}`);
       channel.send({ type: 'error', message: 'File not found' } as FileErrorResponse);
       return;
     }
 
+    console.log(`[P2pClient] Found file: ${file.info.name}`);
+    
     // Send file info response
-    channel.send({
+    const response = {
       type: 'file-info',
       fileId: file.fileId,
       name: file.info.name,
@@ -338,7 +408,11 @@ export class P2pClient {
       mimeType: file.info.mimeType,
       chunkCount: file.info.chunkCount,
       hash: file.info.hash,
-    } as FileInfoResponse);
+    } as FileInfoResponse;
+    
+    console.log(`[P2pClient] Sending response: ${JSON.stringify(response)}`);
+    channel.send(response);
+    console.log(`[P2pClient] ************* Response sent`);
 
     await eventEmitter.emit({
       type: 'file-share-request',
@@ -348,6 +422,39 @@ export class P2pClient {
       filename: file.info.name,
       size: file.info.size,
     } as P2pEvent);
+  }
+
+  private async handleFileChunkRequest(peerId: string, request: FileChunkRequest, channel: any): Promise<void> {
+    console.log(`[P2pClient] Handling file chunk request from ${peerId}`);
+    console.log(`[P2pClient] Request: ${JSON.stringify(request)}`);
+    
+    const file = this.fileManager.getByShareCode(request.shareCode);
+    if (!file) {
+      console.log(`[P2pClient] File not found for share code: ${request.shareCode}`);
+      channel.send({ type: 'error', message: 'File not found' } as FileErrorResponse);
+      return;
+    }
+
+    try {
+      // Use the stored file path
+      const filePath = (file as any).filePath || file.info.name;
+      const chunk = await this.fileManager.getChunk(file.fileId, request.chunkIndex, filePath);
+      
+      // Send chunk response
+      const response = {
+        type: 'chunk',
+        downloadId: request.downloadId,
+        chunkIndex: request.chunkIndex,
+        totalChunks: request.totalChunks,
+        chunk: chunk,
+      } as FileChunkResponse;
+      
+      console.log(`[P2pClient] Sending chunk ${request.chunkIndex}/${request.totalChunks}`);
+      channel.send(response);
+    } catch (error) {
+      console.error(`[P2pClient] Error sending chunk:`, error);
+      channel.send({ type: 'error', message: 'Failed to send chunk' } as FileErrorResponse);
+    }
   }
 
   private async handleFileChunk(peerId: string, request: FileChunkRequest, channel: any): Promise<void> {
@@ -399,26 +506,8 @@ export class P2pClient {
       throw P2pError.notStarted();
     }
 
-    try {
-      // Create a promise to wait for the response
-      return new Promise<FileResponseMessage>((resolve, reject) => {
-        // Send the request
-        this.fileRequestResponse!.sendRequest(targetPeerId, message).catch(reject);
-
-        // Listen for the response
-        const unsubscribe = this.fileRequestResponse!.onEvent((event: any) => {
-          if (event.type === 'Message' && event.message.type === 'Response') {
-            resolve(event.message.response);
-            unsubscribe();
-          } else if (event.type === 'OutboundFailure') {
-            reject(new Error(`Outbound failure: ${event.error}`));
-            unsubscribe();
-          }
-        });
-      });
-    } catch (error) {
-      throw P2pError.networkError(`Failed to send file message to ${targetPeerId}`, error as Error);
-    }
+    // Send the request and return the response directly
+    return await this.fileRequestResponse!.sendRequest(targetPeerId, message);
   }
 
   getPeerId(): string {
@@ -433,6 +522,10 @@ export class P2pClient {
       throw P2pError.notStarted();
     }
     return this.libp2p.getMultiaddrs().map((m: any) => m.toString());
+  }
+
+  addPeer(nickname: string, peerId: string, addresses: string[]): void {
+    this.peerManager.discover(peerId, nickname, addresses);
   }
 
   isStarted(): boolean {
@@ -485,12 +578,31 @@ export class P2pClient {
     await eventEmitter.emit({ type: 'group-left', group: groupName } as P2pEvent);
   }
 
-  async sendGroupMessage(groupName: string, message: string): Promise<void> {
+  async sendGroupMessage(groupName: string, content: MessageContentInput): Promise<void> {
     if (!this.libp2p || !this.started) {
       throw P2pError.notStarted();
     }
 
     const topic = `gigi-group:${groupName}`;
+    
+    // If content is a file share, add sender's peer ID and nickname
+    let fullContent: MessageContent;
+    if (content.type === 'fileShare') {
+      fullContent = {
+        ...content,
+        fromPeerId: this.getPeerId(),
+        fromNickname: this.nickname
+      };
+    } else {
+      fullContent = content as MessageContent;
+    }
+    
+    const message = JSON.stringify({
+      type: 'group-message',
+      senderNickname: this.nickname,
+      content: fullContent,
+      timestamp: Date.now()
+    });
     const data = new TextEncoder().encode(message);
 
     try {
@@ -524,11 +636,21 @@ export class P2pClient {
   }
 
   async downloadFile(nickname: string, shareCode: string): Promise<string> {
+    console.log(`[P2pClient] Attempting to download file from ${nickname}`);
+    console.log(`[P2pClient] Peers in manager: ${Array.from(this.peerManager.list()).map(p => `${p.nickname} (${p.peerId})`).join(', ')}`);
+    
     const peerId = this.peerManager.getPeerId(nickname);
     if (!peerId) {
+      console.log(`[P2pClient] Peer ${nickname} not found in peer manager`);
       throw P2pError.peerNotFound(nickname);
     }
-
+    console.log(`[P2pClient] Found peer ${nickname} with ID: ${peerId}`);
+    
+    return this.downloadFileByPeerId(peerId, nickname, shareCode);
+  }
+  
+  async downloadFileByPeerId(peerId: string, nickname: string, shareCode: string): Promise<string> {
+    console.log(`[P2pClient] ************* Entering downloadFileByPeerId`);
     const downloadId = crypto.randomUUID();
 
     // Send file request to get file info
@@ -541,10 +663,12 @@ export class P2pClient {
 
     try {
       const response = await this.sendFileMessage(peerId, fileRequest);
+      console.log(`[P2pClient] Received response type: ${response.type}`);
 
       if (response.type === 'error') {
         throw P2pError.fileNotFound(shareCode);
       } else if (response.type === 'file-info') {
+        console.log(`[P2pClient] Starting chunk requests`);
         // Create download entry
         const download: ActiveDownload = {
           downloadId,
@@ -571,13 +695,63 @@ export class P2pClient {
           shareCode,
         } as P2pEvent);
 
-        // For demonstration purposes, we'll just return the download ID
-        // In a real implementation, you would request each chunk here
+        // Request all file chunks
+        console.log(`[P2pClient] Requesting ${response.chunkCount} chunks`);
+        for (let i = 0; i < response.chunkCount; i++) {
+          console.log(`[P2pClient] Requesting chunk ${i}`);
+          const chunkRequest: FileChunkRequest = {
+            type: 'chunk',
+            downloadId,
+            shareCode,
+            chunkIndex: i,
+            totalChunks: response.chunkCount,
+            chunk: new Uint8Array(0), // Empty chunk, just requesting data
+          };
+
+          const chunkResponse = await this.sendFileMessage(peerId, chunkRequest);
+          console.log(`[P2pClient] Received chunk ${i} response: ${chunkResponse.type}`);
+          if (chunkResponse.type === 'chunk' && chunkResponse.chunk) {
+            download.data.push(chunkResponse.chunk);
+            download.downloadedChunks++;
+            console.log(`[P2pClient] Chunk ${i} added, downloaded: ${download.downloadedChunks}/${download.totalChunks}`);
+
+            await eventEmitter.emit({
+              type: 'file-download-progress',
+              downloadId,
+              filename: download.filename,
+              shareCode,
+              fromPeerId: peerId,
+              fromNickname: nickname,
+              downloadedChunks: download.downloadedChunks,
+              totalChunks: download.totalChunks,
+            } as P2pEvent);
+          }
+        }
+        console.log(`[P2pClient] Chunk requests completed`);
+
+        // Complete the download
+        if (download.downloadedChunks >= download.totalChunks) {
+          await this.fileManager.saveFile(download.filename, download.data);
+          download.completed = true;
+          download.finalPath = `${this.outputDirectory}/${download.filename}`;
+
+          await eventEmitter.emit({
+            type: 'file-download-completed',
+            downloadId,
+            filename: download.filename,
+            shareCode,
+            fromPeerId: peerId,
+            fromNickname: nickname,
+            path: download.finalPath,
+          } as P2pEvent);
+        }
+
         return downloadId;
       } else {
         throw P2pError.fileNotFound(shareCode);
       }
     } catch (error) {
+      console.error(`[P2pClient] Error in downloadFileByPeerId:`, error);
       throw P2pError.networkError(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`, error as Error);
     }
   }
@@ -598,6 +772,10 @@ export class P2pClient {
 
   listSharedFiles(): any[] {
     return this.fileManager.list();
+  }
+
+  getFileByShareCode(shareCode: string): any | undefined {
+    return this.fileManager.getByShareCode(shareCode);
   }
 
   getActiveDownloads(): ActiveDownload[] {

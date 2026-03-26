@@ -12,7 +12,7 @@ Testing is crucial for maintaining code quality, catching bugs early, and ensuri
 ### Setup Example (Vitest)
 ```bash
 # Install dependencies
-bun add -D vitest
+pnpm add -D vitest
 
 # Add test scripts to package.json
 {
@@ -122,10 +122,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: oven-sh/setup-bun@v1
-      - run: bun install
-      - run: bun test
-      - run: bun test --coverage
+      - uses: pnpm/action-setup@v2
+        with:
+          version: latest
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm test
+      - run: pnpm test --coverage
 ```
 
 ## 7. Best Practices for Writing Tests

@@ -22,7 +22,7 @@ The Gigi OpenClaw Plugin acts as a bridge between the OpenClaw interface and the
 
 - **OpenClaw**: Latest version
 - **Node.js**: v18 or later
-- **Bun**: Latest version
+- **pnpm**: Latest version
 
 ### Installation Steps
 
@@ -34,13 +34,13 @@ The Gigi OpenClaw Plugin acts as a bridge between the OpenClaw interface and the
 
 2. **Install dependencies**:
    ```bash
-   bun install
+   pnpm install
    ```
 
 3. **Build the plugin**:
    ```bash
    cd pkgs/gigi-openclaw
-   bun run build
+   pnpm run build
    ```
 
 4. **Add the plugin to OpenClaw**:

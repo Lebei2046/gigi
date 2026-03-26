@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "app.gigi.i2",
   "build": {
-    "beforeDevCommand": "bun run dev:i2",
-    "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "bun run build",
+    "beforeDevCommand": "pnpm run dev:i2",
+    "devUrl": "http://localhost:1421",
+    "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist"
   },
   "app": {

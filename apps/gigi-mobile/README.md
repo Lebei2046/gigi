@@ -77,7 +77,7 @@ src/
 
 ### Prerequisites
 - Node.js 18+ 
-- Bun (package manager)
+- pnpm (package manager)
 - Rust (for Tauri backend)
 
 ### Installation
@@ -87,7 +87,7 @@ git clone <repository-url>
 cd gigi/apps/gigi-mobile
 
 # Install dependencies
-bun install
+pnpm install
 
 # Set up Rust toolchain
 rustup target add x86_64-pc-windows-msvc  # Windows
@@ -98,27 +98,27 @@ rustup target add x86_64-apple-darwin      # macOS Intel
 ### Development Commands
 ```bash
 # Start development server
-bun run dev
+pnpm run dev
 
 # Start Tauri development with different configs
-bun run tauri          # Default config
-bun run tauri:i2       # Instance 2
-bun run tauri:i3       # Instance 3
+pnpm run tauri          # Default config
+pnpm run tauri:i2       # Instance 2
+pnpm run tauri:i3       # Instance 3
 
-RUST_LOG=gigi_dns=warn,gigi_p2p=info bun tauri dev # Logging
+RUST_LOG=gigi_dns=warn,gigi_p2p=info pnpm tauri dev # Logging
 
 # Build for production
-bun run build
+pnpm run build
 
 # Testing
-bun run test
+pnpm run test
 
 # Code quality
-bun run lint          # ESLint
-bun run lint:fix      # Fix linting issues
-bun run format        # Prettier formatting
-bun run format:check  # Check formatting
-bun run format-all    # Format everything
+pnpm run lint          # ESLint
+pnpm run lint:fix      # Fix linting issues
+pnpm run format        # Prettier formatting
+pnpm run format:check  # Check formatting
+pnpm run format-all    # Format everything
 ```
 
 ### Development for Mobile
@@ -126,7 +126,7 @@ bun run format-all    # Format everything
 # Development mode with Android emulator
 $ANDROID_HOME/emulator/emulator -list-avds
 $ANDROID_HOME/emulator/emulator -avd Medium_Phone_API_36.1
-bun run tauri android dev
+pnpm run tauri android dev
 
 # Note: Mobile development may require additional platform-specific setup
 ```
@@ -134,12 +134,12 @@ bun run tauri android dev
 ### Building for Different Platforms
 ```bash
 # Build for all platforms
-bun run tauri build
+pnpm run tauri build
 
 # Specific platform builds
-bun run tauri build --target x86_64-pc-windows-msvc  # Windows
-bun run tauri build --target aarch64-apple-darwin     # macOS ARM
-bun run tauri build --target x86_64-apple-darwin      # macOS Intel
+pnpm run tauri build --target x86_64-pc-windows-msvc  # Windows
+pnpm run tauri build --target aarch64-apple-darwin     # macOS ARM
+pnpm run tauri build --target x86_64-apple-darwin      # macOS Intel
 ```
 
 ## 🔧 Configuration
@@ -205,13 +205,13 @@ const shortGroupId = formatShortGroupId('group1234567890abcdef1234567890')
 ### Running Tests
 ```bash
 # Run all tests
-bun run test
+pnpm run test
 
 # Run specific test files
-bun run test src/utils/__tests__/peerUtils.test.ts
+pnpm run test src/utils/__tests__/peerUtils.test.ts
 
 # Watch mode
-bun run test --watch
+pnpm run test --watch
 ```
 
 ### Test Coverage
