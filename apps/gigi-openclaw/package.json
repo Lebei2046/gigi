@@ -3,30 +3,42 @@
   "version": "0.1.0",
   "type": "module",
   "description": "OpenClaw plugin for Gigi P2P network",
-  "main": "index.ts",
-  "types": "index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./index.ts",
-      "types": "./index.ts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "bundle": "esbuild index.ts --bundle --platform=node --outfile=dist/bundle.js",
+    "build:bundle": "npm run build && npm run bundle",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gigi/p2p-ts": "workspace:*",
-    "@gigi/request-response-ts": "workspace:*",
+    "@gigi/p2p-ts": "file:../../typescript/gigi-p2p-ts",
+    "@gigi/request-response-ts": "file:../../typescript/gigi-request-response-ts",
     "@sinclair/typebox": "^0.34.0"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.22"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "typescript": "^5.0.0"
+    "esbuild": "^0.27.4",
+    "openclaw": "^2026.3.22",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
   },
   "openclaw": {
+    "extensions": ["./dist/bundle.js"],
     "channel": {
-      "id": "gigi",
+      "id": "gigi-p2p-bundled",
       "label": "Gigi P2P",
       "selectionLabel": "Gigi P2P Network",
       "blurb": "Connect to Gigi peers via P2P network",

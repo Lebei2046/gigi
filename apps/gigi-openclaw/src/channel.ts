@@ -1,10 +1,18 @@
 import {
-  DEFAULT_ACCOUNT_ID,
-  formatPairingApproveHint,
   type ChannelPlugin,
   type ChannelStatusIssue,
   type OpenClawConfig,
 } from "openclaw/plugin-sdk";
+import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
+
+/**
+ * Format pairing approval hint message
+ */
+function formatPairingApproveHint(channelId: string): string {
+  const listCmd = `openclaw pairing list ${channelId}`;
+  const approveCmd = `openclaw pairing approve ${channelId} <code>`;
+  return `To approve: 1) Run \`${listCmd}\` to get code, 2) Run \`${approveCmd}\``;
+}
 
 import type { GigiAccount } from "./types.js";
 import { GigiClient } from "./GigiClient.js";
@@ -68,6 +76,70 @@ async function sendGigiMessage({
 }
 
 /**
+ * Join a Gigi P2P group
+ */
+async function joinGigiGroup({
+  groupName,
+  accountId,
+}: {
+  groupName: string;
+  accountId?: string;
+}): Promise<void> {
+  const resolvedAccountId = accountId ?? DEFAULT_ACCOUNT_ID;
+  const gateway = activeGateways.get(resolvedAccountId);
+  
+  if (!gateway || !gateway.client.isConnected()) {
+    throw new Error(`Gateway not connected for account ${resolvedAccountId}`);
+  }
+
+  await gateway.client.joinGroup(groupName);
+  console.log(`[GigiPlugin] Joined group: ${groupName}`);
+}
+
+/**
+ * Leave a Gigi P2P group
+ */
+async function leaveGigiGroup({
+  groupName,
+  accountId,
+}: {
+  groupName: string;
+  accountId?: string;
+}): Promise<void> {
+  const resolvedAccountId = accountId ?? DEFAULT_ACCOUNT_ID;
+  const gateway = activeGateways.get(resolvedAccountId);
+  
+  if (!gateway || !gateway.client.isConnected()) {
+    throw new Error(`Gateway not connected for account ${resolvedAccountId}`);
+  }
+
+  await gateway.client.leaveGroup(groupName);
+  console.log(`[GigiPlugin] Left group: ${groupName}`);
+}
+
+/**
+ * List joined Gigi P2P groups
+ */
+async function listGigiGroups({
+  accountId,
+}: {
+  accountId?: string;
+}): Promise<Array<{ id: string; name: string; memberCount: number }>> {
+  const resolvedAccountId = accountId ?? DEFAULT_ACCOUNT_ID;
+  const gateway = activeGateways.get(resolvedAccountId);
+  
+  if (!gateway || !gateway.client.isConnected()) {
+    return [];
+  }
+
+  return gateway.client.listGroups().map((group: any) => ({
+    id: `group:${group.name}`,
+    name: group.name,
+    memberCount: group.members?.length || 0,
+  }));
+}
+
+/**
  * Gigi Channel Plugin implementation
  */
 export const gigiPlugin: ChannelPlugin<GigiAccount> = {
@@ -106,14 +178,13 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
     },
 
     // Resolve account configuration by ID
-    resolveAccount: ({
-      cfg,
-      accountId,
-    }: {
-      cfg: Record<string, any>;
-      accountId: string;
-    }): GigiAccount | null => {
-      return resolveGigiAccount({ cfg, accountId });
+    resolveAccount: (cfg: any, accountId?: string | null): GigiAccount => {
+      const resolved = resolveGigiAccount({ cfg, accountId: accountId || DEFAULT_ACCOUNT_ID });
+      return resolved || {
+        accountId: accountId || DEFAULT_ACCOUNT_ID,
+        peerId: '',
+        multiaddrs: [],
+      };
     },
 
     // Get default account ID
@@ -165,13 +236,13 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
     // Resolve allow from list
     resolveAllowFrom: ({cfg}) => {
       const account = resolveGigiAccount({ cfg, accountId: DEFAULT_ACCOUNT_ID });
-      return (account?.config?.allowFrom ?? []).map((entry) => String(entry));
+      return (account?.config?.allowFrom ?? []).map((entry: any) => String(entry));
     },
 
     // Format allow from list
     formatAllowFrom: ({allowFrom}) =>
       allowFrom
-        .map((entry) => String(entry).trim())
+        .map((entry: any) => String(entry).trim())
         .filter(Boolean),
   },
   security: {
@@ -193,7 +264,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
       const dmPolicy = account.config?.dmPolicy ?? "open";
       if (dmPolicy === "open") {
         const hasWildcard = (account.config?.allowFrom ?? []).some(
-          (entry) => String(entry).trim() === "*"
+          (entry: any) => String(entry).trim() === "*"
         );
         if (!hasWildcard) {
           warnings.push(
@@ -236,6 +307,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
       }
       return {
         id: gateway.client.getPeerId(),
+        kind: 'user' as const,
         name: gateway.account.displayName || gateway.client.getPeerId().substring(0, 8),
         avatar: null,
       };
@@ -247,6 +319,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
       }
       return gateway.client.listPeers().map((peer) => ({
         id: peer.peerId,
+        kind: 'user' as const,
         name: peer.nickname || peer.peerId.substring(0, 8),
         avatar: null,
       }));
@@ -258,6 +331,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
       }
       return gateway.client.listGroups().map((group) => ({
         id: `group:${group.name}`,
+        kind: 'group' as const,
         name: group.name,
         avatar: null,
         memberCount: group.members?.length || 0,
@@ -335,7 +409,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
       lastError: snapshot.lastError ?? null,
     }),
     probeAccount: async (ctx) => {
-      const gateway = activeGateways.get(ctx.accountId || DEFAULT_ACCOUNT_ID);
+      const gateway = activeGateways.get(ctx.account.accountId || DEFAULT_ACCOUNT_ID);
       if (!gateway) {
         return {ok: false, status: 503, message: "Gateway not started"};
       }
@@ -360,7 +434,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
   },
   gateway: {
     startAccount: async (ctx) => {
-      const { accountId, account, config, onMessage, setStatus } = ctx;
+      const { accountId, account, setStatus } = ctx;
 
       // Check if already started
       if (activeGateways.has(accountId)) {
@@ -385,18 +459,6 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
         // Set up message handler
         client.onMessage(async (gigiMessage) => {
           console.log(`[GigiPlugin] Received message from ${gigiMessage.from}:`, gigiMessage.content);
-          
-          if (onMessage) {
-            // Convert Gigi message to OpenClaw format
-            const openclawMessage = {
-              from: gigiMessage.from,
-              to: gigiMessage.to,
-              content: gigiMessage.content,
-              timestamp: gigiMessage.timestamp,
-              channel: CHANNEL_ID,
-            };
-            onMessage(openclawMessage);
-          }
         });
 
         // Start P2P client
@@ -414,64 +476,26 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           lastError: null,
         };
 
-        // Connect to OpenClaw Gateway if configured
-        const gatewayUrl = config.gatewayUrl || "ws://127.0.0.1:18789";
-        if (config.autoConnect !== false) {
-          const ws = new WebSocket(`${gatewayUrl}/channel/${CHANNEL_ID}/account/${accountId}`);
-          
-          ws.onopen = () => {
-            console.log(`[GigiPlugin] Connected to OpenClaw Gateway: ${gatewayUrl}`);
-            // Send auth token if provided
-            if (config.token) {
-              ws.send(JSON.stringify({ type: "auth", token: config.token }));
-            }
-            // Send peer info
-            ws.send(JSON.stringify({
-              type: "peer-info",
-              peerId: account.peerId,
-              multiaddrs: account.multiaddrs,
-            }));
-          };
-
-          ws.onmessage = async (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              
-              if (data.type === "send-message") {
-                // Send message via P2P
-                await sendGigiMessage({
-                  to: data.to,
-                  content: data.content,
-                  accountId,
-                });
-              }
-            } catch (error) {
-              console.error("[GigiPlugin] Error processing gateway message:", error);
-            }
-          };
-
-          ws.onerror = (error) => {
-            console.error("[GigiPlugin] Gateway WebSocket error:", error);
-          };
-
-          ws.onclose = () => {
-            console.log("[GigiPlugin] Gateway connection closed");
-          };
-
-          gatewayContext.wsConnection = ws;
-        }
-
         // Store active gateway
         activeGateways.set(accountId, gatewayContext);
 
         // Update status
         if (setStatus) {
-          setStatus({ running: true, lastStartAt: Date.now(), lastError: null });
+          setStatus({ 
+            accountId, 
+            running: true, 
+            lastStartAt: Date.now(), 
+            lastError: null 
+          });
         }
       } catch (error) {
         console.error(`[GigiPlugin] Error starting gateway for ${accountId}:`, error);
         if (setStatus) {
-          setStatus({ running: false, lastError: error instanceof Error ? error.message : "Unknown error" });
+          setStatus({ 
+            accountId, 
+            running: false, 
+            lastError: error instanceof Error ? error.message : "Unknown error" 
+          });
         }
         throw error;
       }
@@ -505,7 +529,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
       }
 
       const resolved = resolveGigiAccount({ cfg: changed ? nextCfg : cfg, accountId: DEFAULT_ACCOUNT_ID });
-      const loggedOut = !resolved.peerId && !resolved.multiaddrs;
+      const loggedOut = resolved ? (!resolved.peerId && !resolved.multiaddrs) : true;
 
       return {cleared, envToken: false, loggedOut};
     },
@@ -538,20 +562,32 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
         // Update status
         if (setStatus) {
-          setStatus({ running: false, lastStopAt: Date.now(), lastError: null });
+          setStatus({ 
+            accountId, 
+            running: false, 
+            lastStopAt: Date.now(), 
+            lastError: null 
+          });
         }
 
         console.log(`[GigiPlugin] Stopped gateway for ${accountId}`);
       } catch (error) {
         console.error(`[GigiPlugin] Error stopping gateway for ${accountId}:`, error);
         if (setStatus) {
-          setStatus({ running: false, lastError: error instanceof Error ? error.message : "Unknown error" });
+          setStatus({ 
+            accountId, 
+            running: false, 
+            lastError: error instanceof Error ? error.message : "Unknown error" 
+          });
         }
         throw error;
       }
     },
   },
 };
+
+// Export group management functions
+export { joinGigiGroup, leaveGigiGroup, listGigiGroups };
 
 // Export plugin type
 export type GigiPlugin = typeof gigiPlugin;

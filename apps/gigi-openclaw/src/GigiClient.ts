@@ -69,24 +69,24 @@ export class GigiClient implements IGigiClient {
     // Set up event listeners
     this.p2pClient.onEvent(async (event) => {
       if (event.type === 'direct-message') {
-        const message: GigiMessage = {
-          from: event.from,
-          to: this.getPeerId(),
-          content: event.message,
-          timestamp: Date.now(),
-          type: 'direct',
-        };
-        this.emitMessage(message);
-      } else if (event.type === 'group-message') {
-        const message: GigiMessage = {
-          from: event.from,
-          to: event.group,
-          content: event.message,
-          timestamp: Date.now(),
-          type: 'broadcast',
-        };
-        this.emitMessage(message);
-      }
+          const message: GigiMessage = {
+            from: event.from,
+            to: this.getPeerId(),
+            content: typeof event.message === 'string' ? event.message : JSON.stringify(event.message),
+            timestamp: Date.now(),
+            type: 'direct',
+          };
+          this.emitMessage(message);
+        } else if (event.type === 'group-message') {
+          const message: GigiMessage = {
+            from: event.from,
+            to: event.group,
+            content: typeof event.content === 'string' ? event.content : JSON.stringify(event.content),
+            timestamp: Date.now(),
+            type: 'broadcast',
+          };
+          this.emitMessage(message);
+        }
     });
   }
 
@@ -126,7 +126,7 @@ export class GigiClient implements IGigiClient {
       throw new Error("GigiClient not started");
     }
 
-    await this.p2pClient.sendGroupMessage(groupName, content);
+    await this.p2pClient.sendGroupMessage(groupName, { type: 'text', text: content });
     console.log(`[GigiClient] Sent group message to ${groupName}`);
   }
 

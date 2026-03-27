@@ -1,11 +1,24 @@
 {
-  "type": "channel",
-  "channel": {
-    "id": "gigi",
-    "label": "Gigi P2P",
-    "selectionLabel": "Gigi P2P Network",
-    "blurb": "Connect to Gigi peers via P2P network",
-    "aliases": ["p2p"],
-    "order": 100
+  "id": "gigi-p2p-bundled",
+  "channels": ["gigi-p2p-bundled"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true
+      },
+      "peerId": {
+        "type": "string",
+        "description": "Peer ID for the Gigi P2P network"
+      },
+      "multiaddrs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Multiaddrs for the Gigi P2P network"
+      }
+    }
   }
 }

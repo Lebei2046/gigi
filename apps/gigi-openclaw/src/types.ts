@@ -83,4 +83,5 @@ export interface GigiAccount {
   enableDht?: boolean;
   enableRelay?: boolean;
   config?: Record<string, any>;
+  enabled?: boolean;
 }

@@ -5,7 +5,8 @@
  * enabling P2P messaging between Gigi peers.
  */
 
-export { gigiPlugin } from "./src/channel.js";
+import { definePluginEntry } from 'openclaw/plugin-sdk/plugin-entry';
+import { gigiPlugin } from "./src/channel.js";
 export type { GigiPlugin } from "./src/channel.js";
 
 export { GigiClient } from "./src/GigiClient.js";
@@ -21,5 +22,99 @@ export * from "./src/accounts.js";
 export { probeGigiClient, getStatusSummary } from "./src/probe.js";
 export type { HealthCheckResult } from "./src/probe.js";
 
-// Default export for OpenClaw
-export default gigiPlugin;
+// Import group management functions
+import { joinGigiGroup, leaveGigiGroup, listGigiGroups } from "./src/channel.js";
+
+// Plugin registration for OpenClaw
+export default definePluginEntry({
+  id: 'gigi',
+  name: 'Gigi P2P',
+  description: 'Connect to Gigi P2P network and join groups',
+  register: (api) => {
+    // Register the channel
+    api.registerChannel({ plugin: gigiPlugin });
+    
+    // Register group management tools
+    api.registerTool(
+      {
+        name: 'gigi_join_group',
+        label: 'Join Gigi Group',
+        description: 'Join a Gigi P2P group',
+        parameters: {
+          type: 'object',
+          properties: {
+            groupName: {
+              type: 'string',
+              description: 'Name of the group to join'
+            },
+            accountId: {
+              type: 'string',
+              description: 'Account ID to use (optional)'
+            }
+          },
+          required: ['groupName']
+        },
+        execute: async (toolCallId, params) => {
+          await joinGigiGroup({ groupName: params.groupName, accountId: params.accountId });
+          return {
+            content: [{ type: 'text', text: `Joined group: ${params.groupName}` }],
+            details: { success: true, message: `Joined group: ${params.groupName}` }
+          };
+        }
+      }
+    );
+    
+    api.registerTool(
+      {
+        name: 'gigi_leave_group',
+        label: 'Leave Gigi Group',
+        description: 'Leave a Gigi P2P group',
+        parameters: {
+          type: 'object',
+          properties: {
+            groupName: {
+              type: 'string',
+              description: 'Name of the group to leave'
+            },
+            accountId: {
+              type: 'string',
+              description: 'Account ID to use (optional)'
+            }
+          },
+          required: ['groupName']
+        },
+        execute: async (toolCallId, params) => {
+          await leaveGigiGroup({ groupName: params.groupName, accountId: params.accountId });
+          return {
+            content: [{ type: 'text', text: `Left group: ${params.groupName}` }],
+            details: { success: true, message: `Left group: ${params.groupName}` }
+          };
+        }
+      }
+    );
+    
+    api.registerTool(
+      {
+        name: 'gigi_list_groups',
+        label: 'List Gigi Groups',
+        description: 'List joined Gigi P2P groups',
+        parameters: {
+          type: 'object',
+          properties: {
+            accountId: {
+              type: 'string',
+              description: 'Account ID to use (optional)'
+            }
+          }
+        },
+        execute: async (toolCallId, params) => {
+          const groups = await listGigiGroups({ accountId: params.accountId });
+          return {
+            content: [{ type: 'text', text: `Found ${groups.length} groups: ${groups.map(g => g.name).join(', ')}` }],
+            details: { groups }
+          };
+        }
+      }
+    );
+  },
+});
