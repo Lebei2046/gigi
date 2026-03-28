@@ -1,5 +1,5 @@
 {
-  "name": "@gigi/openclaw",
+  "name": "gigi-p2p-bundled",
   "version": "0.1.0",
   "type": "module",
   "description": "OpenClaw plugin for Gigi P2P network",
@@ -18,7 +18,8 @@
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate-mnemonic": "node --loader ts-node/esm scripts/generate-mnemonic.ts"
   },
   "dependencies": {
     "@gigi/p2p-ts": "file:../../typescript/gigi-p2p-ts",
@@ -32,6 +33,7 @@
     "@types/node": "^25.5.0",
     "esbuild": "^0.27.4",
     "openclaw": "^2026.3.22",
+    "ts-node": "^10.9.2",
     "typescript": "^5.0.0",
     "vitest": "^3.0.0"
   },

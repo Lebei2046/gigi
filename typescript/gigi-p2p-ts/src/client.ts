@@ -4,6 +4,7 @@ import { P2pError, ErrorCode } from './errors.js';
 import { FileSharingManager } from './file-sharing.js';
 import { GroupManager } from './group.js';
 import { PeerManager } from './peer-manager.js';
+import { derivePeerId, derivePeerPrivateKey } from './key-derivation.js';
 import { RequestResponse, JsonCodec } from '@gigi/request-response-ts';
 import { multiaddr as multiaddrFromString } from '@multiformats/multiaddr';
 import { peerIdFromString } from '@libp2p/peer-id';
@@ -58,6 +59,12 @@ export interface P2pClientOptions {
   nickname: string;
   outputDirectory?: string;
   config?: Partial<P2pConfig>;
+  peerIdJson?: {
+    id: string;
+    privKey?: string;
+    pubKey?: string;
+    mnemonic?: string;
+  };
 }
 
 export class P2pClient {
@@ -65,6 +72,12 @@ export class P2pClient {
   private nickname: string;
   private outputDirectory: string;
   private config: P2pConfig;
+  private peerIdJson: {
+    id: string;
+    privKey?: string;
+    pubKey?: string;
+    mnemonic?: string;
+  } | undefined;
   private started = false;
 
   private peerManager: PeerManager;
@@ -87,6 +100,7 @@ export class P2pClient {
       listenAddrs: ['/ip4/0.0.0.0/tcp/0'],
       ...options.config,
     };
+    this.peerIdJson = options.peerIdJson;
 
     this.peerManager = new PeerManager();
     this.groupManager = new GroupManager();
@@ -100,6 +114,22 @@ export class P2pClient {
     }
 
     try {
+      // Handle mnemonic-based peer ID derivation
+      let peerIdJson = this.peerIdJson;
+      
+      if (peerIdJson?.mnemonic) {
+        // Derive peer ID from mnemonic
+        const peerId = await derivePeerId(peerIdJson.mnemonic);
+        // Derive private key from mnemonic
+        const privateKey = derivePeerPrivateKey(peerIdJson.mnemonic);
+        // Update peerIdJson with derived values
+        peerIdJson = {
+          ...peerIdJson,
+          id: peerId,
+          // Note: We don't store the private key in the config for security reasons
+        };
+      }
+
       this.libp2p = await createLibp2pInstance({
         nickname: this.nickname,
         listenAddrs: this.config.listenAddrs,
@@ -107,6 +137,7 @@ export class P2pClient {
         enableMdns: this.config.enableMdns,
         enableKademlia: this.config.enableKademlia,
         enableRelay: this.config.enableRelay,
+        peerIdJson: peerIdJson,
       });
 
       // Initialize request-response protocol for file sharing

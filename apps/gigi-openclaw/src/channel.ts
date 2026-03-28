@@ -5,6 +5,7 @@ import {
 } from "openclaw/plugin-sdk";
 import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
 
+
 /**
  * Format pairing approval hint message
  */
@@ -23,7 +24,7 @@ import {
   resolveGigiAccount,
 } from "./accounts.js";
 
-const CHANNEL_ID = "gigi";
+const CHANNEL_ID = "gigi-p2p-bundled";
 const TEXT_CHUNK_LIMIT = 4000;
 
 /**
@@ -160,6 +161,108 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
     normalizeAllowEntry: (entry) => entry.replace(new RegExp(`^(${CHANNEL_ID}|peer):`, "i"), "").trim(),
     notifyApproval: async ({ cfg, id }) => {
       // Send pairing approval message
+    },
+  },
+  setup: {
+    resolveAccountId: ({ accountId }) => accountId || DEFAULT_ACCOUNT_ID,
+    applyAccountName: ({ cfg, accountId, name }) => {
+      const gigiConfig = (cfg.channels?.[CHANNEL_ID] ?? {}) as any;
+      return {
+        ...cfg,
+        channels: {
+          ...cfg.channels,
+          [CHANNEL_ID]: {
+            ...gigiConfig,
+            displayName: name,
+          },
+        },
+      };
+    },
+    validateInput: ({ input }) => {
+      // No validation needed for Gigi P2P
+      return null;
+    },
+    applyAccountConfig: ({ cfg, accountId, input }) => {
+      // Generate a temporary peer ID placeholder
+      const tempPeerId = `gigi-temp-${Math.random().toString(36).substring(2, 10)}`;
+      
+      // Get display name from input or use default
+      const displayName = input.name || `Gigi Node ${tempPeerId.substring(0, 8)}`;
+      
+      // Apply configuration
+      const gigiConfig = (cfg.channels?.[CHANNEL_ID] ?? {}) as any;
+      return {
+        ...cfg,
+        channels: {
+          ...cfg.channels,
+          [CHANNEL_ID]: {
+            ...gigiConfig,
+            peerId: tempPeerId,
+            multiaddrs: ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"],
+            displayName: displayName,
+            enabled: true,
+          },
+        },
+      };
+    },
+  },
+  setupWizard: {
+    channel: CHANNEL_ID,
+    status: {
+      configuredLabel: "Gigi P2P",
+      unconfiguredLabel: "Gigi P2P",
+      resolveStatusLines: async ({ cfg, configured }) => {
+        if (!configured) {
+          return ["Not configured"];
+        }
+        return ["Configured"];
+      },
+      resolveConfigured: async ({ cfg }) => {
+        const account = resolveGigiAccount({ cfg, accountId: DEFAULT_ACCOUNT_ID });
+        return Boolean(account?.peerId?.trim() && account?.multiaddrs?.length > 0);
+      },
+    },
+    introNote: {
+      title: "Gigi P2P Setup",
+      lines: [
+        "Gigi P2P is a decentralized network for direct communication between peers.",
+        "During setup, a temporary peer ID will be generated.",
+        "After setup, you should generate a proper key pair using the provided script.",
+      ],
+    },
+    credentials: [],
+    textInputs: [
+      {
+        inputKey: "name",
+        message: "Enter a display name for your Gigi node",
+        placeholder: "My Gigi Node",
+        required: false,
+      },
+    ],
+    finalize: async ({ cfg, accountId, credentialValues }) => {
+      // Apply the configuration
+      const name = credentialValues.name?.trim() || `Gigi Node ${Math.random().toString(36).substring(2, 10)}`;
+      
+      // Generate a temporary peer ID placeholder
+      const tempPeerId = `gigi-temp-${Math.random().toString(36).substring(2, 10)}`;
+      
+      // Apply configuration
+      const gigiConfig = (cfg.channels?.[CHANNEL_ID] ?? {}) as any;
+      const next = {
+        ...cfg,
+        channels: {
+          ...cfg.channels,
+          [CHANNEL_ID]: {
+            ...gigiConfig,
+            peerId: tempPeerId,
+            multiaddrs: ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"],
+            displayName: name,
+            enabled: true,
+          },
+        },
+      };
+      
+      return { cfg: next };
     },
   },
   capabilities: {
@@ -434,7 +537,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
   },
   gateway: {
     startAccount: async (ctx) => {
-      const { accountId, account, setStatus } = ctx;
+      const { accountId, account, setStatus, cfg, runtime } = ctx;
 
       // Check if already started
       if (activeGateways.has(accountId)) {
@@ -447,6 +550,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           peerId: account.peerId,
           multiaddrs: account.multiaddrs,
           displayName: account.displayName,
+          peerIdJson: account.peerIdJson,
           bootstrapPeers: account.bootstrapPeers,
           enableMdns: account.enableMdns,
           enableDht: account.enableDht,

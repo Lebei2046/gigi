@@ -66,26 +66,61 @@ The plugin can be configured through the OpenClaw dashboard or by editing the Op
 }
 ```
 
-### Account Configuration
+### Configure Channel
 
-Add a Gigi account to your OpenClaw configuration:
+To maintain a consistent peer ID across restarts, you can use a BIP-39 mnemonic phrase to derive your peer ID and private key. Here's how to configure your channel:
+
+#### 1. Generate a Mnemonic Phrase
+
+You can generate a new BIP-39 mnemonic phrase using one of the following methods:
+
+**Method 1: Use the OpenClaw agent tool**
+- The `gigi_generate_mnemonic` tool is available for OpenClaw agents to generate mnemonics
+
+**Method 2: Use the provided script**
+- Run the mnemonic generation script from the `gigi-openclaw` directory:
+
+```bash
+cd /path/to/gigi/apps/gigi-openclaw
+pnpm run generate-mnemonic
+```
+
+**Method 3: Use a secure mnemonic generator**
+- Use a trusted BIP-39 mnemonic generator tool to create a 12-word mnemonic phrase
+
+#### 2. Update Channel Configuration
+
+Add the mnemonic phrase to your OpenClaw channel configuration:
 
 ```json
 {
-  "accounts": {
-    "my-gigi-account": {
-      "type": "gigi-p2p-bundled",
-      "peerId": "12D3KooW...", // Your Gigi peer ID
+  "channels": {
+    "gigi-p2p-bundled": {
+      "peerId": "12D3KooW...", // Will be generated from mnemonic
       "multiaddrs": [
         "/ip4/0.0.0.0/tcp/0",    // Listen on all TCP interfaces
         "/ip4/0.0.0.0/tcp/0/ws"   // Listen on all WebSocket interfaces
       ],
+      "peerIdJson": {
+        "id": "12D3KooW...", // Same as peerId (will be generated from mnemonic)
+        "mnemonic": "abandon amount liar amount expire adjust cage candy arch gather drum buyer" // Your mnemonic phrase
+      },
       "displayName": "My Gigi Node",
       "enabled": true
     }
   }
 }
 ```
+
+**Important**: The `peerIdJson` field contains your mnemonic phrase, which is the root of all your Gigi P2P keys. Make sure to keep your configuration file secure. This field is optional, but without it, a new peer ID will be generated each time the client starts.
+
+When the Gigi client starts, it will use the mnemonic phrase to derive your peer ID and private key. This provides a more user-friendly way to manage your identity compared to manually specifying private keys.
+
+### Multiple Groups Support
+
+The Gigi P2P plugin allows agents to use a single Gigi P2P client to connect to the network and join multiple groups simultaneously. This extends the agent's capability to participate in different communities and conversations without needing multiple client instances.
+
+The plugin manages group memberships through a single Gigi P2P client instance, optimizing resource usage and network connections while providing seamless access to multiple groups.
 
 ### Gateway Configuration
 
@@ -99,45 +134,66 @@ openclaw gateway start
 
 ### Group Management
 
-The plugin provides several tools for managing Gigi P2P groups:
+The plugin provides several functions for managing Gigi P2P groups, which can be used through the GigiClient API:
 
-#### Join a Group
+#### Using the GigiClient API
 
-```bash
-openclaw tools call gigi_join_group --accountId my-gigi-account --groupId "my-group-topic"
-```
+```typescript
+import { GigiClient } from "gigi-p2p-bundled";
 
-#### Leave a Group
+// Create a Gigi client
+const client = new GigiClient({
+  peerId: "12D3KooW...",
+  multiaddrs: ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"],
+  peerIdJson: {
+    id: "12D3KooW...",
+    mnemonic: "your mnemonic here"
+  },
+  displayName: "My Gigi Node"
+});
 
-```bash
-openclaw tools call gigi_leave_group --accountId my-gigi-account --groupId "my-group-topic"
-```
+// Start the client
+await client.start();
 
-#### List Groups
+// Join a group
+await client.joinGroup("my-group-topic");
 
-```bash
-openclaw tools call gigi_list_groups --accountId my-gigi-account
+// List joined groups
+const groups = client.listGroups();
+console.log("Joined groups:", groups);
+
+// Leave a group
+await client.leaveGroup("my-group-topic");
+
+// Stop the client
+await client.stop();
 ```
 
 ### Sending Messages
 
 #### Direct Message
 
+To send a direct message using the OpenClaw API:
+
 ```typescript
-await gigiPlugin.gateway.sendMessage({
+await openclaw.message.send({
+  channel: "gigi-p2p-bundled",
   accountId: "my-gigi-account",
-  to: "12D3KooW...", // Recipient's peer ID
-  content: "Hello from Gigi!",
+  target: "12D3KooW...", // Recipient's peer ID
+  message: "Hello from Gigi!",
 });
 ```
 
 #### Group Message
 
+To send a group message using the OpenClaw API:
+
 ```typescript
-await gigiPlugin.gateway.sendMessage({
+await openclaw.message.send({
+  channel: "gigi-p2p-bundled",
   accountId: "my-gigi-account",
-  to: "my-group-topic", // Group topic
-  content: "Hello everyone!",
+  target: "my-group-topic", // Group topic
+  message: "Hello everyone!",
 });
 ```
 
@@ -168,18 +224,7 @@ To test the plugin with OpenClaw:
 openclaw gateway start
 ```
 
-2. Use the OpenClaw CLI to test the plugin's tools:
-
-```bash
-# Test group management
-openclaw tools call gigi_list_groups --accountId my-gigi-account
-
-# Test sending a message
-export MESSAGE_ID=$(openclaw tools call gigi_send_message --accountId my-gigi-account --to "12D3KooW..." --content "Test message")
-
-# Check if the message was sent successfully
-openclaw tools call gigi_get_message --accountId my-gigi-account --messageId $MESSAGE_ID
-```
+2. Use the GigiClient API in your code to test the plugin's functionality, or use the OpenClaw dashboard to interact with the plugin.
 
 ### Manual Testing
 

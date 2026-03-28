@@ -79,8 +79,8 @@ const request: MyRequest = {
   data: { timestamp: Date.now() }
 };
 
-const requestId = await requestResponse.sendRequest(peerId, request);
-console.log('Sent request with ID:', requestId);
+const response = await requestResponse.sendRequest(peerId, request);
+console.log('Received response:', response);
 ```
 
 ### Using CBOR Codec
@@ -107,7 +107,7 @@ new RequestResponse(libp2p: Libp2p, codec: Codec<TRequest, TResponse, TProtocol>
 
 #### Methods
 
-- `sendRequest(peerId: PeerId, request: TRequest): Promise<OutboundRequestId>` - Send a request to a peer
+- `sendRequest(peerId: PeerId | string, request: TRequest): Promise<TResponse>` - Send a request to a peer and return the response
 - `onEvent(listener: (event: RequestResponseEvent<TRequest, TResponse>) => void): () => void` - Add an event listener
 - `close(): void` - Close the request-response instance and clean up resources
 

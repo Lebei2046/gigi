@@ -1,4 +1,4 @@
-import { P2pClient, P2pClientOptions } from "@gigi/p2p-ts";
+import { P2pClient, P2pClientOptions, derivePeerId, derivePeerPrivateKey } from "@gigi/p2p-ts";
 import { RequestResponse, JsonCodec } from "@gigi/request-response-ts";
 import type { IGigiClient, GigiClientConfig, GigiMessage } from "./types.js";
 
@@ -53,6 +53,8 @@ export class GigiClient implements IGigiClient {
   constructor(config: GigiClientConfig) {
     this.config = config;
     
+    // Create P2pClient with the provided config
+    // Mnemonic derivation will be handled in the start method
     const p2pOptions: P2pClientOptions = {
       nickname: config.displayName || `gigi-${config.peerId.substring(0, 8)}`,
       config: {
@@ -62,6 +64,7 @@ export class GigiClient implements IGigiClient {
         enableMdns: config.enableMdns !== false,
         listenAddrs: config.multiaddrs,
       },
+      peerIdJson: config.peerIdJson,
     };
     
     this.p2pClient = new P2pClient(p2pOptions);

@@ -11,6 +11,7 @@ import { identify } from '@libp2p/identify';
 import { ping } from '@libp2p/ping';
 import { gossipsub } from '@libp2p/gossipsub';
 import { multiaddr } from '@multiformats/multiaddr';
+import { createFromJSON } from '@libp2p/peer-id-factory';
 
 export interface SupportedProtocols {
   direct: string;
@@ -31,6 +32,11 @@ export interface CreateLibp2pOptions {
   enableMdns?: boolean;
   enableKademlia?: boolean;
   enableRelay?: boolean;
+  peerIdJson?: {
+    id: string;
+    privKey?: string;
+    pubKey?: string;
+  };
 }
 
 export async function createLibp2pInstance(options: CreateLibp2pOptions): Promise<ReturnType<typeof createLibp2p>> {
@@ -40,6 +46,7 @@ export async function createLibp2pInstance(options: CreateLibp2pOptions): Promis
     enableMdns = true,
     enableKademlia = true,
     enableRelay = true,
+    peerIdJson,
   } = options;
 
   const transports = [tcp(), webSockets(), webTransport(), circuitRelayTransport()] as any;
@@ -72,14 +79,22 @@ export async function createLibp2pInstance(options: CreateLibp2pOptions): Promis
     globalSignaturePolicy: 'StrictNoSign',
   });
 
-  const libp2p = await createLibp2p({
+  const libp2pOptions: any = {
     addresses: { listen: listenAddrs },
     transports,
     peerDiscovery,
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
     services,
-  });
+  };
+
+  // Use pre-generated peer ID if provided
+  if (peerIdJson) {
+    console.log('[libp2p-setup] Using pre-generated peer ID');
+    libp2pOptions.peerId = await createFromJSON(peerIdJson);
+  }
+
+  const libp2p = await createLibp2p(libp2pOptions);
 
   for (const addr of bootstrapNodes) {
     try {

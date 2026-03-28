@@ -24,10 +24,11 @@ export type { HealthCheckResult } from "./src/probe.js";
 
 // Import group management functions
 import { joinGigiGroup, leaveGigiGroup, listGigiGroups } from "./src/channel.js";
+import { generateMnemonic } from "@gigi/p2p-ts";
 
 // Plugin registration for OpenClaw
 export default definePluginEntry({
-  id: 'gigi',
+  id: 'gigi-p2p-bundled',
   name: 'Gigi P2P',
   description: 'Connect to Gigi P2P network and join groups',
   register: (api) => {
@@ -113,6 +114,50 @@ export default definePluginEntry({
             content: [{ type: 'text', text: `Found ${groups.length} groups: ${groups.map(g => g.name).join(', ')}` }],
             details: { groups }
           };
+        }
+      }
+    );
+    
+    // Register generate mnemonic tool
+    api.registerTool(
+      {
+        name: 'gigi_generate_mnemonic',
+        label: 'Generate Gigi Mnemonic',
+        description: 'Generate a new BIP-39 mnemonic phrase for Gigi P2P',
+        parameters: {
+          type: 'object',
+          properties: {}
+        },
+        execute: async (toolCallId, params) => {
+          try {
+            // Generate a new BIP-39 mnemonic phrase
+            const mnemonic = generateMnemonic();
+            return {
+              content: [
+                { 
+                  type: 'text', 
+                  text: `Generated BIP-39 mnemonic phrase:` 
+                },
+                { 
+                  type: 'text', 
+                  text: `${mnemonic}` 
+                },
+                { 
+                  type: 'text', 
+                  text: `This mnemonic can be used in your channel configuration to derive your peer ID and private key.` 
+                }
+              ],
+              details: { 
+                mnemonic: mnemonic,
+                instructions: 'Add this mnemonic to the peerIdJson field in your channel configuration' 
+              }
+            };
+          } catch (error) {
+            return {
+              content: [{ type: 'text', text: `Error generating mnemonic: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+              details: { error: error instanceof Error ? error.message : 'Unknown error' }
+            };
+          }
         }
       }
     );

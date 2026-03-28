@@ -32,12 +32,16 @@ npm install
 ## Usage
 
 ```typescript
-import { P2pClient } from '@gigi/p2p';
+import { P2pClient } from '@gigi/p2p-ts';
 
 async function main() {
   const client = new P2pClient({
     nickname: 'Alice',
     outputDirectory: './downloads',
+    peerIdJson: {
+      // You can provide a mnemonic to derive the peer ID and private key
+      mnemonic: 'abandon amount liar amount expire adjust cage candy arch gather drum buyer'
+    }
   });
 
   await client.start();
@@ -52,7 +56,7 @@ async function main() {
   await client.sendDirectMessage('12D3KooW...', 'Hello!');
 
   await client.joinGroup('chat-room');
-  await client.sendGroupMessage('chat-room', 'Hello everyone!');
+  await client.sendGroupMessage('chat-room', { type: 'text', text: 'Hello everyone!' });
 
   const shareCode = await client.shareFile('./document.pdf');
   console.log(`Share code: ${shareCode}`);
@@ -141,6 +145,30 @@ Files are shared using a unique **share code** system:
 npm install
 npm run build
 npm run dev
+```
+
+## Key Derivation
+
+The package provides functions for deriving peer IDs, group IDs, and private keys from BIP-39 mnemonic phrases:
+
+```typescript
+import { generateMnemonic, derivePeerId, deriveGroupId, derivePeerPrivateKey } from '@gigi/p2p-ts';
+
+// Generate a new mnemonic phrase
+const mnemonic = generateMnemonic();
+console.log('Mnemonic:', mnemonic);
+
+// Derive peer ID from mnemonic
+const peerId = await derivePeerId(mnemonic);
+console.log('Peer ID:', peerId);
+
+// Derive group ID from mnemonic
+const groupId = await deriveGroupId(mnemonic, 'my-group');
+console.log('Group ID:', groupId);
+
+// Derive private key from mnemonic
+const privateKey = derivePeerPrivateKey(mnemonic);
+console.log('Private key:', privateKey);
 ```
 
 ## License

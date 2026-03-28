@@ -38,6 +38,12 @@ export interface GigiClientConfig {
   enableMdns?: boolean;
   enableDht?: boolean;
   enableRelay?: boolean;
+  peerIdJson?: {
+    id: string;
+    privKey?: string;
+    pubKey?: string;
+    mnemonic?: string;
+  };
 }
 
 /**
@@ -84,4 +90,10 @@ export interface GigiAccount {
   enableRelay?: boolean;
   config?: Record<string, any>;
   enabled?: boolean;
+  peerIdJson?: {
+    id: string;
+    privKey?: string;
+    pubKey?: string;
+    mnemonic?: string;
+  };
 }
