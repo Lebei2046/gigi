@@ -74,7 +74,7 @@ export class GigiClient implements IGigiClient {
       if (event.type === 'direct-message') {
           const message: GigiMessage = {
             from: event.from,
-            to: this.getPeerId(),
+            to: this.started ? this.getPeerId() : 'unknown',
             content: typeof event.message === 'string' ? event.message : JSON.stringify(event.message),
             timestamp: Date.now(),
             type: 'direct',

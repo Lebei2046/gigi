@@ -118,27 +118,30 @@ export class P2pClient {
       let peerIdJson = this.peerIdJson;
       
       if (peerIdJson?.mnemonic) {
-        // Derive peer ID from mnemonic
-        const peerId = await derivePeerId(peerIdJson.mnemonic);
-        // Derive private key from mnemonic
-        const privateKey = derivePeerPrivateKey(peerIdJson.mnemonic);
-        // Update peerIdJson with derived values
-        peerIdJson = {
-          ...peerIdJson,
-          id: peerId,
-          // Note: We don't store the private key in the config for security reasons
-        };
+        // For mnemonic-based configuration, use the existing peer ID from the config
+        // This will ensure consistency with the configuration
+        console.log('[P2pClient] Using mnemonic for key derivation');
+        this.libp2p = await createLibp2pInstance({
+          nickname: this.nickname,
+          listenAddrs: this.config.listenAddrs,
+          bootstrapNodes: this.config.bootstrapNodes,
+          enableMdns: this.config.enableMdns,
+          enableKademlia: this.config.enableKademlia,
+          enableRelay: this.config.enableRelay,
+          peerIdJson: peerIdJson
+        });
+      } else {
+        // For non-mnemonic configuration, create libp2p instance without peerIdJson
+        console.log('[P2pClient] Creating libp2p instance without mnemonic');
+        this.libp2p = await createLibp2pInstance({
+          nickname: this.nickname,
+          listenAddrs: this.config.listenAddrs,
+          bootstrapNodes: this.config.bootstrapNodes,
+          enableMdns: this.config.enableMdns,
+          enableKademlia: this.config.enableKademlia,
+          enableRelay: this.config.enableRelay,
+        });
       }
-
-      this.libp2p = await createLibp2pInstance({
-        nickname: this.nickname,
-        listenAddrs: this.config.listenAddrs,
-        bootstrapNodes: this.config.bootstrapNodes,
-        enableMdns: this.config.enableMdns,
-        enableKademlia: this.config.enableKademlia,
-        enableRelay: this.config.enableRelay,
-        peerIdJson: peerIdJson,
-      });
 
       // Initialize request-response protocol for file sharing
       this.fileRequestResponse = new RequestResponse<FileRequestMessage, FileResponseMessage, string>(

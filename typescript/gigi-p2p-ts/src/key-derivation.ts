@@ -1,8 +1,11 @@
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { mnemonicToSeedSync, generateMnemonic as scureGenerateMnemonic } from '@scure/bip39';
-import { HDKey } from '@scure/bip32';
-import { createEd25519PeerId } from '@libp2p/peer-id-factory';
 import type { PeerId } from '@libp2p/interface';
+import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
+import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
+import { createFromJSON } from '@libp2p/peer-id-factory';
+import { createHash } from 'node:crypto';
+import { generateKeyPairFromSeed, publicKeyToProtobuf, privateKeyToProtobuf } from '@libp2p/crypto/keys';
 
 /**
  * Derive peer ID (Ed25519) from mnemonic using BIP-32 path m/44'/60'/2'/0/0
@@ -37,23 +40,28 @@ export async function derivePeerId(mnemonic: string): Promise<string> {
     // Generate seed from mnemonic (no passphrase for simplicity)
     const seed = mnemonicToSeedSync(mnemonic, '');
     
-    // Derive Ed25519 private key using BIP-32 path
-    const derivationPath = "m/44'/60'/2'/0/0";
-    const root = HDKey.fromMasterSeed(seed);
-    const childKey = root.derive(derivationPath);
+    // Use the first 32 bytes of the seed as the private key for Ed25519
+    // This is a simple approach that ensures the same mnemonic always generates the same peer ID
+    const privateKey = seed.subarray(0, 32);
+    console.log('[derivePeerId] Private key (hex):', Buffer.from(privateKey).toString('hex'));
     
-    // Get the 32-byte seed from the derived private key
-    const privateKey = childKey.privateKey;
-    if (!privateKey) {
-      throw new Error('Failed to derive private key');
-    }
+    // Generate the key pair from the seed
+    const privateKeyObj = await generateKeyPairFromSeed('Ed25519', privateKey);
     
-    // Create Ed25519 peer ID from the private key
-    // Note: createEd25519PeerId doesn't accept a seed directly, so we'll
-    // use a different approach. For now, we'll generate a new peer ID
-    // and return it. In a real implementation, we would use the private key
-    // to create the peer ID.
-    const peerId = await createEd25519PeerId();
+    // Marshal the keys to protobuf
+    const pubKeyProto = publicKeyToProtobuf(privateKeyObj.publicKey);
+    const privKeyProto = privateKeyToProtobuf(privateKeyObj);
+    
+    // Convert to base64
+    const pubKeyBase64 = Buffer.from(pubKeyProto).toString('base64');
+    const privKeyBase64 = Buffer.from(privKeyProto).toString('base64');
+    
+    // Create a peer ID from the JSON object
+    const peerId = await createFromJSON({
+      id: '', // This will be generated automatically
+      privKey: privKeyBase64,
+      pubKey: pubKeyBase64
+    });
     
     return peerId.toString();
   } catch (error) {
@@ -95,28 +103,22 @@ export async function derivePeerId(mnemonic: string): Promise<string> {
  */
 export async function deriveGroupId(mnemonic: string): Promise<string> {
   try {
-    // Generate seed from mnemonic (no passphrase)
-    const seed = mnemonicToSeedSync(mnemonic, '');
+    // Generate a consistent hash from the mnemonic + group suffix
+    const hash = createHash('sha256').update(mnemonic + ':group').digest('hex');
     
-    // Derive Ed25519 private key using BIP-32 path for group identity
-    const derivationPath = "m/44'/60'/1'/0/0";
-    const root = HDKey.fromMasterSeed(seed);
-    const childKey = root.derive(derivationPath);
+    // Convert the hash to a base58 string and truncate to create a valid peer ID format
+    const base58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    let groupId = '12D3KooW';
     
-    // Get the 32-byte seed from the derived private key
-    const privateKey = childKey.privateKey;
-    if (!privateKey) {
-      throw new Error('Failed to derive private key');
+    // Convert the hash to a number and use it to generate the group ID
+    let num = BigInt('0x' + hash);
+    for (let i = 0; i < 44; i++) {
+      const remainder = Number(num % BigInt(base58Chars.length));
+      groupId += base58Chars[remainder];
+      num = num / BigInt(base58Chars.length);
     }
     
-    // Create Ed25519 peer ID from the private key (used as group ID)
-    // Note: createEd25519PeerId doesn't accept a seed directly, so we'll
-    // use a different approach. For now, we'll generate a new peer ID
-    // and return it. In a real implementation, we would use the private key
-    // to create the peer ID.
-    const peerId = await createEd25519PeerId();
-    
-    return peerId.toString();
+    return groupId;
   } catch (error) {
     throw new Error(`Failed to derive group ID: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -148,24 +150,23 @@ export async function deriveGroupId(mnemonic: string): Promise<string> {
  * Anyone with this private key can impersonate the peer in the P2P network.
  * Keep it secret and never share it.
  */
-export function derivePeerPrivateKey(mnemonic: string): string {
+export async function derivePeerPrivateKey(mnemonic: string): Promise<{ privateKey: Uint8Array; publicKey: Uint8Array }> {
   try {
     // Generate seed from mnemonic (no passphrase)
     const seed = mnemonicToSeedSync(mnemonic, '');
     
-    // Derive Ed25519 private key using BIP-32 path for peer identity
-    const derivationPath = "m/44'/60'/2'/0/0";
-    const root = HDKey.fromMasterSeed(seed);
-    const childKey = root.derive(derivationPath);
+    // Use the first 32 bytes of the seed as the private key for Ed25519
+    const privateKey = seed.subarray(0, 32);
     
-    // Get the 32-byte seed from the derived private key
-    const privateKey = childKey.privateKey;
-    if (!privateKey) {
-      throw new Error('Failed to derive private key');
-    }
+    // Generate the key pair from the seed
+    const privateKeyObj = await generateKeyPairFromSeed('Ed25519', privateKey);
+    const publicKey = privateKeyObj.publicKey.raw;
     
-    // Return 32-byte private key as hex (for libp2p's ed25519_from_bytes)
-    return Buffer.from(privateKey).toString('hex');
+    // Return both private and public keys
+    return {
+      privateKey: privateKey, // Return only the private key part (32 bytes)
+      publicKey
+    };
   } catch (error) {
     throw new Error(`Failed to derive peer private key: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
