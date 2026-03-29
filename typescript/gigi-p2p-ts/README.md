@@ -38,10 +38,8 @@ async function main() {
   const client = new P2pClient({
     nickname: 'Alice',
     outputDirectory: './downloads',
-    peerIdJson: {
-      // You can provide a mnemonic to derive the peer ID and private key
-      mnemonic: 'abandon amount liar amount expire adjust cage candy arch gather drum buyer'
-    }
+    // You can provide a mnemonic to derive the peer ID and private key
+    mnemonic: 'abandon amount liar amount expire adjust cage candy arch gather drum buyer'
   });
 
   await client.start();

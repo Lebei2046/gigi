@@ -550,7 +550,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           peerId: account.peerId,
           multiaddrs: account.multiaddrs,
           displayName: account.displayName,
-          peerIdJson: account.peerIdJson,
+          mnemonic: account.mnemonic,
           bootstrapPeers: account.bootstrapPeers,
           enableMdns: account.enableMdns,
           enableDht: account.enableDht,

@@ -59,12 +59,7 @@ export interface P2pClientOptions {
   nickname: string;
   outputDirectory?: string;
   config?: Partial<P2pConfig>;
-  peerIdJson?: {
-    id: string;
-    privKey?: string;
-    pubKey?: string;
-    mnemonic?: string;
-  };
+  mnemonic?: string;
 }
 
 export class P2pClient {
@@ -72,12 +67,7 @@ export class P2pClient {
   private nickname: string;
   private outputDirectory: string;
   private config: P2pConfig;
-  private peerIdJson: {
-    id: string;
-    privKey?: string;
-    pubKey?: string;
-    mnemonic?: string;
-  } | undefined;
+  private mnemonic: string | undefined;
   private started = false;
 
   private peerManager: PeerManager;
@@ -100,7 +90,7 @@ export class P2pClient {
       listenAddrs: ['/ip4/0.0.0.0/tcp/0'],
       ...options.config,
     };
-    this.peerIdJson = options.peerIdJson;
+    this.mnemonic = options.mnemonic;
 
     this.peerManager = new PeerManager();
     this.groupManager = new GroupManager();
@@ -115,9 +105,7 @@ export class P2pClient {
 
     try {
       // Handle mnemonic-based peer ID derivation
-      let peerIdJson = this.peerIdJson;
-      
-      if (peerIdJson?.mnemonic) {
+      if (this.mnemonic) {
         // For mnemonic-based configuration, use the existing peer ID from the config
         // This will ensure consistency with the configuration
         console.log('[P2pClient] Using mnemonic for key derivation');
@@ -128,10 +116,10 @@ export class P2pClient {
           enableMdns: this.config.enableMdns,
           enableKademlia: this.config.enableKademlia,
           enableRelay: this.config.enableRelay,
-          peerIdJson: peerIdJson
+          mnemonic: this.mnemonic
         });
       } else {
-        // For non-mnemonic configuration, create libp2p instance without peerIdJson
+        // For non-mnemonic configuration, create libp2p instance without mnemonic
         console.log('[P2pClient] Creating libp2p instance without mnemonic');
         this.libp2p = await createLibp2pInstance({
           nickname: this.nickname,

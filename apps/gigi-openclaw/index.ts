@@ -149,7 +149,7 @@ export default definePluginEntry({
               ],
               details: { 
                 mnemonic: mnemonic,
-                instructions: 'Add this mnemonic to the peerIdJson field in your channel configuration' 
+                instructions: 'Add this mnemonic to your channel configuration' 
               }
             };
           } catch (error) {

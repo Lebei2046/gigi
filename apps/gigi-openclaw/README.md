@@ -101,10 +101,7 @@ Add the mnemonic phrase to your OpenClaw channel configuration:
         "/ip4/0.0.0.0/tcp/0",    // Listen on all TCP interfaces
         "/ip4/0.0.0.0/tcp/0/ws"   // Listen on all WebSocket interfaces
       ],
-      "peerIdJson": {
-        "id": "12D3KooW...", // Same as peerId (will be generated from mnemonic)
-        "mnemonic": "abandon amount liar amount expire adjust cage candy arch gather drum buyer" // Your mnemonic phrase
-      },
+      "mnemonic": "abandon amount liar amount expire adjust cage candy arch gather drum buyer", // Your mnemonic phrase
       "displayName": "My Gigi Node",
       "enabled": true
     }
@@ -112,7 +109,7 @@ Add the mnemonic phrase to your OpenClaw channel configuration:
 }
 ```
 
-**Important**: The `peerIdJson` field contains your mnemonic phrase, which is the root of all your Gigi P2P keys. Make sure to keep your configuration file secure. This field is optional, but without it, a new peer ID will be generated each time the client starts.
+**Important**: The `mnemonic` field contains your mnemonic phrase, which is the root of all your Gigi P2P keys. Make sure to keep your configuration file secure. This field is optional, but without it, a new peer ID will be generated each time the client starts.
 
 When the Gigi client starts, it will use the mnemonic phrase to derive your peer ID and private key. This provides a more user-friendly way to manage your identity compared to manually specifying private keys.
 
@@ -145,10 +142,7 @@ import { GigiClient } from "gigi-p2p-bundled";
 const client = new GigiClient({
   peerId: "12D3KooW...",
   multiaddrs: ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"],
-  peerIdJson: {
-    id: "12D3KooW...",
-    mnemonic: "your mnemonic here"
-  },
+  mnemonic: "your mnemonic here",
   displayName: "My Gigi Node"
 });
 

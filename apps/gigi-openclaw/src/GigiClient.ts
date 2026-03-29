@@ -64,7 +64,7 @@ export class GigiClient implements IGigiClient {
         enableMdns: config.enableMdns !== false,
         listenAddrs: config.multiaddrs,
       },
-      peerIdJson: config.peerIdJson,
+      mnemonic: config.mnemonic,
     };
     
     this.p2pClient = new P2pClient(p2pOptions);

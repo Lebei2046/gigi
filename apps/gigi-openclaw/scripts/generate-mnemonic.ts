@@ -32,14 +32,11 @@ async function generate() {
   "channels": {
     "gigi-p2p-bundled": {
       "peerId": "${peerId}",
+      "mnemonic": "${mnemonic}",
       "multiaddrs": [
         "/ip4/0.0.0.0/tcp/0",
         "/ip4/0.0.0.0/tcp/0/ws"
       ],
-      "peerIdJson": {
-        "id": "${peerId}",
-        "mnemonic": "${mnemonic}"
-      },
       "displayName": "My Gigi Node",
       "enabled": true
     }

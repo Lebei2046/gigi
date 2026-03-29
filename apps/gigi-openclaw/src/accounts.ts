@@ -52,7 +52,7 @@ export function resolveGigiAccount({
     enableDht: accountConfig.enableDht !== false,
     enableRelay: accountConfig.enableRelay !== false,
     config: accountConfig.config || {},
-    peerIdJson: accountConfig.peerIdJson,
+    mnemonic: accountConfig.mnemonic,
   };
 }
 
