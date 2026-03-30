@@ -228,6 +228,10 @@ openclaw gateway start
 4. **Send messages** between instances to verify communication
 5. **Test file sharing** by sending files between instances
 
+### Test Plan
+
+For a comprehensive test plan, see the [TEST_PLAN.md](./docs/TEST_PLAN.md) file in the docs directory.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -279,8 +283,17 @@ pnpm run dev
 
 - `src/channel.ts`: Implements the ChannelPlugin interface
 - `src/GigiClient.ts`: Manages the P2P client instance
+- `src/accounts.ts`: Account resolution and management
+- `src/outbound.ts`: Outbound message handling
+- `src/probe.ts`: Status checking and probing
 - `src/types.ts`: Type definitions
 - `index.ts`: Plugin entry point
+
+### Documentation
+
+- [README.md](./README.md): This file
+- [TEST_PLAN.md](./docs/TEST_PLAN.md): Comprehensive test plan
+- [Gigi P2P Documentation](/docs/gigi-p2p.md): Core Gigi P2P documentation
 
 ## Protocol
 

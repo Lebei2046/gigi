@@ -11,6 +11,7 @@ import { identify } from '@libp2p/identify';
 import { ping } from '@libp2p/ping';
 import { gossipsub } from '@libp2p/gossipsub';
 import { multiaddr } from '@multiformats/multiaddr';
+import { generateKeyPairFromSeed } from '@libp2p/crypto/keys';
 
 import { derivePeerPrivateKey, derivePeerId } from './key-derivation.js';
 
@@ -102,9 +103,6 @@ export async function createLibp2pInstance(options: CreateLibp2pOptions): Promis
         console.log('[libp2p-setup] Private key length:', privateKey.length);
         console.log('[libp2p-setup] Public key length:', publicKey.length);
         console.log('[libp2p-setup] Private key (hex):', Buffer.from(privateKey).toString('hex'));
-        
-        // Import the keys module
-        const { generateKeyPairFromSeed } = await import('@libp2p/crypto/keys');
         
         // Generate the key pair from the seed
         const privateKeyObj = await generateKeyPairFromSeed('Ed25519', privateKey);

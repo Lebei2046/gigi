@@ -54,16 +54,66 @@ async function sendGigiMessage({
   to,
   content,
   accountId,
+  cfg,
 }: {
   to: string;
   content: string;
   accountId?: string;
+  cfg: Record<string, any>;
 }): Promise<{ channel: string; messageId: string; chatId: string }> {
   const resolvedAccountId = accountId ?? DEFAULT_ACCOUNT_ID;
-  const gateway = activeGateways.get(resolvedAccountId);
+  let gateway = activeGateways.get(resolvedAccountId);
   
   if (!gateway || !gateway.client.isConnected()) {
-    throw new Error(`Gateway not connected for account ${resolvedAccountId}`);
+    // Gateway not started or not connected, try to start it
+    console.log(`[GigiPlugin] Gateway not connected for account ${resolvedAccountId}, starting it...`);
+    
+    // Get the account configuration
+    const account = resolveGigiAccount({ cfg, accountId: resolvedAccountId });
+    
+    if (!account) {
+      throw new Error(`Account configuration not found for ${resolvedAccountId}`);
+    }
+    
+    // Create Gigi P2P client
+    const client = new GigiClient({
+      peerId: account.peerId,
+      multiaddrs: account.multiaddrs,
+      displayName: account.displayName,
+      mnemonic: account.mnemonic,
+      bootstrapPeers: account.bootstrapPeers,
+      enableMdns: account.enableMdns,
+      enableDht: account.enableDht,
+      enableRelay: account.enableRelay,
+    });
+
+    // Create outbound manager
+    const outbound = new OutboundManager(client);
+
+    // Set up message handler
+    client.onMessage(async (gigiMessage) => {
+      console.log(`[GigiPlugin] Received message from ${gigiMessage.from}:`, gigiMessage.content);
+    });
+
+    // Start P2P client
+    console.log(`[GigiPlugin] Starting P2P client for ${resolvedAccountId}`);
+    await client.start();
+    console.log(`[GigiPlugin] P2P client started for ${resolvedAccountId}`);
+
+    // Create gateway context
+    gateway = {
+      accountId: resolvedAccountId,
+      account,
+      client,
+      outbound,
+      running: true,
+      lastStartAt: Date.now(),
+      lastStopAt: null,
+      lastError: null,
+    };
+
+    // Store active gateway
+    activeGateways.set(resolvedAccountId, gateway);
   }
 
   // Use outbound manager to send message (handles queuing and retries)
@@ -95,6 +145,52 @@ async function joinGigiGroup({
 
   await gateway.client.joinGroup(groupName);
   console.log(`[GigiPlugin] Joined group: ${groupName}`);
+}
+
+/**
+ * Share a file via Gigi P2P
+ */
+async function shareGigiFile({
+  filePath,
+  accountId,
+}: {
+  filePath: string;
+  accountId?: string;
+}): Promise<string> {
+  const resolvedAccountId = accountId ?? DEFAULT_ACCOUNT_ID;
+  const gateway = activeGateways.get(resolvedAccountId);
+  
+  if (!gateway || !gateway.client.isConnected()) {
+    throw new Error(`Gateway not connected for account ${resolvedAccountId}`);
+  }
+
+  const shareCode = await gateway.client.shareFile(filePath);
+  console.log(`[GigiPlugin] Shared file: ${filePath} with share code: ${shareCode}`);
+  return shareCode;
+}
+
+/**
+ * Download a file via Gigi P2P
+ */
+async function downloadGigiFile({
+  peerId,
+  shareCode,
+  accountId,
+}: {
+  peerId: string;
+  shareCode: string;
+  accountId?: string;
+}): Promise<string> {
+  const resolvedAccountId = accountId ?? DEFAULT_ACCOUNT_ID;
+  const gateway = activeGateways.get(resolvedAccountId);
+  
+  if (!gateway || !gateway.client.isConnected()) {
+    throw new Error(`Gateway not connected for account ${resolvedAccountId}`);
+  }
+
+  const downloadId = await gateway.client.downloadFile(peerId, shareCode);
+  console.log(`[GigiPlugin] Started download from ${peerId} with share code: ${shareCode}`);
+  return downloadId;
 }
 
 /**
@@ -329,7 +425,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
     // Describe account info
     describeAccount: (account: GigiAccount) => ({
       accountId: account.accountId,
-      name: account.displayName || account.peerId.substring(0, 8),
+      name: account.displayName || account.peerId?.substring(0, 8) || account.accountId,
       enabled: account.enabled !== false,
       configured: Boolean(account.peerId?.trim() && account.multiaddrs?.length > 0),
       peerId: account.peerId,
@@ -443,20 +539,25 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
   },
   outbound: {
     deliveryMode: "gateway",
-    chunker: (text, limit) => {
+    chunker: (text: string, limit: number) => {
       // Simple chunking for now
-      const chunks = [];
+      const chunks: string[] = [];
       for (let i = 0; i < text.length; i += limit) {
         chunks.push(text.substring(i, i + limit));
       }
       return chunks;
     },
     textChunkLimit: TEXT_CHUNK_LIMIT,
-    sendText: async ({to, text, accountId}) => {
-      return sendGigiMessage({to, content: text, accountId: accountId ?? undefined});
+    sendText: async (ctx: any) => {
+      // Add "group:" prefix to group names
+      let target = ctx.to;
+      if (!target.startsWith("group:") && !target.includes("12D3Koo")) {
+        target = `group:${target}`;
+      }
+      return sendGigiMessage({to: target, content: ctx.text, accountId: ctx.accountId ?? undefined, cfg: ctx.cfg});
     },
-    sendMedia: async ({to, text, mediaUrl, mediaLocalRoots, accountId}) => {
-      const resolvedAccountId = accountId ?? DEFAULT_ACCOUNT_ID;
+    sendMedia: async (ctx: any) => {
+      const resolvedAccountId = ctx.accountId ?? DEFAULT_ACCOUNT_ID;
       const gateway = activeGateways.get(resolvedAccountId);
       
       if (!gateway || !gateway.client.isConnected()) {
@@ -464,16 +565,72 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
       }
 
       // If no mediaUrl, fallback to text
-      if (!mediaUrl) {
-        return sendGigiMessage({to, content: text || "", accountId: resolvedAccountId});
+      if (!ctx.mediaUrl) {
+        // Add "group:" prefix to group names
+        let target = ctx.to;
+        if (!target.startsWith("group:") && !target.includes("12D3Koo")) {
+          target = `group:${target}`;
+        }
+        return sendGigiMessage({to: target, content: ctx.text || "", accountId: resolvedAccountId, cfg: ctx.cfg});
       }
 
-      // For now, just send the media URL as text
-      const content = text
-        ? `${text}\n📎 ${mediaUrl}`
-        : `📎 ${mediaUrl}`;
-      
-      return sendGigiMessage({to, content, accountId: resolvedAccountId});
+      // Check if mediaUrl is a local file path
+      if (ctx.mediaUrl.startsWith('/') || ctx.mediaUrl.includes(':')) {
+        // Share the local file via Gigi P2P
+        try {
+          const shareCode = await gateway.client.shareFile(ctx.mediaUrl);
+          
+          // Get file information
+          const file = gateway.client.getFileByShareCode(shareCode);
+          const filename = file?.info.name || ctx.mediaUrl.split('/').pop() || 'unknown-file';
+          const fileSize = file?.info.size || 0;
+          const fileType = file?.info.mimeType || 'application/octet-stream';
+          
+          // Send file share message
+          const fileShareContent = {
+            type: 'fileShare' as const,
+            shareCode,
+            filename,
+            fileSize,
+            fileType
+          };
+          
+          // Add "group:" prefix to group names
+          let target = ctx.to;
+          if (!target.startsWith("group:") && !target.includes("12D3Koo")) {
+            target = `group:${target}`;
+          }
+          
+          return sendGigiMessage({to: target, content: JSON.stringify(fileShareContent), accountId: resolvedAccountId, cfg: ctx.cfg});
+        } catch (error) {
+          console.error(`[GigiPlugin] Error sharing file:`, error);
+          // Fallback to sending the file path as text
+          const content = ctx.text
+            ? `${ctx.text}\n📎 ${ctx.mediaUrl}`
+            : `📎 ${ctx.mediaUrl}`;
+          
+          // Add "group:" prefix to group names
+          let target = ctx.to;
+          if (!target.startsWith("group:") && !target.includes("12D3Koo")) {
+            target = `group:${target}`;
+          }
+          
+          return sendGigiMessage({to: target, content, accountId: resolvedAccountId, cfg: ctx.cfg});
+        }
+      } else {
+        // For remote URLs, just send as text
+        const content = ctx.text
+          ? `${ctx.text}\n📎 ${ctx.mediaUrl}`
+          : `📎 ${ctx.mediaUrl}`;
+        
+        // Add "group:" prefix to group names
+        let target = ctx.to;
+        if (!target.startsWith("group:") && !target.includes("12D3Koo")) {
+          target = `group:${target}`;
+        }
+        
+        return sendGigiMessage({to: target, content, accountId: resolvedAccountId, cfg: ctx.cfg});
+      }
     },
   },
   status: {
@@ -520,12 +677,12 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
     },
     buildAccountSnapshot: ({account, runtime}) => {
       const configured = Boolean(
-        account.peerId?.trim() &&
-        account.multiaddrs?.length > 0
+        (account.peerId?.trim() && account.multiaddrs?.length > 0) ||
+        account.mnemonic?.trim()
       );
       return {
         accountId: account.accountId,
-        name: account.displayName || account.peerId?.substring(0, 8),
+        name: account.displayName || account.peerId?.substring(0, 8) || 'gigi',
         enabled: account.enabled !== false,
         configured,
         running: runtime?.running ?? false,
@@ -537,14 +694,36 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
   },
   gateway: {
     startAccount: async (ctx) => {
-      const { accountId, account, setStatus, cfg, runtime } = ctx;
+      const { accountId, setStatus, cfg, runtime } = ctx;
 
       // Check if already started
       if (activeGateways.has(accountId)) {
-        throw new Error(`Gateway for ${accountId} already started`);
+        // Gateway already started, return early
+        if (setStatus) {
+          const gateway = activeGateways.get(accountId);
+          setStatus({ 
+            accountId, 
+            running: gateway?.running ?? false, 
+            lastStartAt: gateway?.lastStartAt ?? null,
+            lastError: null 
+          });
+        }
+        return;
       }
 
       try {
+        // Get the account configuration
+        const account = resolveGigiAccount({ cfg, accountId });
+        
+        if (!account) {
+          throw new Error(`Account configuration not found for ${accountId}`);
+        }
+        
+        console.log(`[GigiPlugin] Starting gateway for ${accountId} with config:`, JSON.stringify(account, null, 2));
+        
+        // Log before creating GigiClient
+        console.log(`[GigiPlugin] Creating GigiClient for ${accountId}`);
+        
         // Create Gigi P2P client
         const client = new GigiClient({
           peerId: account.peerId,
@@ -557,16 +736,24 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           enableRelay: account.enableRelay,
         });
 
+        console.log(`[GigiPlugin] GigiClient created for ${accountId}`);
+
         // Create outbound manager
         const outbound = new OutboundManager(client);
+
+        console.log(`[GigiPlugin] OutboundManager created for ${accountId}`);
 
         // Set up message handler
         client.onMessage(async (gigiMessage) => {
           console.log(`[GigiPlugin] Received message from ${gigiMessage.from}:`, gigiMessage.content);
         });
 
+        console.log(`[GigiPlugin] Message handler set up for ${accountId}`);
+
         // Start P2P client
+        console.log(`[GigiPlugin] Starting P2P client for ${accountId}`);
         await client.start();
+        console.log(`[GigiPlugin] P2P client started for ${accountId}`);
 
         // Create gateway context
         const gatewayContext: GatewayContext = {
@@ -580,8 +767,12 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           lastError: null,
         };
 
+        console.log(`[GigiPlugin] Gateway context created for ${accountId}`);
+
         // Store active gateway
         activeGateways.set(accountId, gatewayContext);
+
+        console.log(`[GigiPlugin] Gateway stored for ${accountId}`);
 
         // Update status
         if (setStatus) {
@@ -592,8 +783,10 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
             lastError: null 
           });
         }
+        console.log(`[GigiPlugin] Gateway started successfully for ${accountId}`);
       } catch (error) {
         console.error(`[GigiPlugin] Error starting gateway for ${accountId}:`, error);
+        console.error(`[GigiPlugin] Error stack:`, error instanceof Error ? error.stack : "No stack");
         if (setStatus) {
           setStatus({ 
             accountId, 
@@ -690,8 +883,8 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
   },
 };
 
-// Export group management functions
-export { joinGigiGroup, leaveGigiGroup, listGigiGroups };
+// Export group management and file sharing functions
+export { joinGigiGroup, leaveGigiGroup, listGigiGroups, shareGigiFile, downloadGigiFile };
 
 // Export plugin type
 export type GigiPlugin = typeof gigiPlugin;

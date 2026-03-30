@@ -28,13 +28,16 @@ export function resolveGigiAccount({
 }): GigiAccount | null {
   let accountConfig: any = null;
   
+  // Check if cfg is already the account config (when called from resolveAccount)
+  if (cfg.mnemonic || cfg.peerId || cfg.multiaddrs) {
+    accountConfig = cfg;
+  }
   // Check legacy accounts format
-  if (cfg.accounts && typeof cfg.accounts === "object") {
+  else if (cfg.accounts && typeof cfg.accounts === "object") {
     accountConfig = cfg.accounts[accountId];
   }
-  
   // Check new channels format
-  if (!accountConfig && cfg.channels?.[CHANNEL_ID] && typeof cfg.channels[CHANNEL_ID] === "object") {
+  else if (cfg.channels?.[CHANNEL_ID] && typeof cfg.channels[CHANNEL_ID] === "object") {
     accountConfig = cfg.channels[CHANNEL_ID];
   }
   

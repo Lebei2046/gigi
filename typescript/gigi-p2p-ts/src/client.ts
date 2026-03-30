@@ -8,6 +8,7 @@ import { derivePeerId, derivePeerPrivateKey } from './key-derivation.js';
 import { RequestResponse, JsonCodec } from '@gigi/request-response-ts';
 import { multiaddr as multiaddrFromString } from '@multiformats/multiaddr';
 import { peerIdFromString } from '@libp2p/peer-id';
+import { randomUUID } from 'crypto';
 import type { P2pConfig, PeerInfo, GroupInfo, ActiveDownload, MessageContent, MessageContentInput } from './types.js';
 
 // Define file protocol request and response types
@@ -54,6 +55,31 @@ export type FileRequestMessage = FileRequest | FileChunkRequest;
 export type FileResponseMessage = FileErrorResponse | FileInfoResponse | FileChunkResponse;
 
 const DEFAULT_OUTPUT_DIR = './downloads';
+
+class DownloadManager {
+  private downloads: Map<string, ActiveDownload> = new Map();
+  private outputDirectory: string;
+
+  constructor(outputDirectory: string) {
+    this.outputDirectory = outputDirectory;
+  }
+
+  add(download: ActiveDownload): void {
+    this.downloads.set(download.downloadId, download);
+  }
+
+  get(downloadId: string): ActiveDownload | undefined {
+    return this.downloads.get(downloadId);
+  }
+
+  remove(downloadId: string): void {
+    this.downloads.delete(downloadId);
+  }
+
+  list(): ActiveDownload[] {
+    return Array.from(this.downloads.values());
+  }
+}
 
 export interface P2pClientOptions {
   nickname: string;
@@ -149,8 +175,8 @@ export class P2pClient {
         }
       });
 
-      await this.setupProtocolHandlers();
       await this.libp2p.start();
+      await this.setupProtocolHandlers();
 
       this.started = true;
       console.log(`[P2pClient] Started with peer ID: ${this.getPeerId()}`);
@@ -237,9 +263,8 @@ export class P2pClient {
             const structuredMessage = JSON.parse(messageData);
             
             // Get the peer ID from the message
-            // In libp2p pubsub, the message sender is in detail.from
-            const from = detail.from || 'unknown';
-            const senderNickname = structuredMessage.senderNickname || 'unknown';
+            const from = structuredMessage.senderPeerId || structuredMessage.content.fromPeerId || 'unknown';
+            const senderNickname = structuredMessage.senderNickname || structuredMessage.content.fromNickname || 'unknown';
 
             console.log(`[P2pClient] Received group message in ${groupName} from ${senderNickname}`);
             console.log(`[P2pClient] Message from peer ID: ${from}`);
@@ -256,12 +281,6 @@ export class P2pClient {
             
             // Add the sender to peer manager if not already present
             let peerIdToAdd = from.toString();
-            if (peerIdToAdd === 'unknown' && structuredMessage.content.type === 'fileShare' && structuredMessage.content.fromPeerId) {
-              // For file share messages, use the peer ID from the content
-              peerIdToAdd = structuredMessage.content.fromPeerId;
-              console.log(`[P2pClient] Using peer ID from file share content: ${peerIdToAdd}`);
-            }
-            
             if (peerIdToAdd !== 'unknown' && senderNickname !== 'unknown') {
               console.log(`[P2pClient] Adding peer ${senderNickname} (${peerIdToAdd}) to peer manager with addresses: ${addresses.join(', ')}`);
               this.peerManager.discover(peerIdToAdd, senderNickname, addresses);
@@ -607,7 +626,7 @@ export class P2pClient {
 
     const topic = `gigi-group:${groupName}`;
     
-    // If content is a file share, add sender's peer ID and nickname
+    // Add sender's peer ID and nickname to all message types
     let fullContent: MessageContent;
     if (content.type === 'fileShare') {
       fullContent = {
@@ -616,12 +635,17 @@ export class P2pClient {
         fromNickname: this.nickname
       };
     } else {
-      fullContent = content as MessageContent;
+      fullContent = {
+        ...content,
+        fromPeerId: this.getPeerId(),
+        fromNickname: this.nickname
+      };
     }
     
     const message = JSON.stringify({
       type: 'group-message',
       senderNickname: this.nickname,
+      senderPeerId: this.getPeerId(),
       content: fullContent,
       timestamp: Date.now()
     });
@@ -673,7 +697,7 @@ export class P2pClient {
   
   async downloadFileByPeerId(peerId: string, nickname: string, shareCode: string): Promise<string> {
     console.log(`[P2pClient] ************* Entering downloadFileByPeerId`);
-    const downloadId = crypto.randomUUID();
+    const downloadId = randomUUID();
 
     // Send file request to get file info
     const fileRequest: FileRequest = {
@@ -856,30 +880,5 @@ export class P2pClient {
 
       eventEmitter.on(eventType, listener as any);
     });
-  }
-}
-
-class DownloadManager {
-  private downloads: Map<string, ActiveDownload> = new Map();
-  private outputDirectory: string;
-
-  constructor(outputDirectory: string) {
-    this.outputDirectory = outputDirectory;
-  }
-
-  add(download: ActiveDownload): void {
-    this.downloads.set(download.downloadId, download);
-  }
-
-  get(downloadId: string): ActiveDownload | undefined {
-    return this.downloads.get(downloadId);
-  }
-
-  remove(downloadId: string): void {
-    this.downloads.delete(downloadId);
-  }
-
-  list(): ActiveDownload[] {
-    return Array.from(this.downloads.values());
   }
 }

@@ -48,7 +48,7 @@ export interface IGigiClient {
   start(): Promise<void>;
   stop(): Promise<void>;
   sendMessage(targetPeerId: string, message: string): Promise<void>;
-  sendGroupMessage(groupName: string, content: string): Promise<void>;
+  sendGroupMessage(groupName: string, content: string | { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string }): Promise<void>;
   joinGroup(groupName: string): Promise<void>;
   leaveGroup(groupName: string): Promise<void>;
   shareFile(filePath: string): Promise<string>;
@@ -59,6 +59,7 @@ export interface IGigiClient {
   isConnected(): boolean;
   listPeers(): any[];
   listGroups(): any[];
+  getFileByShareCode(shareCode: string): any;
 }
 
 /**

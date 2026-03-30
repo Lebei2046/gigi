@@ -56,13 +56,13 @@ export class GigiClient implements IGigiClient {
     // Create P2pClient with the provided config
     // Mnemonic derivation will be handled in the start method
     const p2pOptions: P2pClientOptions = {
-      nickname: config.displayName || `gigi-${config.peerId.substring(0, 8)}`,
+      nickname: config.displayName || `gigi-${Math.random().toString(36).substring(2, 10)}`,
       config: {
         bootstrapNodes: config.bootstrapPeers || [],
         enableKademlia: config.enableDht !== false,
         enableRelay: true,
         enableMdns: config.enableMdns !== false,
-        listenAddrs: config.multiaddrs,
+        ...(config.multiaddrs && config.multiaddrs.length > 0 && { listenAddrs: config.multiaddrs }),
       },
       mnemonic: config.mnemonic,
     };
@@ -74,7 +74,7 @@ export class GigiClient implements IGigiClient {
       if (event.type === 'direct-message') {
           const message: GigiMessage = {
             from: event.from,
-            to: this.started ? this.getPeerId() : 'unknown',
+            to: 'unknown',
             content: typeof event.message === 'string' ? event.message : JSON.stringify(event.message),
             timestamp: Date.now(),
             type: 'direct',
@@ -101,8 +101,12 @@ export class GigiClient implements IGigiClient {
     await this.p2pClient.start();
     this.started = true;
 
-    console.log(`[GigiClient] Started with peer ID: ${this.getPeerId()}`);
-    console.log(`[GigiClient] Listening on: ${this.getMultiaddrs().join(", ")}`);
+    // Get peer ID and multiaddrs after setting started to true
+    const peerId = this.p2pClient.getPeerId();
+    const multiaddrs = this.p2pClient.getMultiaddrs();
+
+    console.log(`[GigiClient] Started with peer ID: ${peerId}`);
+    console.log(`[GigiClient] Listening on: ${multiaddrs.join(", ")}`);
   }
 
   async stop(): Promise<void> {
@@ -124,12 +128,16 @@ export class GigiClient implements IGigiClient {
     console.log(`[GigiClient] Sent message to ${targetPeerId}`);
   }
 
-  async sendGroupMessage(groupName: string, content: string): Promise<void> {
+  async sendGroupMessage(groupName: string, content: string | { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string }): Promise<void> {
     if (!this.started) {
       throw new Error("GigiClient not started");
     }
 
-    await this.p2pClient.sendGroupMessage(groupName, { type: 'text', text: content });
+    if (typeof content === 'string') {
+      await this.p2pClient.sendGroupMessage(groupName, { type: 'text', text: content });
+    } else if (content.type === 'fileShare') {
+      await this.p2pClient.sendGroupMessage(groupName, content);
+    }
     console.log(`[GigiClient] Sent group message to ${groupName}`);
   }
 
@@ -211,5 +219,12 @@ export class GigiClient implements IGigiClient {
       throw new Error("GigiClient not started");
     }
     return this.p2pClient.getJoinedGroups();
+  }
+
+  getFileByShareCode(shareCode: string): any {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
+    }
+    return this.p2pClient.getFileByShareCode(shareCode);
   }
 }

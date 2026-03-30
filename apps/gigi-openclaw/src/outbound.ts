@@ -5,7 +5,7 @@ import type { IGigiClient, GigiMessage } from "./types.js";
  */
 export interface OutboundMessage {
   target: string; // peerId or group:groupName
-  content: string;
+  content: string; // Always stored as string (JSON stringified if object)
   timestamp: number;
   retryCount: number;
   maxRetries: number;
@@ -32,11 +32,11 @@ export class OutboundManager {
   /**
    * Send a message to a target (peer or group)
    */
-  async sendMessage(target: string, content: string): Promise<void> {
+  async sendMessage(target: string, content: string | { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string }): Promise<void> {
     return new Promise((resolve, reject) => {
       const message: OutboundMessage = {
         target,
-        content,
+        content: typeof content === 'string' ? content : JSON.stringify(content),
         timestamp: Date.now(),
         retryCount: 0,
         maxRetries: this.maxRetries,
@@ -67,7 +67,19 @@ export class OutboundManager {
         try {
           if (message.target.startsWith("group:")) {
             const groupName = message.target.replace("group:", "");
-            await this.client.sendGroupMessage(groupName, message.content);
+            // Join the group before sending message
+            await this.client.joinGroup(groupName);
+            // Check if content is a file share message
+            let contentToSend = message.content;
+            try {
+              const parsedContent = JSON.parse(message.content);
+              if (parsedContent.type === 'fileShare') {
+                contentToSend = parsedContent;
+              }
+            } catch {
+              // Not a JSON file share message, send as string
+            }
+            await this.client.sendGroupMessage(groupName, contentToSend);
           } else {
             await this.client.sendMessage(message.target, message.content);
           }

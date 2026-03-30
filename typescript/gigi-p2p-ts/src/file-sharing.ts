@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, basename } from 'path';
@@ -26,7 +26,7 @@ export class FileSharingManager {
 
     const content = await readFile(filePath);
     const hash = this.calculateHash(content);
-    const fileId = crypto.randomUUID();
+    const fileId = randomUUID();
     const shareCode = this.generateShareCode(basename(filePath));
     const chunkCount = Math.ceil(content.length / CHUNK_SIZE);
     const mimeType = this.guessMimeType(filePath);
@@ -53,7 +53,7 @@ export class FileSharingManager {
 
   async shareWithContent(name: string, content: Uint8Array, mimeType: string = 'application/octet-stream'): Promise<SharedFile> {
     const hash = this.calculateHash(content);
-    const fileId = crypto.randomUUID();
+    const fileId = randomUUID();
     const shareCode = this.generateShareCode(name);
     const chunkCount = Math.ceil(content.length / CHUNK_SIZE);
 
