@@ -356,7 +356,15 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       const responseData = await this.readStream(stream);
       console.log(`[RequestResponse] Received response data: ${responseData.length} bytes`);
       const response = this.codec.decodeResponse(responseData);
-      console.log(`[RequestResponse] Decoded response: ${JSON.stringify(response)}`);
+      // Avoid logging large chunk data
+      const responseObj = response as any;
+      if (responseObj.type === 'chunk' && responseObj.chunk) {
+        const responseWithoutChunk = { ...responseObj };
+        delete responseWithoutChunk.chunk;
+        console.log(`[RequestResponse] Decoded response: ${JSON.stringify(responseWithoutChunk)} (chunk data omitted)`);
+      } else {
+        console.log(`[RequestResponse] Decoded response: ${JSON.stringify(response)}`);
+      }
 
       // Clear timeout and pending request
       this.clearOutboundRequest(requestId);

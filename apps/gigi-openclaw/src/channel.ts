@@ -93,6 +93,26 @@ async function sendGigiMessage({
     // Set up message handler
     client.onMessage(async (gigiMessage) => {
       console.log(`[GigiPlugin] Received message from ${gigiMessage.from}:`, gigiMessage.content);
+      
+      // Check if this is a file share message
+      try {
+        const content = JSON.parse(gigiMessage.content);
+        if (content.type === 'fileShare') {
+          console.log(`[GigiPlugin] Received file share message: ${content.filename} (${content.fileSize} bytes)`);
+          console.log(`[GigiPlugin] Share code: ${content.shareCode}`);
+          
+          // Automatically download the file
+          try {
+            const downloadId = await client.downloadFile(gigiMessage.from, content.shareCode);
+            console.log(`[GigiPlugin] Started downloading file: ${content.filename} with download ID: ${downloadId}`);
+          } catch (error) {
+            console.error(`[GigiPlugin] Error downloading file:`, error);
+          }
+        }
+      } catch (error) {
+        // Not a JSON message, or not a file share message
+        console.log(`[GigiPlugin] Received non-file-share message`);
+      }
     });
 
     // Start P2P client
@@ -746,6 +766,26 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
         // Set up message handler
         client.onMessage(async (gigiMessage) => {
           console.log(`[GigiPlugin] Received message from ${gigiMessage.from}:`, gigiMessage.content);
+          
+          // Check if this is a file share message
+          try {
+            const content = JSON.parse(gigiMessage.content);
+            if (content.type === 'fileShare') {
+              console.log(`[GigiPlugin] Received file share message: ${content.filename} (${content.fileSize} bytes)`);
+              console.log(`[GigiPlugin] Share code: ${content.shareCode}`);
+              
+              // Automatically download the file
+              try {
+                const downloadId = await client.downloadFile(gigiMessage.from, content.shareCode);
+                console.log(`[GigiPlugin] Started downloading file: ${content.filename} with download ID: ${downloadId}`);
+              } catch (error) {
+                console.error(`[GigiPlugin] Error downloading file:`, error);
+              }
+            }
+          } catch (error) {
+            // Not a JSON message, or not a file share message
+            console.log(`[GigiPlugin] Received non-file-share message`);
+          }
         });
 
         console.log(`[GigiPlugin] Message handler set up for ${accountId}`);
