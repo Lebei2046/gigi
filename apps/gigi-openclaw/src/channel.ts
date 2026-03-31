@@ -4,6 +4,8 @@ import {
   type OpenClawConfig,
 } from "openclaw/plugin-sdk";
 import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
+import { AmpMessageRouter, AmpMessageFactory, InMemoryAgentRegistry } from "@gigi/amp-ts";
+import type { TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse } from "@gigi/amp-ts";
 
 
 /**
@@ -92,26 +94,84 @@ async function sendGigiMessage({
 
     // Set up message handler
     client.onMessage(async (gigiMessage) => {
-      console.log(`[GigiPlugin] Received message from ${gigiMessage.from}:`, gigiMessage.content);
+      console.log(`[GigiPlugin] Received message:`, JSON.stringify(gigiMessage, null, 2));
       
-      // Check if this is a file share message
-      try {
-        const content = JSON.parse(gigiMessage.content);
-        if (content.type === 'fileShare') {
-          console.log(`[GigiPlugin] Received file share message: ${content.filename} (${content.fileSize} bytes)`);
-          console.log(`[GigiPlugin] Share code: ${content.shareCode}`);
-          
-          // Automatically download the file
-          try {
-            const downloadId = await client.downloadFile(gigiMessage.from, content.shareCode);
-            console.log(`[GigiPlugin] Started downloading file: ${content.filename} with download ID: ${downloadId}`);
-          } catch (error) {
-            console.error(`[GigiPlugin] Error downloading file:`, error);
+      // Handle different message types
+      if ('type' in gigiMessage) {
+        const msg = gigiMessage as { type: string };
+        switch (msg.type) {
+          case 'text': {
+            const textMessage = gigiMessage as TextMessage;
+            console.log(`[GigiPlugin] Received text message from ${textMessage.sender.name} (${textMessage.sender.id}): ${textMessage.content}`);
+            break;
           }
+          case 'file': {
+            const fileMessage = gigiMessage as FileMessage;
+            console.log(`[GigiPlugin] Received file message from ${fileMessage.sender.name} (${fileMessage.sender.id}): ${fileMessage.filename} (${fileMessage.fileSize} bytes)`);
+            console.log(`[GigiPlugin] File hash: ${fileMessage.fileHash}`);
+            // Note: File sharing functionality would use the file hash or another identifier to retrieve the file
+            break;
+          }
+          case 'agent-settings-query': {
+            const queryMessage = gigiMessage as AgentSettingsQuery;
+            console.log(`[GigiPlugin] Received agent settings query from ${queryMessage.sender.name} (${queryMessage.sender.id})`);
+            
+            // Ensure gateway is defined
+            if (!gateway) {
+              console.error(`[GigiPlugin] Gateway is not available to send response`);
+              break;
+            }
+            
+            // Create and send agent settings response
+            // Get OpenClaw agent information from config if available
+            const openclawAgents = [];
+            if (gateway.account.config && gateway.account.config.agents) {
+              for (const [agentId, agentConfig] of Object.entries(gateway.account.config.agents)) {
+                const agent = agentConfig as any;
+                openclawAgents.push({
+                  id: agentId,
+                  name: agent.name || agentId,
+                  model: agent.model || 'unknown',
+                  status: 'active'
+                });
+              }
+            }
+            
+            const responseMessage = AmpMessageFactory.createAgentSettingsResponse(
+              [{
+                id: gateway.account.peerId,
+                name: gateway.account.displayName || gateway.account.peerId.substring(0, 8),
+                type: 'openclaw-agent',
+                version: '1.0.0',
+                settings: [
+                  { id: 'enabled', name: 'Enabled', type: 'boolean', value: true },
+                  { id: 'displayName', name: 'Display Name', type: 'string', value: gateway.account.displayName || gateway.account.peerId.substring(0, 8) },
+                  { id: 'peerId', name: 'Peer ID', type: 'string', value: gateway.account.peerId },
+                  { id: 'multiaddrs', name: 'Multiaddrs', type: 'array', value: gateway.account.multiaddrs || [] }
+                ],
+                status: 'online',
+                openclawAgents
+              }],
+              { id: gateway.account.peerId, name: gateway.account.displayName || gateway.account.peerId.substring(0, 8), type: 'agent' }
+            );
+            // Send response back to the sender
+            try {
+              await gateway.client.sendGroupMessage('gigi-agents', JSON.stringify(responseMessage));
+              console.log(`[GigiPlugin] Sent agent settings response to group gigi-agents`);
+            } catch (error) {
+              console.error(`[GigiPlugin] Error sending agent settings response:`, error);
+            }
+            break;
+          }
+          case 'agent-settings-response': {
+            const responseMessage = gigiMessage as AgentSettingsResponse;
+            console.log(`[GigiPlugin] Received agent settings response from ${responseMessage.sender.name} (${responseMessage.sender.id})`);
+            console.log(`[GigiPlugin] Agent settings:`, responseMessage.agents);
+            break;
+          }
+          default:
+            console.log(`[GigiPlugin] Received unknown message type: ${msg.type}`);
         }
-      } catch (error) {
-        // Not a JSON message, or not a file share message
-        console.log(`[GigiPlugin] Received non-file-share message`);
       }
     });
 
@@ -119,6 +179,14 @@ async function sendGigiMessage({
     console.log(`[GigiPlugin] Starting P2P client for ${resolvedAccountId}`);
     await client.start();
     console.log(`[GigiPlugin] P2P client started for ${resolvedAccountId}`);
+    
+    // Join the agent group
+    try {
+      await client.joinGroup('gigi-agents');
+      console.log(`[GigiPlugin] Joined agent group: gigi-agents`);
+    } catch (error) {
+      console.warn(`[GigiPlugin] Failed to join agent group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
 
     // Create gateway context
     gateway = {
@@ -765,26 +833,77 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
         // Set up message handler
         client.onMessage(async (gigiMessage) => {
-          console.log(`[GigiPlugin] Received message from ${gigiMessage.from}:`, gigiMessage.content);
+          console.log(`[GigiPlugin] Received message:`, JSON.stringify(gigiMessage, null, 2));
           
-          // Check if this is a file share message
-          try {
-            const content = JSON.parse(gigiMessage.content);
-            if (content.type === 'fileShare') {
-              console.log(`[GigiPlugin] Received file share message: ${content.filename} (${content.fileSize} bytes)`);
-              console.log(`[GigiPlugin] Share code: ${content.shareCode}`);
-              
-              // Automatically download the file
-              try {
-                const downloadId = await client.downloadFile(gigiMessage.from, content.shareCode);
-                console.log(`[GigiPlugin] Started downloading file: ${content.filename} with download ID: ${downloadId}`);
-              } catch (error) {
-                console.error(`[GigiPlugin] Error downloading file:`, error);
+          // Handle different message types
+          if ('type' in gigiMessage) {
+            const msg = gigiMessage as { type: string };
+            switch (msg.type) {
+              case 'text': {
+                const textMessage = gigiMessage as TextMessage;
+                console.log(`[GigiPlugin] Received text message from ${textMessage.sender.name} (${textMessage.sender.id}): ${textMessage.content}`);
+                break;
               }
+              case 'file': {
+                const fileMessage = gigiMessage as FileMessage;
+                console.log(`[GigiPlugin] Received file message from ${fileMessage.sender.name} (${fileMessage.sender.id}): ${fileMessage.filename} (${fileMessage.fileSize} bytes)`);
+                console.log(`[GigiPlugin] File hash: ${fileMessage.fileHash}`);
+                // Note: File sharing functionality would use the file hash or another identifier to retrieve the file
+                break;
+              }
+              case 'agent-settings-query': {
+                const queryMessage = gigiMessage as AgentSettingsQuery;
+                console.log(`[GigiPlugin] Received agent settings query from ${queryMessage.sender.name} (${queryMessage.sender.id})`);
+                // Create and send agent settings response
+                // Get OpenClaw agent information from config if available
+                const openclawAgents = [];
+                if (gatewayContext.account.config && gatewayContext.account.config.agents) {
+                  for (const [agentId, agentConfig] of Object.entries(gatewayContext.account.config.agents)) {
+                    const agent = agentConfig as any;
+                    openclawAgents.push({
+                      id: agentId,
+                      name: agent.name || agentId,
+                      model: agent.model || 'unknown',
+                      status: 'active'
+                    });
+                  }
+                }
+                
+                const responseMessage = AmpMessageFactory.createAgentSettingsResponse(
+                  [{
+                    id: gatewayContext.account.peerId,
+                    name: gatewayContext.account.displayName || gatewayContext.account.peerId.substring(0, 8),
+                    type: 'openclaw-agent',
+                    version: '1.0.0',
+                    settings: [
+                      { id: 'enabled', name: 'Enabled', type: 'boolean', value: true },
+                      { id: 'displayName', name: 'Display Name', type: 'string', value: gatewayContext.account.displayName || gatewayContext.account.peerId.substring(0, 8) },
+                      { id: 'peerId', name: 'Peer ID', type: 'string', value: gatewayContext.account.peerId },
+                      { id: 'multiaddrs', name: 'Multiaddrs', type: 'array', value: gatewayContext.account.multiaddrs || [] }
+                    ],
+                    status: 'online',
+                    openclawAgents
+                  }],
+                  { id: gatewayContext.account.peerId, name: gatewayContext.account.displayName || gatewayContext.account.peerId.substring(0, 8), type: 'agent' }
+                );
+                // Send response back to the sender
+                try {
+                  await gatewayContext.client.sendGroupMessage('gigi-agents', JSON.stringify(responseMessage));
+                  console.log(`[GigiPlugin] Sent agent settings response to group gigi-agents`);
+                } catch (error) {
+                  console.error(`[GigiPlugin] Error sending agent settings response:`, error);
+                }
+                break;
+              }
+              case 'agent-settings-response': {
+                const responseMessage = gigiMessage as AgentSettingsResponse;
+                console.log(`[GigiPlugin] Received agent settings response from ${responseMessage.sender.name} (${responseMessage.sender.id})`);
+                console.log(`[GigiPlugin] Agent settings:`, responseMessage.agents);
+                break;
+              }
+              default:
+                console.log(`[GigiPlugin] Received unknown message type: ${msg.type}`);
             }
-          } catch (error) {
-            // Not a JSON message, or not a file share message
-            console.log(`[GigiPlugin] Received non-file-share message`);
           }
         });
 
@@ -794,6 +913,14 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
         console.log(`[GigiPlugin] Starting P2P client for ${accountId}`);
         await client.start();
         console.log(`[GigiPlugin] P2P client started for ${accountId}`);
+        
+        // Join the agent group
+        try {
+          await client.joinGroup('gigi-agents');
+          console.log(`[GigiPlugin] Joined agent group: gigi-agents`);
+        } catch (error) {
+          console.warn(`[GigiPlugin] Failed to join agent group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
 
         // Create gateway context
         const gatewayContext: GatewayContext = {

@@ -1,6 +1,7 @@
 import { P2pClient, P2pClientOptions, derivePeerId, derivePeerPrivateKey } from "@gigi/p2p-ts";
 import { RequestResponse, JsonCodec } from "@gigi/request-response-ts";
-import type { IGigiClient, GigiClientConfig, GigiMessage } from "./types.js";
+import { AmpMessageRouter, AmpMessageFactory, InMemoryAgentRegistry } from "@gigi/amp-ts";
+import type { IGigiClient, GigiClientConfig, GigiMessage, AgentInfo } from "./types.js";
 
 // Define file protocol request and response types
 interface FileRequest {
@@ -49,6 +50,8 @@ export class GigiClient implements IGigiClient {
   private messageHandlers: ((msg: GigiMessage) => void)[] = [];
   private config: GigiClientConfig;
   private started = false;
+  private agentRegistry: InMemoryAgentRegistry;
+  private messageRouter: AmpMessageRouter;
 
   constructor(config: GigiClientConfig) {
     this.config = config;
@@ -69,27 +72,33 @@ export class GigiClient implements IGigiClient {
     
     this.p2pClient = new P2pClient(p2pOptions);
     
+    // Initialize agent registry and message router
+    this.agentRegistry = new InMemoryAgentRegistry();
+    this.messageRouter = new AmpMessageRouter(this.agentRegistry);
+    
     // Set up event listeners
     this.p2pClient.onEvent(async (event) => {
       if (event.type === 'direct-message') {
-          const message: GigiMessage = {
-            from: event.from,
-            to: 'unknown',
-            content: typeof event.message === 'string' ? event.message : JSON.stringify(event.message),
-            timestamp: Date.now(),
-            type: 'direct',
-          };
-          this.emitMessage(message);
-        } else if (event.type === 'group-message') {
-          const message: GigiMessage = {
-            from: event.from,
-            to: event.group,
-            content: typeof event.content === 'string' ? event.content : JSON.stringify(event.content),
-            timestamp: Date.now(),
-            type: 'broadcast',
-          };
-          this.emitMessage(message);
+        try {
+          const messageData = typeof event.message === 'string' ? JSON.parse(event.message) : event.message;
+          this.emitMessage(messageData as GigiMessage);
+        } catch (error) {
+          console.error('[GigiClient] Error parsing direct message:', error);
         }
+      } else if (event.type === 'group-message') {
+        try {
+          // For group messages, the content is an object with type and text properties
+          // The actual AMP message is in the text field
+          if (event.content && event.content.type === 'text' && typeof event.content.text === 'string') {
+            const messageData = JSON.parse(event.content.text);
+            this.emitMessage(messageData as GigiMessage);
+          } else {
+            console.error('[GigiClient] Unexpected group message format:', event.content);
+          }
+        } catch (error) {
+          console.error('[GigiClient] Error parsing group message:', error);
+        }
+      }
     });
   }
 
@@ -119,26 +128,84 @@ export class GigiClient implements IGigiClient {
     console.log("[GigiClient] Stopped");
   }
 
-  async sendMessage(targetPeerId: string, content: string): Promise<void> {
+  async sendMessage(target: string, message: string): Promise<void> {
     if (!this.started) {
       throw new Error("GigiClient not started");
     }
 
-    await this.p2pClient.sendDirectMessage(targetPeerId, content);
-    console.log(`[GigiClient] Sent message to ${targetPeerId}`);
+    const peerId = this.p2pClient.getPeerId();
+    const displayName = this.config.displayName || peerId.substring(0, 8);
+
+    const textMessage = AmpMessageFactory.createTextMessage(
+      message,
+      { type: 'specific', agentIds: [target] },
+      { id: peerId, name: displayName, type: 'owner' }
+    );
+
+    await this.p2pClient.sendDirectMessage(target, JSON.stringify(textMessage));
+    console.log(`[GigiClient] Sent text message to ${target}`);
   }
 
-  async sendGroupMessage(groupName: string, content: string | { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string }): Promise<void> {
+  async sendFileMessage(target: string, filename: string, fileSize: number, fileType: string, shareCode: string): Promise<void> {
     if (!this.started) {
       throw new Error("GigiClient not started");
     }
 
-    if (typeof content === 'string') {
-      await this.p2pClient.sendGroupMessage(groupName, { type: 'text', text: content });
-    } else if (content.type === 'fileShare') {
-      await this.p2pClient.sendGroupMessage(groupName, content);
+    const peerId = this.p2pClient.getPeerId();
+    const displayName = this.config.displayName || peerId.substring(0, 8);
+
+    // Create a file hash placeholder (in a real implementation, this would be a actual hash of the file)
+    const fileHash = `hash-${Date.now()}`;
+
+    const fileMessage = AmpMessageFactory.createFileMessage(
+      filename,
+      fileSize,
+      fileHash,
+      { type: 'specific', agentIds: [target] },
+      { id: peerId, name: displayName, type: 'owner' }
+    );
+
+    await this.p2pClient.sendDirectMessage(target, JSON.stringify(fileMessage));
+    console.log(`[GigiClient] Sent file message to ${target}`);
+  }
+
+  async sendGroupMessage(groupName: string, content: string): Promise<void> {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
     }
-    console.log(`[GigiClient] Sent group message to ${groupName}`);
+
+    const peerId = this.p2pClient.getPeerId();
+    const displayName = this.config.displayName || peerId.substring(0, 8);
+
+    // Create a MessageContentInput for the P2pClient
+    const messageContent: { type: 'text'; text: string } = {
+      type: 'text',
+      text: content
+    };
+
+    await this.p2pClient.sendGroupMessage(groupName, messageContent);
+    console.log(`[GigiClient] Sent group text message to ${groupName}`);
+  }
+
+  async sendGroupFileMessage(groupName: string, filename: string, fileSize: number, fileType: string, shareCode: string): Promise<void> {
+    if (!this.started) {
+      throw new Error("GigiClient not started");
+    }
+
+    const peerId = this.p2pClient.getPeerId();
+    const displayName = this.config.displayName || peerId.substring(0, 8);
+
+    // Create a MessageContentInput for the P2pClient
+    const messageContent: { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string } = {
+      type: 'fileShare',
+      shareCode,
+      filename,
+      fileSize,
+      fileType
+    };
+
+    await this.p2pClient.sendGroupMessage(groupName, messageContent);
+    console.log(`[GigiClient] Sent group file message to ${groupName}`);
   }
 
   async joinGroup(groupName: string): Promise<void> {

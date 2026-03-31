@@ -844,6 +844,10 @@ export class P2pClient {
     return this.peerManager.list();
   }
 
+  listConnectedPeers(): PeerInfo[] {
+    return this.peerManager.listConnected();
+  }
+
   async connectToPeer(multiaddr: string): Promise<void> {
     if (!this.libp2p || !this.started) {
       throw P2pError.notStarted();

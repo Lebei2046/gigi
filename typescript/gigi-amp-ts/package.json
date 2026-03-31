@@ -1,0 +1,30 @@
+{
+  "name": "@gigi/amp-ts",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Agent Messaging Protocol for Gigi P2P",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@gigi/p2p-ts": "workspace:*",
+    "@gigi/request-response-ts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.3"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  }
+}

@@ -10,17 +10,18 @@ The Gigi OpenClaw Plugin acts as a bridge between the OpenClaw interface and the
 
 - **P2P Messaging**: Direct peer-to-peer messaging with end-to-end encryption
 - **Group Messaging**: Messages to groups using GossipSub protocol
-- **File Sharing**: Share files between peers with share codes
+- **File Sharing**: Share files between peers with share codes (auto-download on receive)
 - **Peer Discovery**: Find peers using Kademlia DHT and mDNS
 - **NAT Traversal**: Connect peers behind NAT using circuit relay
 - **Status Monitoring**: Health checks and connection status
 - **Message Queuing**: Reliable message delivery with retries
+- **Mnemonic Support**: BIP-39 mnemonic for consistent peer ID derivation
 
 ## Installation
 
 ### Prerequisites
 
-- **OpenClaw**: Latest version
+- **OpenClaw**: 2026.3.22 or later
 - **Node.js**: v18 or later
 - **pnpm**: Latest version
 
@@ -39,36 +40,33 @@ The Gigi OpenClaw Plugin acts as a bridge between the OpenClaw interface and the
 
 3. **Build the plugin**:
    ```bash
-   cd pkgs/gigi-openclaw
-   pnpm run build
+   cd apps/gigi-openclaw
+   pnpm run build:bundle
    ```
 
-4. **Add the plugin to OpenClaw**:
+4. **Install the plugin in OpenClaw**:
    ```bash
-   openclaw plugins add --path ../pkgs/gigi-openclaw
+   openclaw plugins install /path/to/gigi/apps/gigi-openclaw
    ```
 
 ## Configuration
 
-The Gigi OpenClaw Plugin can be configured through the OpenClaw configuration system. Here's a comprehensive example:
+The Gigi OpenClaw Plugin can be configured through the OpenClaw configuration system.
 
 ### Basic Configuration
 
 ```json
 {
   "channels": {
-    "gigi": {
-      "peerId": "your-peer-id",
-      "multiaddrs": ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/ws/0"],
-      "displayName": "Your Display Name",
-      "bootstrapPeers": ["/ip4/127.0.0.1/tcp/4001/p2p/QmBootstrapPeer"],
-      "enableMdns": true,
-      "enableDht": true,
-      "enableRelay": true,
-      "config": {
-        "dmPolicy": "open",
-        "allowFrom": ["*"]
-      }
+    "gigi-p2p-bundled": {
+      "peerId": "12D3KooW...",
+      "multiaddrs": [
+        "/ip4/0.0.0.0/tcp/0",
+        "/ip4/0.0.0.0/tcp/0/ws"
+      ],
+      "mnemonic": "abandon amount liar amount expire adjust cage candy arch gather drum buyer",
+      "displayName": "My Gigi Node",
+      "enabled": true
     }
   }
 }
@@ -78,15 +76,26 @@ The Gigi OpenClaw Plugin can be configured through the OpenClaw configuration sy
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `peerId` | Unique identifier for your node | Required |
-| `multiaddrs` | List of addresses to listen on | Required |
-| `displayName` | Human-readable name for your node | Same as peerId |
-| `bootstrapPeers` | List of bootstrap nodes to connect to | Empty |
+| `peerId` | Unique identifier for your node | Generated from mnemonic |
+| `multiaddrs` | List of addresses to listen on | `["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"]` |
+| `displayName` | Human-readable name for your node | `"My Gigi Node"` |
+| `mnemonic` | BIP-39 mnemonic phrase for key derivation | Optional, but recommended |
+| `bootstrapPeers` | List of bootstrap nodes to connect to | `[]` |
 | `enableMdns` | Enable mDNS for local peer discovery | `true` |
 | `enableDht` | Enable Kademlia DHT for peer discovery | `true` |
 | `enableRelay` | Enable circuit relay for NAT traversal | `true` |
-| `config.dmPolicy` | Direct message policy (`open`, `pairing`, `allowlist`) | `open` |
-| `config.allowFrom` | List of allowed peer IDs or `["*"]` for all | `["*"]` |
+| `enabled` | Whether the channel is enabled | `true` |
+
+### Generating a Mnemonic
+
+To generate a BIP-39 mnemonic phrase for consistent peer ID:
+
+```bash
+cd apps/gigi-openclaw
+pnpm run generate-mnemonic
+```
+
+**Important**: Store your mnemonic securely. It is the root of all your Gigi P2P keys.
 
 ## Usage
 
@@ -97,55 +106,37 @@ The Gigi OpenClaw Plugin provides a command-line interface through OpenClaw:
 #### Add Gigi Channel
 
 ```bash
-openclaw channels add gigi --peer-id <peerId> --multiaddrs <multiaddrs> --display-name "Your Name" --bootstrap-peers <bootstrapPeers>
+openclaw channels add gigi-p2p-bundled --name "My Gigi Node"
 ```
 
 #### Start Gigi Channel
 
 ```bash
-openclaw channels start gigi
+openclaw channels start gigi-p2p-bundled
 ```
 
 #### Stop Gigi Channel
 
 ```bash
-openclaw channels stop gigi
+openclaw channels stop gigi-p2p-bundled
 ```
 
 #### Send Direct Message
 
 ```bash
-openclaw send gigi --to <peerId> --message "Hello!"
-```
-
-#### Join Group
-
-```bash
-openclaw channels gigi join-group --group general
+openclaw message send --channel gigi-p2p-bundled --target <peerId> --message "Hello!"
 ```
 
 #### Send Group Message
 
 ```bash
-openclaw send gigi --to group:general --message "Hello everyone!"
-```
-
-#### Share File
-
-```bash
-openclaw channels gigi share-file --path "/path/to/file.txt"
-```
-
-#### Download File
-
-```bash
-openclaw channels gigi download-file --from <peerId> --share-code <shareCode>
+openclaw message send --channel gigi-p2p-bundled --target "test-group" --message "Hello everyone!"
 ```
 
 #### Check Status
 
 ```bash
-openclaw channels status gigi
+openclaw channels status gigi-p2p-bundled
 ```
 
 ### Programmatic Usage
@@ -153,38 +144,40 @@ openclaw channels status gigi
 You can also use the Gigi OpenClaw Plugin programmatically in your own applications:
 
 ```typescript
-import { gigiPlugin, GigiClient } from '@gigi/openclaw';
+import { GigiClient } from "gigi-p2p-bundled";
 
 // Create a Gigi client
 const client = new GigiClient({
-  peerId: 'your-peer-id',
-  multiaddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/ws/0'],
-  displayName: 'Your Display Name',
-  bootstrapPeers: ['/ip4/127.0.0.1/tcp/4001/p2p/QmBootstrapPeer'],
+  peerId: "12D3KooW...",
+  multiaddrs: ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"],
+  mnemonic: "your mnemonic here",
+  displayName: "My Gigi Node"
 });
 
 // Start the client
 await client.start();
 
-// Send a message
-await client.sendMessage('peer-id', 'Hello!');
+// Send a direct message
+await client.sendMessage("peer-id", "Hello!");
 
 // Join a group
-await client.joinGroup('general');
+await client.joinGroup("my-group-topic");
 
 // Send a group message
-await client.sendGroupMessage('general', 'Hello everyone!');
+await client.sendGroupMessage("my-group-topic", "Hello everyone!");
 
 // Share a file
-const shareCode = await client.shareFile('/path/to/file.txt');
+const shareCode = await client.shareFile("/path/to/file.txt");
 
 // Download a file
-const downloadId = await client.downloadFile('peer-id', shareCode);
+const downloadId = await client.downloadFile("peer-id", shareCode);
 
-// Listen for messages
-client.onMessage((message) => {
-  console.log(`Received message from ${message.from}: ${message.content}`);
-});
+// List joined groups
+const groups = client.listGroups();
+console.log("Joined groups:", groups);
+
+// Leave a group
+await client.leaveGroup("my-group-topic");
 
 // Stop the client
 await client.stop();
@@ -196,11 +189,12 @@ await client.stop();
 
 The Gigi OpenClaw Plugin consists of several key components:
 
-1. **GigiClient**: Wraps the P2P client and provides a high-level API
-2. **OutboundManager**: Handles message queuing and retries
-3. **Channel Plugin**: Implements the OpenClaw plugin interface
-4. **Account Management**: Handles account configuration and validation
-5. **Status Monitoring**: Provides health checks and status information
+1. **GigiClient** (`src/GigiClient.ts`): Wraps the P2P client and provides a high-level API
+2. **OutboundManager** (`src/outbound.ts`): Handles message queuing and retries
+3. **Channel Plugin** (`src/channel.ts`): Implements the OpenClaw ChannelPlugin interface
+4. **Account Management** (`src/accounts.ts`): Handles account configuration and validation
+5. **Status Monitoring** (`src/probe.ts`): Provides health checks and status information
+6. **Type Definitions** (`src/types.ts`): TypeScript interfaces and types
 
 ### Data Flow
 
@@ -208,7 +202,16 @@ The Gigi OpenClaw Plugin consists of several key components:
 2. **Message Processing**: Plugin processes and validates the message
 3. **P2P Delivery**: Message is sent through the P2P network
 4. **Message Reception**: Plugin receives message from P2P network
-5. **Message Delivery**: Message is delivered to OpenClaw
+5. **Auto-download**: File share messages trigger automatic file downloads
+6. **Message Delivery**: Message is delivered to OpenClaw
+
+### File Sharing Flow
+
+1. **Sharing**: User shares a file via `shareFile()`
+2. **Share Code**: A unique share code is generated
+3. **Announcement**: Share code is sent to peers via message
+4. **Auto-download**: Recipients automatically download the file
+5. **Storage**: Files are saved to `./downloads` directory
 
 ## Security
 
@@ -220,7 +223,7 @@ The Gigi OpenClaw Plugin consists of several key components:
 
 ### Best Practices
 
-- **Use Strong Peer IDs**: Generate secure peer IDs
+- **Use Mnemonic**: Generate and securely store a BIP-39 mnemonic for consistent identity
 - **Limit Allow List**: Restrict `allowFrom` to trusted peers
 - **Monitor Connections**: Regularly check connected peers
 - **Update Regularly**: Keep the plugin updated to the latest version
@@ -257,94 +260,7 @@ The Gigi OpenClaw Plugin logs are integrated with OpenClaw's logging system. To 
 openclaw config set --key logging.level --value debug
 ```
 
-## Advanced Features
-
-### Custom Network
-
-You can set up a custom Gigi network by running your own bootstrap nodes:
-
-```bash
-# Start a bootstrap node
-cd apps/gigi-node
-cargo run -- --mode bootstrap --listen /ip4/0.0.0.0/tcp/4001
-
-# Configure the plugin to use your bootstrap node
-openclaw channels add gigi --peer-id <peerId> --multiaddrs <multiaddrs> --bootstrap-peers "/ip4/your-server-ip/tcp/4001/p2p/<bootstrap-peer-id>"
-```
-
-### NAT Traversal
-
-The plugin automatically handles NAT traversal using Libp2p's circuit relay protocol. For better results, you can run dedicated relay nodes:
-
-```bash
-# Start a relay node
-cd apps/gigi-node
-cargo run -- --mode relay --listen /ip4/0.0.0.0/tcp/4002 --bootstrap /ip4/127.0.0.1/tcp/4001/p2p/<bootstrap-peer-id>
-```
-
-### Performance Optimization
-
-To optimize performance:
-
-- **Limit Connections**: Configure max connections in P2P settings
-- **Enable Relay**: Use relay nodes for better NAT traversal
-- **Optimize DHT**: Adjust DHT parameters for your network size
-- **Use Fast Transports**: Prioritize faster transports like QUIC
-
 ## API Reference
-
-### Plugin Methods
-
-#### `listAccountIds(cfg)`
-
-List all configured Gigi account IDs.
-
-**Parameters**:
-- `cfg`: Configuration object
-
-**Returns**:
-- Array of account IDs
-
-#### `resolveAccount({ cfg, accountId })`
-
-Resolve a Gigi account by ID.
-
-**Parameters**:
-- `cfg`: Configuration object
-- `accountId`: Account ID to resolve
-
-**Returns**:
-- GigiAccount object or null
-
-#### `startAccount(ctx)`
-
-Start a gateway for an account.
-
-**Parameters**:
-- `ctx`: Context object with account information
-
-**Returns**:
-- Promise<void>
-
-#### `stopAccount(accountId)`
-
-Stop a gateway for an account.
-
-**Parameters**:
-- `accountId`: Account ID to stop
-
-**Returns**:
-- Promise<void>
-
-#### `sendMessage(ctx)`
-
-Send a message through the gateway.
-
-**Parameters**:
-- `ctx`: Context object with message information
-
-**Returns**:
-- Promise<void>
 
 ### GigiClient Methods
 
@@ -352,120 +268,116 @@ Send a message through the gateway.
 
 Start the P2P client.
 
-**Returns**:
-- Promise<void>
+**Returns**: `Promise<void>`
 
 #### `stop()`
 
 Stop the P2P client.
 
-**Returns**:
-- Promise<void>
+**Returns**: `Promise<void>`
 
 #### `sendMessage(targetPeerId, content)`
 
 Send a direct message to a peer.
 
 **Parameters**:
-- `targetPeerId`: Target peer ID
-- `content`: Message content
+- `targetPeerId`: Target peer ID (string)
+- `content`: Message content (string)
 
-**Returns**:
-- Promise<void>
+**Returns**: `Promise<void>`
 
 #### `sendGroupMessage(groupName, content)`
 
 Send a message to a group.
 
 **Parameters**:
-- `groupName`: Group name
-- `content`: Message content
+- `groupName`: Group name (string)
+- `content`: Message content (string or file share object)
 
-**Returns**:
-- Promise<void>
+**Returns**: `Promise<void>`
 
 #### `joinGroup(groupName)`
 
 Join a group.
 
 **Parameters**:
-- `groupName`: Group name
+- `groupName`: Group name (string)
 
-**Returns**:
-- Promise<void>
+**Returns**: `Promise<void>`
 
 #### `leaveGroup(groupName)`
 
 Leave a group.
 
 **Parameters**:
-- `groupName`: Group name
+- `groupName`: Group name (string)
 
-**Returns**:
-- Promise<void>
+**Returns**: `Promise<void>`
 
 #### `shareFile(filePath)`
 
 Share a file.
 
 **Parameters**:
-- `filePath`: Path to file
+- `filePath`: Path to file (string)
 
-**Returns**:
-- Promise<string> (share code)
+**Returns**: `Promise<string>` (share code)
 
 #### `downloadFile(peerId, shareCode)`
 
 Download a file.
 
 **Parameters**:
-- `peerId`: Peer ID to download from
-- `shareCode`: Share code
+- `peerId`: Peer ID to download from (string)
+- `shareCode`: Share code (string)
 
-**Returns**:
-- Promise<string> (download ID)
+**Returns**: `Promise<string>` (download ID)
 
 #### `onMessage(handler)`
 
 Register a message handler.
 
 **Parameters**:
-- `handler`: Message handler function
+- `handler`: Message handler function `(msg: GigiMessage) => void`
 
 #### `getPeerId()`
 
 Get the peer ID of the client.
 
-**Returns**:
-- string (peer ID)
+**Returns**: `string`
 
 #### `getMultiaddrs()`
 
 Get the multiaddresses the client is listening on.
 
-**Returns**:
-- Array of strings (multiaddresses)
+**Returns**: `string[]`
 
 #### `isConnected()`
 
 Check if the client is connected to the network.
 
-**Returns**:
-- boolean
+**Returns**: `boolean`
 
 #### `listPeers()`
 
 List all discovered peers.
 
-**Returns**:
-- Array of peer objects
+**Returns**: `Array<{ peerId: string; nickname?: string }>`
 
 #### `listGroups()`
 
 List all joined groups.
 
-**Returns**:
-- Array of group objects
+**Returns**: `Array<{ name: string; members?: string[] }>`
+
+#### `getFileByShareCode(shareCode)`
+
+Get file information by share code.
+
+**Parameters**:
+- `shareCode`: Share code (string)
+
+**Returns**: `any`
 
 ## Examples
 
@@ -473,38 +385,59 @@ List all joined groups.
 
 ```bash
 # Add Gigi channel
-openclaw channels add gigi --peer-id "my-peer-id" --multiaddrs "/ip4/0.0.0.0/tcp/0"
+openclaw channels add gigi-p2p-bundled --name "My Gigi Node"
 
 # Start channel
-openclaw channels start gigi
+openclaw channels start gigi-p2p-bundled
 
 # Send message
-openclaw send gigi --to "friend-peer-id" --message "Hello from Gigi!"
+openclaw message send --channel gigi-p2p-bundled --target "friend-peer-id" --message "Hello from Gigi!"
 ```
 
 ### Group Chat
 
 ```bash
-# Join group
-openclaw channels gigi join-group --group "family"
-
 # Send group message
-openclaw send gigi --to group:family --message "Hi everyone!"
+openclaw message send --channel gigi-p2p-bundled --target "test-group" --message "Hi everyone!"
 ```
 
 ### File Sharing
 
-```bash
-# Share file
-openclaw channels gigi share-file --path "/path/to/photo.jpg"
-# Output: Share code: abc123
+Files are automatically downloaded when a file share message is received. The downloaded files are saved to the `./downloads` directory relative to the OpenClaw gateway's working directory.
 
-# Download file
-openclaw channels gigi download-file --from "friend-peer-id" --share-code "abc123"
+To share a file programmatically:
+
+```typescript
+const shareCode = await client.shareFile("/path/to/photo.jpg");
+const fileShareMessage = {
+  type: 'fileShare',
+  shareCode,
+  filename: 'photo.jpg',
+  fileSize: 1024000,
+  fileType: 'image/jpeg'
+};
+await client.sendGroupMessage("family", fileShareMessage);
 ```
 
-## Conclusion
+## File Structure
 
-The Gigi OpenClaw Plugin provides a powerful interface to the Gigi P2P network, enabling secure, decentralized communication and file sharing. By following this guide, you can configure and use the plugin to its full potential, creating a robust P2P communication system that works across networks and devices.
+```
+apps/gigi-openclaw/
+├── src/
+│   ├── channel.ts      # Main plugin implementation
+│   ├── GigiClient.ts   # High-level client wrapper
+│   ├── outbound.ts     # Message queue management
+│   ├── accounts.ts     # Account resolution
+│   ├── probe.ts        # Status monitoring
+│   ├── types.ts        # Type definitions
+│   └── config-schema.ts # Configuration schema
+├── scripts/
+│   └── generate-mnemonic.ts # Mnemonic generation script
+├── package.json
+├── tsconfig.json
+└── README.md
+```
 
-For more information, see the [API Reference](api/openclaw-plugin-api.md) and [Troubleshooting Guide](guides/troubleshooting-guide.md).
+## License
+
+MIT

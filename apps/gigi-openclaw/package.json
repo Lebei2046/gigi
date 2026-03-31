@@ -24,6 +24,7 @@
   "dependencies": {
     "@gigi/p2p-ts": "file:../../typescript/gigi-p2p-ts",
     "@gigi/request-response-ts": "file:../../typescript/gigi-request-response-ts",
+    "@gigi/amp-ts": "file:../../typescript/gigi-amp-ts",
     "@sinclair/typebox": "^0.34.0"
   },
   "peerDependencies": {

@@ -21,14 +21,15 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "baseUrl": ".",
-    "composite": true,
     "paths": {
+      "@gigi/p2p-ts": ["../gigi-p2p-ts/src/index.ts"],
       "@gigi/request-response-ts": ["../gigi-request-response-ts/src/index.ts"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
+    { "path": "../gigi-p2p-ts" },
     { "path": "../gigi-request-response-ts" }
   ]
 }

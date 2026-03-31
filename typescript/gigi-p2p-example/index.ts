@@ -2,11 +2,17 @@
 import { P2pClient } from '@gigi/p2p-ts';
 import { Command } from 'commander';
 import readline from 'readline';
+import { AmpMessageFactory, AmpMessageRouter, InMemoryAgentRegistry, AmpMessage } from '@gigi/amp-ts';
 
 const program = new Command();
 
 // Store file share messages for download lookup
 const fileShareMessages: Map<string, { shareCode: string; fromPeerId: string; fromNickname: string; filename: string }> = new Map();
+
+// AMP components
+let agentRegistry: InMemoryAgentRegistry;
+let messageRouter: AmpMessageRouter;
+const AGENT_GROUP_NAME = 'gigi-agents'; // Dedicated group for agent communication
 
 // Helper function to create a chat client
 async function createChatClient(nickname: string): Promise<P2pClient> {
@@ -19,6 +25,51 @@ async function createChatClient(nickname: string): Promise<P2pClient> {
   console.log(`${nickname} started with peer ID: ${client.getPeerId()}`);
   console.log(`${nickname} listening on: ${client.getMultiaddrs().join(', ')}`);
 
+  // Join the agent group
+  try {
+    await client.joinGroup(AGENT_GROUP_NAME);
+    console.log(`Joined agent group: ${AGENT_GROUP_NAME}`);
+  } catch (error) {
+    console.warn(`Failed to join agent group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  // Initialize AMP components
+  agentRegistry = new InMemoryAgentRegistry();
+  messageRouter = new AmpMessageRouter(agentRegistry);
+
+  // Set up AMP message handlers
+  messageRouter.registerMessageHandler('text', (message: any, agentId: string | undefined) => {
+    console.log(`\n[AGENT] ${message.sender.name}: ${message.content}`);
+  });
+
+  messageRouter.registerMessageHandler('file', (message: any, agentId: string | undefined) => {
+    console.log(`\n[AGENT] ${message.sender.name} shared a file: ${message.filename} (${message.fileSize} bytes)`);
+    console.log(`File hash: ${message.fileHash}`);
+  });
+
+  messageRouter.registerMessageHandler('agent-settings-response', (message: any, agentId: string | undefined) => {
+    const response = message as any;
+    console.log('\n[AGENT SETTINGS RESPONSE]');
+    response.agents.forEach((agent: any) => {
+      console.log(`Agent: ${agent.name} (${agent.id})`);
+      console.log(`  Type: ${agent.type}`);
+      console.log(`  Version: ${agent.version}`);
+      console.log(`  Status: ${agent.status}`);
+      console.log(`  Settings:`);
+      agent.settings.forEach((setting: any) => {
+        console.log(`    - ${setting.name}: ${setting.value}`);
+      });
+      if (agent.openclawAgents && agent.openclawAgents.length > 0) {
+        console.log(`  OpenClaw Agents:`);
+        agent.openclawAgents.forEach((openclawAgent: any) => {
+          console.log(`    - ${openclawAgent.name} (${openclawAgent.id})`);
+          console.log(`      Model: ${openclawAgent.model}`);
+          console.log(`      Status: ${openclawAgent.status}`);
+        });
+      }
+    });
+  });
+
   // Set up event listeners
   client.onEvent(async (event) => {
     switch (event.type) {
@@ -26,24 +77,49 @@ async function createChatClient(nickname: string): Promise<P2pClient> {
         console.log(`\n${nickname} discovered peer: ${event.nickname} (${event.peerId})`);
         break;
       case 'group-message':
-        if (event.fromNickname !== nickname) {
-          if (event.content.type === 'text') {
+        // Check if this is an AMP message in the agent group
+        if (event.content.type === 'text' && event.content.text.startsWith('{"type":"')) {
+          try {
+            const ampMessage = JSON.parse(event.content.text) as AmpMessage;
+            if (ampMessage.type) {
+              console.log(`\n[AMP GROUP] ${event.fromNickname} sent an AMP message: ${ampMessage.type}`);
+              messageRouter.routeMessage(ampMessage);
+            } else {
+              // Regular text message
+              console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
+            }
+          } catch (e) {
+            // Not an AMP message, treat as regular text
             console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
-          } else if (event.content.type === 'fileShare') {
-            console.log(`\n[GROUP] ${event.fromNickname} shared a file: ${event.content.filename} (${event.content.fileSize} bytes)`);
-            console.log(`Use /download ${event.content.shareCode} to download this file`);
-            // Store the file share message for later download
-            fileShareMessages.set(event.content.shareCode, {
-              shareCode: event.content.shareCode,
-              fromPeerId: event.content.fromPeerId,
-              fromNickname: event.content.fromNickname,
-              filename: event.content.filename
-            });
           }
+        } else if (event.content.type === 'text') {
+          console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
+        } else if (event.content.type === 'fileShare') {
+          console.log(`\n[GROUP] ${event.fromNickname} shared a file: ${event.content.filename} (${event.content.fileSize} bytes)`);
+          console.log(`Use /download ${event.content.shareCode} to download this file`);
+          // Store the file share message for later download
+          fileShareMessages.set(event.content.shareCode, {
+            shareCode: event.content.shareCode,
+            fromPeerId: event.content.fromPeerId,
+            fromNickname: event.content.fromNickname,
+            filename: event.content.filename
+          });
         }
         break;
       case 'direct-message':
-        console.log(`\n[DIRECT] ${event.fromNickname}: ${event.message}`);
+        // Check if it's an AMP message
+        try {
+          const ampMessage = JSON.parse(event.message) as AmpMessage;
+          if (ampMessage.type) {
+            console.log(`\n[AMP DIRECT] ${event.fromNickname} sent an AMP message: ${ampMessage.type}`);
+            messageRouter.routeMessage(ampMessage);
+          } else {
+            console.log(`\n[DIRECT] ${event.fromNickname}: ${event.message}`);
+          }
+        } catch (e) {
+          // Not an AMP message, treat as regular text
+          console.log(`\n[DIRECT] ${event.fromNickname}: ${event.message}`);
+        }
         break;
       case 'connected':
         console.log(`\n${nickname} connected to: ${event.nickname}`);
@@ -215,6 +291,131 @@ function setupReadline(nickname: string, client: P2pClient): void {
       downloads.forEach(download => {
         console.log(`- ${download.filename} (${download.downloadedChunks}/${download.totalChunks} chunks)`);
       });
+    } else if (input.startsWith('/agent text ')) {
+      const parts = input.split(' ');
+      if (parts.length < 4) {
+        console.log('Usage: /agent text <all|agent-id> <message>');
+        rl.prompt();
+        return;
+      }
+      const targetType = parts[2];
+      const message = parts.slice(3).join(' ');
+      
+      let target;
+      if (targetType === 'all') {
+        target = { type: 'all' as const };
+      } else {
+        target = { type: 'specific' as const, agentIds: [targetType] };
+      }
+      
+      const ampMessage = AmpMessageFactory.createTextMessage(
+        message,
+        target,
+        { id: client.getPeerId(), name: nickname, type: 'owner' as const }
+      );
+      
+      // Send AMP message to the agent group
+      try {
+        await client.sendGroupMessage(AGENT_GROUP_NAME, {
+          type: 'text',
+          text: JSON.stringify(ampMessage)
+        });
+        console.log(`Sent AMP text message to agent group ${AGENT_GROUP_NAME}`);
+      } catch (error) {
+        console.error(`Error sending message to agent group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (input.startsWith('/agent file ')) {
+      const parts = input.split(' ');
+      if (parts.length < 5) {
+        console.log('Usage: /agent file <all|agent-id> <share-code>');
+        rl.prompt();
+        return;
+      }
+      const targetType = parts[2];
+      const shareCode = parts[3];
+      
+      // Get file information from share code
+      const file = client.getFileByShareCode(shareCode);
+      if (!file) {
+        console.error(`Error: File with share code ${shareCode} not found. Make sure you've shared this file first with /share command.`);
+        rl.prompt();
+        return;
+      }
+      
+      let target;
+      if (targetType === 'all') {
+        target = { type: 'all' as const };
+      } else {
+        target = { type: 'specific' as const, agentIds: [targetType] };
+      }
+      
+      const ampMessage = AmpMessageFactory.createFileMessage(
+        file.info.name,
+        file.info.size,
+        shareCode, // Using shareCode as fileHash for simplicity
+        target,
+        { id: client.getPeerId(), name: nickname, type: 'owner' as const }
+      );
+      
+      // Send AMP message to the agent group
+      try {
+        await client.sendGroupMessage(AGENT_GROUP_NAME, {
+          type: 'text',
+          text: JSON.stringify(ampMessage)
+        });
+        console.log(`Sent AMP file message to agent group ${AGENT_GROUP_NAME}`);
+      } catch (error) {
+        console.error(`Error sending message to agent group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (input.startsWith('/agent query')) {
+      const parts = input.split(' ');
+      let agentIds: string[] | undefined;
+      if (parts.length > 2) {
+        agentIds = parts.slice(2);
+      }
+      
+      const ampMessage = AmpMessageFactory.createAgentSettingsQuery(
+        { id: client.getPeerId(), name: nickname, type: 'owner' as const },
+        agentIds
+      );
+      
+      // Send AMP message to the agent group
+      try {
+        await client.sendGroupMessage(AGENT_GROUP_NAME, {
+          type: 'text',
+          text: JSON.stringify(ampMessage)
+        });
+        console.log(`Sent AMP agent settings query to agent group ${AGENT_GROUP_NAME} ${agentIds ? 'for agents: ' + agentIds.join(', ') : 'for all agents'}`);
+      } catch (error) {
+        console.error(`Error sending message to agent group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (input.startsWith('/agent register ')) {
+      const parts = input.split(' ');
+      if (parts.length < 5) {
+        console.log('Usage: /agent register <id> <name> <type> <version>');
+        rl.prompt();
+        return;
+      }
+      const id = parts[2];
+      const name = parts[3];
+      const type = parts[4];
+      const version = parts[5] || '1.0.0';
+      
+      agentRegistry.registerAgent({
+        id,
+        name,
+        type,
+        version,
+        settings: [],
+        status: 'online'
+      });
+      console.log(`Registered agent: ${name} (${id})`);
+    } else if (input === '/agents') {
+      const agents = agentRegistry.getAllAgents();
+      console.log('Registered agents:');
+      agents.forEach((agent: any) => {
+        console.log(`- ${agent.name} (${agent.id}) - ${agent.status}`);
+      });
     } else if (input === '/help') {
       console.log('Available commands:');
       console.log('  /join <group-name>                  - Join a group');
@@ -229,6 +430,11 @@ function setupReadline(nickname: string, client: P2pClient): void {
       console.log('  /downloads                          - List active downloads');
       console.log('  /peers                              - List connected peers');
       console.log('  /groups                             - List joined groups');
+      console.log('  /agent text <all|agent-id> <msg>    - Send AMP text message to agent(s)');
+      console.log('  /agent file <all|agent-id> <share-code> - Send AMP file message to agent(s)');
+      console.log('  /agent query [agent-id...]          - Query agent settings');
+      console.log('  /agent register <id> <name> <type> <version> - Register an agent');
+      console.log('  /agents                             - List registered agents');
       console.log('  /help                               - Show this help');
       console.log('  /exit                               - Exit the program');
     } else if (input === '/exit') {

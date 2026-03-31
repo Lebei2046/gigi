@@ -1,4 +1,7 @@
 import { Type, Static } from "@sinclair/typebox";
+import type { TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse, SenderInfo, TargetInfo, AgentInfo } from "@gigi/amp-ts";
+
+export type { TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse, SenderInfo, TargetInfo, AgentInfo };
 
 /**
  * Gigi account configuration schema
@@ -17,15 +20,9 @@ export const GigiAccountConfigSchema = Type.Object({
 export type GigiAccountConfig = Static<typeof GigiAccountConfigSchema>;
 
 /**
- * Gigi message format
+ * Gigi message format - using AMP types
  */
-export interface GigiMessage {
-  from: string; // peerId
-  to: string; // peerId or group name
-  content: string;
-  timestamp: number;
-  type: "direct" | "broadcast";
-}
+export type GigiMessage = TextMessage | FileMessage | AgentSettingsQuery | AgentSettingsResponse;
 
 /**
  * Gigi client configuration
@@ -47,8 +44,10 @@ export interface GigiClientConfig {
 export interface IGigiClient {
   start(): Promise<void>;
   stop(): Promise<void>;
-  sendMessage(targetPeerId: string, message: string): Promise<void>;
-  sendGroupMessage(groupName: string, content: string | { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string }): Promise<void>;
+  sendMessage(target: string, message: string): Promise<void>;
+  sendFileMessage(target: string, filename: string, fileSize: number, fileType: string, shareCode: string): Promise<void>;
+  sendGroupMessage(groupName: string, content: string): Promise<void>;
+  sendGroupFileMessage(groupName: string, filename: string, fileSize: number, fileType: string, shareCode: string): Promise<void>;
   joinGroup(groupName: string): Promise<void>;
   leaveGroup(groupName: string): Promise<void>;
   shareFile(filePath: string): Promise<string>;

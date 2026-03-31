@@ -140,6 +140,9 @@ importers:
 
   apps/gigi-openclaw:
     dependencies:
+      '@gigi/amp-ts':
+        specifier: file:../../typescript/gigi-amp-ts
+        version: file:typescript/gigi-amp-ts
       '@gigi/p2p-ts':
         specifier: file:../../typescript/gigi-p2p-ts
         version: file:typescript/gigi-p2p-ts
@@ -188,8 +191,33 @@ importers:
         specifier: ^5.3.3
         version: 5.8.3
 
+  typescript/gigi-amp-ts:
+    dependencies:
+      '@gigi/p2p-ts':
+        specifier: workspace:*
+        version: link:../gigi-p2p-ts
+      '@gigi/request-response-ts':
+        specifier: workspace:*
+        version: link:../gigi-request-response-ts
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@25.5.0)(typescript@5.8.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.3
+      vitest:
+        specifier: ^4.0.3
+        version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
+
   typescript/gigi-p2p-example:
     dependencies:
+      '@gigi/amp-ts':
+        specifier: workspace:*
+        version: link:../gigi-amp-ts
       '@gigi/p2p-ts':
         specifier: workspace:*
         version: link:../gigi-p2p-ts
@@ -871,6 +899,9 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@gigi/amp-ts@file:typescript/gigi-amp-ts':
+    resolution: {directory: typescript/gigi-amp-ts, type: directory}
 
   '@gigi/p2p-ts@file:typescript/gigi-p2p-ts':
     resolution: {directory: typescript/gigi-p2p-ts, type: directory}
@@ -6163,6 +6194,11 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@gigi/amp-ts@file:typescript/gigi-amp-ts':
+    dependencies:
+      '@gigi/p2p-ts': link:typescript/gigi-p2p-ts
+      '@gigi/request-response-ts': link:typescript/gigi-request-response-ts
 
   '@gigi/p2p-ts@file:typescript/gigi-p2p-ts':
     dependencies:

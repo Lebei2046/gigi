@@ -70,18 +70,42 @@ export class OutboundManager {
             // Join the group before sending message
             await this.client.joinGroup(groupName);
             // Check if content is a file share message
-            let contentToSend = message.content;
             try {
               const parsedContent = JSON.parse(message.content);
               if (parsedContent.type === 'fileShare') {
-                contentToSend = parsedContent;
+                await this.client.sendGroupFileMessage(
+                  groupName,
+                  parsedContent.filename,
+                  parsedContent.fileSize,
+                  parsedContent.fileType,
+                  parsedContent.shareCode
+                );
+              } else {
+                await this.client.sendGroupMessage(groupName, message.content);
               }
             } catch {
               // Not a JSON file share message, send as string
+              await this.client.sendGroupMessage(groupName, message.content);
             }
-            await this.client.sendGroupMessage(groupName, contentToSend);
           } else {
-            await this.client.sendMessage(message.target, message.content);
+            // Check if content is a file share message
+            try {
+              const parsedContent = JSON.parse(message.content);
+              if (parsedContent.type === 'fileShare') {
+                await this.client.sendFileMessage(
+                  message.target,
+                  parsedContent.filename,
+                  parsedContent.fileSize,
+                  parsedContent.fileType,
+                  parsedContent.shareCode
+                );
+              } else {
+                await this.client.sendMessage(message.target, message.content);
+              }
+            } catch {
+              // Not a JSON file share message, send as string
+              await this.client.sendMessage(message.target, message.content);
+            }
           }
           message.resolve();
         } catch (error) {
@@ -122,23 +146,4 @@ export class OutboundManager {
   getQueueSize(): number {
     return this.queue.length;
   }
-}
-
-/**
- * Convert OpenClaw message format to Gigi message format
- */
-export function toGigiMessage(
-  fromAccountId: string,
-  toAccountId: string,
-  content: string,
-  extra?: Record<string, any>
-): GigiMessage {
-  return {
-    from: fromAccountId,
-    to: toAccountId,
-    content,
-    timestamp: Date.now(),
-    type: toAccountId.startsWith("group:") ? "broadcast" : "direct",
-    ...extra,
-  };
 }
