@@ -79,32 +79,41 @@ async function createChatClient(nickname: string): Promise<P2pClient> {
       case 'group-message':
         // Check if this is an AMP message in the agent group
         if (event.content.type === 'text' && event.content.text.startsWith('{"type":"')) {
-          try {
-            const ampMessage = JSON.parse(event.content.text) as AmpMessage;
-            if (ampMessage.type) {
-              console.log(`\n[AMP GROUP] ${event.fromNickname} sent an AMP message: ${ampMessage.type}`);
-              messageRouter.routeMessage(ampMessage);
-            } else {
-              // Regular text message
+              try {
+                const ampMessage = JSON.parse(event.content.text) as AmpMessage;
+                if (ampMessage.type) {
+                  console.log(`\n[AMP GROUP] ${event.fromNickname} sent an AMP message: ${ampMessage.type}`);
+                  // Show detailed AMP message content
+                  if (ampMessage.type === 'text' && 'content' in ampMessage) {
+                    console.log(`  Content: ${ampMessage.content}`);
+                  } else if (ampMessage.type === 'file' && 'filename' in ampMessage) {
+                    console.log(`  File: ${ampMessage.filename} (${ampMessage.fileSize} bytes)`);
+                    console.log(`  File hash: ${ampMessage.fileHash}`);
+                  } else if (ampMessage.type === 'agent-settings-response' && 'agents' in ampMessage) {
+                    console.log(`  Agent settings response received for ${ampMessage.agents.length} agents`);
+                  }
+                  messageRouter.routeMessage(ampMessage);
+                } else {
+                  // Regular text message
+                  console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
+                }
+              } catch (e) {
+                // Not an AMP message, treat as regular text
+                console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
+              }
+            } else if (event.content.type === 'text') {
               console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
+            } else if (event.content.type === 'fileShare') {
+              console.log(`\n[GROUP] ${event.fromNickname} shared a file: ${event.content.filename} (${event.content.fileSize} bytes)`);
+              console.log(`Use /download ${event.content.shareCode} to download this file`);
+              // Store the file share message for later download
+              fileShareMessages.set(event.content.shareCode, {
+                shareCode: event.content.shareCode,
+                fromPeerId: event.content.fromPeerId,
+                fromNickname: event.content.fromNickname,
+                filename: event.content.filename
+              });
             }
-          } catch (e) {
-            // Not an AMP message, treat as regular text
-            console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
-          }
-        } else if (event.content.type === 'text') {
-          console.log(`\n[GROUP] ${event.fromNickname}: ${event.content.text}`);
-        } else if (event.content.type === 'fileShare') {
-          console.log(`\n[GROUP] ${event.fromNickname} shared a file: ${event.content.filename} (${event.content.fileSize} bytes)`);
-          console.log(`Use /download ${event.content.shareCode} to download this file`);
-          // Store the file share message for later download
-          fileShareMessages.set(event.content.shareCode, {
-            shareCode: event.content.shareCode,
-            fromPeerId: event.content.fromPeerId,
-            fromNickname: event.content.fromNickname,
-            filename: event.content.filename
-          });
-        }
         break;
       case 'direct-message':
         // Check if it's an AMP message

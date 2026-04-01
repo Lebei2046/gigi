@@ -56,6 +56,8 @@ export function resolveGigiAccount({
     enableRelay: accountConfig.enableRelay !== false,
     config: accountConfig.config || {},
     mnemonic: accountConfig.mnemonic,
+    group: accountConfig.group,
+    accounts: accountConfig.accounts,
   };
 }
 

@@ -23,7 +23,7 @@ export { probeGigiClient, getStatusSummary } from "./src/probe.js";
 export type { HealthCheckResult } from "./src/probe.js";
 
 // Import group management functions
-import { joinGigiGroup, leaveGigiGroup, listGigiGroups } from "./src/channel.js";
+import { joinGigiGroup, leaveGigiGroup, listGigiGroups, setGigiRuntime } from "./src/channel.js";
 import { generateMnemonic } from "@gigi/p2p-ts";
 
 // Plugin registration for OpenClaw
@@ -32,6 +32,9 @@ export default definePluginEntry({
   name: 'Gigi P2P',
   description: 'Connect to Gigi P2P network and join groups',
   register: (api) => {
+    // Set the runtime
+    setGigiRuntime(api.runtime);
+    
     // Register the channel
     api.registerChannel({ plugin: gigiPlugin });
     

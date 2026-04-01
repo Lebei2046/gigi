@@ -86,4 +86,6 @@ export interface GigiAccount {
   config?: Record<string, any>;
   enabled?: boolean;
   mnemonic?: string;
+  group?: string; // Group name for agent communication
+  accounts?: Record<string, string>; // Map of agent IDs to bot names
 }
