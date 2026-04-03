@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react'
-import { useAppSelector } from '@/store'
+import { useRef } from 'react'
 import { updateLatestMessage } from '@/utils/conversationUtils'
 import type { Message } from '@/store/chatRoomSlice'
 
@@ -13,7 +12,7 @@ interface UseMessagePersistenceParams {
 export function useMessagePersistence({
   chatId,
   isGroupChat,
-  isLoading,
+  isLoading: _isLoading,
   messages,
 }: UseMessagePersistenceParams) {
   const saveTimeoutRef = useRef<number | null>(null)

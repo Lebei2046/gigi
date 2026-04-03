@@ -11,12 +11,14 @@ This is a comprehensive example application demonstrating how to use the Gigi P2
 ## Setup
 
 1. **Install dependencies in the root directory**:
+
    ```bash
    cd /home/lebei/dev/gigi
    pnpm install
    ```
 
 2. **Build the Gigi P2P TypeScript client**:
+
    ```bash
    cd typescript/gigi-p2p-ts
    pnpm run build
@@ -33,16 +35,19 @@ This is a comprehensive example application demonstrating how to use the Gigi P2
 You'll need to open three separate terminal windows to simulate Alice, Bob, and Charlie.
 
 ### Terminal 1 (Alice):
+
 ```bash
 pnpm dev Alice
 ```
 
 ### Terminal 2 (Bob):
+
 ```bash
 pnpm dev Bob
 ```
 
 ### Terminal 3 (Charlie):
+
 ```bash
 pnpm dev Charlie
 ```

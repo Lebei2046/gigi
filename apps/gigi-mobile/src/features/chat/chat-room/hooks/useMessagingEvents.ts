@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { MessagingClient, MessagingEvents } from '@/utils/messaging'
-import { useAppDispatch, useAppSelector } from '@/store'
+import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import type { Message } from '@/store/chatRoomSlice'
 import {
@@ -248,7 +248,7 @@ export function useMessagingEvents({
 
     const handleFileDownloadProgress = (data: any) => {
       console.log('📊 File download progress:', data)
-      let messageId = downloadIdToMessageIdRef.current.get(data.download_id)
+      const messageId = downloadIdToMessageIdRef.current.get(data.download_id)
 
       if (!messageId) {
         console.warn('⚠️ No messageId found for downloadId:', data.download_id)
@@ -290,7 +290,7 @@ export function useMessagingEvents({
 
     const handleFileDownloadCompleted = async (data: any) => {
       console.log('✅ File download completed:', data)
-      let messageId = downloadIdToMessageIdRef.current.get(data.download_id)
+      const messageId = downloadIdToMessageIdRef.current.get(data.download_id)
 
       if (!messageId) {
         console.warn('⚠️ No messageId found for downloadId:', data.download_id)
@@ -392,7 +392,7 @@ export function useMessagingEvents({
 
     const handleFileDownloadFailed = (data: any) => {
       console.log('❌ File download failed:', data)
-      let messageId = downloadIdToMessageIdRef.current.get(data.download_id)
+      const messageId = downloadIdToMessageIdRef.current.get(data.download_id)
 
       if (!messageId) {
         console.warn('⚠️ No messageId found for downloadId:', data.download_id)

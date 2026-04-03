@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-import type { Peer } from '@/utils/messaging'
-import { MessagingClient, MessagingEvents } from '@/utils/messaging'
+import { MessagingEvents } from '@/utils/messaging'
 import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import {

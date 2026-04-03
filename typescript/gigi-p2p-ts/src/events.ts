@@ -29,26 +29,113 @@ export enum P2pEventType {
 }
 
 export type P2pEvent =
-  | { type: 'peer-discovered'; peerId: string; nickname: string; address: string }
+  | {
+      type: 'peer-discovered';
+      peerId: string;
+      nickname: string;
+      address: string;
+    }
   | { type: 'peer-expired'; peerId: string; nickname: string }
   | { type: 'nickname-updated'; peerId: string; nickname: string }
-  | { type: 'direct-message'; from: string; fromNickname: string; message: string }
-  | { type: 'direct-file-share-message'; from: string; fromNickname: string; shareCode: string; filename: string; fileSize: number; fileType: string }
-  | { type: 'direct-group-share-message'; from: string; fromNickname: string; groupId: string; groupName: string }
-  | { type: 'group-message'; from: string; fromNickname: string; group: string; content: MessageContent; timestamp: number }
-  | { type: 'group-file-share-message'; from: string; fromNickname: string; group: string; shareCode: string; filename: string; fileSize: number; fileType: string; message: string }
+  | {
+      type: 'direct-message';
+      from: string;
+      fromNickname: string;
+      message: string;
+    }
+  | {
+      type: 'direct-file-share-message';
+      from: string;
+      fromNickname: string;
+      shareCode: string;
+      filename: string;
+      fileSize: number;
+      fileType: string;
+    }
+  | {
+      type: 'direct-group-share-message';
+      from: string;
+      fromNickname: string;
+      groupId: string;
+      groupName: string;
+    }
+  | {
+      type: 'group-message';
+      from: string;
+      fromNickname: string;
+      group: string;
+      content: MessageContent;
+      timestamp: number;
+    }
+  | {
+      type: 'group-file-share-message';
+      from: string;
+      fromNickname: string;
+      group: string;
+      shareCode: string;
+      filename: string;
+      fileSize: number;
+      fileType: string;
+      message: string;
+    }
   | { type: 'group-joined'; group: string }
   | { type: 'group-left'; group: string }
-  | { type: 'file-share-request'; from: string; fromNickname: string; shareCode: string; filename: string; size: number }
+  | {
+      type: 'file-share-request';
+      from: string;
+      fromNickname: string;
+      shareCode: string;
+      filename: string;
+      size: number;
+    }
   | { type: 'file-shared'; fileId: string; info: any }
   | { type: 'file-revoked'; fileId: string }
   | { type: 'file-info-received'; from: string; info: any }
-  | { type: 'chunk-received'; from: string; fileId: string; chunkIndex: number; data: Uint8Array; hash: string }
+  | {
+      type: 'chunk-received';
+      from: string;
+      fileId: string;
+      chunkIndex: number;
+      data: Uint8Array;
+      hash: string;
+    }
   | { type: 'file-list-received'; from: string; files: any[] }
-  | { type: 'file-download-started'; from: string; fromNickname: string; filename: string; downloadId: string; shareCode: string }
-  | { type: 'file-download-progress'; downloadId: string; filename: string; shareCode: string; fromPeerId: string; fromNickname: string; downloadedChunks: number; totalChunks: number }
-  | { type: 'file-download-completed'; downloadId: string; filename: string; shareCode: string; fromPeerId: string; fromNickname: string; path: string }
-  | { type: 'file-download-failed'; downloadId: string; filename: string; shareCode: string; fromPeerId: string; fromNickname: string; error: string }
+  | {
+      type: 'file-download-started';
+      from: string;
+      fromNickname: string;
+      filename: string;
+      downloadId: string;
+      shareCode: string;
+    }
+  | {
+      type: 'file-download-progress';
+      downloadId: string;
+      filename: string;
+      shareCode: string;
+      fromPeerId: string;
+      fromNickname: string;
+      downloadedChunks: number;
+      totalChunks: number;
+    }
+  | {
+      type: 'file-download-completed';
+      downloadId: string;
+      filename: string;
+      shareCode: string;
+      fromPeerId: string;
+      fromNickname: string;
+      path: string;
+    }
+  | {
+      type: 'file-download-failed';
+      downloadId: string;
+      filename: string;
+      shareCode: string;
+      fromPeerId: string;
+      fromNickname: string;
+      error: string;
+    }
   | { type: 'listening-on'; address: string }
   | { type: 'connected'; peerId: string; nickname: string }
   | { type: 'disconnected'; peerId: string; nickname: string }
@@ -76,8 +163,8 @@ export const eventEmitter = {
     const listenersForEvent = listeners.get(eventType);
     if (listenersForEvent) {
       await Promise.all(
-        Array.from(listenersForEvent).map(listener =>
-          Promise.resolve(listener(event)).catch(err =>
+        Array.from(listenersForEvent).map((listener) =>
+          Promise.resolve(listener(event)).catch((err) =>
             console.error(`Error in event listener for ${eventType}:`, err)
           )
         )
@@ -87,8 +174,8 @@ export const eventEmitter = {
     const anyListeners = listeners.get('any');
     if (anyListeners) {
       await Promise.all(
-        Array.from(anyListeners).map(listener =>
-          Promise.resolve(listener(event)).catch(err =>
+        Array.from(anyListeners).map((listener) =>
+          Promise.resolve(listener(event)).catch((err) =>
             console.error(`Error in 'any' event listener:`, err)
           )
         )

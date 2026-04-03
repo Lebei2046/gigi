@@ -91,7 +91,7 @@ export enum OutboundFailure {
   Timeout = 'Timeout',
   ConnectionClosed = 'ConnectionClosed',
   UnsupportedProtocols = 'UnsupportedProtocols',
-  Io = 'Io'
+  Io = 'Io',
 }
 
 /**
@@ -102,13 +102,13 @@ export enum InboundFailure {
   ConnectionClosed = 'ConnectionClosed',
   UnsupportedProtocols = 'UnsupportedProtocols',
   ResponseOmission = 'ResponseOmission',
-  Io = 'Io'
+  Io = 'Io',
 }
 
 /**
  * An inbound request or response message.
  */
-export type Message<TRequest, TResponse> = 
+export type Message<TRequest, TResponse> =
   | {
       type: 'Request';
       requestId: InboundRequestId;
@@ -124,7 +124,7 @@ export type Message<TRequest, TResponse> =
 /**
  * Events emitted by the request-response behaviour.
  */
-export type RequestResponseEvent<TRequest, TResponse> = 
+export type RequestResponseEvent<TRequest, TResponse> =
   | {
       type: 'Message';
       peer: PeerId;
@@ -208,7 +208,7 @@ export interface RequestResponseConfig {
    * Timeout for requests in milliseconds.
    */
   requestTimeout: number;
-  
+
   /**
    * Maximum number of concurrent streams per connection.
    */
@@ -220,7 +220,7 @@ export interface RequestResponseConfig {
  */
 export const defaultConfig: RequestResponseConfig = {
   requestTimeout: 10000, // 10 seconds
-  maxConcurrentStreams: 100
+  maxConcurrentStreams: 100,
 };
 
 /**
@@ -231,22 +231,22 @@ export interface Codec<TRequest, TResponse, TProtocol extends string> {
    * Encode a request to a Uint8Array.
    */
   encodeRequest(request: TRequest): Uint8Array;
-  
+
   /**
    * Decode a request from a Uint8Array.
    */
   decodeRequest(data: Uint8Array): TRequest;
-  
+
   /**
    * Encode a response to a Uint8Array.
    */
   encodeResponse(response: TResponse): Uint8Array;
-  
+
   /**
    * Decode a response from a Uint8Array.
    */
   decodeResponse(data: Uint8Array): TResponse;
-  
+
   /**
    * Get the protocol identifier.
    */

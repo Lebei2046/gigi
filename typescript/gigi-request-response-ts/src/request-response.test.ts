@@ -24,24 +24,26 @@ describe('RequestResponse', () => {
       sink: vi.fn().mockResolvedValue(undefined),
       source: {
         [Symbol.asyncIterator]: async function* () {
-          yield new TextEncoder().encode(JSON.stringify({
-            type: 'pong',
-            timestamp: Date.now(),
-            responseTime: 100
-          }));
-        }
+          yield new TextEncoder().encode(
+            JSON.stringify({
+              type: 'pong',
+              timestamp: Date.now(),
+              responseTime: 100,
+            })
+          );
+        },
       },
       close: vi.fn().mockResolvedValue(undefined),
       connection: {
         id: 'mock-connection-id',
-        remotePeer: 'mock-peer-id'
-      }
+        remotePeer: 'mock-peer-id',
+      },
     };
 
     // Create a mock libp2p instance
     mockLibp2p = {
       handle: vi.fn(),
-      dialProtocol: vi.fn().mockResolvedValue(mockStream)
+      dialProtocol: vi.fn().mockResolvedValue(mockStream),
     };
 
     // Create a request-response instance
@@ -57,18 +59,27 @@ describe('RequestResponse', () => {
   });
 
   it('should initialize with the correct protocol', () => {
-    expect(mockLibp2p.handle).toHaveBeenCalledWith('/test/1.0.0', expect.any(Function));
+    expect(mockLibp2p.handle).toHaveBeenCalledWith(
+      '/test/1.0.0',
+      expect.any(Function)
+    );
   });
 
   it('should send a request and receive a response', async () => {
     const request: TestRequest = {
       type: 'ping',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
-    const requestId = await requestResponse.sendRequest('mock-peer-id', request);
+    const requestId = await requestResponse.sendRequest(
+      'mock-peer-id',
+      request
+    );
 
-    expect(mockLibp2p.dialProtocol).toHaveBeenCalledWith('mock-peer-id', '/test/1.0.0');
+    expect(mockLibp2p.dialProtocol).toHaveBeenCalledWith(
+      'mock-peer-id',
+      '/test/1.0.0'
+    );
     expect(mockStream.sink).toHaveBeenCalled();
     expect(requestId).toBeDefined();
   });
@@ -76,7 +87,7 @@ describe('RequestResponse', () => {
   it('should emit an event when a response is received', async () => {
     const request: TestRequest = {
       type: 'ping',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     const eventListener = vi.fn();
@@ -85,7 +96,7 @@ describe('RequestResponse', () => {
     await requestResponse.sendRequest('mock-peer-id', request);
 
     // Wait for events to be processed
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(eventListener).toHaveBeenCalled();
   });
@@ -93,13 +104,15 @@ describe('RequestResponse', () => {
   it('should handle errors when sending a request', async () => {
     const request: TestRequest = {
       type: 'ping',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     // Make dialProtocol throw an error
     mockLibp2p.dialProtocol.mockRejectedValue(new Error('Dial failed'));
 
-    await expect(requestResponse.sendRequest('mock-peer-id', request)).rejects.toThrow('Dial failed');
+    await expect(
+      requestResponse.sendRequest('mock-peer-id', request)
+    ).rejects.toThrow('Dial failed');
   });
 
   it('should close and clean up resources', () => {
@@ -114,10 +127,12 @@ describe('RequestResponse', () => {
 // Test JsonCodec
 describe('JsonCodec', () => {
   it('should encode and decode requests', () => {
-    const codec = new JsonCodec<TestRequest, TestResponse, string>('/test/1.0.0');
+    const codec = new JsonCodec<TestRequest, TestResponse, string>(
+      '/test/1.0.0'
+    );
     const request: TestRequest = {
       type: 'ping',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     const encoded = codec.encodeRequest(request);
@@ -127,11 +142,13 @@ describe('JsonCodec', () => {
   });
 
   it('should encode and decode responses', () => {
-    const codec = new JsonCodec<TestRequest, TestResponse, string>('/test/1.0.0');
+    const codec = new JsonCodec<TestRequest, TestResponse, string>(
+      '/test/1.0.0'
+    );
     const response: TestResponse = {
       type: 'pong',
       timestamp: Date.now(),
-      responseTime: 100
+      responseTime: 100,
     };
 
     const encoded = codec.encodeResponse(response);
@@ -141,7 +158,9 @@ describe('JsonCodec', () => {
   });
 
   it('should return the correct protocol', () => {
-    const codec = new JsonCodec<TestRequest, TestResponse, string>('/test/1.0.0');
+    const codec = new JsonCodec<TestRequest, TestResponse, string>(
+      '/test/1.0.0'
+    );
     expect(codec.getProtocol()).toBe('/test/1.0.0');
   });
 });

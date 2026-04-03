@@ -8,7 +8,6 @@ import {
   setPeers,
   setLoading,
   setError,
-  setComponentError,
 } from '@/store/chatSlice'
 import { ensureConversationsForGroups } from '@/utils/conversationUtils'
 import { MessagingClient } from '@/utils/messaging'

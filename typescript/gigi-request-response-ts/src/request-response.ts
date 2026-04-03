@@ -4,8 +4,17 @@ type Libp2p = any;
 type PeerId = any;
 type ConnectionId = any;
 type Stream = any;
-type Multiaddr = any;
-import { Codec, ResponseChannel, InboundRequestId, OutboundRequestId, RequestResponseEvent, ProtocolSupport, RequestResponseConfig, defaultConfig, InboundFailure, OutboundFailure } from './types.js';
+import {
+  Codec,
+  ResponseChannel,
+  InboundRequestId,
+  OutboundRequestId,
+  RequestResponseEvent,
+  RequestResponseConfig,
+  defaultConfig,
+  InboundFailure,
+  OutboundFailure,
+} from './types.js';
 
 // Incoming stream data interface
 export interface IncomingStreamData {
@@ -26,9 +35,17 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
   private config: RequestResponseConfig;
   private nextOutboundRequestId = 1;
   private nextInboundRequestId = 1;
-  private pendingOutboundRequests = new Map<string, { peerId: PeerId; connectionId: ConnectionId; timeout: NodeJS.Timeout }>();
-  private pendingInboundRequests = new Map<string, { peerId: PeerId; connectionId: ConnectionId; timeout: NodeJS.Timeout }>();
-  private eventListeners: ((event: RequestResponseEvent<TRequest, TResponse>) => void)[] = [];
+  private pendingOutboundRequests = new Map<
+    string,
+    { peerId: PeerId; connectionId: ConnectionId; timeout: NodeJS.Timeout }
+  >();
+  private pendingInboundRequests = new Map<
+    string,
+    { peerId: PeerId; connectionId: ConnectionId; timeout: NodeJS.Timeout }
+  >();
+  private eventListeners: ((
+    event: RequestResponseEvent<TRequest, TResponse>
+  ) => void)[] = [];
 
   /**
    * Create a new RequestResponse instance.
@@ -52,20 +69,24 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
    */
   private registerProtocolHandler(): void {
     const protocol = this.codec.getProtocol();
-    
+
     this.libp2p.handle(protocol, async (stream: any) => {
-      console.log(`[RequestResponse] Received stream: ${JSON.stringify(stream)}`);
-      
+      console.log(
+        `[RequestResponse] Received stream: ${JSON.stringify(stream)}`
+      );
+
       // Get connection from stream
       let connection = stream.connection;
-      
+
       // Try different ways to get connection from stream
       if (!connection) {
         connection = stream.conn || stream._connection;
       }
-      
-      console.log(`[RequestResponse] Using stream: ${stream}, connection: ${connection}`);
-      
+
+      console.log(
+        `[RequestResponse] Using stream: ${stream}, connection: ${connection}`
+      );
+
       // Ensure we have at least a stream
       if (stream) {
         await this.handleIncomingStream({ stream, connection });
@@ -80,39 +101,42 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
    */
   private async handleIncomingStream(data: IncomingStreamData): Promise<void> {
     const { stream, connection } = data;
-    console.log(`[RequestResponse] Incoming stream from connection: ${JSON.stringify(connection)}`);
-    
+    console.log(
+      `[RequestResponse] Incoming stream from connection: ${JSON.stringify(connection)}`
+    );
+
     // Try to get peerId from different possible locations
     let peerId: any = 'unknown';
     if (connection) {
       peerId = connection.remotePeer || 'unknown';
     }
-    
+
     // Try to get peerId from stream if not found in connection
     if (peerId === 'unknown' && stream) {
-      peerId = stream.remotePeer || stream.peerId || stream._remotePeer || 'unknown';
+      peerId =
+        stream.remotePeer || stream.peerId || stream._remotePeer || 'unknown';
     }
-    
+
     const connectionId = connection?.id || stream?.id || 'unknown';
 
     try {
       // Read request from stream
       const requestData = await this.readStream(stream);
       const request = this.codec.decodeRequest(requestData);
-      
+
       // Generate inbound request ID
       const requestId = new InboundRequestId(this.nextInboundRequestId++);
-      
+
       // Set up timeout
       const timeout = setTimeout(() => {
         this.handleInboundTimeout(peerId, connectionId, requestId);
       }, this.config.requestTimeout);
-      
+
       // Store pending inbound request
       this.pendingInboundRequests.set(requestId.toString(), {
         peerId,
         connectionId,
-        timeout
+        timeout,
       });
 
       // Create response channel
@@ -123,7 +147,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
           type: 'ResponseSent',
           peer: peerId,
           connectionId,
-          requestId
+          requestId,
         });
       });
 
@@ -136,8 +160,8 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
           type: 'Request',
           requestId,
           request,
-          channel
-        }
+          channel,
+        },
       });
     } catch (error) {
       console.error('Error handling incoming stream:', error);
@@ -146,7 +170,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         peer: peerId,
         connectionId,
         requestId: new InboundRequestId(0),
-        error: InboundFailure.Timeout
+        error: InboundFailure.Timeout,
       });
     } finally {
       // Stream will be closed by the sender
@@ -156,10 +180,13 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
   /**
    * Send a response through the stream.
    */
-  private async sendResponse(stream: Stream, response: TResponse): Promise<void> {
+  private async sendResponse(
+    stream: Stream,
+    response: TResponse
+  ): Promise<void> {
     try {
       const encodedResponse = this.codec.encodeResponse(response);
-      
+
       // Check if stream has send method (YamuxStream)
       if (typeof (stream as any).send === 'function') {
         console.log(`[RequestResponse] Using send method for response`);
@@ -187,14 +214,19 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
             }
           });
         });
-      } else if (typeof stream.writable === 'object' && stream.writable.writable) {
+      } else if (
+        typeof stream.writable === 'object' &&
+        stream.writable.writable
+      ) {
         // Try Web Streams API
         console.log(`[RequestResponse] Using Web Streams API for response`);
         const writer = stream.writable.getWriter();
         await writer.write(encodedResponse);
         await writer.close();
       } else {
-        console.error(`[RequestResponse] No valid write method found for stream`);
+        console.error(
+          `[RequestResponse] No valid write method found for stream`
+        );
         throw new Error('No write method available');
       }
     } catch (error) {
@@ -213,7 +245,11 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
   /**
    * Handle inbound request timeout.
    */
-  private handleInboundTimeout(peerId: PeerId, connectionId: ConnectionId, requestId: InboundRequestId): void {
+  private handleInboundTimeout(
+    peerId: PeerId,
+    connectionId: ConnectionId,
+    requestId: InboundRequestId
+  ): void {
     if (this.pendingInboundRequests.has(requestId.toString())) {
       this.clearInboundRequest(requestId);
       this.emitEvent({
@@ -221,7 +257,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         peer: peerId,
         connectionId,
         requestId,
-        error: InboundFailure.Timeout
+        error: InboundFailure.Timeout,
       });
     }
   }
@@ -244,19 +280,26 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
    * @param request - The request to send
    * @returns The response from the peer
    */
-  async sendRequest(peerId: PeerId | string, request: TRequest): Promise<TResponse> {
+  async sendRequest(
+    peerId: PeerId | string,
+    request: TRequest
+  ): Promise<TResponse> {
     const requestId = new OutboundRequestId(this.nextOutboundRequestId++);
     const protocol = this.codec.getProtocol();
 
     // Convert peerId to string if it's a PeerId object
     const peerIdStr = typeof peerId === 'string' ? peerId : peerId.toString();
-    
+
     // Extract just the peer ID from the address if it's a multiaddr
-    const peerIdOnly = peerIdStr.includes('/p2p/') ? peerIdStr.split('/p2p/')[1] : peerIdStr;
+    const peerIdOnly = peerIdStr.includes('/p2p/')
+      ? peerIdStr.split('/p2p/')[1]
+      : peerIdStr;
 
     try {
-      console.log(`[RequestResponse] Dialing protocol ${protocol} to peer ${peerIdOnly}`);
-      
+      console.log(
+        `[RequestResponse] Dialing protocol ${protocol} to peer ${peerIdOnly}`
+      );
+
       // Try to dial using the peer ID directly
       // This will use libp2p's peer store to find addresses
       let stream;
@@ -270,8 +313,10 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         throw error;
       }
       const connectionId = stream.connection?.id || 'unknown';
-      
-      console.log(`[RequestResponse] Got stream with connection ID: ${connectionId}`);
+
+      console.log(
+        `[RequestResponse] Got stream with connection ID: ${connectionId}`
+      );
 
       // Set up timeout
       const timeout = setTimeout(() => {
@@ -282,16 +327,21 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       this.pendingOutboundRequests.set(requestId.toString(), {
         peerId: peerIdOnly,
         connectionId,
-        timeout
+        timeout,
       });
 
       // Send request
       const encodedRequest = this.codec.encodeRequest(request);
-      console.log(`[RequestResponse] Sending request: ${JSON.stringify(request)}`);
-      
+      console.log(
+        `[RequestResponse] Sending request: ${JSON.stringify(request)}`
+      );
+
       // Log stream object to understand its structure
       console.log(`[RequestResponse] Stream object:`, stream);
-      console.log(`[RequestResponse] Stream constructor:`, stream.constructor.name);
+      console.log(
+        `[RequestResponse] Stream constructor:`,
+        stream.constructor.name
+      );
       console.log(`[RequestResponse] Stream has sink:`, typeof stream.sink);
       console.log(`[RequestResponse] Stream has source:`, typeof stream.source);
       console.log(`[RequestResponse] Stream has write:`, typeof stream.write);
@@ -299,14 +349,16 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       console.log(`[RequestResponse] Stream has push:`, typeof stream.push);
       console.log(`[RequestResponse] Stream has end:`, typeof stream.end);
       console.log(`[RequestResponse] Stream has close:`, typeof stream.close);
-      
+
       // Try to use the correct API for Libp2p streams
       if (typeof stream.send === 'function') {
         // Try to use send method if available (YamuxStream)
         console.log(`[RequestResponse] Using send method`);
         // Convert Uint8Array to Buffer before sending
         const buffer = Buffer.from(encodedRequest);
-        console.log(`[RequestResponse] Sending buffer length: ${buffer.length}`);
+        console.log(
+          `[RequestResponse] Sending buffer length: ${buffer.length}`
+        );
         // Send the data and wait for it to complete
         await stream.send(buffer);
         console.log(`[RequestResponse] Data sent successfully`);
@@ -337,7 +389,10 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         console.log(`[RequestResponse] Using sink method with array`);
         // Pass an array of Uint8Array chunks directly to sink
         await stream.sink([encodedRequest]);
-      } else if (typeof stream.writable === 'object' && stream.writable.writable) {
+      } else if (
+        typeof stream.writable === 'object' &&
+        stream.writable.writable
+      ) {
         // Try Web Streams API
         console.log(`[RequestResponse] Using Web Streams API`);
         const writer = stream.writable.getWriter();
@@ -348,22 +403,28 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         // Last resort - throw error
         throw new Error('No write method available');
       }
-      
+
       console.log(`[RequestResponse] Request sent`);
 
       // Wait for response
       console.log(`[RequestResponse] Waiting for response`);
       const responseData = await this.readStream(stream);
-      console.log(`[RequestResponse] Received response data: ${responseData.length} bytes`);
+      console.log(
+        `[RequestResponse] Received response data: ${responseData.length} bytes`
+      );
       const response = this.codec.decodeResponse(responseData);
       // Avoid logging large chunk data
       const responseObj = response as any;
       if (responseObj.type === 'chunk' && responseObj.chunk) {
         const responseWithoutChunk = { ...responseObj };
         delete responseWithoutChunk.chunk;
-        console.log(`[RequestResponse] Decoded response: ${JSON.stringify(responseWithoutChunk)} (chunk data omitted)`);
+        console.log(
+          `[RequestResponse] Decoded response: ${JSON.stringify(responseWithoutChunk)} (chunk data omitted)`
+        );
       } else {
-        console.log(`[RequestResponse] Decoded response: ${JSON.stringify(response)}`);
+        console.log(
+          `[RequestResponse] Decoded response: ${JSON.stringify(response)}`
+        );
       }
 
       // Clear timeout and pending request
@@ -377,8 +438,8 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         message: {
           type: 'Response',
           requestId,
-          response
-        }
+          response,
+        },
       });
 
       // Close the stream after processing the response
@@ -395,16 +456,16 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
     } catch (error) {
       // Clear pending request
       this.clearOutboundRequest(requestId);
-      
+
       console.error(`[RequestResponse] Error in sendRequest:`, error);
-      
+
       // Emit failure event
       this.emitEvent({
         type: 'OutboundFailure',
         peer: peerIdOnly,
         connectionId: 'unknown' as ConnectionId,
         requestId,
-        error: OutboundFailure.DialFailure
+        error: OutboundFailure.DialFailure,
       });
 
       throw error;
@@ -414,7 +475,11 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
   /**
    * Handle outbound request timeout.
    */
-  private handleOutboundTimeout(peerId: PeerId, connectionId: ConnectionId, requestId: OutboundRequestId): void {
+  private handleOutboundTimeout(
+    peerId: PeerId,
+    connectionId: ConnectionId,
+    requestId: OutboundRequestId
+  ): void {
     if (this.pendingOutboundRequests.has(requestId.toString())) {
       this.clearOutboundRequest(requestId);
       this.emitEvent({
@@ -422,7 +487,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         peer: peerId,
         connectionId,
         requestId,
-        error: OutboundFailure.Timeout
+        error: OutboundFailure.Timeout,
       });
     }
   }
@@ -444,9 +509,8 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
    */
   private async readStream(stream: Stream): Promise<Uint8Array> {
     const chunks: Uint8Array[] = [];
-    
+
     try {
-      
       // Try for streams with async iterator first (YamuxStream supports this)
       if (typeof stream[Symbol.asyncIterator] === 'function') {
         for await (const chunk of stream) {
@@ -484,13 +548,13 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         while ((chunk = (stream as any).read()) !== null) {
           chunks.push(new Uint8Array(chunk));
         }
-      } 
+      }
       // Try the most common duplex stream API
       else if (stream.source) {
         for await (const chunk of stream.source) {
           chunks.push(chunk);
         }
-      } 
+      }
       // Try Web Streams API
       else if (stream.readable) {
         const reader = stream.readable.getReader();
@@ -549,7 +613,9 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
    * @param listener - The event listener
    * @returns A function to remove the listener
    */
-  onEvent(listener: (event: RequestResponseEvent<TRequest, TResponse>) => void): () => void {
+  onEvent(
+    listener: (event: RequestResponseEvent<TRequest, TResponse>) => void
+  ): () => void {
     this.eventListeners.push(listener);
     return () => {
       const index = this.eventListeners.indexOf(listener);

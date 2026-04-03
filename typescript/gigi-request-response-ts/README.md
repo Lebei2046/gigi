@@ -56,13 +56,13 @@ requestResponse.onEvent((event) => {
   if (event.type === 'Message' && event.message.type === 'Request') {
     // Handle incoming request
     const { request, channel } = event.message;
-    
+
     // Process request
     const response: MyResponse = {
       status: 200,
       data: { result: 'success' }
     };
-    
+
     // Send response
     channel.send(response);
   } else if (event.type === 'Message' && event.message.type === 'Response') {
@@ -195,7 +195,7 @@ interface RequestResponseConfig {
    * Timeout for requests in milliseconds.
    */
   requestTimeout: number;
-  
+
   /**
    * Maximum number of concurrent streams per connection.
    */

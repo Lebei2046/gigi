@@ -10,21 +10,23 @@ vi.mock('./libp2p-setup.js', () => ({
       sink: vi.fn().mockResolvedValue(undefined),
       source: {
         [Symbol.asyncIterator]: async function* () {
-          yield new TextEncoder().encode(JSON.stringify({
-            type: 'pong'
-          }));
-        }
+          yield new TextEncoder().encode(
+            JSON.stringify({
+              type: 'pong',
+            })
+          );
+        },
       },
       connection: {
         id: 'mock-connection-id',
-        remotePeer: 'mock-peer-id'
+        remotePeer: 'mock-peer-id',
       },
-      close: vi.fn().mockResolvedValue(undefined)
+      close: vi.fn().mockResolvedValue(undefined),
     }),
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
     peerId: {
-      toString: vi.fn().mockReturnValue('mock-peer-id')
+      toString: vi.fn().mockReturnValue('mock-peer-id'),
     },
     getMultiaddrs: vi.fn().mockReturnValue(['/ip4/127.0.0.1/tcp/1234']),
     services: {
@@ -35,24 +37,28 @@ vi.mock('./libp2p-setup.js', () => ({
         on: vi.fn(),
         off: vi.fn(),
         addEventListener: vi.fn(),
-        removeEventListener: vi.fn()
-      }
+        removeEventListener: vi.fn(),
+      },
     },
     on: vi.fn(),
     off: vi.fn(),
     addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
-  })
+    removeEventListener: vi.fn(),
+  }),
 }));
 
 vi.mock('./peer-manager.js', () => ({
   PeerManager: vi.fn().mockImplementation(() => ({
     getPeerByNickname: vi.fn().mockResolvedValue('mock-peer-id'),
-    getPeerById: vi.fn().mockResolvedValue({ id: 'mock-peer-id', nickname: 'test-peer' }),
-    listPeers: vi.fn().mockReturnValue([{ id: 'mock-peer-id', nickname: 'test-peer' }]),
+    getPeerById: vi
+      .fn()
+      .mockResolvedValue({ id: 'mock-peer-id', nickname: 'test-peer' }),
+    listPeers: vi
+      .fn()
+      .mockReturnValue([{ id: 'mock-peer-id', nickname: 'test-peer' }]),
     addPeer: vi.fn(),
-    removePeer: vi.fn()
-  }))
+    removePeer: vi.fn(),
+  })),
 }));
 
 vi.mock('./file-sharing.js', () => ({
@@ -61,12 +67,12 @@ vi.mock('./file-sharing.js', () => ({
     getFileInfo: vi.fn().mockResolvedValue({
       filename: 'test.txt',
       size: 1024,
-      chunks: 1
+      chunks: 1,
     }),
     download: vi.fn().mockResolvedValue('mock-download-id'),
     listSharedFiles: vi.fn().mockReturnValue([]),
-    removeSharedFile: vi.fn()
-  }))
+    removeSharedFile: vi.fn(),
+  })),
 }));
 
 vi.mock('./group.js', () => ({
@@ -86,9 +92,9 @@ vi.mock('./group.js', () => ({
         return Promise.resolve();
       }),
       send: vi.fn().mockResolvedValue(undefined),
-      list: vi.fn().mockImplementation(() => Array.from(groups))
+      list: vi.fn().mockImplementation(() => Array.from(groups)),
     };
-  })
+  }),
 }));
 
 describe('Group Chat Functionality', () => {
@@ -105,10 +111,10 @@ describe('Group Chat Functionality', () => {
         enableKademlia: false,
         enableRelay: true,
         enableMdns: false,
-        listenAddrs: ['/ip4/0.0.0.0/tcp/0']
-      }
+        listenAddrs: ['/ip4/0.0.0.0/tcp/0'],
+      },
     });
-    
+
     bob = new P2pClient({
       nickname: 'bob',
       config: {
@@ -116,10 +122,10 @@ describe('Group Chat Functionality', () => {
         enableKademlia: false,
         enableRelay: true,
         enableMdns: false,
-        listenAddrs: ['/ip4/0.0.0.0/tcp/0']
-      }
+        listenAddrs: ['/ip4/0.0.0.0/tcp/0'],
+      },
     });
-    
+
     charlie = new P2pClient({
       nickname: 'charlie',
       config: {
@@ -127,8 +133,8 @@ describe('Group Chat Functionality', () => {
         enableKademlia: false,
         enableRelay: true,
         enableMdns: false,
-        listenAddrs: ['/ip4/0.0.0.0/tcp/0']
-      }
+        listenAddrs: ['/ip4/0.0.0.0/tcp/0'],
+      },
     });
 
     // Start all clients
@@ -145,38 +151,56 @@ describe('Group Chat Functionality', () => {
     await Promise.all([
       alice.joinGroup('general'),
       bob.joinGroup('general'),
-      charlie.joinGroup('general')
+      charlie.joinGroup('general'),
     ]);
 
     // Verify all joined the group
     const aliceGroups = alice.getJoinedGroups();
     const bobGroups = bob.getJoinedGroups();
     const charlieGroups = charlie.getJoinedGroups();
-    
-    expect(aliceGroups).toContainEqual({ name: 'general', topic: 'gigi-group:general' });
-    expect(bobGroups).toContainEqual({ name: 'general', topic: 'gigi-group:general' });
-    expect(charlieGroups).toContainEqual({ name: 'general', topic: 'gigi-group:general' });
+
+    expect(aliceGroups).toContainEqual({
+      name: 'general',
+      topic: 'gigi-group:general',
+    });
+    expect(bobGroups).toContainEqual({
+      name: 'general',
+      topic: 'gigi-group:general',
+    });
+    expect(charlieGroups).toContainEqual({
+      name: 'general',
+      topic: 'gigi-group:general',
+    });
   });
 
   it('should allow a peer to leave a group', async () => {
     // Join group
     await alice.joinGroup('general');
     let groups = alice.getJoinedGroups();
-    expect(groups).toContainEqual({ name: 'general', topic: 'gigi-group:general' });
-    
+    expect(groups).toContainEqual({
+      name: 'general',
+      topic: 'gigi-group:general',
+    });
+
     // Leave group
     await alice.leaveGroup('general');
     groups = alice.getJoinedGroups();
-    expect(groups).not.toContainEqual({ name: 'general', topic: 'gigi-group:general' });
+    expect(groups).not.toContainEqual({
+      name: 'general',
+      topic: 'gigi-group:general',
+    });
   });
 
   it('should send group messages without errors', async () => {
     // Join group
     await alice.joinGroup('general');
-    
+
     // Send group message
     await expect(async () => {
-      await alice.sendGroupMessage('general', { type: 'text', text: 'Hello everyone!' } as MessageContentInput);
+      await alice.sendGroupMessage('general', {
+        type: 'text',
+        text: 'Hello everyone!',
+      } as MessageContentInput);
     }).not.toThrow();
   });
 
@@ -184,11 +208,17 @@ describe('Group Chat Functionality', () => {
     // Join multiple groups
     await alice.joinGroup('general');
     await alice.joinGroup('development');
-    
+
     // Get joined groups
     const groups = alice.getJoinedGroups();
-    expect(groups).toContainEqual({ name: 'general', topic: 'gigi-group:general' });
-    expect(groups).toContainEqual({ name: 'development', topic: 'gigi-group:development' });
+    expect(groups).toContainEqual({
+      name: 'general',
+      topic: 'gigi-group:general',
+    });
+    expect(groups).toContainEqual({
+      name: 'development',
+      topic: 'gigi-group:development',
+    });
   });
 
   it('should handle group operations when not started', async () => {
@@ -200,17 +230,22 @@ describe('Group Chat Functionality', () => {
         enableKademlia: false,
         enableRelay: true,
         enableMdns: false,
-        listenAddrs: ['/ip4/0.0.0.0/tcp/0']
-      }
+        listenAddrs: ['/ip4/0.0.0.0/tcp/0'],
+      },
     });
-    
+
     // Verify client is not started
     expect(client.isStarted()).toBe(false);
-    
+
     // Try to join a group (should fail)
     await expect(client.joinGroup('general')).rejects.toThrow();
-    
+
     // Try to send a group message (should fail)
-    await expect(client.sendGroupMessage('general', { type: 'text', text: 'Hello' } as MessageContentInput)).rejects.toThrow();
+    await expect(
+      client.sendGroupMessage('general', {
+        type: 'text',
+        text: 'Hello',
+      } as MessageContentInput)
+    ).rejects.toThrow();
   });
 });

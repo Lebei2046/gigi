@@ -10,34 +10,40 @@ vi.mock('./libp2p-setup.js', () => ({
       sink: vi.fn().mockResolvedValue(undefined),
       source: {
         [Symbol.asyncIterator]: async function* () {
-          yield new TextEncoder().encode(JSON.stringify({
-            type: 'pong'
-          }));
-        }
+          yield new TextEncoder().encode(
+            JSON.stringify({
+              type: 'pong',
+            })
+          );
+        },
       },
       connection: {
         id: 'mock-connection-id',
-        remotePeer: 'mock-peer-id'
+        remotePeer: 'mock-peer-id',
       },
-      close: vi.fn().mockResolvedValue(undefined)
+      close: vi.fn().mockResolvedValue(undefined),
     }),
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
     peerId: {
-      toString: vi.fn().mockReturnValue('mock-peer-id')
+      toString: vi.fn().mockReturnValue('mock-peer-id'),
     },
-    getMultiaddrs: vi.fn().mockReturnValue(['/ip4/127.0.0.1/tcp/1234'])
-  })
+    getMultiaddrs: vi.fn().mockReturnValue(['/ip4/127.0.0.1/tcp/1234']),
+  }),
 }));
 
 vi.mock('./peer-manager.js', () => ({
   PeerManager: vi.fn().mockImplementation(() => ({
     getPeerByNickname: vi.fn().mockResolvedValue('mock-peer-id'),
-    getPeerById: vi.fn().mockResolvedValue({ id: 'mock-peer-id', nickname: 'test-peer' }),
-    listPeers: vi.fn().mockReturnValue([{ id: 'mock-peer-id', nickname: 'test-peer' }]),
+    getPeerById: vi
+      .fn()
+      .mockResolvedValue({ id: 'mock-peer-id', nickname: 'test-peer' }),
+    listPeers: vi
+      .fn()
+      .mockReturnValue([{ id: 'mock-peer-id', nickname: 'test-peer' }]),
     addPeer: vi.fn(),
-    removePeer: vi.fn()
-  }))
+    removePeer: vi.fn(),
+  })),
 }));
 
 vi.mock('./file-sharing.js', () => ({
@@ -46,12 +52,12 @@ vi.mock('./file-sharing.js', () => ({
     getFileInfo: vi.fn().mockResolvedValue({
       filename: 'test.txt',
       size: 1024,
-      chunks: 1
+      chunks: 1,
     }),
     download: vi.fn().mockResolvedValue('mock-download-id'),
     listSharedFiles: vi.fn().mockReturnValue([]),
-    removeSharedFile: vi.fn()
-  }))
+    removeSharedFile: vi.fn(),
+  })),
 }));
 
 vi.mock('./group.js', () => ({
@@ -59,8 +65,8 @@ vi.mock('./group.js', () => ({
     joinGroup: vi.fn().mockResolvedValue(undefined),
     leaveGroup: vi.fn().mockResolvedValue(undefined),
     sendGroupMessage: vi.fn().mockResolvedValue(undefined),
-    getJoinedGroups: vi.fn().mockReturnValue(['general'])
-  }))
+    getJoinedGroups: vi.fn().mockReturnValue(['general']),
+  })),
 }));
 
 describe('P2pClient', () => {
@@ -72,8 +78,8 @@ describe('P2pClient', () => {
       enableKademlia: false,
       enableRelay: true,
       enableMdns: false,
-      listenAddrs: ['/ip4/0.0.0.0/tcp/0']
-    }
+      listenAddrs: ['/ip4/0.0.0.0/tcp/0'],
+    },
   };
 
   beforeEach(async () => {
@@ -116,12 +122,16 @@ describe('P2pClient', () => {
 
   it('should send a direct message', async () => {
     await client.start();
-    await expect(client.sendDirectMessage('mock-peer-id', 'Hello')).resolves.not.toThrow();
+    await expect(
+      client.sendDirectMessage('mock-peer-id', 'Hello')
+    ).resolves.not.toThrow();
   });
 
   it('should send a direct message to a nickname', async () => {
     await client.start();
-    await expect(client.sendDirectMessageToNickname('test-peer', 'Hello')).resolves.not.toThrow();
+    await expect(
+      client.sendDirectMessageToNickname('test-peer', 'Hello')
+    ).resolves.not.toThrow();
   });
 
   it('should share a file', async () => {
@@ -132,7 +142,10 @@ describe('P2pClient', () => {
 
   it('should download a file', async () => {
     await client.start();
-    const downloadId = await client.downloadFile('test-peer', 'mock-share-code');
+    const downloadId = await client.downloadFile(
+      'test-peer',
+      'mock-share-code'
+    );
     expect(downloadId).toBe('mock-download-id');
   });
 
@@ -159,7 +172,12 @@ describe('P2pClient', () => {
 
   it('should send a group message', async () => {
     await client.start();
-    await expect(client.sendGroupMessage('general', { type: 'text', text: 'Hello everyone' } as MessageContentInput)).resolves.not.toThrow();
+    await expect(
+      client.sendGroupMessage('general', {
+        type: 'text',
+        text: 'Hello everyone',
+      } as MessageContentInput)
+    ).resolves.not.toThrow();
   });
 
   it('should get joined groups', async () => {
@@ -190,17 +208,17 @@ describe('P2pClient', () => {
     await client.start();
     const eventListener = vi.fn();
     client.onEvent(eventListener);
-    
+
     // Simulate an event
     const testEvent = {
       type: 'test-event',
-      data: 'test-data'
+      data: 'test-data',
     };
-    
+
     // Access the private emitEvent method to test event emission
     // @ts-ignore - Accessing private method for testing
     client.emitEvent(testEvent);
-    
+
     expect(eventListener).toHaveBeenCalledWith(testEvent);
   });
 
@@ -208,19 +226,19 @@ describe('P2pClient', () => {
     await client.start();
     const eventListener = vi.fn();
     const removeListener = client.onEvent(eventListener);
-    
+
     // Remove the listener
     removeListener();
-    
+
     // Simulate an event
     const testEvent = {
       type: 'test-event',
-      data: 'test-data'
+      data: 'test-data',
     };
-    
+
     // @ts-ignore - Accessing private method for testing
     client.emitEvent(testEvent);
-    
+
     expect(eventListener).not.toHaveBeenCalled();
   });
 });

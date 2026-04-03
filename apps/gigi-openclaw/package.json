@@ -19,6 +19,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format-all": "prettier --write . && eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
     "generate-mnemonic": "node --loader ts-node/esm scripts/generate-mnemonic.ts"
   },
   "dependencies": {
@@ -36,7 +41,13 @@
     "openclaw": "^2026.3.22",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "@eslint/eslintrc": "^3.3.5",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "prettier": "^3.0.0"
   },
   "openclaw": {
     "extensions": ["./dist/bundle.js"],

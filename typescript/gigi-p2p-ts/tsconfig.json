@@ -28,7 +28,5 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../gigi-request-response-ts" }
-  ]
+  "references": [{ "path": "../gigi-request-response-ts" }]
 }

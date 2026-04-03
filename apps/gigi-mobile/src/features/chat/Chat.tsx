@@ -1,9 +1,8 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAppDispatch, useAppSelector } from '@/store'
-import { addLog } from '@/store/logsSlice'
+import { useAppDispatch } from '@/store'
 import { setShowShareDrawer, subscribeToGroupsAsync } from '@/store/chatSlice'
-import { ChatHeader, ErrorState, LoadingState } from './chat/layout'
+import { ErrorState, LoadingState } from './chat/layout'
 import {
   DirectChatsSection,
   GroupsSection,

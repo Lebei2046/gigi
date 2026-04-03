@@ -231,7 +231,7 @@ const chatSlice = createSlice({
         timestamp: number
       }>
     ) => {
-      const { from_peer_id, content, timestamp } = action.payload
+      const { from_peer_id, content } = action.payload
 
       // Update latest message
       state.latestMessages[from_peer_id] = content
@@ -255,7 +255,7 @@ const chatSlice = createSlice({
         timestamp: number
       }>
     ) => {
-      const { group_id, content, timestamp } = action.payload
+      const { group_id, content } = action.payload
 
       // Update latest message
       state.latestMessages[group_id] = content

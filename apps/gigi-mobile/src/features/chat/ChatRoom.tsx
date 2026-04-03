@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppDispatch, useAppSelector } from '@/store'
+import { useAppDispatch } from '@/store'
 import {
   resetChatRoomState,
   setNewMessage,

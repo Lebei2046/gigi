@@ -10,7 +10,7 @@ import {
 } from '@/store/chatSlice'
 import { clearMessages } from '@/store/chatRoomSlice'
 import { MessagingClient } from '@/utils/messaging'
-import { getGroup, saveGroup } from '@/utils/chatUtils'
+import { saveGroup } from '@/utils/chatUtils'
 import type { Group, GroupShareMessage, Peer } from '@/utils/messaging'
 
 /**

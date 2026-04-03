@@ -1,7 +1,6 @@
 import type { Message } from '@/store/chatRoomSlice'
 import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
-import { loadThumbnailAsync } from '@/store/chatRoomSlice'
 import { MessagingClient } from '@/utils/messaging'
 
 interface ImageMessageBubbleProps {

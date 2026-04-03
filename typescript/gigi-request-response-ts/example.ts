@@ -19,7 +19,7 @@ async function main() {
   // Create two libp2p nodes
   const node1 = await createLibp2p({
     addresses: {
-      listen: ['/ip4/127.0.0.1/tcp/0']
+      listen: ['/ip4/127.0.0.1/tcp/0'],
     },
     transports: [
       // Add transports here
@@ -29,12 +29,12 @@ async function main() {
     ],
     connectionEncryption: [
       // Add connection encryption here
-    ]
+    ],
   });
 
   const node2 = await createLibp2p({
     addresses: {
-      listen: ['/ip4/127.0.0.1/tcp/0']
+      listen: ['/ip4/127.0.0.1/tcp/0'],
     },
     transports: [
       // Add transports here
@@ -44,7 +44,7 @@ async function main() {
     ],
     connectionEncryption: [
       // Add connection encryption here
-    ]
+    ],
   });
 
   console.log('Node 1 ID:', node1.peerId.toString());
@@ -68,7 +68,7 @@ async function main() {
       const response: PingResponse = {
         type: 'pong',
         timestamp: Date.now(),
-        responseTime: Date.now() - request.timestamp
+        responseTime: Date.now() - request.timestamp,
       };
 
       // Send response
@@ -100,14 +100,14 @@ async function main() {
   console.log('Sending ping request...');
   const request: PingRequest = {
     type: 'ping',
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
 
   const requestId = await rr1.sendRequest(node2.peerId, request);
   console.log('Sent ping request with ID:', requestId.toString());
 
   // Wait for a moment to allow the response to be processed
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Close the request-response instances
   rr1.close();

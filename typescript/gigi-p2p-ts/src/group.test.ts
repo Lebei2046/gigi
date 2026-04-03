@@ -17,7 +17,7 @@ describe('GroupManager', () => {
     const groupName = 'general';
     const topic = '/gigi/group/general';
     groupManager.join(groupName, topic);
-    
+
     const groups = groupManager.list();
     expect(groups.length).toBe(1);
     expect(groups[0].name).toBe(groupName);
@@ -29,7 +29,7 @@ describe('GroupManager', () => {
     const topic = '/gigi/group/general';
     groupManager.join(groupName, topic);
     expect(groupManager.list().length).toBe(1);
-    
+
     groupManager.leave(groupName);
     expect(groupManager.list()).toEqual([]);
   });
@@ -38,7 +38,7 @@ describe('GroupManager', () => {
     const groupName = 'general';
     const topic = '/gigi/group/general';
     groupManager.join(groupName, topic);
-    
+
     expect(groupManager.has(groupName)).toBe(true);
     expect(groupManager.has('non-existent-group')).toBe(false);
   });
@@ -47,7 +47,7 @@ describe('GroupManager', () => {
     const groupName = 'general';
     const topic = '/gigi/group/general';
     groupManager.join(groupName, topic);
-    
+
     const group = groupManager.get(groupName);
     expect(group).toBeDefined();
     expect(group?.name).toBe(groupName);
@@ -57,16 +57,16 @@ describe('GroupManager', () => {
   it('should list all groups', () => {
     groupManager.join('general', '/gigi/group/general');
     groupManager.join('random', '/gigi/group/random');
-    
+
     const groups = groupManager.list();
     expect(groups.length).toBe(2);
-    expect(groups.map(g => g.name)).toEqual(['general', 'random']);
+    expect(groups.map((g) => g.name)).toEqual(['general', 'random']);
   });
 
   it('should get all group names', () => {
     groupManager.join('general', '/gigi/group/general');
     groupManager.join('random', '/gigi/group/random');
-    
+
     const groupNames = groupManager.names();
     expect(groupNames.length).toBe(2);
     expect(groupNames).toEqual(['general', 'random']);
@@ -77,7 +77,7 @@ describe('GroupManager', () => {
     const topic = '/gigi/group/general';
     groupManager.join(groupName, topic);
     groupManager.join(groupName, topic);
-    
+
     const groups = groupManager.list();
     expect(groups.length).toBe(1);
   });

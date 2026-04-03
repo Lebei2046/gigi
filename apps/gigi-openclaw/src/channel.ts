@@ -4,8 +4,7 @@ import {
   type OpenClawConfig,
 } from "openclaw/plugin-sdk";
 import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
-import { AmpMessageRouter, AmpMessageFactory, InMemoryAgentRegistry } from "@gigi/amp-ts";
-import type { TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse } from "@gigi/amp-ts";
+
 import type { PluginRuntime } from 'openclaw/plugin-sdk';
 
 // Runtime store for the Gigi plugin
@@ -40,7 +39,6 @@ function formatPairingApproveHint(channelId: string): string {
 import type { GigiAccount } from "./types.js";
 import { GigiClient } from "./GigiClient.js";
 import { OutboundManager } from "./outbound.js";
-import { getStatusSummary } from "./probe.js";
 import {
   listGigiAccountIds,
   resolveGigiAccount,
@@ -390,13 +388,13 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
   pairing: {
     idLabel: "peerId",
     normalizeAllowEntry: (entry) => entry.replace(new RegExp(`^(${CHANNEL_ID}|peer):`, "i"), "").trim(),
-    notifyApproval: async ({ cfg, id }) => {
+    notifyApproval: async () => {
       // Send pairing approval message
     },
   },
   setup: {
-    resolveAccountId: ({ accountId }) => accountId || DEFAULT_ACCOUNT_ID,
-    applyAccountName: ({ cfg, accountId, name }) => {
+    resolveAccountId: ({ accountId: _accountId }) => _accountId || DEFAULT_ACCOUNT_ID,
+    applyAccountName: ({ cfg, accountId: _accountId, name }) => {
       const gigiConfig = (cfg.channels?.[CHANNEL_ID] ?? {}) as any;
       return {
         ...cfg,
@@ -409,11 +407,11 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
         },
       };
     },
-    validateInput: ({ input }) => {
+    validateInput: () => {
       // No validation needed for Gigi P2P
       return null;
     },
-    applyAccountConfig: ({ cfg, accountId, input }) => {
+    applyAccountConfig: ({ cfg, accountId: _accountId, input }) => {
       // Generate a temporary peer ID placeholder
       const tempPeerId = `gigi-temp-${Math.random().toString(36).substring(2, 10)}`;
       
@@ -442,7 +440,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
     status: {
       configuredLabel: "Gigi P2P",
       unconfiguredLabel: "Gigi P2P",
-      resolveStatusLines: async ({ cfg, configured }) => {
+      resolveStatusLines: async ({ configured }) => {
         if (!configured) {
           return ["Not configured"];
         }
@@ -470,7 +468,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
         required: false,
       },
     ],
-    finalize: async ({ cfg, accountId, credentialValues }) => {
+    finalize: async ({ cfg, accountId: _accountId, credentialValues }) => {
       // Apply the configuration
       const name = credentialValues.name?.trim() || `Gigi Node ${Math.random().toString(36).substring(2, 10)}`;
       
@@ -541,13 +539,11 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
     // Delete account
     deleteAccount: ({cfg}) => {
-      const gigiConfig = (cfg.channels?.[CHANNEL_ID] ?? {}) as any;
-      const { peerId, multiaddrs, ...rest } = gigiConfig;
       return {
         ...cfg,
         channels: {
           ...cfg.channels,
-          [CHANNEL_ID]: rest,
+          [CHANNEL_ID]: {},
         },
       };
     },
@@ -905,9 +901,6 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                 
                 // Use the OpenClaw plugin SDK to dispatch the message to all agents
                 try {
-                  // Get the plugin runtime
-                  const runtime = getGigiRuntime();
-                  
                   // Get the list of available agents from config
                   const agentsConfig = (ctx.cfg as Record<string, unknown>).agents as { list?: Array<{ id: string; name?: string }> } | undefined;
                   let agents = agentsConfig?.list ?? [];
@@ -1032,9 +1025,6 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                 
                 // Use the OpenClaw plugin SDK to dispatch the message to all agents
                 try {
-                  // Get the plugin runtime
-                  const runtime = getGigiRuntime();
-                  
                   // Get the list of available agents from config
                   const agentsConfig = (ctx.cfg as Record<string, unknown>).agents as { list?: Array<{ id: string; name?: string }> } | undefined;
                   let agents = agentsConfig?.list ?? [];

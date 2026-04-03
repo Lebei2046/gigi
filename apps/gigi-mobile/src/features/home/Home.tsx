@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   FaComment as ChatIcon,
@@ -6,14 +6,15 @@ import {
   FaStickyNote as NotesIcon,
   FaUser as MeIcon,
   FaListAlt as LogsIcon,
+  FaRobot as AgentIcon,
 } from 'react-icons/fa'
 import Me from '../me/Me'
 import Chat from '../chat/Chat'
 import Files from '../files/Files'
 import P2PLogs from '@/components/P2PLogs'
+import Agents from '../agents/Agents'
 import { useAppSelector, useAppDispatch } from '@/store'
 import { addLog, clearLogs } from '@/store/logsSlice'
-import { MessagingEvents } from '@/utils/messaging'
 
 export default function Home() {
   const logs = useAppSelector(state => state.logs.logs)
@@ -35,6 +36,8 @@ export default function Home() {
     ),
     [logs, dispatch]
   )
+
+  const agentsPage = useMemo(() => <Agents />, [])
 
   return (
     <div className="flex flex-col w-full h-full bg-gray-50 pb-[calc(4rem+env(safe-area-inset-bottom))]">
@@ -79,6 +82,12 @@ export default function Home() {
         >
           {mePage}
         </TabsContent>
+        <TabsContent
+          value="agents"
+          className="flex-grow w-full data-[state=active]:flex data-[state=active]:flex-col m-0"
+        >
+          {agentsPage}
+        </TabsContent>
 
         {/* Enhanced Bottom Navigation */}
         <div className="fixed inset-x-0 bottom-0 h-[calc(4rem+env(safe-area-inset-bottom))] bg-white border-t border-gray-200 shadow-lg">
@@ -100,6 +109,15 @@ export default function Home() {
                 <div className="flex flex-col items-center py-2">
                   <LogsIcon className="w-5 h-5 mb-1" />
                   <span className="text-xs font-medium">Logs</span>
+                </div>
+              </TabsTrigger>
+              <TabsTrigger
+                value="agents"
+                className="flex-1 data-[state=active]:text-blue-600 hover:text-blue-500 transition-colors duration-200"
+              >
+                <div className="flex flex-col items-center py-2">
+                  <AgentIcon className="w-5 h-5 mb-1" />
+                  <span className="text-xs font-medium">Agents</span>
                 </div>
               </TabsTrigger>
               <TabsTrigger

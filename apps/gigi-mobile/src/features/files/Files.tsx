@@ -1,13 +1,12 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useMemo, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   FaDownload as DownloadIcon,
   FaUpload as UploadIcon,
   FaStar as StarIcon,
-  FaClock as ClockIcon,
   FaFileImage as ImageIcon,
   FaFilePdf as PdfIcon,
   FaFileWord as WordIcon,
@@ -22,18 +21,15 @@ import {
   toggleFavoriteAsync,
   startDownloadAsync,
   setSearchTerm,
-  setSelectedCategory,
   cancelDownload,
   updateDownloadProgress,
 } from '@/store/fileSlice'
 
 const Files = () => {
-  const [activeTab, setActiveTab] = useState('all')
   const dispatch = useAppDispatch()
-  const { files, downloads, searchTerm, status, error } = useAppSelector(
+  const { files, downloads, searchTerm } = useAppSelector(
     state => state.files
   )
-  const user = useAppSelector(state => state.auth.user)
 
   // Fetch files and downloads on component mount
   useEffect(() => {
@@ -137,7 +133,7 @@ const Files = () => {
       </div>
 
       {/* File Tabs */}
-      <Tabs defaultValue="all" className="flex-1" onValueChange={setActiveTab}>
+      <Tabs defaultValue="all" className="flex-1">
         <TabsList className="mb-4">
           <TabsTrigger value="all">All Files</TabsTrigger>
           <TabsTrigger value="favorites">Favorites</TabsTrigger>

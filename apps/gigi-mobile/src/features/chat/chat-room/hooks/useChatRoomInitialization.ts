@@ -4,7 +4,6 @@ import { useAppDispatch, useAppSelector } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import {
   initializeChatRoomAsync,
-  loadMessageHistoryAsync,
   initializeChatInfoAsync,
   resetChatRoomState,
   loadMessagesFromBackendAsync,

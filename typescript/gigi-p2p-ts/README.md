@@ -13,14 +13,14 @@ TypeScript implementation of the Gigi P2P networking library, ported from the Ru
 
 ## Protocol Stack
 
-| Protocol | Purpose | Type |
-|----------|---------|------|
-| Gigi Direct | 1-to-1 communication | Request-Response |
-| Gigi File | Chunked file transfer | Request-Response |
-| Gigi Group | Group chat | GossipSub |
-| mDNS | Local peer discovery | Multicast DNS |
-| Kademlia | WAN peer discovery | DHT |
-| Circuit Relay | NAT traversal | Relay |
+| Protocol      | Purpose               | Type             |
+| ------------- | --------------------- | ---------------- |
+| Gigi Direct   | 1-to-1 communication  | Request-Response |
+| Gigi File     | Chunked file transfer | Request-Response |
+| Gigi Group    | Group chat            | GossipSub        |
+| mDNS          | Local peer discovery  | Multicast DNS    |
+| Kademlia      | WAN peer discovery    | DHT              |
+| Circuit Relay | NAT traversal         | Relay            |
 
 ## Installation
 
@@ -39,7 +39,8 @@ async function main() {
     nickname: 'Alice',
     outputDirectory: './downloads',
     // You can provide a mnemonic to derive the peer ID and private key
-    mnemonic: 'abandon amount liar amount expire adjust cage candy arch gather drum buyer'
+    mnemonic:
+      'abandon amount liar amount expire adjust cage candy arch gather drum buyer',
   });
 
   await client.start();
@@ -54,7 +55,10 @@ async function main() {
   await client.sendDirectMessage('12D3KooW...', 'Hello!');
 
   await client.joinGroup('chat-room');
-  await client.sendGroupMessage('chat-room', { type: 'text', text: 'Hello everyone!' });
+  await client.sendGroupMessage('chat-room', {
+    type: 'text',
+    text: 'Hello everyone!',
+  });
 
   const shareCode = await client.shareFile('./document.pdf');
   console.log(`Share code: ${shareCode}`);
@@ -80,42 +84,46 @@ new P2pClient(options: P2pClientOptions)
 ```
 
 Options:
+
 - `nickname: string` - Display name for this peer
 - `outputDirectory?: string` - Directory for downloaded files (default: './downloads')
 - `config?: P2pConfig` - P2P configuration
 
 #### Methods
 
-| Method | Description |
-|--------|-------------|
-| `start()` | Start the P2P client |
-| `stop()` | Stop the P2P client |
-| `getPeerId()` | Get local peer ID |
-| `getMultiaddrs()` | Get listening addresses |
-| `sendDirectMessage(peerId, message)` | Send direct message |
+| Method                                           | Description              |
+| ------------------------------------------------ | ------------------------ |
+| `start()`                                        | Start the P2P client     |
+| `stop()`                                         | Stop the P2P client      |
+| `getPeerId()`                                    | Get local peer ID        |
+| `getMultiaddrs()`                                | Get listening addresses  |
+| `sendDirectMessage(peerId, message)`             | Send direct message      |
 | `sendDirectMessageToNickname(nickname, message)` | Send to peer by nickname |
-| `joinGroup(name)` | Join a group |
-| `leaveGroup(name)` | Leave a group |
-| `sendGroupMessage(group, message)` | Send to group |
-| `shareFile(path)` | Share a file |
-| `downloadFile(nickname, shareCode)` | Download a file |
-| `revokeFile(shareCode)` | Revoke a shared file |
-| `listSharedFiles()` | List shared files |
-| `getActiveDownloads()` | Get active downloads |
-| `onEvent(listener)` | Register event listener |
+| `joinGroup(name)`                                | Join a group             |
+| `leaveGroup(name)`                               | Leave a group            |
+| `sendGroupMessage(group, message)`               | Send to group            |
+| `shareFile(path)`                                | Share a file             |
+| `downloadFile(nickname, shareCode)`              | Download a file          |
+| `revokeFile(shareCode)`                          | Revoke a shared file     |
+| `listSharedFiles()`                              | List shared files        |
+| `getActiveDownloads()`                           | Get active downloads     |
+| `onEvent(listener)`                              | Register event listener  |
 
 ## Events
 
 ### Discovery Events
+
 - `peer-discovered` - New peer discovered
 - `peer-expired` - Peer expired
 - `nickname-updated` - Peer nickname updated
 
 ### Messaging Events
+
 - `direct-message` - Direct message received
 - `group-message` - Group message received
 
 ### File Events
+
 - `file-shared` - File shared successfully
 - `file-download-started` - Download started
 - `file-download-progress` - Download progress
@@ -123,6 +131,7 @@ Options:
 - `file-download-failed` - Download failed
 
 ### Connection Events
+
 - `connected` - Peer connected
 - `disconnected` - Peer disconnected
 - `listening-on` - Listening on address
@@ -150,7 +159,12 @@ npm run dev
 The package provides functions for deriving peer IDs, group IDs, and private keys from BIP-39 mnemonic phrases:
 
 ```typescript
-import { generateMnemonic, derivePeerId, deriveGroupId, derivePeerPrivateKey } from '@gigi/p2p-ts';
+import {
+  generateMnemonic,
+  derivePeerId,
+  deriveGroupId,
+  derivePeerPrivateKey,
+} from '@gigi/p2p-ts';
 
 // Generate a new mnemonic phrase
 const mnemonic = generateMnemonic();

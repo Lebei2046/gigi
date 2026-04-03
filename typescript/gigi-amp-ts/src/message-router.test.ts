@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { InMemoryAgentRegistry, AmpMessageRouter, AmpMessageFactory } from './message-router';
-import { AgentInfo, TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse } from './types';
+import {
+  InMemoryAgentRegistry,
+  AmpMessageRouter,
+  AmpMessageFactory,
+} from './message-router';
+import { AgentInfo, AgentSettingsResponse } from './types';
 
 describe('InMemoryAgentRegistry', () => {
   it('should register and retrieve agents', () => {
@@ -11,7 +15,7 @@ describe('InMemoryAgentRegistry', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     registry.registerAgent(agent);
@@ -27,7 +31,7 @@ describe('InMemoryAgentRegistry', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     registry.registerAgent(agent);
@@ -44,7 +48,7 @@ describe('InMemoryAgentRegistry', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     registry.registerAgent(agent);
@@ -66,7 +70,7 @@ describe('AmpMessageRouter', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     const agent2: AgentInfo = {
@@ -75,7 +79,7 @@ describe('AmpMessageRouter', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     registry.registerAgent(agent1);
@@ -104,7 +108,7 @@ describe('AmpMessageRouter', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     const agent2: AgentInfo = {
@@ -113,7 +117,7 @@ describe('AmpMessageRouter', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     registry.registerAgent(agent1);
@@ -143,7 +147,7 @@ describe('AmpMessageRouter', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     registry.registerAgent(agent1);
@@ -174,7 +178,7 @@ describe('AmpMessageRouter', () => {
       type: 'test',
       version: '1.0.0',
       settings: [],
-      status: 'online'
+      status: 'online',
     };
 
     registry.registerAgent(agent1);

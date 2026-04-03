@@ -123,9 +123,7 @@ export const resetAuth = () => async (dispatch: any) => {
 
 // Async action for login with P2P initialization (combined command)
 export const loginWithP2P =
-  (password: string) => async (dispatch: any, getState: any) => {
-    const state = getState().auth
-
+  (password: string) => async (dispatch: any) => {
     try {
       const accountInfo = await authLoginWithP2P(password)
 

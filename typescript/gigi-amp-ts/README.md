@@ -20,7 +20,11 @@ pnpm add @gigi/amp-ts
 ### Basic Setup
 
 ```typescript
-import { InMemoryAgentRegistry, AmpMessageRouter, AmpMessageFactory } from '@gigi/amp-ts';
+import {
+  InMemoryAgentRegistry,
+  AmpMessageRouter,
+  AmpMessageFactory,
+} from '@gigi/amp-ts';
 
 // Create agent registry
 const agentRegistry = new InMemoryAgentRegistry();
@@ -30,14 +34,18 @@ const messageRouter = new AmpMessageRouter(agentRegistry);
 
 // Register message handlers
 messageRouter.registerMessageHandler('text', (message, agentId) => {
-  console.log(`Received text message: ${message.content} from ${message.sender.name} (${message.sender.id})`);
+  console.log(
+    `Received text message: ${message.content} from ${message.sender.name} (${message.sender.id})`
+  );
   if (agentId) {
     console.log(`Message routed to agent: ${agentId}`);
   }
 });
 
 messageRouter.registerMessageHandler('file', (message, agentId) => {
-  console.log(`Received file message: ${message.filename} (${message.fileSize} bytes) from ${message.sender.name}`);
+  console.log(
+    `Received file message: ${message.filename} (${message.fileSize} bytes) from ${message.sender.name}`
+  );
   if (agentId) {
     console.log(`Message routed to agent: ${agentId}`);
   }
@@ -45,7 +53,7 @@ messageRouter.registerMessageHandler('file', (message, agentId) => {
 
 messageRouter.registerMessageHandler('agent-settings-response', (message) => {
   console.log('Received agent settings response:');
-  message.agents.forEach(agent => {
+  message.agents.forEach((agent) => {
     console.log(`- ${agent.name} (${agent.id}): ${agent.status}`);
   });
 });
@@ -61,9 +69,14 @@ const agent = {
   type: 'test',
   version: '1.0.0',
   settings: [
-    { id: 'setting1', name: 'Test Setting', type: 'string', value: 'test value' }
+    {
+      id: 'setting1',
+      name: 'Test Setting',
+      type: 'string',
+      value: 'test value',
+    },
   ],
-  status: 'online'
+  status: 'online',
 };
 
 agentRegistry.registerAgent(agent);

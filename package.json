@@ -6,5 +6,11 @@
     "apps/*",
     "typescript/*"
   ],
-  "private": true
+  "private": true,
+  "scripts": {
+    "lint": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example lint",
+    "lint:fix": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example lint:fix",
+    "format": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example format",
+    "format-all": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example format-all"
+  }
 }

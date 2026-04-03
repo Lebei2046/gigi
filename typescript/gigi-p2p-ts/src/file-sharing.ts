@@ -43,7 +43,12 @@ export class FileSharingManager {
       revoked: false,
     };
 
-    const sharedFile: SharedFileWithPath = { fileId, shareCode, info, filePath };
+    const sharedFile: SharedFileWithPath = {
+      fileId,
+      shareCode,
+      info,
+      filePath,
+    };
 
     this.files.set(fileId, sharedFile);
     this.shareCodeIndex.set(shareCode, fileId);
@@ -51,7 +56,11 @@ export class FileSharingManager {
     return sharedFile;
   }
 
-  async shareWithContent(name: string, content: Uint8Array, mimeType: string = 'application/octet-stream'): Promise<SharedFile> {
+  async shareWithContent(
+    name: string,
+    content: Uint8Array,
+    mimeType: string = 'application/octet-stream'
+  ): Promise<SharedFile> {
     const hash = this.calculateHash(content);
     const fileId = randomUUID();
     const shareCode = this.generateShareCode(name);
@@ -79,7 +88,12 @@ export class FileSharingManager {
       revoked: false,
     };
 
-    const sharedFile: SharedFileWithPath = { fileId, shareCode, info, filePath };
+    const sharedFile: SharedFileWithPath = {
+      fileId,
+      shareCode,
+      info,
+      filePath,
+    };
 
     this.files.set(fileId, sharedFile);
     this.shareCodeIndex.set(shareCode, fileId);
@@ -107,7 +121,7 @@ export class FileSharingManager {
   }
 
   list(): SharedFile[] {
-    return Array.from(this.files.values()).filter(f => !f.info.revoked);
+    return Array.from(this.files.values()).filter((f) => !f.info.revoked);
   }
 
   listAll(): SharedFile[] {
@@ -133,7 +147,11 @@ export class FileSharingManager {
     return filePath;
   }
 
-  async getChunk(fileId: string, chunkIndex: number, filePath: string): Promise<Uint8Array> {
+  async getChunk(
+    fileId: string,
+    chunkIndex: number,
+    filePath: string
+  ): Promise<Uint8Array> {
     const content = await readFile(filePath);
     const start = chunkIndex * CHUNK_SIZE;
     const end = Math.min(start + CHUNK_SIZE, content.length);
@@ -157,24 +175,24 @@ export class FileSharingManager {
     const ext = filePath.split('.').pop()?.toLowerCase() || '';
 
     const mimeTypes: Record<string, string> = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'gif': 'image/gif',
-      'webp': 'image/webp',
-      'svg': 'image/svg+xml',
-      'mp4': 'video/mp4',
-      'webm': 'video/webm',
-      'mp3': 'audio/mpeg',
-      'wav': 'audio/wav',
-      'pdf': 'application/pdf',
-      'txt': 'text/plain',
-      'html': 'text/html',
-      'css': 'text/css',
-      'js': 'application/javascript',
-      'json': 'application/json',
-      'xml': 'application/xml',
-      'zip': 'application/zip',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      svg: 'image/svg+xml',
+      mp4: 'video/mp4',
+      webm: 'video/webm',
+      mp3: 'audio/mpeg',
+      wav: 'audio/wav',
+      pdf: 'application/pdf',
+      txt: 'text/plain',
+      html: 'text/html',
+      css: 'text/css',
+      js: 'application/javascript',
+      json: 'application/json',
+      xml: 'application/xml',
+      zip: 'application/zip',
     };
 
     return mimeTypes[ext] || 'application/octet-stream';

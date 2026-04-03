@@ -4,7 +4,11 @@ import { Codec } from '../types.js';
  * A JSON codec for encoding and decoding requests and responses.
  * Handles Uint8Array objects by converting them to base64 strings.
  */
-export class JsonCodec<TRequest, TResponse, TProtocol extends string> implements Codec<TRequest, TResponse, TProtocol> {
+export class JsonCodec<
+  TRequest,
+  TResponse,
+  TProtocol extends string,
+> implements Codec<TRequest, TResponse, TProtocol> {
   constructor(private protocol: TProtocol) {}
 
   /**
@@ -14,10 +18,10 @@ export class JsonCodec<TRequest, TResponse, TProtocol extends string> implements
     if (obj instanceof Uint8Array) {
       return {
         type: 'Uint8Array',
-        data: Buffer.from(obj).toString('base64')
+        data: Buffer.from(obj).toString('base64'),
       };
     } else if (Array.isArray(obj)) {
-      return obj.map(item => this.serialize(item));
+      return obj.map((item) => this.serialize(item));
     } else if (obj && typeof obj === 'object') {
       const result: any = {};
       for (const key in obj) {
@@ -35,10 +39,15 @@ export class JsonCodec<TRequest, TResponse, TProtocol extends string> implements
    * Recursively convert base64 strings back to Uint8Array in an object.
    */
   private deserialize(obj: any): any {
-    if (obj && typeof obj === 'object' && obj.type === 'Uint8Array' && obj.data) {
+    if (
+      obj &&
+      typeof obj === 'object' &&
+      obj.type === 'Uint8Array' &&
+      obj.data
+    ) {
       return new Uint8Array(Buffer.from(obj.data, 'base64'));
     } else if (Array.isArray(obj)) {
-      return obj.map(item => this.deserialize(item));
+      return obj.map((item) => this.deserialize(item));
     } else if (obj && typeof obj === 'object') {
       const result: any = {};
       for (const key in obj) {

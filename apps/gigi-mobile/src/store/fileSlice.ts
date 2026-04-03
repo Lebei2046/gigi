@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import {
   createSlice,
   type PayloadAction,
   createAsyncThunk,
 } from '@reduxjs/toolkit'
-import { invoke } from '@tauri-apps/api/core'
 
 // Define types for files
 interface FileItem {
@@ -115,7 +114,7 @@ export const fetchFilesAsync = createAsyncThunk(
           progress: 75,
         },
       ]
-    } catch (error) {
+    } catch {
       return rejectWithValue('Failed to fetch files')
     }
   }
@@ -159,7 +158,7 @@ export const fetchDownloadsAsync = createAsyncThunk(
           status: 'error',
         },
       ]
-    } catch (error) {
+    } catch {
       return rejectWithValue('Failed to fetch downloads')
     }
   }
@@ -168,14 +167,14 @@ export const fetchDownloadsAsync = createAsyncThunk(
 // Toggle favorite status
 export const toggleFavoriteAsync = createAsyncThunk(
   'files/toggleFavorite',
-  async (fileId: string, { rejectWithValue, getState }) => {
+  async (fileId: string, { rejectWithValue }) => {
     try {
       // This would be replaced with actual Tauri command
       // await invoke('toggle_favorite', { fileId })
 
       // Return fileId for reducer to handle
       return fileId
-    } catch (error) {
+    } catch {
       return rejectWithValue('Failed to toggle favorite')
     }
   }
@@ -184,7 +183,7 @@ export const toggleFavoriteAsync = createAsyncThunk(
 // Start download
 export const startDownloadAsync = createAsyncThunk(
   'files/startDownload',
-  async (fileId: string, { rejectWithValue, getState }) => {
+  async (fileId: string, { rejectWithValue }) => {
     try {
       // This would be replaced with actual Tauri command
       // const response = await invoke('start_download', { fileId })
@@ -201,7 +200,7 @@ export const startDownloadAsync = createAsyncThunk(
         timeRemaining: 'Calculating...',
         status: 'downloading',
       }
-    } catch (error) {
+    } catch {
       return rejectWithValue('Failed to start download')
     }
   }

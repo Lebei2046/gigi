@@ -16,7 +16,7 @@ interface ChatRoomInputProps {
 export default function ChatRoomInput({
   newMessage,
   sending,
-  isGroupChat,
+  isGroupChat: _isGroupChat,
   chatName,
   onSendMessage,
   onFileSelect,

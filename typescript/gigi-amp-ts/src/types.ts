@@ -1,6 +1,10 @@
 // Message types for Agent Messaging Protocol
 
-export type MessageType = 'text' | 'file' | 'agent-settings-query' | 'agent-settings-response';
+export type MessageType =
+  | 'text'
+  | 'file'
+  | 'agent-settings-query'
+  | 'agent-settings-response';
 
 export interface SenderInfo {
   id: string;
@@ -66,7 +70,11 @@ export interface AgentSettingsResponse {
   id: string;
 }
 
-export type AmpMessage = TextMessage | FileMessage | AgentSettingsQuery | AgentSettingsResponse;
+export type AmpMessage =
+  | TextMessage
+  | FileMessage
+  | AgentSettingsQuery
+  | AgentSettingsResponse;
 
 export interface AgentRegistry {
   getAgentById(id: string): AgentInfo | undefined;

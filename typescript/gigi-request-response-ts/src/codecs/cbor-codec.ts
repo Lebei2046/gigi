@@ -4,7 +4,11 @@ import { Codec } from '../types.js';
  * A CBOR codec for encoding and decoding requests and responses.
  * Uses JSON as a fallback if cbor-x is not available.
  */
-export class CborCodec<TRequest, TResponse, TProtocol extends string> implements Codec<TRequest, TResponse, TProtocol> {
+export class CborCodec<
+  TRequest,
+  TResponse,
+  TProtocol extends string,
+> implements Codec<TRequest, TResponse, TProtocol> {
   constructor(private protocol: TProtocol) {}
 
   /**

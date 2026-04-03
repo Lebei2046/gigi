@@ -1,4 +1,4 @@
-import type { IGigiClient, GigiMessage } from "./types.js";
+import type { IGigiClient } from "./types.js";
 
 /**
  * Outbound message queue entry
@@ -108,7 +108,7 @@ export class OutboundManager {
             }
           }
           message.resolve();
-        } catch (error) {
+        } catch {
           message.retryCount++;
 
           if (message.retryCount < message.maxRetries) {

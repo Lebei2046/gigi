@@ -1,4 +1,13 @@
-import { AmpMessage, AgentInfo, AgentRegistry, MessageRouter, TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse } from './types';
+import {
+  AmpMessage,
+  AgentInfo,
+  AgentRegistry,
+  MessageRouter,
+  TextMessage,
+  FileMessage,
+  AgentSettingsQuery,
+  AgentSettingsResponse,
+} from './types';
 
 export class InMemoryAgentRegistry implements AgentRegistry {
   private agents: Map<string, AgentInfo> = new Map();
@@ -29,7 +38,10 @@ export class InMemoryAgentRegistry implements AgentRegistry {
 
 export class AmpMessageRouter implements MessageRouter {
   private agentRegistry: AgentRegistry;
-  private messageHandlers: Map<string, (message: AmpMessage, agentId?: string) => void> = new Map();
+  private messageHandlers: Map<
+    string,
+    (message: AmpMessage, agentId?: string) => void
+  > = new Map();
 
   constructor(agentRegistry: AgentRegistry) {
     this.agentRegistry = agentRegistry;
@@ -58,12 +70,12 @@ export class AmpMessageRouter implements MessageRouter {
     if (message.target.type === 'all') {
       // Route to all agents
       const agents = this.agentRegistry.getAllAgents();
-      agents.forEach(agent => {
+      agents.forEach((agent) => {
         this.invokeMessageHandler('text', message, agent.id);
       });
     } else if (message.target.type === 'specific' && message.target.agentIds) {
       // Route to specific agents
-      message.target.agentIds.forEach(agentId => {
+      message.target.agentIds.forEach((agentId) => {
         const agent = this.agentRegistry.getAgentById(agentId);
         if (agent) {
           this.invokeMessageHandler('text', message, agentId);
@@ -76,12 +88,12 @@ export class AmpMessageRouter implements MessageRouter {
     if (message.target.type === 'all') {
       // Route to all agents
       const agents = this.agentRegistry.getAllAgents();
-      agents.forEach(agent => {
+      agents.forEach((agent) => {
         this.invokeMessageHandler('file', message, agent.id);
       });
     } else if (message.target.type === 'specific' && message.target.agentIds) {
       // Route to specific agents
-      message.target.agentIds.forEach(agentId => {
+      message.target.agentIds.forEach((agentId) => {
         const agent = this.agentRegistry.getAgentById(agentId);
         if (agent) {
           this.invokeMessageHandler('file', message, agentId);
@@ -93,7 +105,9 @@ export class AmpMessageRouter implements MessageRouter {
   private handleAgentSettingsQuery(message: AgentSettingsQuery): void {
     // Get requested agents or all agents
     const agents = message.agentIds
-      ? message.agentIds.map(id => this.agentRegistry.getAgentById(id)).filter((agent): agent is AgentInfo => agent !== undefined)
+      ? message.agentIds
+          .map((id) => this.agentRegistry.getAgentById(id))
+          .filter((agent): agent is AgentInfo => agent !== undefined)
       : this.agentRegistry.getAllAgents();
 
     // Create response message
@@ -103,14 +117,18 @@ export class AmpMessageRouter implements MessageRouter {
       sender: {
         id: 'system',
         name: 'System',
-        type: 'agent'
+        type: 'agent',
       },
       timestamp: Date.now(),
-      id: `response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      id: `response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
 
     // Send response to the sender
-    this.invokeMessageHandler('agent-settings-response', response, message.sender.id);
+    this.invokeMessageHandler(
+      'agent-settings-response',
+      response,
+      message.sender.id
+    );
   }
 
   private handleAgentSettingsResponse(message: AgentSettingsResponse): void {
@@ -118,7 +136,11 @@ export class AmpMessageRouter implements MessageRouter {
     this.invokeMessageHandler('agent-settings-response', message);
   }
 
-  private invokeMessageHandler(type: string, message: AmpMessage, agentId?: string): void {
+  private invokeMessageHandler(
+    type: string,
+    message: AmpMessage,
+    agentId?: string
+  ): void {
     const handler = this.messageHandlers.get(type);
     if (handler) {
       try {
@@ -129,7 +151,10 @@ export class AmpMessageRouter implements MessageRouter {
     }
   }
 
-  registerMessageHandler(type: string, handler: (message: AmpMessage, agentId?: string) => void): void {
+  registerMessageHandler(
+    type: string,
+    handler: (message: AmpMessage, agentId?: string) => void
+  ): void {
     this.messageHandlers.set(type, handler);
   }
 
@@ -151,18 +176,28 @@ export class AmpMessageRouter implements MessageRouter {
 }
 
 export class AmpMessageFactory {
-  static createTextMessage(content: string, target: { type: 'all' | 'specific'; agentIds?: string[] }, sender: { id: string; name: string; type: 'owner' | 'agent' }): TextMessage {
+  static createTextMessage(
+    content: string,
+    target: { type: 'all' | 'specific'; agentIds?: string[] },
+    sender: { id: string; name: string; type: 'owner' | 'agent' }
+  ): TextMessage {
     return {
       type: 'text',
       content,
       target,
       sender,
       timestamp: Date.now(),
-      id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
-  static createFileMessage(filename: string, fileSize: number, fileHash: string, target: { type: 'all' | 'specific'; agentIds?: string[] }, sender: { id: string; name: string; type: 'owner' | 'agent' }): FileMessage {
+  static createFileMessage(
+    filename: string,
+    fileSize: number,
+    fileHash: string,
+    target: { type: 'all' | 'specific'; agentIds?: string[] },
+    sender: { id: string; name: string; type: 'owner' | 'agent' }
+  ): FileMessage {
     return {
       type: 'file',
       filename,
@@ -171,27 +206,33 @@ export class AmpMessageFactory {
       target,
       sender,
       timestamp: Date.now(),
-      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
-  static createAgentSettingsQuery(sender: { id: string; name: string; type: 'owner' | 'agent' }, agentIds?: string[]): AgentSettingsQuery {
+  static createAgentSettingsQuery(
+    sender: { id: string; name: string; type: 'owner' | 'agent' },
+    agentIds?: string[]
+  ): AgentSettingsQuery {
     return {
       type: 'agent-settings-query',
       agentIds,
       sender,
       timestamp: Date.now(),
-      id: `query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      id: `query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
-  static createAgentSettingsResponse(agents: any[], sender: { id: string; name: string; type: 'owner' | 'agent' }): AgentSettingsResponse {
+  static createAgentSettingsResponse(
+    agents: any[],
+    sender: { id: string; name: string; type: 'owner' | 'agent' }
+  ): AgentSettingsResponse {
     return {
       type: 'agent-settings-response',
       agents,
       sender,
       timestamp: Date.now(),
-      id: `response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      id: `response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 }

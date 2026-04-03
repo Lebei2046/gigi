@@ -4,7 +4,7 @@
 
 import { db } from '@/models/db'
 import type { Chat } from '@/models/db'
-import type { GroupInfo } from '@/utils/tauriCommands'
+
 import {
   groupGetAll,
   groupCreate,
@@ -54,7 +54,6 @@ function isInvalidDateString(dateString: any): boolean {
 export async function cleanupInvalidTimestamps(): Promise<void> {
   try {
     const allChats = await db.chats.toArray()
-    let updatedCount = 0
 
     for (const chat of allChats) {
       if (chat.lastMessageTime && isInvalidDateString(chat.lastMessageTime)) {
@@ -65,13 +64,11 @@ export async function cleanupInvalidTimestamps(): Promise<void> {
               chat.lastMessageTimestamp!
             ).toLocaleString(),
           })
-          updatedCount++
         } else {
           // Clear the invalid time if no valid timestamp available
           await db.chats.update(chat.id, {
             lastMessageTime: undefined,
           })
-          updatedCount++
         }
       }
     }

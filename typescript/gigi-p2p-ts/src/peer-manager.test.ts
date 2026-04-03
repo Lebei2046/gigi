@@ -17,7 +17,7 @@ describe('PeerManager', () => {
     const peerId = 'peer1';
     const nickname = 'Peer 1';
     peerManager.discover(peerId, nickname, []);
-    
+
     const peers = peerManager.list();
     expect(peers.length).toBe(1);
     expect(peers[0].peerId).toBe(peerId);
@@ -29,7 +29,7 @@ describe('PeerManager', () => {
     const nickname = 'Peer 1';
     peerManager.discover(peerId, nickname, []);
     expect(peerManager.list().length).toBe(1);
-    
+
     peerManager.expire(peerId);
     expect(peerManager.list()).toEqual([]);
   });
@@ -38,7 +38,7 @@ describe('PeerManager', () => {
     const peerId = 'peer1';
     const nickname = 'Peer 1';
     peerManager.discover(peerId, nickname, []);
-    
+
     const peer = peerManager.getByPeerId(peerId);
     expect(peer?.peerId).toBe(peerId);
     expect(peer?.nickname).toBe(nickname);
@@ -53,7 +53,7 @@ describe('PeerManager', () => {
     const peerId = 'peer1';
     const nickname = 'Peer 1';
     peerManager.discover(peerId, nickname, []);
-    
+
     const foundPeerId = peerManager.getPeerId(nickname);
     expect(foundPeerId).toBe(peerId);
   });
@@ -67,21 +67,25 @@ describe('PeerManager', () => {
     peerManager.discover('peer1', 'Peer 1', []);
     peerManager.discover('peer2', 'Peer 2', []);
     peerManager.discover('peer3', 'Peer 3', []);
-    
+
     const peers = peerManager.list();
     expect(peers.length).toBe(3);
-    expect(peers.map(p => p.peerId)).toEqual(['peer1', 'peer2', 'peer3']);
-    expect(peers.map(p => p.nickname)).toEqual(['Peer 1', 'Peer 2', 'Peer 3']);
+    expect(peers.map((p) => p.peerId)).toEqual(['peer1', 'peer2', 'peer3']);
+    expect(peers.map((p) => p.nickname)).toEqual([
+      'Peer 1',
+      'Peer 2',
+      'Peer 3',
+    ]);
   });
 
   it('should update an existing peer', () => {
     const peerId = 'peer1';
     const oldNickname = 'Old Nickname';
     const newNickname = 'New Nickname';
-    
+
     peerManager.discover(peerId, oldNickname, []);
     expect(peerManager.getByPeerId(peerId)?.nickname).toBe(oldNickname);
-    
+
     peerManager.updateNickname(peerId, newNickname);
     expect(peerManager.getByPeerId(peerId)?.nickname).toBe(newNickname);
   });

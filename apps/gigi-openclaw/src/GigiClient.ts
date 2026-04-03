@@ -1,49 +1,10 @@
-import { P2pClient, P2pClientOptions, derivePeerId, derivePeerPrivateKey } from "@gigi/p2p-ts";
-import { RequestResponse, JsonCodec } from "@gigi/request-response-ts";
+import { P2pClient, P2pClientOptions } from "@gigi/p2p-ts";
 import { AmpMessageRouter, AmpMessageFactory, InMemoryAgentRegistry } from "@gigi/amp-ts";
-import type { IGigiClient, GigiClientConfig, GigiMessage, AgentInfo } from "./types.js";
+import type { IGigiClient, GigiClientConfig, GigiMessage } from "./types.js";
 
-// Define file protocol request and response types
-interface FileRequest {
-  type: 'request';
-  action: 'request';
-  shareCode: string;
-  downloadId: string;
-}
 
-interface FileChunkRequest {
-  type: 'chunk';
-  downloadId: string;
-  chunkIndex: number;
-  totalChunks: number;
-  chunk: Uint8Array;
-}
 
-interface FileErrorResponse {
-  type: 'error';
-  message: string;
-}
 
-interface FileInfoResponse {
-  type: 'file-info';
-  fileId: string;
-  name: string;
-  size: number;
-  mimeType: string;
-  chunkCount: number;
-  hash: string;
-}
-
-interface FileChunkResponse {
-  type: 'chunk';
-  downloadId: string;
-  chunkIndex: number;
-  totalChunks: number;
-  chunk: Uint8Array;
-}
-
-type FileRequestMessage = FileRequest | FileChunkRequest;
-type FileResponseMessage = FileErrorResponse | FileInfoResponse | FileChunkResponse;
 
 export class GigiClient implements IGigiClient {
   private p2pClient: P2pClient;
@@ -146,7 +107,7 @@ export class GigiClient implements IGigiClient {
     console.log(`[GigiClient] Sent text message to ${target}`);
   }
 
-  async sendFileMessage(target: string, filename: string, fileSize: number, fileType: string, shareCode: string): Promise<void> {
+  async sendFileMessage(target: string, filename: string, fileSize: number): Promise<void> {
     if (!this.started) {
       throw new Error("GigiClient not started");
     }
@@ -174,9 +135,6 @@ export class GigiClient implements IGigiClient {
       throw new Error("GigiClient not started");
     }
 
-    const peerId = this.p2pClient.getPeerId();
-    const displayName = this.config.displayName || peerId.substring(0, 8);
-
     // Create a MessageContentInput for the P2pClient
     const messageContent: { type: 'text'; text: string } = {
       type: 'text',
@@ -191,9 +149,6 @@ export class GigiClient implements IGigiClient {
     if (!this.started) {
       throw new Error("GigiClient not started");
     }
-
-    const peerId = this.p2pClient.getPeerId();
-    const displayName = this.config.displayName || peerId.substring(0, 8);
 
     // Create a MessageContentInput for the P2pClient
     const messageContent: { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string } = {

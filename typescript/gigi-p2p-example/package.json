@@ -10,7 +10,12 @@
   "scripts": {
     "start": "tsx index.ts",
     "build": "tsc",
-    "dev": "tsx index.ts"
+    "dev": "tsx index.ts",
+    "lint": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx",
+    "lint:fix": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format-all": "prettier --write . && eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix"
   },
   "dependencies": {
     "@gigi/p2p-ts": "workspace:*",
@@ -19,6 +24,12 @@
   },
   "devDependencies": {
     "tsx": "^4.19.1",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "@eslint/eslintrc": "^3.3.5",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "prettier": "^3.0.0"
   }
 }

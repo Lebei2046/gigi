@@ -123,7 +123,7 @@ export async function updateLatestMessage(
   message: string,
   timestamp: number,
   isOutgoing: boolean = false,
-  isGroup: boolean = false,
+  _isGroup: boolean = false,
   incrementUnread: boolean = false
 ): Promise<void> {
   try {

@@ -50,7 +50,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onClose }) => {
           }
         }
       }
-    } catch (err) {
+    } catch {
       console.log('Permission API not supported')
     }
   }

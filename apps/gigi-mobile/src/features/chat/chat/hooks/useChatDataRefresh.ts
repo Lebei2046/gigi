@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useAppDispatch, useAppSelector } from '@/store'
+import { useAppDispatch } from '@/store'
 import { loadConversationsAsync, loadGroupsAsync } from '@/store/chatSlice'
 
 /**
@@ -12,7 +12,6 @@ import { loadConversationsAsync, loadGroupsAsync } from '@/store/chatSlice'
  */
 export function useChatDataRefresh() {
   const dispatch = useAppDispatch()
-  const { peers, conversations, groups } = useAppSelector(state => state.chat)
   const lastUnreadCounts = useRef<any[]>([])
 
   const refreshConversations = async () => {

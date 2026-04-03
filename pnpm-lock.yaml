@@ -10,6 +10,9 @@ importers:
 
   apps/gigi-mobile:
     dependencies:
+      '@gigi/amp-ts':
+        specifier: workspace:*
+        version: link:../../typescript/gigi-amp-ts
       '@radix-ui/react-avatar':
         specifier: ^1.1.10
         version: 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -32,7 +35,7 @@ importers:
         specifier: ^2.9.2
         version: 2.11.2(react-redux@9.2.0(@types/react@19.2.14)(react@19.2.4)(redux@5.0.1))(react@19.2.4)
       '@tauri-apps/api':
-        specifier: ^2
+        specifier: ^2.9.5
         version: 2.10.1
       '@tauri-apps/plugin-dialog':
         specifier: ^2.4.2
@@ -80,11 +83,14 @@ importers:
       '@babel/preset-react':
         specifier: ^7.28.5
         version: 7.28.5(@babel/core@7.29.0)
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
       '@tailwindcss/vite':
         specifier: ^4.1.16
         version: 4.2.2(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
       '@tauri-apps/cli':
-        specifier: ^2
+        specifier: ^2.9.5
         version: 2.10.1
       '@types/node':
         specifier: ^24.9.1
@@ -142,7 +148,7 @@ importers:
     dependencies:
       '@gigi/amp-ts':
         specifier: file:../../typescript/gigi-amp-ts
-        version: file:typescript/gigi-amp-ts
+        version: link:../../typescript/gigi-amp-ts
       '@gigi/p2p-ts':
         specifier: file:../../typescript/gigi-p2p-ts
         version: file:typescript/gigi-p2p-ts
@@ -153,15 +159,33 @@ importers:
         specifier: ^0.34.0
         version: 0.34.48
     devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.0.0
+        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.0.0
+        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
       esbuild:
         specifier: ^0.27.4
         version: 0.27.4
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^9.0.0
+        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
       openclaw:
         specifier: ^2026.3.22
         version: 2026.3.24(@napi-rs/canvas@0.1.97)
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@25.5.0)(typescript@5.8.3)
@@ -192,17 +216,28 @@ importers:
         version: 5.8.3
 
   typescript/gigi-amp-ts:
-    dependencies:
-      '@gigi/p2p-ts':
-        specifier: workspace:*
-        version: link:../gigi-p2p-ts
-      '@gigi/request-response-ts':
-        specifier: workspace:*
-        version: link:../gigi-request-response-ts
     devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.0.0
+        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.0.0
+        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^9.0.0
+        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@25.5.0)(typescript@5.8.3)
@@ -225,6 +260,24 @@ importers:
         specifier: ^11.1.0
         version: 11.1.0
     devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.0.0
+        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.0.0
+        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^9.0.0
+        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
@@ -304,9 +357,27 @@ importers:
         specifier: ^5.0.0
         version: 5.1.0
     devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.0.0
+        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.0.0
+        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^9.0.0
+        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@25.5.0)(typescript@5.8.3)
@@ -335,9 +406,27 @@ importers:
         specifier: ^1.6.0
         version: 1.6.4
     devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.0.0
+        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.0.0
+        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
       '@vitest/coverage-v8':
         specifier: ^4.0.3
         version: 4.1.1(vitest@4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)))
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^9.0.0
+        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
       typescript:
         specifier: ^5
         version: 5.8.3
@@ -899,9 +988,6 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@gigi/amp-ts@file:typescript/gigi-amp-ts':
-    resolution: {directory: typescript/gigi-amp-ts, type: directory}
 
   '@gigi/p2p-ts@file:typescript/gigi-p2p-ts':
     resolution: {directory: typescript/gigi-p2p-ts, type: directory}
@@ -6194,11 +6280,6 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
-
-  '@gigi/amp-ts@file:typescript/gigi-amp-ts':
-    dependencies:
-      '@gigi/p2p-ts': link:typescript/gigi-p2p-ts
-      '@gigi/request-response-ts': link:typescript/gigi-request-response-ts
 
   '@gigi/p2p-ts@file:typescript/gigi-p2p-ts':
     dependencies:

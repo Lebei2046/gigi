@@ -14,17 +14,6 @@ import { MessagingClient } from '@/utils/messaging'
 const MAX_CACHED_THUMBNAILS = 20
 const thumbnailCache: Map<string, string> = new Map()
 
-function getCachedThumbnail(shareCode: string): string | undefined {
-  const value = thumbnailCache.get(shareCode)
-  if (value !== undefined) {
-    // Move to end (most recently used)
-    thumbnailCache.delete(shareCode)
-    thumbnailCache.set(shareCode, value)
-    return value
-  }
-  return undefined
-}
-
 function setCachedThumbnail(shareCode: string, thumbnail: string): void {
   // Remove if exists
   thumbnailCache.delete(shareCode)
@@ -800,7 +789,7 @@ const chatRoomSlice = createSlice({
 
       // Load full image - NEVER store in Redux!
       // This thunk only exists for component-level temporary usage
-      .addCase(loadFullImageAsync.fulfilled, (state, _action) => {
+      .addCase(loadFullImageAsync.fulfilled, () => {
         // DO NOT store imageData in Redux - only return to component
         console.warn(
           '⚠️ loadFullImageAsync fulfilled - image data not stored in Redux (by design)'

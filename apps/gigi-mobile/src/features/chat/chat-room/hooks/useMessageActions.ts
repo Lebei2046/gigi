@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { MessagingClient } from '@/utils/messaging'
-import { useAppDispatch, useAppSelector } from '@/store'
+import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import type { Message } from '@/store/chatRoomSlice'
 import {
@@ -10,7 +10,6 @@ import {
   removeMessage,
   updateMessage,
   updateGroupMessage,
-  generateMessageId,
 } from '@/store/chatRoomSlice'
 import {
   createTextMessage,
