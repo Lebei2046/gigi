@@ -5,6 +5,7 @@ The Gigi OpenClaw Plugin is an integration plugin for OpenClaw that enables seam
 ## What is Gigi P2P?
 
 Gigi P2P is a decentralized peer-to-peer network built on top of Libp2p, enabling secure, direct communication between peers without relying on centralized servers. It provides:
+
 - Decentralized peer discovery via Kademlia DHT and mDNS
 - Secure encrypted communication
 - Group chat functionality
@@ -75,9 +76,11 @@ To maintain a consistent peer ID across restarts, you can use a BIP-39 mnemonic 
 You can generate a new BIP-39 mnemonic phrase using one of the following methods:
 
 **Method 1: Use the OpenClaw agent tool**
+
 - The `gigi_generate_mnemonic` tool is available for OpenClaw agents to generate mnemonics
 
 **Method 2: Use the provided script**
+
 - Run the mnemonic generation script from the `gigi-openclaw` directory:
 
 ```bash
@@ -86,6 +89,7 @@ pnpm run generate-mnemonic
 ```
 
 **Method 3: Use a secure mnemonic generator**
+
 - Use a trusted BIP-39 mnemonic generator tool to create a 12-word mnemonic phrase
 
 #### 2. Update Channel Configuration
@@ -98,8 +102,8 @@ Add the mnemonic phrase to your OpenClaw channel configuration:
     "gigi-p2p-bundled": {
       "peerId": "12D3KooW...", // Will be generated from mnemonic
       "multiaddrs": [
-        "/ip4/0.0.0.0/tcp/0",    // Listen on all TCP interfaces
-        "/ip4/0.0.0.0/tcp/0/ws"   // Listen on all WebSocket interfaces
+        "/ip4/0.0.0.0/tcp/0", // Listen on all TCP interfaces
+        "/ip4/0.0.0.0/tcp/0/ws" // Listen on all WebSocket interfaces
       ],
       "mnemonic": "abandon amount liar amount expire adjust cage candy arch gather drum buyer", // Your mnemonic phrase
       "displayName": "My Gigi Node",
@@ -136,28 +140,28 @@ The plugin provides several functions for managing Gigi P2P groups, which can be
 #### Using the GigiClient API
 
 ```typescript
-import { GigiClient } from "gigi-p2p-bundled";
+import { GigiClient } from 'gigi-p2p-bundled';
 
 // Create a Gigi client
 const client = new GigiClient({
-  peerId: "12D3KooW...",
-  multiaddrs: ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"],
-  mnemonic: "your mnemonic here",
-  displayName: "My Gigi Node"
+  peerId: '12D3KooW...',
+  multiaddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/tcp/0/ws'],
+  mnemonic: 'your mnemonic here',
+  displayName: 'My Gigi Node',
 });
 
 // Start the client
 await client.start();
 
 // Join a group
-await client.joinGroup("my-group-topic");
+await client.joinGroup('my-group-topic');
 
 // List joined groups
 const groups = client.listGroups();
-console.log("Joined groups:", groups);
+console.log('Joined groups:', groups);
 
 // Leave a group
-await client.leaveGroup("my-group-topic");
+await client.leaveGroup('my-group-topic');
 
 // Stop the client
 await client.stop();
@@ -171,10 +175,10 @@ To send a direct message using the OpenClaw API:
 
 ```typescript
 await openclaw.message.send({
-  channel: "gigi-p2p-bundled",
-  accountId: "my-gigi-account",
-  target: "12D3KooW...", // Recipient's peer ID
-  message: "Hello from Gigi!",
+  channel: 'gigi-p2p-bundled',
+  accountId: 'my-gigi-account',
+  target: '12D3KooW...', // Recipient's peer ID
+  message: 'Hello from Gigi!',
 });
 ```
 
@@ -184,17 +188,17 @@ To send a group message using the OpenClaw API:
 
 ```typescript
 await openclaw.message.send({
-  channel: "gigi-p2p-bundled",
-  accountId: "my-gigi-account",
-  target: "my-group-topic", // Group topic
-  message: "Hello everyone!",
+  channel: 'gigi-p2p-bundled',
+  accountId: 'my-gigi-account',
+  target: 'my-group-topic', // Group topic
+  message: 'Hello everyone!',
 });
 ```
 
 ### Checking Status
 
 ```typescript
-const status = await gigiPlugin.status.checkStatus("my-gigi-account");
+const status = await gigiPlugin.status.checkStatus('my-gigi-account');
 console.log(status);
 ```
 
@@ -307,11 +311,11 @@ Gigi uses the following Libp2p protocols:
 
 ```typescript
 {
-  from: string;    // Sender's peer ID
-  to: string;      // Recipient's peer ID or group topic
+  from: string; // Sender's peer ID
+  to: string; // Recipient's peer ID or group topic
   content: string; // Message content
   timestamp: number; // Unix timestamp
-  type: "direct" | "group" | "file"; // Message type
+  type: 'direct' | 'group' | 'file'; // Message type
 }
 ```
 

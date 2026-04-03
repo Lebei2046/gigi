@@ -1,7 +1,23 @@
-import { Type, Static } from "@sinclair/typebox";
-import type { TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse, SenderInfo, TargetInfo, AgentInfo } from "@gigi/amp-ts";
+import { Type, Static } from '@sinclair/typebox';
+import type {
+  TextMessage,
+  FileMessage,
+  AgentSettingsQuery,
+  AgentSettingsResponse,
+  SenderInfo,
+  TargetInfo,
+  AgentInfo,
+} from '@gigi/amp-ts';
 
-export type { TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse, SenderInfo, TargetInfo, AgentInfo };
+export type {
+  TextMessage,
+  FileMessage,
+  AgentSettingsQuery,
+  AgentSettingsResponse,
+  SenderInfo,
+  TargetInfo,
+  AgentInfo,
+};
 
 /**
  * Gigi account configuration schema
@@ -22,7 +38,11 @@ export type GigiAccountConfig = Static<typeof GigiAccountConfigSchema>;
 /**
  * Gigi message format - using AMP types
  */
-export type GigiMessage = TextMessage | FileMessage | AgentSettingsQuery | AgentSettingsResponse;
+export type GigiMessage =
+  | TextMessage
+  | FileMessage
+  | AgentSettingsQuery
+  | AgentSettingsResponse;
 
 /**
  * Gigi client configuration
@@ -45,9 +65,21 @@ export interface IGigiClient {
   start(): Promise<void>;
   stop(): Promise<void>;
   sendMessage(target: string, message: string): Promise<void>;
-  sendFileMessage(target: string, filename: string, fileSize: number, fileType: string, shareCode: string): Promise<void>;
+  sendFileMessage(
+    target: string,
+    filename: string,
+    fileSize: number,
+    fileType: string,
+    shareCode: string
+  ): Promise<void>;
   sendGroupMessage(groupName: string, content: string): Promise<void>;
-  sendGroupFileMessage(groupName: string, filename: string, fileSize: number, fileType: string, shareCode: string): Promise<void>;
+  sendGroupFileMessage(
+    groupName: string,
+    filename: string,
+    fileSize: number,
+    fileType: string,
+    shareCode: string
+  ): Promise<void>;
   joinGroup(groupName: string): Promise<void>;
   leaveGroup(groupName: string): Promise<void>;
   shareFile(filePath: string): Promise<string>;

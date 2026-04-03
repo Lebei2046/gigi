@@ -122,29 +122,27 @@ export const resetAuth = () => async (dispatch: any) => {
 }
 
 // Async action for login with P2P initialization (combined command)
-export const loginWithP2P =
-  (password: string) => async (dispatch: any) => {
-    try {
-      const accountInfo = await authLoginWithP2P(password)
+export const loginWithP2P = (password: string) => async (dispatch: any) => {
+  try {
+    const accountInfo = await authLoginWithP2P(password)
 
-      // Use the generated action creator to update Redux state
-      dispatch(
-        login({
-          address: accountInfo.address,
-          peerId: accountInfo.peer_id,
-          groupId: accountInfo.group_id,
-          name: accountInfo.name,
-        })
-      )
+    // Use the generated action creator to update Redux state
+    dispatch(
+      login({
+        address: accountInfo.address,
+        peerId: accountInfo.peer_id,
+        groupId: accountInfo.group_id,
+        name: accountInfo.name,
+      })
+    )
 
-      return { success: true, peerId: accountInfo.peer_id }
-    } catch (error) {
-      console.error('Login error:', error)
-      const errorMessage =
-        error instanceof Error ? error.message : 'Login failed'
-      return { success: false, error: errorMessage }
-    }
+    return { success: true, peerId: accountInfo.peer_id }
+  } catch (error) {
+    console.error('Login error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Login failed'
+    return { success: false, error: errorMessage }
   }
+}
 
 export const { setUnregistered, login, resetState, setError } =
   authSlice.actions

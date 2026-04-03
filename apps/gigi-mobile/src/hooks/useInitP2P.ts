@@ -4,7 +4,7 @@ import { getBootstrapNodes } from '../config/p2p'
 
 /**
  * Hook to initialize P2P network configuration
- * 
+ *
  * This hook sets up the bootstrap nodes for Kademlia DHT discovery
  * when the app starts. It should be called early in the app lifecycle.
  */
@@ -20,16 +20,18 @@ export default function useInitP2P() {
 
         if (bootstrapNodes.length > 0) {
           console.log('Initializing P2P with bootstrap nodes:', bootstrapNodes)
-          
+
           try {
             // Set bootstrap nodes in the plugin
             await invoke('messaging_set_bootstrap_nodes', {
               bootstrapNodes,
             })
-            
+
             console.log('P2P bootstrap nodes configured successfully')
           } catch {
-            console.warn('Could not set bootstrap nodes (command not found), continuing without bootstrap nodes')
+            console.warn(
+              'Could not set bootstrap nodes (command not found), continuing without bootstrap nodes'
+            )
           }
         } else {
           console.warn('No bootstrap nodes configured')

@@ -48,17 +48,20 @@ openclaw plugins list
 ### 3. Configure OpenClaw with Gigi P2P
 
 1. Start OpenClaw gateway:
+
    ```bash
    openclaw gateway start
    ```
 
 2. Generate a mnemonic for consistent peer ID (if not already configured):
+
    ```bash
    cd /home/lebei/dev/gigi/apps/gigi-openclaw
    pnpm run generate-mnemonic
    ```
 
 3. Update the channel configuration with the mnemonic and peer ID:
+
    ```bash
    openclaw config set channels.gigi-p2p-bundled.mnemonic "your-mnemonic-here"
    openclaw config set channels.gigi-p2p-bundled.peerId "your-peer-id-here"
@@ -75,18 +78,22 @@ openclaw plugins list
 ### Test Case 1: Basic Group Chat
 
 #### Steps
+
 1. **Start gigi-p2p-example client:**
+
    ```bash
    cd /home/lebei/dev/gigi/typescript/gigi-p2p-example
    npx tsx index.ts "ExampleClient"
    ```
 
 2. **In the example client, join a group:**
+
    ```
    /join test-group
    ```
 
 3. **In OpenClaw, join the same group and send a message:**
+
    ```bash
    openclaw message send --channel gigi-p2p-bundled --target "test-group" --message "Hello from OpenClaw!"
    ```
@@ -98,13 +105,17 @@ openclaw plugins list
 ### Test Case 2: File Sharing in Group
 
 #### Steps
+
 1. **In gigi-p2p-example client, share a file:**
+
    ```
    /share /path/to/test-file.txt
    ```
+
    Note the share code returned.
 
 2. **In gigi-p2p-example client, share the file in the group:**
+
    ```
    /group test-group /file <share-code>
    ```
@@ -123,15 +134,19 @@ openclaw plugins list
 ### Test Case 3: Direct File Sharing
 
 #### Steps
+
 1. **In OpenClaw, share a file:**
    - Create a test file with some content
    - Use the `sendMedia` functionality to share the file:
+
    ```bash
    openclaw message send --channel gigi-p2p-bundled --target "<example-client-peer-id>" --media "/path/to/test-file.txt"
    ```
+
    - Check the OpenClaw logs for the share code
 
 2. **In gigi-p2p-example client, download the file:**
+
    ```
    /download <share-code>
    ```
@@ -142,12 +157,15 @@ openclaw plugins list
 ### Test Case 4: Multiple Group Membership
 
 #### Steps
+
 1. **In gigi-p2p-example client, join another group:**
+
    ```
    /join another-group
    ```
 
 2. **In OpenClaw, join the same group:**
+
    ```bash
    openclaw message send --channel gigi-p2p-bundled --target "another-group" --message "Hello from OpenClaw in another group!"
    ```
@@ -168,6 +186,7 @@ openclaw plugins list
 ### Logs and Debugging
 
 - **Gigi OpenClaw Plugin logs:** Check OpenClaw logs for plugin activity
+
   ```bash
   openclaw logs
   ```
@@ -179,6 +198,7 @@ openclaw plugins list
 ## Cleanup
 
 1. **Stop OpenClaw gateway:**
+
    ```bash
    openclaw gateway stop
    ```
@@ -216,9 +236,9 @@ openclaw plugins list
 
 ## Test Results
 
-| Test Case | Expected Result | Actual Result | Status |
-|-----------|----------------|---------------|--------|
-| Basic Group Chat | Both clients can send and receive messages | | |
-| File Sharing in Group | File is shared and downloaded successfully | | |
-| Direct File Sharing | File is shared and downloaded successfully | | |
-| Multiple Group Membership | Messages appear in the correct groups | | |
+| Test Case                 | Expected Result                            | Actual Result | Status |
+| ------------------------- | ------------------------------------------ | ------------- | ------ |
+| Basic Group Chat          | Both clients can send and receive messages |               |        |
+| File Sharing in Group     | File is shared and downloaded successfully |               |        |
+| Direct File Sharing       | File is shared and downloaded successfully |               |        |
+| Multiple Group Membership | Messages appear in the correct groups      |               |        |

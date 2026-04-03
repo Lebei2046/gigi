@@ -27,9 +27,7 @@ import {
 
 const Files = () => {
   const dispatch = useAppDispatch()
-  const { files, downloads, searchTerm } = useAppSelector(
-    state => state.files
-  )
+  const { files, downloads, searchTerm } = useAppSelector(state => state.files)
 
   // Fetch files and downloads on component mount
   useEffect(() => {

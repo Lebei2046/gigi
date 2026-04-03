@@ -1,10 +1,16 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Users } from 'lucide-react';
+import React from 'react'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Users } from 'lucide-react'
 
 interface EmptyStateProps {
-  onRefresh?: () => void;
+  onRefresh?: () => void
 }
 
 const EmptyState: React.FC<EmptyStateProps> = ({ onRefresh }) => {
@@ -16,7 +22,8 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onRefresh }) => {
         </div>
         <CardTitle className="mt-4">No Agents Found</CardTitle>
         <CardDescription>
-          No agents were discovered on the network. Try refreshing or check your network connection.
+          No agents were discovered on the network. Try refreshing or check your
+          network connection.
         </CardDescription>
       </CardHeader>
       <CardContent className="text-center">
@@ -27,7 +34,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onRefresh }) => {
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default EmptyState;
+export default EmptyState

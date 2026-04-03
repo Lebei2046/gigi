@@ -1,6 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { indexedDBManager, type Message, type ChatHistory } from '@/utils/indexedDB'
+import {
+  indexedDBManager,
+  type Message,
+  type ChatHistory,
+} from '@/utils/indexedDB'
 
 export interface PersistenceState {
   initialized: boolean
@@ -17,11 +21,14 @@ const initialState: PersistenceState = {
 }
 
 // Async thunks
-export const initPersistenceAsync = createAsyncThunk('persistence/init', async () => {
-  await indexedDBManager.init()
-  const histories = await indexedDBManager.getAllChatHistories()
-  return histories
-})
+export const initPersistenceAsync = createAsyncThunk(
+  'persistence/init',
+  async () => {
+    await indexedDBManager.init()
+    const histories = await indexedDBManager.getAllChatHistories()
+    return histories
+  }
+)
 
 export const saveMessageAsync = createAsyncThunk(
   'persistence/saveMessage',
@@ -56,9 +63,12 @@ export const markAsDeliveredAsync = createAsyncThunk(
   }
 )
 
-export const clearAllAsync = createAsyncThunk('persistence/clearAll', async () => {
-  await indexedDBManager.clearAll()
-})
+export const clearAllAsync = createAsyncThunk(
+  'persistence/clearAll',
+  async () => {
+    await indexedDBManager.clearAll()
+  }
+)
 
 const persistenceSlice = createSlice({
   name: 'persistence',
@@ -151,6 +161,7 @@ const persistenceSlice = createSlice({
   },
 })
 
-export const { setError, setChatHistory, removeChatHistory } = persistenceSlice.actions
+export const { setError, setChatHistory, removeChatHistory } =
+  persistenceSlice.actions
 
 export default persistenceSlice.reducer

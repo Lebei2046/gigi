@@ -1,17 +1,20 @@
-import type { GigiAccount, GigiAccountConfig } from "./types.js";
+import type { GigiAccount, GigiAccountConfig } from './types.js';
 
-const CHANNEL_ID = "gigi-p2p-bundled";
+const CHANNEL_ID = 'gigi-p2p-bundled';
 
 /**
  * List all Gigi account IDs from channel config
  */
 export function listGigiAccountIds(cfg: Record<string, any>): string[] {
   // Check both legacy accounts format and new channels format
-  if (cfg.accounts && typeof cfg.accounts === "object") {
+  if (cfg.accounts && typeof cfg.accounts === 'object') {
     return Object.keys(cfg.accounts);
   }
-  if (cfg.channels?.[CHANNEL_ID] && typeof cfg.channels[CHANNEL_ID] === "object") {
-    return ["default"];
+  if (
+    cfg.channels?.[CHANNEL_ID] &&
+    typeof cfg.channels[CHANNEL_ID] === 'object'
+  ) {
+    return ['default'];
   }
   return [];
 }
@@ -27,20 +30,23 @@ export function resolveGigiAccount({
   accountId: string;
 }): GigiAccount | null {
   let accountConfig: any = null;
-  
+
   // Check if cfg is already the account config (when called from resolveAccount)
   if (cfg.mnemonic || cfg.peerId || cfg.multiaddrs) {
     accountConfig = cfg;
   }
   // Check legacy accounts format
-  else if (cfg.accounts && typeof cfg.accounts === "object") {
+  else if (cfg.accounts && typeof cfg.accounts === 'object') {
     accountConfig = cfg.accounts[accountId];
   }
   // Check new channels format
-  else if (cfg.channels?.[CHANNEL_ID] && typeof cfg.channels[CHANNEL_ID] === "object") {
+  else if (
+    cfg.channels?.[CHANNEL_ID] &&
+    typeof cfg.channels[CHANNEL_ID] === 'object'
+  ) {
     accountConfig = cfg.channels[CHANNEL_ID];
   }
-  
+
   if (!accountConfig) {
     return null;
   }
@@ -64,19 +70,21 @@ export function resolveGigiAccount({
 /**
  * Validate Gigi account configuration
  */
-export function validateAccountConfig(config: any): config is GigiAccountConfig {
-  if (!config || typeof config !== "object") {
+export function validateAccountConfig(
+  config: any
+): config is GigiAccountConfig {
+  if (!config || typeof config !== 'object') {
     return false;
   }
-  
-  if (typeof config.peerId !== "string" || !config.peerId) {
+
+  if (typeof config.peerId !== 'string' || !config.peerId) {
     return false;
   }
-  
+
   if (!Array.isArray(config.multiaddrs)) {
     return false;
   }
-  
+
   return true;
 }
 

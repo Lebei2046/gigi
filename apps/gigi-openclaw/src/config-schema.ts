@@ -1,4 +1,4 @@
-import { Type, Static } from "@sinclair/typebox";
+import { Type, Static } from '@sinclair/typebox';
 
 /**
  * Channel configuration schema for OpenClaw
@@ -34,7 +34,7 @@ export type AccountConfig = Static<typeof AccountConfigSchema>;
  */
 export const GatewayConfigSchema = Type.Object({
   url: Type.String({
-    default: "ws://127.0.0.1:18789",
+    default: 'ws://127.0.0.1:18789',
   }),
   token: Type.Optional(Type.String()),
   autoConnect: Type.Boolean({ default: true }),

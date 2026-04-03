@@ -2,7 +2,7 @@
 
 /**
  * Generate a BIP-39 mnemonic phrase for Gigi P2P
- * 
+ *
  * This script generates a new 12-word BIP-39 mnemonic phrase that can be used
  * to configure the Gigi OpenClaw plugin. The mnemonic is used to derive the
  * peer ID and private key for the Gigi P2P client.
@@ -16,10 +16,10 @@ async function generate() {
   try {
     // Generate a new 12-word mnemonic phrase
     const mnemonic = generateMnemonic();
-    
+
     // Derive peer ID from the mnemonic
     const peerId = await derivePeerId(mnemonic);
-    
+
     console.log('Generated mnemonic phrase:');
     console.log('========================');
     console.log(mnemonic);
@@ -42,13 +42,14 @@ async function generate() {
     }
   }
 }`);
-    
+
     console.log('\nImportant:');
     console.log('- This mnemonic phrase is the root of all your Gigi P2P keys');
     console.log('- Keep it secure and never share it with anyone');
-    console.log('- If you lose this mnemonic, you will lose access to your Gigi P2P identity');
+    console.log(
+      '- If you lose this mnemonic, you will lose access to your Gigi P2P identity'
+    );
     console.log('- Make a backup of this mnemonic in a safe place');
-    
   } catch (error) {
     console.error('Error generating mnemonic or deriving peer ID:', error);
     process.exit(1);

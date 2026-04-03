@@ -1,4 +1,4 @@
-import type { IGigiClient } from "./types.js";
+import type { IGigiClient } from './types.js';
 
 /**
  * Outbound message queue entry
@@ -23,7 +23,10 @@ export class OutboundManager {
   private maxRetries = 3;
   private retryDelay = 1000;
 
-  constructor(client: IGigiClient, options: { maxRetries?: number; retryDelay?: number } = {}) {
+  constructor(
+    client: IGigiClient,
+    options: { maxRetries?: number; retryDelay?: number } = {}
+  ) {
     this.client = client;
     this.maxRetries = options.maxRetries ?? this.maxRetries;
     this.retryDelay = options.retryDelay ?? this.retryDelay;
@@ -32,11 +35,23 @@ export class OutboundManager {
   /**
    * Send a message to a target (peer or group)
    */
-  async sendMessage(target: string, content: string | { type: 'fileShare'; shareCode: string; filename: string; fileSize: number; fileType: string }): Promise<void> {
+  async sendMessage(
+    target: string,
+    content:
+      | string
+      | {
+          type: 'fileShare';
+          shareCode: string;
+          filename: string;
+          fileSize: number;
+          fileType: string;
+        }
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const message: OutboundMessage = {
         target,
-        content: typeof content === 'string' ? content : JSON.stringify(content),
+        content:
+          typeof content === 'string' ? content : JSON.stringify(content),
         timestamp: Date.now(),
         retryCount: 0,
         maxRetries: this.maxRetries,
@@ -65,8 +80,8 @@ export class OutboundManager {
         if (!message) break;
 
         try {
-          if (message.target.startsWith("group:")) {
-            const groupName = message.target.replace("group:", "");
+          if (message.target.startsWith('group:')) {
+            const groupName = message.target.replace('group:', '');
             // Join the group before sending message
             await this.client.joinGroup(groupName);
             // Check if content is a file share message
@@ -119,7 +134,9 @@ export class OutboundManager {
             }, this.retryDelay * message.retryCount);
             break; // Wait for retry
           } else {
-            message.reject(new Error(`Failed after ${message.maxRetries} retries`));
+            message.reject(
+              new Error(`Failed after ${message.maxRetries} retries`)
+            );
           }
         }
       }
@@ -133,8 +150,8 @@ export class OutboundManager {
    */
   clear(): void {
     const failed = this.queue.length;
-    this.queue.forEach(msg => {
-      msg.reject(new Error("Message cancelled"));
+    this.queue.forEach((msg) => {
+      msg.reject(new Error('Message cancelled'));
     });
     this.queue = [];
     console.log(`[OutboundManager] Cleared ${failed} pending messages`);

@@ -1,7 +1,11 @@
-import React from 'react';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-
+import React from 'react'
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 
 const LoadingState: React.FC = () => {
   return (
@@ -16,7 +20,7 @@ const LoadingState: React.FC = () => {
         </CardDescription>
       </CardHeader>
     </Card>
-  );
-};
+  )
+}
 
-export default LoadingState;
+export default LoadingState

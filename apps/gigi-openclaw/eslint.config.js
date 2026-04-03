@@ -4,13 +4,7 @@ import parser from '@typescript-eslint/parser';
 
 export default [
   {
-    ignores: [
-      'node_modules/**',
-      'dist/**',
-      'build/**',
-      '.git/**',
-      '**/*.md',
-    ],
+    ignores: ['node_modules/**', 'dist/**', 'build/**', '.git/**', '**/*.md'],
   },
   {
     files: ['**/*.{ts,tsx,js,jsx}'],
@@ -25,7 +19,10 @@ export default [
       '@typescript-eslint': typescript,
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',

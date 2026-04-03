@@ -1,4 +1,4 @@
-import type { IGigiClient } from "./types.js";
+import type { IGigiClient } from './types.js';
 
 /**
  * Health check result
@@ -22,7 +22,7 @@ export async function probeGigiClient(
     if (!client.isConnected()) {
       return {
         healthy: false,
-        error: "Client not connected",
+        error: 'Client not connected',
       };
     }
 
@@ -56,7 +56,7 @@ export async function probeGigiClient(
  * Get status summary for OpenClaw UI
  */
 export async function getStatusSummary(client: IGigiClient): Promise<{
-  status: "connected" | "disconnected" | "error";
+  status: 'connected' | 'disconnected' | 'error';
   message: string;
   details?: Record<string, any>;
 }> {
@@ -64,14 +64,14 @@ export async function getStatusSummary(client: IGigiClient): Promise<{
 
   if (!health.healthy) {
     return {
-      status: "error",
-      message: health.error || "Connection failed",
+      status: 'error',
+      message: health.error || 'Connection failed',
       details: health,
     };
   }
 
   return {
-    status: "connected",
+    status: 'connected',
     message: `Connected as ${health.peerId} (${health.peerCount} peers, ${health.groupCount} groups)`,
     details: {
       peerId: health.peerId,

@@ -1,7 +1,7 @@
 // ESLint v9 configuration
-import react from 'eslint-plugin-react';
-import typescript from '@typescript-eslint/eslint-plugin';
-import parser from '@typescript-eslint/parser';
+import react from 'eslint-plugin-react'
+import typescript from '@typescript-eslint/eslint-plugin'
+import parser from '@typescript-eslint/parser'
 
 export default [
   {
@@ -69,7 +69,6 @@ export default [
         Event: true,
         EventListener: true,
       },
-
     },
     plugins: {
       react: react,
@@ -79,13 +78,16 @@ export default [
       // React rules
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
-      
+
       // TypeScript rules
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
-      
+
       // General rules
       'prefer-const': 'error',
       'no-var': 'error',
@@ -98,12 +100,4 @@ export default [
       },
     },
   },
-];
-
-
-
-
-
-
-
-
+]

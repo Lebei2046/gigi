@@ -1,14 +1,17 @@
 # Message Design Summary: Claw Owner and Agents Communication
 
 ## Overview
+
 The communication system enables the Claw Owner (OpenClaw node owner) to interact with their agents through the Gigi P2P network. All messages include sender information to ensure proper identification.
 
 ## Message Types and Structures
 
 ### 1. Text Message
+
 Used for sending text content between owner and agents.
 
 **Structure:**
+
 ```json
 {
   "type": "text",
@@ -23,9 +26,11 @@ Used for sending text content between owner and agents.
 ```
 
 ### 2. File Share Message
+
 Used for sharing files between owner and agents.
 
 **Structure:**
+
 ```json
 {
   "type": "fileShare",
@@ -43,9 +48,11 @@ Used for sharing files between owner and agents.
 ```
 
 ### 3. Agent Settings Query
+
 Used by the Claw Owner to request agent settings.
 
 **Structure:**
+
 ```json
 {
   "type": "agentSettingsQuery",
@@ -59,9 +66,11 @@ Used by the Claw Owner to request agent settings.
 ```
 
 ### 4. Agent Settings Response
+
 Used by the OpenClaw node to return agent settings to the Claw Owner.
 
 **Structure:**
+
 ```json
 {
   "type": "agentSettingsResponse",
@@ -88,14 +97,17 @@ Used by the OpenClaw node to return agent settings to the Claw Owner.
 ## Communication Flows
 
 ### 1. Agent → Owner
+
 - **Text Message:** Agent sends text message with `target: "owner"` and includes sender information
 - **File Share:** Agent sends file share message with `target: "owner"` and includes sender information
 
 ### 2. Owner → Agent(s)
+
 - **Text Message:** Owner sends text message with `target` set to specific agent ID(s) or "all", including sender information
 - **File Share:** Owner sends file share message with `target` set to specific agent ID(s) or "all", including sender information
 
 ### 3. Owner Queries Agent Settings
+
 - **Query:** Owner sends `agentSettingsQuery` with `targetAgents` set to specific agent ID(s) or "all"
 - **Response:** OpenClaw node sends `agentSettingsResponse` with settings for requested agents, including sender information
 

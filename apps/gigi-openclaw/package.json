@@ -50,13 +50,17 @@
     "prettier": "^3.0.0"
   },
   "openclaw": {
-    "extensions": ["./dist/bundle.js"],
+    "extensions": [
+      "./dist/bundle.js"
+    ],
     "channel": {
       "id": "gigi-p2p-bundled",
       "label": "Gigi P2P",
       "selectionLabel": "Gigi P2P Network",
       "blurb": "Connect to Gigi peers via P2P network",
-      "aliases": ["p2p"],
+      "aliases": [
+        "p2p"
+      ],
       "order": 100
     }
   }

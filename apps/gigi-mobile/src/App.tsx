@@ -15,7 +15,7 @@ const DEBUG_MODE = import.meta.env.DEV
 
 export default function App() {
   const { status } = useInitAuth()
-  
+
   // Initialize P2P configuration (bootstrap nodes)
   useInitP2P()
 

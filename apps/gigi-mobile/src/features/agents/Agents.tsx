@@ -1,120 +1,122 @@
-import React, { useState, useEffect } from 'react';
-import { useAppDispatch } from '@/store';
-import { addLog } from '@/store/logsSlice';
-import { agentMessagingClient } from '@/utils/agentMessaging';
-import type { Agent } from '@/utils/agentMessaging';
-import AgentCard from './components/AgentCard';
-import EmptyState from './components/EmptyState';
-import LoadingState from './components/LoadingState';
-import AgentChat from './chat/AgentChat';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw } from 'lucide-react';
-
+import React, { useState, useEffect } from 'react'
+import { useAppDispatch } from '@/store'
+import { addLog } from '@/store/logsSlice'
+import { agentMessagingClient } from '@/utils/agentMessaging'
+import type { Agent } from '@/utils/agentMessaging'
+import AgentCard from './components/AgentCard'
+import EmptyState from './components/EmptyState'
+import LoadingState from './components/LoadingState'
+import AgentChat from './chat/AgentChat'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { RefreshCw } from 'lucide-react'
 
 const Agents: React.FC = () => {
-  const dispatch = useAppDispatch();
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [activeTab, setActiveTab] = useState('list');
+  const dispatch = useAppDispatch()
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
+  const [activeTab, setActiveTab] = useState('list')
 
   useEffect(() => {
     // Initialize agent messaging client
     const initAgents = async () => {
       try {
-        setLoading(true);
+        setLoading(true)
         // Query agent settings to discover available agents
-        await agentMessagingClient.queryAgentSettings();
-        
-        // Register message handlers
-        agentMessagingClient.registerMessageHandler('agent-settings-response', (message) => {
-          if ('agents' in message) {
-            setAgents(message.agents);
-            dispatch(
-              addLog({
-                event: 'agent_discovery',
-                data: `Discovered ${message.agents.length} agents`,
-                type: 'info',
-              })
-            );
-          }
-          setLoading(false);
-        });
+        await agentMessagingClient.queryAgentSettings()
 
-        agentMessagingClient.registerMessageHandler('text', (message) => {
+        // Register message handlers
+        agentMessagingClient.registerMessageHandler(
+          'agent-settings-response',
+          message => {
+            if ('agents' in message) {
+              setAgents(message.agents)
+              dispatch(
+                addLog({
+                  event: 'agent_discovery',
+                  data: `Discovered ${message.agents.length} agents`,
+                  type: 'info',
+                })
+              )
+            }
+            setLoading(false)
+          }
+        )
+
+        agentMessagingClient.registerMessageHandler('text', message => {
           dispatch(
             addLog({
               event: 'agent_message',
               data: `Received text message from agent ${message.sender.name}: ${message.content}`,
               type: 'info',
             })
-          );
-        });
+          )
+        })
 
-        agentMessagingClient.registerMessageHandler('file', (message) => {
+        agentMessagingClient.registerMessageHandler('file', message => {
           dispatch(
             addLog({
               event: 'agent_file',
               data: `Received file message from agent ${message.sender.name}: ${message.filename}`,
               type: 'info',
             })
-          );
-        });
+          )
+        })
 
         // Get initial agents
-        const initialAgents = agentMessagingClient.getAllAgents();
+        const initialAgents = agentMessagingClient.getAllAgents()
         if (initialAgents.length > 0) {
-          setAgents(initialAgents);
+          setAgents(initialAgents)
         }
-        setLoading(false);
+        setLoading(false)
       } catch (error) {
-        console.error('Failed to initialize agents:', error);
+        console.error('Failed to initialize agents:', error)
         dispatch(
           addLog({
             event: 'agent_initialization_error',
             data: `Failed to initialize agents: ${error}`,
             type: 'error',
           })
-        );
-        setLoading(false);
+        )
+        setLoading(false)
       }
-    };
+    }
 
-    initAgents();
-  }, [dispatch]);
+    initAgents()
+  }, [dispatch])
 
   const handleRefreshAgents = async () => {
     try {
-      setLoading(true);
-      await agentMessagingClient.queryAgentSettings();
+      setLoading(true)
+      await agentMessagingClient.queryAgentSettings()
     } catch (error) {
-      console.error('Failed to refresh agents:', error);
+      console.error('Failed to refresh agents:', error)
       dispatch(
         addLog({
           event: 'agent_refresh_error',
           data: `Failed to refresh agents: ${error}`,
           type: 'error',
         })
-      );
+      )
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleAgentSelect = (agent: Agent) => {
-    setSelectedAgent(agent);
-    setActiveTab('chat');
-  };
+    setSelectedAgent(agent)
+    setActiveTab('chat')
+  }
 
   const handleBackToList = () => {
-    setSelectedAgent(null);
-    setActiveTab('list');
-  };
+    setSelectedAgent(null)
+    setActiveTab('list')
+  }
 
   if (loading) {
-    return <LoadingState />;
+    return <LoadingState />
   }
 
   return (
@@ -143,7 +145,7 @@ const Agents: React.FC = () => {
             <EmptyState />
           ) : (
             <div className="space-y-4">
-              {agents.map((agent) => (
+              {agents.map(agent => (
                 <AgentCard
                   key={agent.id}
                   agent={agent}
@@ -160,14 +162,16 @@ const Agents: React.FC = () => {
           ) : (
             <Card className="h-full flex items-center justify-center">
               <CardContent className="text-center">
-                <p className="text-muted-foreground">Select an agent to start chatting</p>
+                <p className="text-muted-foreground">
+                  Select an agent to start chatting
+                </p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
       </Tabs>
     </div>
-  );
-};
+  )
+}
 
-export default Agents;
+export default Agents

@@ -46,7 +46,7 @@ class IndexedDBManager {
         reject(new Error(`Failed to open IndexedDB: ${request.error}`))
       }
 
-      request.onupgradeneeded = (event) => {
+      request.onupgradeneeded = event => {
         const db = (event.target as IDBOpenDBRequest).result
 
         // Create messages store
@@ -116,9 +116,10 @@ class IndexedDBManager {
     await this.init()
 
     return new Promise((resolve, reject) => {
-      const store = this.db!
-        .transaction([STORE_MESSAGES], 'readonly')
-        .objectStore(STORE_MESSAGES)
+      const store = this.db!.transaction(
+        [STORE_MESSAGES],
+        'readonly'
+      ).objectStore(STORE_MESSAGES)
       const index = store.index('chatId')
       const request = index.getAll(IDBKeyRange.only(chatId))
 
@@ -143,13 +144,14 @@ class IndexedDBManager {
     await this.init()
 
     return new Promise((resolve, reject) => {
-      const store = this.db!
-        .transaction([STORE_MESSAGES], 'readwrite')
-        .objectStore(STORE_MESSAGES)
+      const store = this.db!.transaction(
+        [STORE_MESSAGES],
+        'readwrite'
+      ).objectStore(STORE_MESSAGES)
       const index = store.index('chatId')
       const request = index.openCursor(IDBKeyRange.only(chatId))
 
-      request.onsuccess = (event) => {
+      request.onsuccess = event => {
         const cursor = (event.target as IDBRequest).result
         if (cursor) {
           cursor.delete()
@@ -168,9 +170,10 @@ class IndexedDBManager {
 
   private async updateChatHistory(message: Message): Promise<void> {
     return new Promise((resolve, reject) => {
-      const store = this.db!
-        .transaction([STORE_CHAT_HISTORY], 'readwrite')
-        .objectStore(STORE_CHAT_HISTORY)
+      const store = this.db!.transaction(
+        [STORE_CHAT_HISTORY],
+        'readwrite'
+      ).objectStore(STORE_CHAT_HISTORY)
       const getRequest = store.get(message.chatId)
 
       getRequest.onsuccess = () => {
@@ -200,22 +203,26 @@ class IndexedDBManager {
 
         const putRequest = store.put(history)
         putRequest.onsuccess = () => resolve()
-        putRequest.onerror = () => reject(new Error(`Failed to update chat history: ${putRequest.error}`))
+        putRequest.onerror = () =>
+          reject(
+            new Error(`Failed to update chat history: ${putRequest.error}`)
+          )
       }
 
-      getRequest.onerror = () => reject(new Error(`Failed to get chat history: ${getRequest.error}`))
+      getRequest.onerror = () =>
+        reject(new Error(`Failed to get chat history: ${getRequest.error}`))
     })
   }
 
   private async clearChatHistory(chatId: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const request = this.db!
-        .transaction([STORE_CHAT_HISTORY], 'readwrite')
+      const request = this.db!.transaction([STORE_CHAT_HISTORY], 'readwrite')
         .objectStore(STORE_CHAT_HISTORY)
         .delete(chatId)
 
       request.onsuccess = () => resolve()
-      request.onerror = () => reject(new Error(`Failed to clear chat history: ${request.error}`))
+      request.onerror = () =>
+        reject(new Error(`Failed to clear chat history: ${request.error}`))
     })
   }
 
@@ -223,13 +230,13 @@ class IndexedDBManager {
     await this.init()
 
     return new Promise((resolve, reject) => {
-      const request = this.db!
-        .transaction([STORE_CHAT_HISTORY], 'readonly')
+      const request = this.db!.transaction([STORE_CHAT_HISTORY], 'readonly')
         .objectStore(STORE_CHAT_HISTORY)
         .get(chatId)
 
       request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(new Error(`Failed to get chat history: ${request.error}`))
+      request.onerror = () =>
+        reject(new Error(`Failed to get chat history: ${request.error}`))
     })
   }
 
@@ -237,13 +244,13 @@ class IndexedDBManager {
     await this.init()
 
     return new Promise((resolve, reject) => {
-      const request = this.db!
-        .transaction([STORE_CHAT_HISTORY], 'readonly')
+      const request = this.db!.transaction([STORE_CHAT_HISTORY], 'readonly')
         .objectStore(STORE_CHAT_HISTORY)
         .getAll()
 
       request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(new Error(`Failed to get all chat histories: ${request.error}`))
+      request.onerror = () =>
+        reject(new Error(`Failed to get all chat histories: ${request.error}`))
     })
   }
 
@@ -251,13 +258,14 @@ class IndexedDBManager {
     await this.init()
 
     return new Promise((resolve, reject) => {
-      const store = this.db!
-        .transaction([STORE_MESSAGES], 'readwrite')
-        .objectStore(STORE_MESSAGES)
+      const store = this.db!.transaction(
+        [STORE_MESSAGES],
+        'readwrite'
+      ).objectStore(STORE_MESSAGES)
       const index = store.index('chatId')
       const request = index.openCursor(IDBKeyRange.only(chatId))
 
-      request.onsuccess = (event) => {
+      request.onsuccess = event => {
         const cursor = (event.target as IDBRequest).result
         if (cursor) {
           const message = cursor.value as Message
@@ -272,15 +280,17 @@ class IndexedDBManager {
         }
       }
 
-      request.onerror = () => reject(new Error(`Failed to mark as delivered: ${request.error}`))
+      request.onerror = () =>
+        reject(new Error(`Failed to mark as delivered: ${request.error}`))
     })
   }
 
   private async resetUnreadCount(chatId: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const store = this.db!
-        .transaction([STORE_CHAT_HISTORY], 'readwrite')
-        .objectStore(STORE_CHAT_HISTORY)
+      const store = this.db!.transaction(
+        [STORE_CHAT_HISTORY],
+        'readwrite'
+      ).objectStore(STORE_CHAT_HISTORY)
       const getRequest = store.get(chatId)
 
       getRequest.onsuccess = () => {
@@ -289,13 +299,17 @@ class IndexedDBManager {
           history.unreadCount = 0
           const putRequest = store.put(history)
           putRequest.onsuccess = () => resolve()
-          putRequest.onerror = () => reject(new Error(`Failed to reset unread count: ${putRequest.error}`))
+          putRequest.onerror = () =>
+            reject(
+              new Error(`Failed to reset unread count: ${putRequest.error}`)
+            )
         } else {
           resolve()
         }
       }
 
-      getRequest.onerror = () => reject(new Error(`Failed to get chat history: ${getRequest.error}`))
+      getRequest.onerror = () =>
+        reject(new Error(`Failed to get chat history: ${getRequest.error}`))
     })
   }
 
@@ -303,7 +317,10 @@ class IndexedDBManager {
     await this.init()
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_MESSAGES, STORE_CHAT_HISTORY], 'readwrite')
+      const transaction = this.db!.transaction(
+        [STORE_MESSAGES, STORE_CHAT_HISTORY],
+        'readwrite'
+      )
 
       const clearMessages = transaction.objectStore(STORE_MESSAGES).clear()
       const clearHistory = transaction.objectStore(STORE_CHAT_HISTORY).clear()
@@ -317,10 +334,12 @@ class IndexedDBManager {
       }
 
       clearMessages.onsuccess = checkComplete
-      clearMessages.onerror = () => reject(new Error(`Failed to clear messages: ${clearMessages.error}`))
+      clearMessages.onerror = () =>
+        reject(new Error(`Failed to clear messages: ${clearMessages.error}`))
 
       clearHistory.onsuccess = checkComplete
-      clearHistory.onerror = () => reject(new Error(`Failed to clear history: ${clearHistory.error}`))
+      clearHistory.onerror = () =>
+        reject(new Error(`Failed to clear history: ${clearHistory.error}`))
     })
   }
 }

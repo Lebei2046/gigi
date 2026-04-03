@@ -8,9 +8,9 @@
   ],
   "private": true,
   "scripts": {
-    "lint": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example lint",
-    "lint:fix": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example lint:fix",
-    "format": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example format",
-    "format-all": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example format-all"
+    "lint": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled lint",
+    "lint:fix": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled lint:fix",
+    "format": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled format",
+    "format-all": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled format-all"
   }
 }
