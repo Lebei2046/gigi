@@ -68,16 +68,18 @@ export class AmpMessageRouter implements MessageRouter {
 
   private routeTextMessage(message: TextMessage): void {
     if (message.target.type === 'all') {
-      // Route to all agents
+      // Route to all online agents
       const agents = this.agentRegistry.getAllAgents();
       agents.forEach((agent) => {
-        this.invokeMessageHandler('text', message, agent.id);
+        if (agent.status === 'online') {
+          this.invokeMessageHandler('text', message, agent.id);
+        }
       });
     } else if (message.target.type === 'specific' && message.target.agentIds) {
-      // Route to specific agents
+      // Route to specific online agents
       message.target.agentIds.forEach((agentId) => {
         const agent = this.agentRegistry.getAgentById(agentId);
-        if (agent) {
+        if (agent && agent.status === 'online') {
           this.invokeMessageHandler('text', message, agentId);
         }
       });
@@ -86,16 +88,18 @@ export class AmpMessageRouter implements MessageRouter {
 
   private routeFileMessage(message: FileMessage): void {
     if (message.target.type === 'all') {
-      // Route to all agents
+      // Route to all online agents
       const agents = this.agentRegistry.getAllAgents();
       agents.forEach((agent) => {
-        this.invokeMessageHandler('file', message, agent.id);
+        if (agent.status === 'online') {
+          this.invokeMessageHandler('file', message, agent.id);
+        }
       });
     } else if (message.target.type === 'specific' && message.target.agentIds) {
-      // Route to specific agents
+      // Route to specific online agents
       message.target.agentIds.forEach((agentId) => {
         const agent = this.agentRegistry.getAgentById(agentId);
-        if (agent) {
+        if (agent && agent.status === 'online') {
           this.invokeMessageHandler('file', message, agentId);
         }
       });

@@ -296,6 +296,9 @@ importers:
       '@gigi/amp-ts':
         specifier: workspace:*
         version: link:../gigi-amp-ts
+      '@gigi/dns-ts':
+        specifier: workspace:*
+        version: link:../gigi-dns-ts
       '@gigi/p2p-ts':
         specifier: workspace:*
         version: link:../gigi-p2p-ts
@@ -330,6 +333,9 @@ importers:
 
   typescript/gigi-p2p-ts:
     dependencies:
+      '@gigi/dns-ts':
+        specifier: workspace:*
+        version: link:../gigi-dns-ts
       '@gigi/request-response-ts':
         specifier: workspace:*
         version: link:../gigi-request-response-ts
@@ -6326,6 +6332,7 @@ snapshots:
 
   '@gigi/p2p-ts@file:typescript/gigi-p2p-ts':
     dependencies:
+      '@gigi/dns-ts': link:typescript/gigi-dns-ts
       '@gigi/request-response-ts': link:typescript/gigi-request-response-ts
       '@libp2p/autonat': 3.0.13
       '@libp2p/circuit-relay-v2': 2.1.5

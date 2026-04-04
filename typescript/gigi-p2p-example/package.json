@@ -20,6 +20,7 @@
   "dependencies": {
     "@gigi/p2p-ts": "workspace:*",
     "@gigi/amp-ts": "workspace:*",
+    "@gigi/dns-ts": "workspace:*",
     "commander": "^11.1.0"
   },
   "devDependencies": {

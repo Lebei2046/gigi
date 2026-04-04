@@ -3,8 +3,8 @@ import {
   InMemoryAgentRegistry,
   AmpMessageRouter,
   AmpMessageFactory,
-} from './message-router';
-import { AgentInfo, AgentSettingsResponse } from './types';
+} from '../message-router';
+import { AgentInfo, AgentSettingsResponse } from '../types';
 
 describe('InMemoryAgentRegistry', () => {
   it('should register and retrieve agents', () => {
@@ -250,5 +250,130 @@ describe('AmpMessageFactory', () => {
     expect(query.sender.name).toBe('Owner');
     expect(query.sender.type).toBe('owner');
     expect(query.id).toMatch(/^query-/);
+  });
+});
+
+// Edge case tests
+describe('InMemoryAgentRegistry - Edge Cases', () => {
+  it('should return undefined for non-existent agent', () => {
+    const registry = new InMemoryAgentRegistry();
+    expect(registry.getAgentById('non-existent')).toBeUndefined();
+  });
+
+  it('should handle unregistering non-existent agent', () => {
+    const registry = new InMemoryAgentRegistry();
+    // Should not throw an error
+    expect(() => registry.unregisterAgent('non-existent')).not.toThrow();
+  });
+
+  it('should handle updating status for non-existent agent', () => {
+    const registry = new InMemoryAgentRegistry();
+    // Should not throw an error
+    expect(() =>
+      registry.updateAgentStatus('non-existent', 'online')
+    ).not.toThrow();
+  });
+
+  it('should return empty array when no agents are registered', () => {
+    const registry = new InMemoryAgentRegistry();
+    expect(registry.getAllAgents()).toEqual([]);
+  });
+});
+
+describe('AmpMessageRouter - Edge Cases', () => {
+  it('should handle routing to empty registry', () => {
+    const registry = new InMemoryAgentRegistry();
+    const router = new AmpMessageRouter(registry);
+
+    const messageHandler = vi.fn();
+    router.registerMessageHandler('text', messageHandler);
+
+    const textMessage = AmpMessageFactory.createTextMessage(
+      'Hello',
+      { type: 'all' },
+      { id: 'owner1', name: 'Owner', type: 'owner' }
+    );
+
+    // Should not throw an error
+    expect(() => router.routeMessage(textMessage)).not.toThrow();
+    expect(messageHandler).not.toHaveBeenCalled();
+  });
+
+  it('should handle routing to non-existent agent', () => {
+    const registry = new InMemoryAgentRegistry();
+    const router = new AmpMessageRouter(registry);
+
+    const messageHandler = vi.fn();
+    router.registerMessageHandler('text', messageHandler);
+
+    const textMessage = AmpMessageFactory.createTextMessage(
+      'Hello',
+      { type: 'specific', agentIds: ['non-existent'] },
+      { id: 'owner1', name: 'Owner', type: 'owner' }
+    );
+
+    // Should not throw an error
+    expect(() => router.routeMessage(textMessage)).not.toThrow();
+    expect(messageHandler).not.toHaveBeenCalled();
+  });
+
+  it('should handle routing to offline agent', () => {
+    const registry = new InMemoryAgentRegistry();
+    const router = new AmpMessageRouter(registry);
+
+    const offlineAgent: AgentInfo = {
+      id: 'agent1',
+      name: 'Offline Agent',
+      type: 'test',
+      version: '1.0.0',
+      settings: [],
+      status: 'offline',
+    };
+
+    registry.registerAgent(offlineAgent);
+
+    const messageHandler = vi.fn();
+    router.registerMessageHandler('text', messageHandler);
+
+    const textMessage = AmpMessageFactory.createTextMessage(
+      'Hello',
+      { type: 'all' },
+      { id: 'owner1', name: 'Owner', type: 'owner' }
+    );
+
+    // Should not throw an error
+    expect(() => router.routeMessage(textMessage)).not.toThrow();
+    // Message should not be routed to offline agent
+    expect(messageHandler).not.toHaveBeenCalled();
+  });
+
+  it('should handle agent settings query with empty registry', () => {
+    const registry = new InMemoryAgentRegistry();
+    const router = new AmpMessageRouter(registry);
+
+    const responseHandler = vi.fn();
+    router.registerMessageHandler('agent-settings-response', responseHandler);
+
+    const query = AmpMessageFactory.createAgentSettingsQuery(
+      { id: 'owner1', name: 'Owner', type: 'owner' },
+      undefined
+    );
+
+    // Should not throw an error
+    expect(() => router.routeMessage(query)).not.toThrow();
+    expect(responseHandler).toHaveBeenCalledTimes(1);
+    const response = responseHandler.mock.calls[0][0] as AgentSettingsResponse;
+    expect(response.agents).toEqual([]);
+  });
+
+  it('should handle unregistering non-existent message handler', () => {
+    const registry = new InMemoryAgentRegistry();
+    const router = new AmpMessageRouter(registry);
+
+    const messageHandler = vi.fn();
+    // Should not throw an error
+    expect(() =>
+      router.unregisterMessageHandler('text', messageHandler)
+    ).not.toThrow();
   });
 });

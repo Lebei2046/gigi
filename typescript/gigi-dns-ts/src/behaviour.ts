@@ -9,7 +9,8 @@ import { GigiDnsConfig, GigiDnsEvent, GigiPeerInfo } from './types';
 import { GigiDnsProtocol } from './protocol';
 import * as dgram from 'dgram';
 import { createSocket } from 'dgram';
-import { networkInterfaces } from 'os';
+// networkInterfaces is available for future use when per-interface socket binding is needed
+// import { networkInterfaces } from 'os';
 
 /// Commands that can be sent to the GigiDnsBehaviour
 ///
@@ -44,11 +45,10 @@ export class GigiDnsBehaviour {
   private config: GigiDnsConfig;
   private localPeerId: PeerId;
   private listenAddresses: Multiaddr[];
-  private interfaces: Map<string, UdpInterface>;
   private discoveredPeers: Map<string, GigiPeerInfo>; // peerId string -> peer info
   private protocol: GigiDnsProtocol;
   private cleanupInterval: NodeJS.Timeout | null;
-  private socketPool: Map<string, dgram.Socket>; // Connection pool for UDP sockets
+  private udpSocket: dgram.Socket | null = null; // Single UDP socket bound to 0.0.0.0
 
   /// Creates a new GigiDnsBehaviour instance
   ///
@@ -58,124 +58,49 @@ export class GigiDnsBehaviour {
     this.config = config;
     this.localPeerId = localPeerId;
     this.listenAddresses = [];
-    this.interfaces = new Map();
     this.discoveredPeers = new Map();
     this.protocol = new GigiDnsProtocol(localPeerId, config);
     this.cleanupInterval = null;
-    this.socketPool = new Map();
 
-    // Initialize network interfaces
-    this.initializeInterfaces();
+    // Create single UDP socket bound to 0.0.0.0
+    this.createUdpSocket();
 
     // Start cleanup interval
     this.startCleanupInterval();
   }
 
-  /// Initializes network interfaces and creates UDP sockets for each
-  private initializeInterfaces(): void {
-    const ifaces = networkInterfaces();
-
-    for (const [name, addresses] of Object.entries(ifaces)) {
-      for (const addr of addresses || []) {
-        if (addr.family === 'IPv4' && !addr.internal) {
-          this.addInterface(name, addr.address);
-        }
-        if (
-          this.config.enableIpv6 &&
-          addr.family === 'IPv6' &&
-          !addr.internal
-        ) {
-          this.addInterface(name, addr.address);
-        }
-      }
-    }
-  }
-
-  /// Adds a network interface and creates a UDP socket for it
-  ///
-  /// @param name - Interface name
-  /// @param address - Interface IP address
-  private addInterface(name: string, address: string): void {
-    const key = `${name}:${address}`;
-    if (this.interfaces.has(key)) {
-      return;
-    }
-
+  /// Creates a single UDP socket bound to 0.0.0.0
+  private createUdpSocket(): void {
     try {
-      // Check if socket already exists in pool
-      let udpSocket = this.socketPool.get(address);
+      // Create socket with reuseAddr to allow multiple processes to bind to the same port
+      this.udpSocket = createSocket({ type: 'udp4', reuseAddr: true });
 
-      if (!udpSocket) {
-        // Create new socket if not in pool
-        udpSocket = createSocket('udp4');
+      this.udpSocket.on('error', (err) => {
+        this.emitError(err as Error, 'Socket error');
+      });
 
-        udpSocket.on('error', (err) => {
-          this.emitError(err as Error, `Socket error on ${address}`);
-        });
+      this.udpSocket.on('message', (msg, rinfo) => {
+        this.handleMessage(msg, rinfo, '0.0.0.0');
+      });
 
-        udpSocket.on('message', (msg, rinfo) => {
-          this.handleMessage(msg, rinfo, address);
-        });
-
-        // Bind to the Gigi DNS port
-        udpSocket.bind(GIGI_DNS_PORT, address, () => {
-          try {
-            // Enable multicast
-            udpSocket!.addMembership(IPV4_MDNS_MULTICAST_ADDRESS, address);
-            if (this.config.enableIpv6) {
-              udpSocket!.addMembership(IPV6_MDNS_MULTICAST_ADDRESS, address);
-            }
-            console.log(`Gigi DNS listening on ${address}:${GIGI_DNS_PORT}`);
-          } catch (err) {
-            this.emitError(
-              err as Error,
-              `Failed to configure multicast on ${address}`
-            );
+      // Bind to the Gigi DNS port on all interfaces
+      this.udpSocket.bind(GIGI_DNS_PORT, '0.0.0.0', () => {
+        try {
+          // Enable multicast on the default interface
+          this.udpSocket!.addMembership(IPV4_MDNS_MULTICAST_ADDRESS);
+          if (this.config.enableIpv6) {
+            this.udpSocket!.addMembership(IPV6_MDNS_MULTICAST_ADDRESS);
           }
-        });
-
-        // Add to socket pool
-        this.socketPool.set(address, udpSocket);
-      }
-
-      this.interfaces.set(key, {
-        name,
-        address,
-        socket: udpSocket,
-        lastActive: Date.now(),
+          console.log(`Gigi DNS listening on 0.0.0.0:${GIGI_DNS_PORT}`);
+        } catch (err) {
+          this.emitError(err as Error, 'Failed to configure multicast');
+        }
       });
 
       // Send initial query
-      this.sendQuery(udpSocket);
+      this.sendQuery();
     } catch (err) {
-      this.emitError(
-        err as Error,
-        `Failed to create socket for interface ${address}`
-      );
-    }
-  }
-
-  /// Removes a network interface and closes its UDP socket if no longer needed
-  ///
-  /// @param key - Interface key (name:address)
-  private removeInterface(key: string): void {
-    const iface = this.interfaces.get(key);
-    if (iface) {
-      const address = iface.address;
-      this.interfaces.delete(key);
-      console.log(`Removed Gigi DNS interface ${address}`);
-
-      // Check if any other interface is using this socket
-      const isSocketInUse = Array.from(this.interfaces.values()).some(
-        (i) => i.address === address
-      );
-
-      // Only close the socket if it's not in use by any other interface
-      if (!isSocketInUse) {
-        iface.socket.close();
-        this.socketPool.delete(address);
-        console.log(`Closed UDP socket for ${address}`);
-      }
+      this.emitError(err as Error, 'Failed to create UDP socket');
     }
   }
 
@@ -187,7 +112,7 @@ export class GigiDnsBehaviour {
   private handleMessage(
     msg: Buffer,
     rinfo: { address: string; port: number; family: string; size: number },
-    interfaceAddress: string
+    _interfaceAddress: string
   ): void {
     // Process the packet with the protocol, passing the source address for validation
     const result = this.protocol.handlePacket(msg, rinfo.address);
@@ -199,18 +124,18 @@ export class GigiDnsBehaviour {
 
     // If it's a query, send a response
     if (this.protocol.isQuery(msg)) {
-      this.sendResponse(interfaceAddress);
+      this.sendResponse();
     }
   }
 
-  /// Sends a DNS query
-  ///
-  /// @param socket - UDP socket to use
-  private sendQuery(socket: dgram.Socket): void {
+  /// Sends a DNS query using the single socket
+  private sendQuery(): void {
+    if (!this.udpSocket) return;
+
     const query = this.protocol.buildQuery();
 
-    // Send to multicast address
-    socket.send(
+    // Send to IPv4 multicast address
+    this.udpSocket.send(
       query,
       0,
       query.length,
@@ -225,7 +150,7 @@ export class GigiDnsBehaviour {
 
     // If IPv6 is enabled, send to IPv6 multicast address
     if (this.config.enableIpv6) {
-      socket.send(
+      this.udpSocket.send(
         query,
         0,
         query.length,
@@ -243,7 +168,9 @@ export class GigiDnsBehaviour {
   /// Sends DNS responses for all listen addresses
   ///
   /// @param interfaceAddress - Local interface address
-  private sendResponse(interfaceAddress: string): void {
+  private sendResponse(): void {
+    if (!this.udpSocket) return;
+
     const responseResult = this.protocol.buildResponse();
     if (!responseResult.success) {
       this.emitError(
@@ -254,14 +181,10 @@ export class GigiDnsBehaviour {
     }
 
     const packets = responseResult.result as Uint8Array[];
-    const iface = Array.from(this.interfaces.values()).find(
-      (i) => i.address === interfaceAddress
-    );
-    if (!iface) return;
 
     for (const packet of packets) {
-      // Send to multicast address
-      iface.socket.send(
+      // Send to IPv4 multicast address
+      this.udpSocket.send(
         packet,
         0,
         packet.length,
@@ -276,7 +199,7 @@ export class GigiDnsBehaviour {
 
       // If IPv6 is enabled, send to IPv6 multicast address
       if (this.config.enableIpv6) {
-        iface.socket.send(
+        this.udpSocket.send(
           packet,
           0,
           packet.length,
@@ -316,46 +239,6 @@ export class GigiDnsBehaviour {
 
     // Cleanup protocol's pending queries
     this.protocol.cleanupExpired();
-
-    // Refresh network interfaces
-    this.refreshInterfaces();
-  }
-
-  /// Refreshes network interfaces to detect changes
-  private refreshInterfaces(): void {
-    const ifaces = networkInterfaces();
-    const currentInterfaces = new Set<string>();
-
-    // Add new interfaces
-    for (const [name, addresses] of Object.entries(ifaces)) {
-      for (const addr of addresses || []) {
-        if (addr.family === 'IPv4' && !addr.internal) {
-          const key = `${name}:${addr.address}`;
-          currentInterfaces.add(key);
-          if (!this.interfaces.has(key)) {
-            this.addInterface(name, addr.address);
-          }
-        }
-        if (
-          this.config.enableIpv6 &&
-          addr.family === 'IPv6' &&
-          !addr.internal
-        ) {
-          const key = `${name}:${addr.address}`;
-          currentInterfaces.add(key);
-          if (!this.interfaces.has(key)) {
-            this.addInterface(name, addr.address);
-          }
-        }
-      }
-    }
-
-    // Remove old interfaces
-    for (const key of this.interfaces.keys()) {
-      if (!currentInterfaces.has(key)) {
-        this.removeInterface(key);
-      }
-    }
   }
 
   /// Handles commands sent to the behaviour
@@ -520,14 +403,16 @@ export class GigiDnsBehaviour {
   stop(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
 
-    // Close all UDP sockets in the pool
-    for (const socket of this.socketPool.values()) {
-      socket.close();
+    // Close the UDP socket
+    if (this.udpSocket) {
+      this.udpSocket.close(() => {
+        console.log('Gigi DNS UDP socket closed');
+      });
+      this.udpSocket = null;
     }
-    this.socketPool.clear();
-    this.interfaces.clear();
   }
 }
 
@@ -538,11 +423,3 @@ import {
   IPV4_MDNS_MULTICAST_ADDRESS,
   IPV6_MDNS_MULTICAST_ADDRESS,
 } from './types';
-
-/// Interface for UDP interface information
-interface UdpInterface {
-  name: string;
-  address: string;
-  socket: dgram.Socket;
-  lastActive: number;
-}

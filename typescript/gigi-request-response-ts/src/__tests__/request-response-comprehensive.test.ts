@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { RequestResponse, JsonCodec, CborCodec } from './index.js';
+import { RequestResponse, JsonCodec, CborCodec } from '../index.js';
 
 // Define test request and response types
 interface TestRequest {
@@ -278,14 +278,15 @@ describe('RequestResponse - Comprehensive Tests', () => {
     };
 
     // Send two requests concurrently
-    const [requestId1, requestId2] = await Promise.all([
+    const [response1, response2] = await Promise.all([
       requestResponse.sendRequest('mock-peer-id', request1),
       requestResponse.sendRequest('mock-peer-id', request2),
     ]);
 
-    expect(requestId1).toBeDefined();
-    expect(requestId2).toBeDefined();
-    expect(requestId1).not.toEqual(requestId2);
+    expect(response1).toBeDefined();
+    expect(response2).toBeDefined();
+    expect(response1.type).toBe('pong');
+    expect(response2.type).toBe('pong');
   });
 });
 

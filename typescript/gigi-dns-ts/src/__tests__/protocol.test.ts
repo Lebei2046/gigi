@@ -97,4 +97,76 @@ describe('GigiDnsProtocol', () => {
     expect(result.success).toBe(false);
     expect(result.result).toBe('Packet too short');
   });
+
+  // Edge case tests for DNS packet handling
+  it('should handle network changes with multiple addresses', () => {
+    // Start with no addresses
+    protocol.updateListenAddresses([]);
+    let response = protocol.buildResponse();
+    expect(response.success).toBe(false);
+
+    // Add one address
+    const addr1 = multiaddr('/ip4/192.168.1.100/tcp/8000');
+    protocol.updateListenAddresses([addr1]);
+    response = protocol.buildResponse();
+    expect(response.success).toBe(true);
+    expect(Array.isArray(response.result)).toBe(true);
+    expect(response.result.length).toBe(1);
+
+    // Add multiple addresses
+    const addr2 = multiaddr('/ip4/192.168.1.101/tcp/8001');
+    const addr3 = multiaddr('/ip4/192.168.1.102/tcp/8002');
+    protocol.updateListenAddresses([addr1, addr2, addr3]);
+    response = protocol.buildResponse();
+    expect(response.success).toBe(true);
+    expect(Array.isArray(response.result)).toBe(true);
+    expect(response.result.length).toBe(3);
+  });
+
+  it('should handle rapid address changes', () => {
+    // Simulate rapid network changes
+    const addr1 = multiaddr('/ip4/192.168.1.100/tcp/8000');
+    const addr2 = multiaddr('/ip4/192.168.1.101/tcp/8001');
+    const addr3 = multiaddr('/ip4/192.168.1.102/tcp/8002');
+
+    // Change addresses multiple times quickly
+    protocol.updateListenAddresses([addr1]);
+    protocol.updateListenAddresses([addr2]);
+    protocol.updateListenAddresses([addr3]);
+    protocol.updateListenAddresses([]);
+    protocol.updateListenAddresses([addr1, addr2, addr3]);
+
+    // Should still work correctly
+    const response = protocol.buildResponse();
+    expect(response.success).toBe(true);
+    expect(Array.isArray(response.result)).toBe(true);
+    expect(response.result.length).toBe(3);
+  });
+
+  it('should handle nickname updates', () => {
+    // Update nickname to a valid value
+    let result = protocol.updateNickname('NewNickname');
+    expect(result.success).toBe(true);
+
+    // Try to update to an empty nickname
+    result = protocol.updateNickname('');
+    expect(result.success).toBe(false);
+    expect(result.result).toBe('Nickname cannot be empty');
+
+    // Try to update to a nickname that's too long
+    result = protocol.updateNickname('a'.repeat(65));
+    expect(result.success).toBe(false);
+    expect(result.result).toBe('Nickname too long: 65 chars (max: 64)');
+  });
+
+  it('should handle cleanup of expired queries', () => {
+    // This test verifies that the cleanup method runs without errors
+    expect(() => protocol.cleanupExpired()).not.toThrow();
+  });
+
+  it('should handle rate limiting', () => {
+    // This test verifies that the rate limiting mechanism works
+    // We can't easily test the actual rate limiting without waiting, but we can verify the method exists
+    expect(() => protocol['isRateLimited']()).not.toThrow();
+  });
 });

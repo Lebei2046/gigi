@@ -1,4 +1,4 @@
-import { createLibp2pInstance } from './libp2p-setup.js';
+import { createLibp2pInstance, Libp2pInstance } from './libp2p-setup.js';
 import { eventEmitter, P2pEvent } from './events.js';
 import { P2pError } from './errors.js';
 import { FileSharingManager } from './file-sharing.js';
@@ -6,6 +6,8 @@ import { GroupManager } from './group.js';
 import { PeerManager } from './peer-manager.js';
 import { multiaddr as multiaddrFromString } from '@multiformats/multiaddr';
 import { randomUUID } from 'crypto';
+import { RequestResponse } from '@gigi/request-response-ts';
+import { JsonCodec } from '@gigi/request-response-ts';
 import type {
   P2pConfig,
   PeerInfo,
@@ -97,6 +99,7 @@ export interface P2pClientOptions {
 
 export class P2pClient {
   private libp2p: any = null;
+  private gigiDns: any = null;
   private nickname: string;
   private outputDirectory: string;
   private config: P2pConfig;
@@ -115,6 +118,12 @@ export class P2pClient {
 
   private readonly DIRECT_PROTOCOL = '/gigi/direct/1.0.0';
   private readonly FILE_PROTOCOL = '/gigi/file/1.0.0';
+
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  private eventListeners: Array<{
+    event: string;
+    listener: (event: any) => void;
+  }> = [];
 
   constructor(options: P2pClientOptions) {
     this.nickname = options.nickname;
@@ -142,11 +151,12 @@ export class P2pClient {
 
     try {
       // Handle mnemonic-based peer ID derivation
+      let libp2pInstance: Libp2pInstance;
       if (this.mnemonic) {
         // For mnemonic-based configuration, use the existing peer ID from the config
         // This will ensure consistency with the configuration
         console.log('[P2pClient] Using mnemonic for key derivation');
-        this.libp2p = await createLibp2pInstance({
+        libp2pInstance = await createLibp2pInstance({
           nickname: this.nickname,
           listenAddrs: this.config.listenAddrs,
           bootstrapNodes: this.config.bootstrapNodes,
@@ -158,13 +168,86 @@ export class P2pClient {
       } else {
         // For non-mnemonic configuration, create libp2p instance without mnemonic
         console.log('[P2pClient] Creating libp2p instance without mnemonic');
-        this.libp2p = await createLibp2pInstance({
+        libp2pInstance = await createLibp2pInstance({
           nickname: this.nickname,
           listenAddrs: this.config.listenAddrs,
           bootstrapNodes: this.config.bootstrapNodes,
           enableMdns: this.config.enableMdns,
           enableKademlia: this.config.enableKademlia,
           enableRelay: this.config.enableRelay,
+        });
+      }
+      this.libp2p = libp2pInstance.libp2p;
+      this.gigiDns = libp2pInstance.gigiDns;
+
+      // Add error event listener to prevent uncaught exceptions
+      this.addEventListener('error', (error: any) => {
+        console.warn('[P2pClient] Libp2p error:', error);
+      });
+
+      // Set up Gigi DNS event listeners for peer discovery with nicknames
+      if (this.gigiDns) {
+        console.log('[P2pClient] Setting up Gigi DNS event listeners');
+
+        this.gigiDns.on('Discovered', (event: any) => {
+          const peerInfo = event.peerInfo;
+          console.log(
+            `[P2pClient] Gigi DNS discovered peer: ${peerInfo.nickname} (${peerInfo.peerId.toString()})`
+          );
+
+          // Add peer to peer manager with nickname
+          this.peerManager.discover(
+            peerInfo.peerId.toString(),
+            peerInfo.nickname,
+            [peerInfo.multiaddr.toString()]
+          );
+
+          // Emit peer-discovered event
+          eventEmitter.emit({
+            type: 'peer-discovered',
+            peerId: peerInfo.peerId.toString(),
+            nickname: peerInfo.nickname,
+            address: peerInfo.multiaddr.toString(),
+          } as P2pEvent);
+
+          // Automatically connect to discovered peer with retry
+          const connectWithRetry = async (attempts = 3, delay = 1000) => {
+            for (let i = 0; i < attempts; i++) {
+              try {
+                // Try to connect using the multiaddr
+                await this.libp2p.dial(peerInfo.multiaddr);
+                console.log(
+                  `[P2pClient] Successfully connected to peer: ${peerInfo.nickname}`
+                );
+                return;
+              } catch (error) {
+                console.warn(
+                  `[P2pClient] Attempt ${i + 1} failed to dial discovered peer: ${error}`
+                );
+                if (i < attempts - 1) {
+                  await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+              }
+            }
+          };
+
+          // Only try to connect if the multiaddr is valid
+          if (peerInfo.multiaddr) {
+            connectWithRetry().catch(console.error);
+          }
+        });
+
+        this.gigiDns.on('Offline', (event: any) => {
+          const peerInfo = event.peerInfo;
+          console.log(
+            `[P2pClient] Gigi DNS peer went offline: ${peerInfo.nickname} (${peerInfo.peerId.toString()})`
+          );
+
+          eventEmitter.emit({
+            type: 'peer-expired',
+            peerId: peerInfo.peerId.toString(),
+            nickname: peerInfo.nickname,
+          } as P2pEvent);
         });
       }
 
@@ -217,6 +300,11 @@ export class P2pClient {
       }
 
       this.processSwarmEvents();
+
+      // Start peer cleanup interval
+      this.cleanupInterval = setInterval(() => {
+        this.peerManager.cleanup();
+      }, 60000); // Clean up every minute
     } catch (error) {
       throw P2pError.networkError('Failed to start P2P client', error as Error);
     }
@@ -231,6 +319,28 @@ export class P2pClient {
     if (this.fileRequestResponse) {
       this.fileRequestResponse.close();
       this.fileRequestResponse = null;
+    }
+
+    // Clear cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+
+    // Remove all event listeners
+    for (const { event, listener } of this.eventListeners) {
+      if (event === 'dht:peer' && this.libp2p.services.dht) {
+        this.libp2p.services.dht.removeEventListener('peer', listener);
+      } else {
+        this.libp2p.removeEventListener(event, listener);
+      }
+    }
+    this.eventListeners = [];
+
+    // Stop Gigi DNS if initialized
+    if (this.gigiDns) {
+      this.gigiDns.stop();
+      this.gigiDns = null;
     }
 
     await this.libp2p.stop();
@@ -445,72 +555,33 @@ export class P2pClient {
     });
   }
 
+  private addEventListener(
+    event: string,
+    listener: (event: any) => void
+  ): void {
+    if (this.libp2p) {
+      this.libp2p.addEventListener(event, listener);
+      this.eventListeners.push({ event, listener });
+    }
+  }
+
   private processSwarmEvents(): void {
     if (!this.libp2p) return;
 
-    // Listen for general peer discovery events (includes both DHT and mDNS)
-    this.libp2p.addEventListener('peer:discovery', async (event: any) => {
-      console.log('[P2pClient] Peer discovered event:', event);
-      // Handle both formats: event.detail.id or event.detail as PeerId
-      const peerId = event.detail.id
-        ? event.detail.id.toString()
-        : event.detail.toString();
-      const multiaddrs = event.detail.multiaddrs
-        ? event.detail.multiaddrs.map((m: any) => m.toString())
-        : [];
-
-      console.log(
-        `[P2pClient] Discovered peer: ${peerId} at ${multiaddrs.join(', ')}`
-      );
-
-      // Use peer ID as nickname for newly discovered peers
-      this.peerManager.discover(peerId, peerId, multiaddrs);
-
-      // Automatically connect to discovered peers
-      try {
-        if (multiaddrs.length > 0) {
-          console.log(
-            `[P2pClient] Attempting to connect to discovered peer: ${peerId}`
-          );
-          const addr = multiaddrFromString(multiaddrs[0]);
-          await this.libp2p.dial(addr);
-          console.log(`[P2pClient] Successfully connected to peer: ${peerId}`);
-        }
-      } catch (error) {
-        console.warn(
-          `[P2pClient] Failed to connect to discovered peer ${peerId}:`,
-          error
-        );
-      }
-
-      await eventEmitter.emit({
-        type: 'peer-discovered',
-        peerId,
-        nickname: peerId,
-        address: multiaddrs[0] || '',
-      } as P2pEvent);
-    });
-
+    // Only listen for DHT peer events if DHT is enabled
     if (this.libp2p.services.dht) {
-      this.libp2p.services.dht.addEventListener('peer', async (event: any) => {
+      const dhtListener = async (event: any) => {
         // Handle both formats: event.detail.id or event.detail as PeerId
         const peerId = event.detail.id
           ? event.detail.id.toString()
           : event.detail.toString();
-        const multiaddrs = event.detail.multiaddrs
-          ? event.detail.multiaddrs.map((m: any) => m.toString())
-          : [];
 
-        // Use peer ID as nickname for newly discovered peers
-        this.peerManager.discover(peerId, peerId, multiaddrs);
-
-        await eventEmitter.emit({
-          type: 'peer-discovered',
-          peerId,
-          nickname: peerId,
-          address: multiaddrs[0] || '',
-        } as P2pEvent);
-      });
+        // Skip peers with no nickname or with a nickname that looks like a peer ID
+        // DHT doesn't provide nicknames, so we'll rely on Gigi DNS for nickname information
+        console.log(`[P2pClient] DHT discovered peer: ${peerId}`);
+      };
+      this.libp2p.services.dht.addEventListener('peer', dhtListener);
+      this.eventListeners.push({ event: 'dht:peer', listener: dhtListener });
     }
   }
 
@@ -848,6 +919,10 @@ export class P2pClient {
   }
 
   async shareFile(filePath: string): Promise<string> {
+    if (!this.libp2p || !this.started) {
+      throw P2pError.notStarted();
+    }
+
     const sharedFile = await this.fileManager.share(filePath);
 
     await eventEmitter.emit({
@@ -860,6 +935,10 @@ export class P2pClient {
   }
 
   async downloadFile(nickname: string, shareCode: string): Promise<string> {
+    if (!this.libp2p || !this.started) {
+      throw P2pError.notStarted();
+    }
+
     console.log(`[P2pClient] Attempting to download file from ${nickname}`);
     console.log(
       `[P2pClient] Peers in manager: ${Array.from(this.peerManager.list())

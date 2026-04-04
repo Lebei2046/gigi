@@ -11,6 +11,7 @@
     "lint": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter @gigi/dns-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled lint",
     "lint:fix": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter @gigi/dns-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled lint:fix",
     "format": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter @gigi/dns-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled format",
-    "format-all": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter @gigi/dns-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled format-all"
+    "format-all": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter @gigi/dns-ts --filter gigi-p2p-example --filter gigi-mobile --filter gigi-p2p-bundled format-all",
+    "test": "pnpm --filter @gigi/amp-ts --filter @gigi/p2p-ts --filter @gigi/request-response-ts --filter @gigi/dns-ts test"
   }
 }

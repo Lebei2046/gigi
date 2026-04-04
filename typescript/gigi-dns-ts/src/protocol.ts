@@ -481,6 +481,17 @@ export class GigiDnsProtocol {
         return { success: false, result: 'Self-discovery' };
       }
 
+      // Reject peers with no nickname
+      if (!record.nickname || record.nickname.trim() === '') {
+        return { success: false, result: 'No nickname provided' };
+      }
+
+      // Reject peers with nickname that looks like a peer ID
+      // Peer IDs start with '12D3Koo' for Ed25519 keys
+      if (record.nickname.startsWith('12D3Koo')) {
+        return { success: false, result: 'Nickname looks like a peer ID' };
+      }
+
       const multiaddr = multiaddrFromString(record.addr);
 
       const now = new Date();

@@ -120,6 +120,23 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
     const connectionId = connection?.id || stream?.id || 'unknown';
 
     try {
+      // Log stream details for debugging
+      console.log('[RequestResponse] Stream object:', stream);
+      console.log(
+        '[RequestResponse] Stream constructor:',
+        stream.constructor.name
+      );
+      console.log('[RequestResponse] Stream has sink:', typeof stream.sink);
+      console.log('[RequestResponse] Stream has source:', typeof stream.source);
+      console.log(
+        '[RequestResponse] Stream has asyncIterator:',
+        typeof stream[Symbol.asyncIterator]
+      );
+      console.log(
+        '[RequestResponse] Stream source has asyncIterator:',
+        typeof stream.source?.[Symbol.asyncIterator]
+      );
+
       // Read request from stream
       const requestData = await this.readStream(stream);
       const request = this.codec.decodeRequest(requestData);
@@ -304,10 +321,9 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       // This will use libp2p's peer store to find addresses
       let stream;
       try {
-        // Create a PeerId object from the string peer ID
-        const { peerIdFromString } = await import('@libp2p/peer-id');
-        const peerIdObj = peerIdFromString(peerIdOnly);
-        stream = await this.libp2p.dialProtocol(peerIdObj, protocol);
+        // Directly pass the peer ID string to dialProtocol
+        // libp2p's dialProtocol accepts string peer IDs directly
+        stream = await this.libp2p.dialProtocol(peerIdOnly, protocol);
       } catch (error) {
         console.log(`[RequestResponse] Dial attempt failed:`, error);
         throw error;
@@ -511,6 +527,11 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
     const chunks: Uint8Array[] = [];
 
     try {
+      // Handle nested stream objects (common in some libp2p implementations)
+      if (stream.stream) {
+        stream = stream.stream;
+      }
+
       // Try for streams with async iterator first (YamuxStream supports this)
       if (typeof stream[Symbol.asyncIterator] === 'function') {
         for await (const chunk of stream) {

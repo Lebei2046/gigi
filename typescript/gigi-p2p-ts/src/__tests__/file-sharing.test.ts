@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { FileSharingManager } from './file-sharing.js';
+import { FileSharingManager } from '../file-sharing.js';
 
 // Mock the file system
 vi.mock('fs/promises', () => ({
@@ -12,8 +12,9 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock crypto
+let uuidCounter = 1;
 vi.mock('crypto', () => ({
-  randomUUID: vi.fn().mockReturnValue('mock-uuid'),
+  randomUUID: vi.fn(() => `mock-uuid-${uuidCounter++}`),
   createHash: vi.fn().mockReturnValue({
     update: vi.fn().mockReturnThis(),
     digest: vi.fn().mockReturnValue('mock-hash'),

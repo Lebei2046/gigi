@@ -4,7 +4,7 @@ import { webTransport } from '@libp2p/webtransport';
 import { tcp } from '@libp2p/tcp';
 import { noise } from '@libp2p/noise';
 import { yamux } from '@libp2p/yamux';
-import { mdns } from '@libp2p/mdns';
+import { GigiDnsBehaviour, defaultGigiDnsConfig } from '@gigi/dns-ts';
 import { kadDHT } from '@libp2p/kad-dht';
 import {
   circuitRelayServer,
@@ -40,9 +40,14 @@ export interface CreateLibp2pOptions {
   mnemonic?: string;
 }
 
+export interface Libp2pInstance {
+  libp2p: Awaited<ReturnType<typeof createLibp2p>>;
+  gigiDns: GigiDnsBehaviour | null;
+}
+
 export async function createLibp2pInstance(
   options: CreateLibp2pOptions
-): Promise<ReturnType<typeof createLibp2p>> {
+): Promise<Libp2pInstance> {
   const {
     listenAddrs = ['/ip4/0.0.0.0/tcp/0'],
     bootstrapNodes = [],
@@ -59,15 +64,12 @@ export async function createLibp2pInstance(
     circuitRelayTransport(),
   ] as any;
 
-  const peerDiscovery: any[] = [];
+  // Gigi DNS for peer discovery with nickname support
+  let gigiDns: GigiDnsBehaviour | null = null;
 
   if (enableMdns) {
-    console.log('[libp2p-setup] Enabling mDNS for local peer discovery');
-    peerDiscovery.push(
-      mdns({
-        interval: 10000, // 10 second interval for mDNS queries
-      })
-    );
+    console.log('[libp2p-setup] Enabling Gigi DNS for local peer discovery');
+    // Gigi DNS will be initialized after libp2p is created
   }
 
   // Create services object
@@ -94,7 +96,6 @@ export async function createLibp2pInstance(
   const libp2pOptions: any = {
     addresses: { listen: listenAddrs },
     transports,
-    peerDiscovery,
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
   };
@@ -143,6 +144,25 @@ export async function createLibp2pInstance(
 
   const libp2p = await createLibp2p(libp2pOptions);
 
+  // Initialize Gigi DNS after libp2p is created
+  if (enableMdns) {
+    const dnsConfig = {
+      ...defaultGigiDnsConfig,
+      nickname: options.nickname,
+    };
+    // Use type assertion to work around version compatibility
+    gigiDns = new GigiDnsBehaviour(libp2p.peerId as any, dnsConfig);
+
+    // Update listen addresses
+    const listenAddrs = libp2p.getMultiaddrs().map((m: any) => m.toString());
+    gigiDns.updateListenAddresses(listenAddrs);
+
+    console.log(
+      '[libp2p-setup] Gigi DNS initialized with nickname:',
+      options.nickname
+    );
+  }
+
   for (const addr of bootstrapNodes) {
     try {
       const multiAddr = multiaddr(addr);
@@ -153,5 +173,5 @@ export async function createLibp2pInstance(
     }
   }
 
-  return libp2p;
+  return { libp2p, gigiDns };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { PeerManager } from './peer-manager.js';
+import { PeerManager } from '../peer-manager.js';
 
 describe('PeerManager', () => {
   let peerManager: PeerManager;

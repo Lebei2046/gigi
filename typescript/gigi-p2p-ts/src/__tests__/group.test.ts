@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GroupManager } from './group.js';
+import { GroupManager } from '../group.js';
 
 describe('GroupManager', () => {
   let groupManager: GroupManager;

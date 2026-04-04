@@ -15,6 +15,16 @@ export class PeerManager {
       `[PeerManager] Existing peer: ${existing ? JSON.stringify(existing) : 'none'}`
     );
 
+    // If peer already exists and nickname has changed, remove old nickname mapping
+    if (existing && existing.nickname !== nickname) {
+      for (const [nick, id] of this.nicknameToPeerId.entries()) {
+        if (id === peerId && nick !== nickname) {
+          this.nicknameToPeerId.delete(nick);
+          break;
+        }
+      }
+    }
+
     const peer: PeerInfo = {
       peerId,
       nickname,
