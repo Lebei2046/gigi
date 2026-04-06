@@ -1,6 +1,6 @@
 {
-  "id": "gigi-p2p-bundled",
-  "channels": ["gigi-p2p-bundled"],
+  "id": "gigi-openclaw",
+  "channels": ["gigi-openclaw"],
   "configSchema": {
     "type": "object",
     "properties": {

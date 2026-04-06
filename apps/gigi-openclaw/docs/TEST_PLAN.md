@@ -63,9 +63,9 @@ openclaw plugins list
 3. Update the channel configuration with the mnemonic and peer ID:
 
    ```bash
-   openclaw config set channels.gigi-p2p-bundled.mnemonic "your-mnemonic-here"
-   openclaw config set channels.gigi-p2p-bundled.peerId "your-peer-id-here"
-   openclaw config set channels.gigi-p2p-bundled.enabled true
+   openclaw config set channels.gigi-openclaw.mnemonic "your-mnemonic-here"
+   openclaw config set channels.gigi-openclaw.peerId "your-peer-id-here"
+   openclaw config set channels.gigi-openclaw.enabled true
    ```
 
 4. Restart the gateway to apply the configuration:
@@ -95,7 +95,7 @@ openclaw plugins list
 3. **In OpenClaw, join the same group and send a message:**
 
    ```bash
-   openclaw message send --channel gigi-p2p-bundled --target "test-group" --message "Hello from OpenClaw!"
+   openclaw message send --channel gigi-openclaw --target "test-group" --message "Hello from OpenClaw!"
    ```
 
 4. **Verify message is received in both clients:**
@@ -140,7 +140,7 @@ openclaw plugins list
    - Use the `sendMedia` functionality to share the file:
 
    ```bash
-   openclaw message send --channel gigi-p2p-bundled --target "<example-client-peer-id>" --media "/path/to/test-file.txt"
+   openclaw message send --channel gigi-openclaw --target "<example-client-peer-id>" --media "/path/to/test-file.txt"
    ```
 
    - Check the OpenClaw logs for the share code
@@ -167,7 +167,7 @@ openclaw plugins list
 2. **In OpenClaw, join the same group:**
 
    ```bash
-   openclaw message send --channel gigi-p2p-bundled --target "another-group" --message "Hello from OpenClaw in another group!"
+   openclaw message send --channel gigi-openclaw --target "another-group" --message "Hello from OpenClaw in another group!"
    ```
 
 3. **Verify messages are received in the correct groups:**
@@ -208,7 +208,7 @@ openclaw plugins list
 
 3. **Uninstall the plugin (optional):**
    ```bash
-   openclaw plugins uninstall gigi-p2p-bundled
+   openclaw plugins uninstall gigi-openclaw
    ```
 
 ## Troubleshooting

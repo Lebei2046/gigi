@@ -39,7 +39,7 @@ import { generateMnemonic } from '@gigi/p2p-ts';
 
 // Plugin registration for OpenClaw
 export default definePluginEntry({
-  id: 'gigi-p2p-bundled',
+  id: 'gigi-openclaw',
   name: 'Gigi P2P',
   description: 'Connect to Gigi P2P network and join groups',
   register: (api) => {

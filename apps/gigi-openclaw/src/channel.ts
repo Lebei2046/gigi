@@ -42,8 +42,9 @@ import type { GigiAccount } from './types.js';
 import { GigiClient } from './GigiClient.js';
 import { OutboundManager } from './outbound.js';
 import { listGigiAccountIds, resolveGigiAccount } from './accounts.js';
+import { TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse, AmpMessageFactory } from '@gigi/amp-ts';
 
-const CHANNEL_ID = 'gigi-p2p-bundled';
+const CHANNEL_ID = 'gigi-openclaw';
 const TEXT_CHUNK_LIMIT = 4000;
 
 /**
@@ -1074,7 +1075,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
                     // Build the inbound context payload for this agent
                     const ctxPayload =
-                      runtime.channel.reply.finalizeInboundContext({
+                      (runtime as any).channel.reply.finalizeInboundContext({
                         channel: CHANNEL_ID,
                         accountId: gatewayContext.accountId,
                         from: textMessage.sender.id,
@@ -1098,11 +1099,11 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
                     // Create a proper reply dispatcher for this agent
                     const { dispatcher, replyOptions } =
-                      runtime.channel.reply.createReplyDispatcherWithTyping({
+                      (runtime as any).channel.reply.createReplyDispatcherWithTyping({
                         responsePrefix: '',
                         responsePrefixContextProvider: () => ({}),
                         humanDelay:
-                          runtime.channel.reply.resolveHumanDelayConfig(
+                          (runtime as any).channel.reply.resolveHumanDelayConfig(
                             ctx.cfg,
                             agent.id
                           ),
@@ -1113,7 +1114,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                           );
                         },
 
-                        deliver: async (payload) => {
+                        deliver: async (payload: any) => {
                           console.log(
                             `[GigiPlugin] Agent ${agent.id} response:`,
                             payload
@@ -1155,7 +1156,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                           }
                         },
 
-                        onError: async (err, info) => {
+                        onError: async (err: any, info: any) => {
                           console.error(
                             `[GigiPlugin] Reply error for agent ${agent.id}:`,
                             err,
@@ -1177,7 +1178,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                       });
 
                     // Dispatch the message to the agent
-                    await runtime.channel.reply.dispatchReplyFromConfig({
+                    await (runtime as any).channel.reply.dispatchReplyFromConfig({
                       ctx: ctxPayload,
                       cfg: ctx.cfg,
                       dispatcher,
@@ -1248,7 +1249,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
                     // Build the inbound context payload for this agent
                     const ctxPayload =
-                      runtime.channel.reply.finalizeInboundContext({
+                      (runtime as any).channel.reply.finalizeInboundContext({
                         channel: CHANNEL_ID,
                         accountId: gatewayContext.accountId,
                         from: fileMessage.sender.id,
@@ -1277,11 +1278,11 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
                     // Create a proper reply dispatcher for this agent
                     const { dispatcher, replyOptions } =
-                      runtime.channel.reply.createReplyDispatcherWithTyping({
+                      (runtime as any).channel.reply.createReplyDispatcherWithTyping({
                         responsePrefix: '',
                         responsePrefixContextProvider: () => ({}),
                         humanDelay:
-                          runtime.channel.reply.resolveHumanDelayConfig(
+                          (runtime as any).channel.reply.resolveHumanDelayConfig(
                             ctx.cfg,
                             agent.id
                           ),
@@ -1292,7 +1293,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                           );
                         },
 
-                        deliver: async (payload) => {
+                        deliver: async (payload: any) => {
                           console.log(
                             `[GigiPlugin] Agent ${agent.id} response:`,
                             payload
@@ -1334,7 +1335,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                           }
                         },
 
-                        onError: async (err, info) => {
+                        onError: async (err: any, info: any) => {
                           console.error(
                             `[GigiPlugin] Reply error for agent ${agent.id}:`,
                             err,
@@ -1356,7 +1357,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                       });
 
                     // Dispatch the message to the agent
-                    await runtime.channel.reply.dispatchReplyFromConfig({
+                    await (runtime as any).channel.reply.dispatchReplyFromConfig({
                       ctx: ctxPayload,
                       cfg: ctx.cfg,
                       dispatcher,

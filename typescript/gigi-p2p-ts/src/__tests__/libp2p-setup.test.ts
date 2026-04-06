@@ -56,7 +56,10 @@ describe('libp2p-setup', () => {
     expect(mockCreateLibp2p).toHaveBeenCalled();
     expect(result.libp2p).toBe(mockLibp2p);
     expect(result.gigiDns).toBeDefined();
-    expect(result.gigiDns.updateListenAddresses).toBeDefined();
+    expect(result.gigiDns).not.toBeNull();
+    if (result.gigiDns) {
+      expect(result.gigiDns.updateListenAddresses).toBeDefined();
+    }
   });
 
   it('should create a libp2p instance with custom listen addresses', async () => {

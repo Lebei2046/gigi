@@ -60,7 +60,7 @@ The plugin can be configured through the OpenClaw dashboard or by editing the Op
 ```json
 {
   "plugins": {
-    "gigi-p2p-bundled": {
+    "gigi-openclaw": {
       "enabled": true
     }
   }
@@ -99,7 +99,7 @@ Add the mnemonic phrase to your OpenClaw channel configuration:
 ```json
 {
   "channels": {
-    "gigi-p2p-bundled": {
+    "gigi-openclaw": {
       "peerId": "12D3KooW...", // Will be generated from mnemonic
       "multiaddrs": [
         "/ip4/0.0.0.0/tcp/0", // Listen on all TCP interfaces
@@ -129,77 +129,6 @@ When starting the OpenClaw gateway, ensure the plugin is enabled:
 
 ```bash
 openclaw gateway start
-```
-
-## Usage
-
-### Group Management
-
-The plugin provides several functions for managing Gigi P2P groups, which can be used through the GigiClient API:
-
-#### Using the GigiClient API
-
-```typescript
-import { GigiClient } from 'gigi-p2p-bundled';
-
-// Create a Gigi client
-const client = new GigiClient({
-  peerId: '12D3KooW...',
-  multiaddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/tcp/0/ws'],
-  mnemonic: 'your mnemonic here',
-  displayName: 'My Gigi Node',
-});
-
-// Start the client
-await client.start();
-
-// Join a group
-await client.joinGroup('my-group-topic');
-
-// List joined groups
-const groups = client.listGroups();
-console.log('Joined groups:', groups);
-
-// Leave a group
-await client.leaveGroup('my-group-topic');
-
-// Stop the client
-await client.stop();
-```
-
-### Sending Messages
-
-#### Direct Message
-
-To send a direct message using the OpenClaw API:
-
-```typescript
-await openclaw.message.send({
-  channel: 'gigi-p2p-bundled',
-  accountId: 'my-gigi-account',
-  target: '12D3KooW...', // Recipient's peer ID
-  message: 'Hello from Gigi!',
-});
-```
-
-#### Group Message
-
-To send a group message using the OpenClaw API:
-
-```typescript
-await openclaw.message.send({
-  channel: 'gigi-p2p-bundled',
-  accountId: 'my-gigi-account',
-  target: 'my-group-topic', // Group topic
-  message: 'Hello everyone!',
-});
-```
-
-### Checking Status
-
-```typescript
-const status = await gigiPlugin.status.checkStatus('my-gigi-account');
-console.log(status);
 ```
 
 ## Testing

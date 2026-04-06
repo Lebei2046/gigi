@@ -1,4 +1,5 @@
 import { P2pClient, P2pClientOptions } from '@gigi/p2p-ts';
+import type { P2pEvent } from '@gigi/p2p-ts';
 import {
   AmpMessageRouter,
   AmpMessageFactory,
@@ -41,7 +42,7 @@ export class GigiClient implements IGigiClient {
     this.messageRouter = new AmpMessageRouter(this.agentRegistry);
 
     // Set up event listeners
-    this.p2pClient.onEvent(async (event) => {
+    this.p2pClient.onEvent(async (event: P2pEvent) => {
       if (event.type === 'direct-message') {
         try {
           const messageData =

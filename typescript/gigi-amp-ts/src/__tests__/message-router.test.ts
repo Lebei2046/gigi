@@ -370,10 +370,7 @@ describe('AmpMessageRouter - Edge Cases', () => {
     const registry = new InMemoryAgentRegistry();
     const router = new AmpMessageRouter(registry);
 
-    const messageHandler = vi.fn();
     // Should not throw an error
-    expect(() =>
-      router.unregisterMessageHandler('text', messageHandler)
-    ).not.toThrow();
+    expect(() => router.unregisterMessageHandler('text')).not.toThrow();
   });
 });

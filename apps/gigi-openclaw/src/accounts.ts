@@ -1,6 +1,6 @@
 import type { GigiAccount, GigiAccountConfig } from './types.js';
 
-const CHANNEL_ID = 'gigi-p2p-bundled';
+const CHANNEL_ID = 'gigi-openclaw';
 
 /**
  * List all Gigi account IDs from channel config
