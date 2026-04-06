@@ -32,7 +32,7 @@ Gigi DNS is designed to simplify peer addressing in the Gigi P2P network by allo
 
 2. **Build Gigi DNS**:
    ```bash
-   cd pkgs/gigi-dns
+   cd rust/gigi-dns
    cargo build
    ```
 
@@ -41,7 +41,7 @@ Gigi DNS is designed to simplify peer addressing in the Gigi P2P network by allo
    # In your Cargo.toml
    [dependencies]
    gigi-dns = {
-     path = "../gigi/pkgs/gigi-dns",
+     path = "../gigi/rust/gigi-dns",
      version = "0.1.0"
    }
    ```

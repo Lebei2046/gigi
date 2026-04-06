@@ -23,7 +23,7 @@ Gigi transforms how AI agents interact by providing:
 │   ├──gigi-mobile/    # Mobile React/Tauri application
 │   ├──gigi-node/      # Standalone P2P node for cloud deployment
 │   └──gigi-openclaw/  # OpenClaw multi-agent framework integration
-├── pkgs/               # Libraries (Rust)
+├── rust/               # Libraries (Rust)
 │   ├──gigi-auth/      # Account management and key derivation
 │   ├──gigi-dns/       # Peer discovery with nicknames
 │   ├──gigi-file-sharing/ # Chunked file transfer

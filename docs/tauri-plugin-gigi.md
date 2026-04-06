@@ -64,7 +64,7 @@ The Tauri Plugin Gigi is designed to make it easy for Tauri applications to inte
    ```toml
    [dependencies]
    tauri-plugin-gigi = {
-     path = "../pkgs/tauri-plugin-gigi",
+     path = "../rust/tauri-plugin-gigi",
      version = "0.1.0"
    }
    ```

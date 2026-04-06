@@ -36,7 +36,7 @@ Gigi Store is designed to provide persistent storage for the Gigi P2P network, e
 
 2. **Build Gigi Store**:
    ```bash
-   cd pkgs/gigi-store
+   cd rust/gigi-store
    cargo build
    ```
 
@@ -45,7 +45,7 @@ Gigi Store is designed to provide persistent storage for the Gigi P2P network, e
    # In your Cargo.toml
    [dependencies]
    gigi-store = {
-     path = "../gigi/pkgs/gigi-store",
+     path = "../gigi/rust/gigi-store",
      version = "0.1.0"
    }
    ```

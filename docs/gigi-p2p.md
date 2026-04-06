@@ -33,7 +33,7 @@ The Gigi P2P Rust Client is designed for use in performance-critical application
 
 2. **Build the Rust client**:
    ```bash
-   cd pkgs/gigi-p2p
+   cd rust/gigi-p2p
    cargo build
    ```
 
@@ -42,7 +42,7 @@ The Gigi P2P Rust Client is designed for use in performance-critical application
    # In your Cargo.toml
    [dependencies]
    gigi-p2p = {
-     path = "../gigi/pkgs/gigi-p2p",
+     path = "../gigi/rust/gigi-p2p",
      version = "0.1.0"
    }
    ```

@@ -22,7 +22,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-gigi-p2p = { path = "pkgs/gigi-p2p" }
+gigi-p2p = { path = "rust/gigi-p2p" }
 tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

@@ -2,8 +2,8 @@
   "name": "gigi",
   "version": "0.0.1",
   "workspaces": [
-    "pkgs/*",
     "apps/*",
+    "rust/*",
     "typescript/*"
   ],
   "private": true,

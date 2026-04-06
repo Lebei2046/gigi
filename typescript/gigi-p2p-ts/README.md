@@ -1,6 +1,6 @@
 # Gigi P2P - TypeScript Port
 
-TypeScript implementation of the Gigi P2P networking library, ported from the Rust [gigi-p2p](https://github.com/gigi/pkgs/gigi-p2p) crate.
+TypeScript implementation of the Gigi P2P networking library, ported from the Rust [gigi-p2p](https://github.com/gigi/rust/gigi-p2p) crate.
 
 ## Features
 
@@ -25,7 +25,7 @@ TypeScript implementation of the Gigi P2P networking library, ported from the Ru
 ## Installation
 
 ```bash
-cd pkgs/gigi-p2p-ts
+cd typescript/gigi-p2p-ts
 npm install
 ```
 

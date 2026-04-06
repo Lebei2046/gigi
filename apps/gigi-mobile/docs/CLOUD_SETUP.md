@@ -163,5 +163,5 @@ npm run build:ios
 ## Related Documentation
 
 - [Gigi Node README](../../apps/gigi-node/README.md)
-- [Gigi P2P Documentation](../../pkgs/gigi-p2p/README.md)
+- [Gigi P2P Documentation](../../rust/gigi-p2p/README.md)
 - [Deployment Script](../../apps/gigi-node/deploy.sh)

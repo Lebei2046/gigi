@@ -3,14 +3,13 @@ resolver = "2"
 members = [
   "apps/gigi-mobile/src-tauri",
   "apps/gigi-node",
-  "pkgs/gigi-auth",
-  "pkgs/gigi-p2p",
-  "pkgs/gigi-dns",
-  "pkgs/gigi-file-sharing",
-  "pkgs/gigi-store",
-  "pkgs/tauri-plugin-gigi",
+  "rust/gigi-auth",
+  "rust/gigi-p2p",
+  "rust/gigi-dns",
+  "rust/gigi-file-sharing",
+  "rust/gigi-store",
+  "rust/tauri-plugin-gigi",
 ]
-
 [workspace.package]
 version = "0.0.1"
 
@@ -60,10 +59,10 @@ sea-orm = { version = "1.1.19", features = ["sqlx-sqlite", "runtime-tokio-rustls
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4.0", features = ["derive"] }
-gigi-p2p = { version = "0.0.1", path = "./pkgs/gigi-p2p" }
-gigi-file-sharing = { version = "0.1.0", path = "./pkgs/gigi-file-sharing" }
-gigi-store = { version = "0.0.1", path = "./pkgs/gigi-store" }
-gigi-auth = { version = "0.0.1", path = "./pkgs/gigi-auth" }
+gigi-p2p = { version = "0.0.1", path = "./rust/gigi-p2p" }
+gigi-file-sharing = { version = "0.1.0", path = "./rust/gigi-file-sharing" }
+gigi-store = { version = "0.0.1", path = "./rust/gigi-store" }
+gigi-auth = { version = "0.0.1", path = "./rust/gigi-auth" }
 
 
 [profile.release]

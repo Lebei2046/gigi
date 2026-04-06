@@ -1,4 +1,4 @@
 packages:
-  - "typescript/*"
   - "apps/*"
-  - "pkgs/*"
+  - "rust/*"
+  - "typescript/*"

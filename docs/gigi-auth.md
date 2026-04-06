@@ -33,7 +33,7 @@ Gigi Auth is designed to secure the Gigi P2P network by providing robust authent
 
 2. **Build Gigi Auth**:
    ```bash
-   cd pkgs/gigi-auth
+   cd rust/gigi-auth
    cargo build
    ```
 
@@ -42,7 +42,7 @@ Gigi Auth is designed to secure the Gigi P2P network by providing robust authent
    # In your Cargo.toml
    [dependencies]
    gigi-auth = {
-     path = "../gigi/pkgs/gigi-auth",
+     path = "../gigi/rust/gigi-auth",
      version = "0.1.0"
    }
    ```

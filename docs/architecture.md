@@ -16,7 +16,7 @@ The Gigi P2P ecosystem is built on top of Libp2p, a modular network stack for pe
 
 The Gigi P2P ecosystem consists of the following core components:
 
-### 1. Gigi P2P Rust Client (`pkgs/gigi-p2p`)
+### 1. Gigi P2P Rust Client (`rust/gigi-p2p`)
 
 The Rust implementation of the Gigi P2P client, providing core P2P functionality with high performance and reliability.
 
@@ -37,7 +37,7 @@ A TypeScript implementation of the Gigi P2P client, providing a high-level API f
 - **State Management**: Maintains client state and connection status
 - **Error Handling**: Provides robust error handling for network operations
 
-### 3. Gigi OpenClaw Plugin (`pkgs/gigi-openclaw`)
+### 3. Gigi OpenClaw Plugin (`apps/gigi-openclaw`)
 
 Integrates the Gigi P2P network with OpenClaw, enabling P2P messaging and file sharing through the OpenClaw interface.
 
@@ -57,7 +57,7 @@ A standalone Gigi P2P network node that can operate as a bootstrap node, relay n
 - **Network Stability**: Improves network resilience and connectivity
 - **Monitoring**: Provides network health monitoring and metrics
 
-### 5. Gigi Auth (`pkgs/gigi-auth`)
+### 5. Gigi Auth (`rust/gigi-auth`)
 
 Authentication and key management for Gigi P2P network participants.
 
@@ -67,7 +67,7 @@ Authentication and key management for Gigi P2P network participants.
 - **Encryption**: Encrypts sensitive data
 - **Settings Management**: Stores and retrieves user settings
 
-### 6. Gigi DNS (`pkgs/gigi-dns`)
+### 6. Gigi DNS (`rust/gigi-dns`)
 
 Decentralized DNS service for the Gigi P2P network, allowing peers to resolve names to peer IDs.
 
@@ -77,7 +77,7 @@ Decentralized DNS service for the Gigi P2P network, allowing peers to resolve na
 - **Cache Management**: Caches records for improved performance
 - **Security**: Ensures record integrity and authenticity
 
-### 7. Gigi File Sharing (`pkgs/gigi-file-sharing`)
+### 7. Gigi File Sharing (`rust/gigi-file-sharing`)
 
 File sharing utilities for the Gigi P2P network.
 
@@ -87,7 +87,7 @@ File sharing utilities for the Gigi P2P network.
 - **Progress Tracking**: Monitors transfer progress
 - **Error Handling**: Handles network errors gracefully
 
-### 8. Gigi Store (`pkgs/gigi-store`)
+### 8. Gigi Store (`rust/gigi-store`)
 
 Persistence layer for the Gigi P2P network, storing messages, contacts, and other data.
 
@@ -98,7 +98,7 @@ Persistence layer for the Gigi P2P network, storing messages, contacts, and othe
 - **File Metadata**: Tracks shared files
 - **Settings Persistence**: Saves user settings
 
-### 9. Tauri Plugin Gigi (`pkgs/tauri-plugin-gigi`)
+### 9. Tauri Plugin Gigi (`rust/tauri-plugin-gigi`)
 
 Tauri plugin for integrating Gigi P2P functionality into desktop and mobile applications.
 

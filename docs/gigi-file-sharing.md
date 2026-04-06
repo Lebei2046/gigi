@@ -34,7 +34,7 @@ Gigi File Sharing is designed to enable secure, efficient file sharing between p
 
 2. **Build Gigi File Sharing**:
    ```bash
-   cd pkgs/gigi-file-sharing
+   cd rust/gigi-file-sharing
    cargo build
    ```
 
@@ -43,7 +43,7 @@ Gigi File Sharing is designed to enable secure, efficient file sharing between p
    # In your Cargo.toml
    [dependencies]
    gigi-file-sharing = {
-     path = "../gigi/pkgs/gigi-file-sharing",
+     path = "../gigi/rust/gigi-file-sharing",
      version = "0.1.0"
    }
    ```
