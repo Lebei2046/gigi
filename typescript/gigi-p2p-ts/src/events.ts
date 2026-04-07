@@ -1,4 +1,4 @@
-import type { MessageContent } from './types.js';
+import type { MessageContent } from './types';
 
 export enum P2pEventType {
   PEER_DISCOVERED = 'peer-discovered',

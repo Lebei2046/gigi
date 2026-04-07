@@ -42,7 +42,13 @@ import type { GigiAccount } from './types.js';
 import { GigiClient } from './GigiClient.js';
 import { OutboundManager } from './outbound.js';
 import { listGigiAccountIds, resolveGigiAccount } from './accounts.js';
-import { TextMessage, FileMessage, AgentSettingsQuery, AgentSettingsResponse, AmpMessageFactory } from '@gigi/amp-ts';
+import {
+  TextMessage,
+  FileMessage,
+  AgentSettingsQuery,
+  AgentSettingsResponse,
+  AmpMessageFactory,
+} from '@gigi/amp-ts';
 
 const CHANNEL_ID = 'gigi-openclaw';
 const TEXT_CHUNK_LIMIT = 4000;
@@ -1074,111 +1080,116 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                     );
 
                     // Build the inbound context payload for this agent
-                    const ctxPayload =
-                      (runtime as any).channel.reply.finalizeInboundContext({
-                        channel: CHANNEL_ID,
-                        accountId: gatewayContext.accountId,
-                        from: textMessage.sender.id,
-                        to: agent.id,
+                    const ctxPayload = (
+                      runtime as any
+                    ).channel.reply.finalizeInboundContext({
+                      channel: CHANNEL_ID,
+                      accountId: gatewayContext.accountId,
+                      from: textMessage.sender.id,
+                      to: agent.id,
+                      text: textMessage.content,
+                      body: textMessage.content,
+                      rawBody: textMessage.content,
+                      payload: {
                         text: textMessage.content,
-                        body: textMessage.content,
-                        rawBody: textMessage.content,
-                        payload: {
-                          text: textMessage.content,
-                          type: 'text',
-                        },
-                        senderName: textMessage.sender.name,
-                        messageId: textMessage.id,
-                        timestamp: textMessage.timestamp,
-                        extraFields: {
-                          target: textMessage.target,
-                          senderType: textMessage.sender.type,
-                          agentId: agent.id,
-                        },
-                      });
+                        type: 'text',
+                      },
+                      senderName: textMessage.sender.name,
+                      messageId: textMessage.id,
+                      timestamp: textMessage.timestamp,
+                      extraFields: {
+                        target: textMessage.target,
+                        senderType: textMessage.sender.type,
+                        agentId: agent.id,
+                      },
+                    });
 
                     // Create a proper reply dispatcher for this agent
-                    const { dispatcher, replyOptions } =
-                      (runtime as any).channel.reply.createReplyDispatcherWithTyping({
-                        responsePrefix: '',
-                        responsePrefixContextProvider: () => ({}),
-                        humanDelay:
-                          (runtime as any).channel.reply.resolveHumanDelayConfig(
-                            ctx.cfg,
-                            agent.id
-                          ),
+                    const { dispatcher, replyOptions } = (
+                      runtime as any
+                    ).channel.reply.createReplyDispatcherWithTyping({
+                      responsePrefix: '',
+                      responsePrefixContextProvider: () => ({}),
+                      humanDelay: (
+                        runtime as any
+                      ).channel.reply.resolveHumanDelayConfig(
+                        ctx.cfg,
+                        agent.id
+                      ),
 
-                        onReplyStart: async () => {
-                          console.log(
-                            `[GigiPlugin] Reply started for agent ${agent.id}`
-                          );
-                        },
+                      onReplyStart: async () => {
+                        console.log(
+                          `[GigiPlugin] Reply started for agent ${agent.id}`
+                        );
+                      },
 
-                        deliver: async (payload: any) => {
-                          console.log(
-                            `[GigiPlugin] Agent ${agent.id} response:`,
-                            payload
-                          );
-                          // Send the agent's response back to the P2P network
-                          try {
-                            if (payload.text) {
-                              // Create a text message response
-                              const responseMessage = {
-                                type: 'text' as const,
-                                content: `[${agent.name || agent.id}] ${payload.text}`,
-                                target: {
-                                  type: 'specific' as const,
-                                  agentIds: [textMessage.sender.id],
-                                },
-                                sender: {
-                                  id: gatewayContext.account.peerId,
-                                  name: agent.name || agent.id,
-                                  type: 'agent' as const,
-                                },
-                                timestamp: Date.now(),
-                                id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                              };
+                      deliver: async (payload: any) => {
+                        console.log(
+                          `[GigiPlugin] Agent ${agent.id} response:`,
+                          payload
+                        );
+                        // Send the agent's response back to the P2P network
+                        try {
+                          if (payload.text) {
+                            // Create a text message response
+                            const responseMessage = {
+                              type: 'text' as const,
+                              content: `[${agent.name || agent.id}] ${payload.text}`,
+                              target: {
+                                type: 'specific' as const,
+                                agentIds: [textMessage.sender.id],
+                              },
+                              sender: {
+                                id: gatewayContext.account.peerId,
+                                name: agent.name || agent.id,
+                                type: 'agent' as const,
+                              },
+                              timestamp: Date.now(),
+                              id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            };
 
-                              // Send the response back to the sender
-                              await gatewayContext.client.sendGroupMessage(
-                                'gigi-agents',
-                                JSON.stringify(responseMessage)
-                              );
-                              console.log(
-                                `[GigiPlugin] Sent response from agent ${agent.id} to P2P network`
-                              );
-                            }
-                          } catch (error) {
-                            console.error(
-                              `[GigiPlugin] Error sending response from agent ${agent.id} to P2P network:`,
-                              error
+                            // Send the response back to the sender
+                            await gatewayContext.client.sendGroupMessage(
+                              'gigi-agents',
+                              JSON.stringify(responseMessage)
+                            );
+                            console.log(
+                              `[GigiPlugin] Sent response from agent ${agent.id} to P2P network`
                             );
                           }
-                        },
-
-                        onError: async (err: any, info: any) => {
+                        } catch (error) {
                           console.error(
-                            `[GigiPlugin] Reply error for agent ${agent.id}:`,
-                            err,
-                            info
+                            `[GigiPlugin] Error sending response from agent ${agent.id} to P2P network:`,
+                            error
                           );
-                        },
+                        }
+                      },
 
-                        onIdle: async () => {
-                          console.log(
-                            `[GigiPlugin] Reply idle for agent ${agent.id}`
-                          );
-                        },
+                      onError: async (err: any, info: any) => {
+                        console.error(
+                          `[GigiPlugin] Reply error for agent ${agent.id}:`,
+                          err,
+                          info
+                        );
+                      },
 
-                        onCleanup: async () => {
-                          console.log(
-                            `[GigiPlugin] Reply cleanup for agent ${agent.id}`
-                          );
-                        },
-                      });
+                      onIdle: async () => {
+                        console.log(
+                          `[GigiPlugin] Reply idle for agent ${agent.id}`
+                        );
+                      },
+
+                      onCleanup: async () => {
+                        console.log(
+                          `[GigiPlugin] Reply cleanup for agent ${agent.id}`
+                        );
+                      },
+                    });
 
                     // Dispatch the message to the agent
-                    await (runtime as any).channel.reply.dispatchReplyFromConfig({
+                    await (
+                      runtime as any
+                    ).channel.reply.dispatchReplyFromConfig({
                       ctx: ctxPayload,
                       cfg: ctx.cfg,
                       dispatcher,
@@ -1248,116 +1259,121 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                     );
 
                     // Build the inbound context payload for this agent
-                    const ctxPayload =
-                      (runtime as any).channel.reply.finalizeInboundContext({
-                        channel: CHANNEL_ID,
-                        accountId: gatewayContext.accountId,
-                        from: fileMessage.sender.id,
-                        to: agent.id,
+                    const ctxPayload = (
+                      runtime as any
+                    ).channel.reply.finalizeInboundContext({
+                      channel: CHANNEL_ID,
+                      accountId: gatewayContext.accountId,
+                      from: fileMessage.sender.id,
+                      to: agent.id,
+                      text: JSON.stringify(fileShareContent),
+                      body: JSON.stringify(fileShareContent),
+                      rawBody: JSON.stringify(fileShareContent),
+                      payload: {
                         text: JSON.stringify(fileShareContent),
-                        body: JSON.stringify(fileShareContent),
-                        rawBody: JSON.stringify(fileShareContent),
-                        payload: {
-                          text: JSON.stringify(fileShareContent),
-                          type: 'fileShare',
+                        type: 'fileShare',
+                      },
+                      senderName: fileMessage.sender.name,
+                      messageId: fileMessage.id,
+                      timestamp: fileMessage.timestamp,
+                      extraFields: {
+                        target: fileMessage.target,
+                        senderType: fileMessage.sender.type,
+                        agentId: agent.id,
+                        fileInfo: {
+                          filename: fileMessage.filename,
+                          fileSize: fileMessage.fileSize,
+                          fileHash: fileMessage.fileHash,
                         },
-                        senderName: fileMessage.sender.name,
-                        messageId: fileMessage.id,
-                        timestamp: fileMessage.timestamp,
-                        extraFields: {
-                          target: fileMessage.target,
-                          senderType: fileMessage.sender.type,
-                          agentId: agent.id,
-                          fileInfo: {
-                            filename: fileMessage.filename,
-                            fileSize: fileMessage.fileSize,
-                            fileHash: fileMessage.fileHash,
-                          },
-                        },
-                      });
+                      },
+                    });
 
                     // Create a proper reply dispatcher for this agent
-                    const { dispatcher, replyOptions } =
-                      (runtime as any).channel.reply.createReplyDispatcherWithTyping({
-                        responsePrefix: '',
-                        responsePrefixContextProvider: () => ({}),
-                        humanDelay:
-                          (runtime as any).channel.reply.resolveHumanDelayConfig(
-                            ctx.cfg,
-                            agent.id
-                          ),
+                    const { dispatcher, replyOptions } = (
+                      runtime as any
+                    ).channel.reply.createReplyDispatcherWithTyping({
+                      responsePrefix: '',
+                      responsePrefixContextProvider: () => ({}),
+                      humanDelay: (
+                        runtime as any
+                      ).channel.reply.resolveHumanDelayConfig(
+                        ctx.cfg,
+                        agent.id
+                      ),
 
-                        onReplyStart: async () => {
-                          console.log(
-                            `[GigiPlugin] Reply started for agent ${agent.id}`
-                          );
-                        },
+                      onReplyStart: async () => {
+                        console.log(
+                          `[GigiPlugin] Reply started for agent ${agent.id}`
+                        );
+                      },
 
-                        deliver: async (payload: any) => {
-                          console.log(
-                            `[GigiPlugin] Agent ${agent.id} response:`,
-                            payload
-                          );
-                          // Send the agent's response back to the P2P network
-                          try {
-                            if (payload.text) {
-                              // Create a text message response
-                              const responseMessage = {
-                                type: 'text' as const,
-                                content: `[${agent.name || agent.id}] ${payload.text}`,
-                                target: {
-                                  type: 'specific' as const,
-                                  agentIds: [fileMessage.sender.id],
-                                },
-                                sender: {
-                                  id: gatewayContext.account.peerId,
-                                  name: agent.name || agent.id,
-                                  type: 'agent' as const,
-                                },
-                                timestamp: Date.now(),
-                                id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                              };
+                      deliver: async (payload: any) => {
+                        console.log(
+                          `[GigiPlugin] Agent ${agent.id} response:`,
+                          payload
+                        );
+                        // Send the agent's response back to the P2P network
+                        try {
+                          if (payload.text) {
+                            // Create a text message response
+                            const responseMessage = {
+                              type: 'text' as const,
+                              content: `[${agent.name || agent.id}] ${payload.text}`,
+                              target: {
+                                type: 'specific' as const,
+                                agentIds: [fileMessage.sender.id],
+                              },
+                              sender: {
+                                id: gatewayContext.account.peerId,
+                                name: agent.name || agent.id,
+                                type: 'agent' as const,
+                              },
+                              timestamp: Date.now(),
+                              id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            };
 
-                              // Send the response back to the sender
-                              await gatewayContext.client.sendGroupMessage(
-                                'gigi-agents',
-                                JSON.stringify(responseMessage)
-                              );
-                              console.log(
-                                `[GigiPlugin] Sent response from agent ${agent.id} to P2P network`
-                              );
-                            }
-                          } catch (error) {
-                            console.error(
-                              `[GigiPlugin] Error sending response from agent ${agent.id} to P2P network:`,
-                              error
+                            // Send the response back to the sender
+                            await gatewayContext.client.sendGroupMessage(
+                              'gigi-agents',
+                              JSON.stringify(responseMessage)
+                            );
+                            console.log(
+                              `[GigiPlugin] Sent response from agent ${agent.id} to P2P network`
                             );
                           }
-                        },
-
-                        onError: async (err: any, info: any) => {
+                        } catch (error) {
                           console.error(
-                            `[GigiPlugin] Reply error for agent ${agent.id}:`,
-                            err,
-                            info
+                            `[GigiPlugin] Error sending response from agent ${agent.id} to P2P network:`,
+                            error
                           );
-                        },
+                        }
+                      },
 
-                        onIdle: async () => {
-                          console.log(
-                            `[GigiPlugin] Reply idle for agent ${agent.id}`
-                          );
-                        },
+                      onError: async (err: any, info: any) => {
+                        console.error(
+                          `[GigiPlugin] Reply error for agent ${agent.id}:`,
+                          err,
+                          info
+                        );
+                      },
 
-                        onCleanup: async () => {
-                          console.log(
-                            `[GigiPlugin] Reply cleanup for agent ${agent.id}`
-                          );
-                        },
-                      });
+                      onIdle: async () => {
+                        console.log(
+                          `[GigiPlugin] Reply idle for agent ${agent.id}`
+                        );
+                      },
+
+                      onCleanup: async () => {
+                        console.log(
+                          `[GigiPlugin] Reply cleanup for agent ${agent.id}`
+                        );
+                      },
+                    });
 
                     // Dispatch the message to the agent
-                    await (runtime as any).channel.reply.dispatchReplyFromConfig({
+                    await (
+                      runtime as any
+                    ).channel.reply.dispatchReplyFromConfig({
                       ctx: ctxPayload,
                       cfg: ctx.cfg,
                       dispatcher,

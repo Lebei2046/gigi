@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "lib": ["ES2022"],
     "types": ["node"],
     "declaration": true,
@@ -20,13 +20,8 @@
     "strictNullChecks": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "baseUrl": ".",
-    "composite": true,
-    "paths": {
-      "@gigi/request-response-ts": ["../gigi-request-response-ts/src/index.ts"]
-    }
+    "composite": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../gigi-request-response-ts" }]
+  "exclude": ["node_modules", "dist"]
 }

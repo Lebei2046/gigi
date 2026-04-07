@@ -1,4 +1,4 @@
-import { Codec } from '../types.js';
+import { Codec } from '../types';
 
 /**
  * A JSON codec for encoding and decoding requests and responses.

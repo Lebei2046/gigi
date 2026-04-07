@@ -15,8 +15,11 @@ import { ping } from '@libp2p/ping';
 import { gossipsub } from '@libp2p/gossipsub';
 import { multiaddr } from '@multiformats/multiaddr';
 import { generateKeyPairFromSeed } from '@libp2p/crypto/keys';
+import { createLogger } from '@gigi/logging';
 
-import { derivePeerPrivateKey, derivePeerId } from './key-derivation.js';
+import { derivePeerPrivateKey, derivePeerId } from './key-derivation';
+
+const logger = createLogger({ name: 'libp2p-setup' });
 
 export interface SupportedProtocols {
   direct: string;
@@ -68,7 +71,7 @@ export async function createLibp2pInstance(
   let gigiDns: GigiDnsBehaviour | null = null;
 
   if (enableMdns) {
-    console.log('[libp2p-setup] Enabling Gigi DNS for local peer discovery');
+    logger.info('[libp2p-setup] Enabling Gigi DNS for local peer discovery');
     // Gigi DNS will be initialized after libp2p is created
   }
 
@@ -102,23 +105,29 @@ export async function createLibp2pInstance(
 
   // Use mnemonic for key derivation if provided
   if (mnemonic) {
-    console.log('[libp2p-setup] Using mnemonic for key derivation');
+    logger.info('[libp2p-setup] Using mnemonic for key derivation');
     try {
       // Derive peer ID from mnemonic
       const peerId = await derivePeerId(mnemonic);
 
-      console.log('[libp2p-setup] Derived peer ID from mnemonic:', peerId);
+      logger.info({
+        message: '[libp2p-setup] Derived peer ID from mnemonic',
+        peerId: peerId,
+      });
 
       // Derive private key from mnemonic
       const { privateKey, publicKey } = await derivePeerPrivateKey(mnemonic);
 
       // Debug: check key lengths and values
-      console.log('[libp2p-setup] Private key length:', privateKey.length);
-      console.log('[libp2p-setup] Public key length:', publicKey.length);
-      console.log(
-        '[libp2p-setup] Private key (hex):',
-        Buffer.from(privateKey).toString('hex')
-      );
+      logger.debug({
+        message: '[libp2p-setup] Key lengths',
+        privateKeyLength: privateKey.length,
+        publicKeyLength: publicKey.length,
+      });
+      logger.debug({
+        message: '[libp2p-setup] Private key (hex)',
+        privateKey: Buffer.from(privateKey).toString('hex'),
+      });
 
       // Generate the key pair from the seed
       const privateKeyObj = await generateKeyPairFromSeed(
@@ -128,13 +137,16 @@ export async function createLibp2pInstance(
 
       // Set the private key in the options instead of peerId
       libp2pOptions.privateKey = privateKeyObj;
-      console.log('[libp2p-setup] Private key set in options');
-      console.log('[libp2p-setup] Expected peer ID:', peerId);
+      logger.info('[libp2p-setup] Private key set in options');
+      logger.info({
+        message: '[libp2p-setup] Expected peer ID',
+        peerId: peerId,
+      });
     } catch (error) {
-      console.error(
-        '[libp2p-setup] Error deriving peer ID from mnemonic:',
-        error
-      );
+      logger.error({
+        message: '[libp2p-setup] Error deriving peer ID from mnemonic',
+        error: error,
+      });
       throw error;
     }
   }
@@ -157,19 +169,26 @@ export async function createLibp2pInstance(
     const listenAddrs = libp2p.getMultiaddrs().map((m: any) => m.toString());
     gigiDns.updateListenAddresses(listenAddrs);
 
-    console.log(
-      '[libp2p-setup] Gigi DNS initialized with nickname:',
-      options.nickname
-    );
+    logger.info({
+      message: '[libp2p-setup] Gigi DNS initialized',
+      nickname: options.nickname,
+    });
   }
 
   for (const addr of bootstrapNodes) {
     try {
       const multiAddr = multiaddr(addr);
       await libp2p.dial(multiAddr);
-      console.log(`[libp2p] Connected to bootstrap: ${addr}`);
+      logger.info({
+        message: '[libp2p] Connected to bootstrap',
+        address: addr,
+      });
     } catch (error) {
-      console.warn(`[libp2p] Failed to connect to bootstrap ${addr}:`, error);
+      logger.warn({
+        message: '[libp2p] Failed to connect to bootstrap',
+        address: addr,
+        error: error,
+      });
     }
   }
 

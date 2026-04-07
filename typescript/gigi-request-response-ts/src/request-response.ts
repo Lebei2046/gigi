@@ -14,7 +14,7 @@ import {
   defaultConfig,
   InboundFailure,
   OutboundFailure,
-} from './types.js';
+} from './types';
 
 // Incoming stream data interface
 export interface IncomingStreamData {

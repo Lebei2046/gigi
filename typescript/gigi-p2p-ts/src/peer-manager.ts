@@ -1,4 +1,4 @@
-import type { PeerInfo } from './types.js';
+import type { PeerInfo } from './types';
 
 export class PeerManager {
   private peers: Map<string, PeerInfo> = new Map();
@@ -7,13 +7,6 @@ export class PeerManager {
 
   discover(peerId: string, nickname: string, addresses: string[]): void {
     const existing = this.peers.get(peerId);
-
-    console.log(
-      `[PeerManager] discover: peerId=${peerId}, nickname=${nickname}, addresses=${addresses.join(', ')}`
-    );
-    console.log(
-      `[PeerManager] Existing peer: ${existing ? JSON.stringify(existing) : 'none'}`
-    );
 
     // If peer already exists and nickname has changed, remove old nickname mapping
     if (existing && existing.nickname !== nickname) {
@@ -35,8 +28,6 @@ export class PeerManager {
       lastSeen: Date.now(),
       connected: this.connectedPeers.has(peerId),
     };
-
-    console.log(`[PeerManager] New peer: ${JSON.stringify(peer)}`);
 
     this.peers.set(peerId, peer);
     this.nicknameToPeerId.set(nickname, peerId);

@@ -31,7 +31,8 @@
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "@types/node": "^25.5.0"
   },
   "dependencies": {
     "@libp2p/interface-connection": "^5.1.1",

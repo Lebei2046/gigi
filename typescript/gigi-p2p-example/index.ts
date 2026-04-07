@@ -7,7 +7,10 @@ import {
   InMemoryAgentRegistry,
 } from '@gigi/amp-ts';
 import type { AgentInfo } from '@gigi/amp-ts';
+import { createLogger } from '@gigi/logging';
 import * as fs from 'fs';
+
+const logger = createLogger({ name: 'gigi-p2p-example' });
 
 const program = new Command();
 
@@ -28,11 +31,17 @@ let currentGroup: string | null = null;
 
 // Initialize P2P client
 async function initializeP2P(mnemonic: string, nickname: string) {
-  console.log(`Initializing P2P client with nickname: ${nickname}`);
+  logger.info({
+    message: 'Initializing P2P client',
+    nickname: nickname,
+  });
 
   // Derive peer ID from mnemonic
   const peerId = await derivePeerId(mnemonic);
-  console.log(`Derived peer ID: ${peerId}`);
+  logger.info({
+    message: 'Derived peer ID',
+    peerId: peerId,
+  });
 
   // Create P2P client
   p2pClient = new P2pClient({
@@ -88,15 +97,38 @@ async function initializeP2P(mnemonic: string, nickname: string) {
   );
 
   // Set up P2P event listeners
-  p2pClient.onMessage((msg) => {
-    try {
-      const parsedMsg = JSON.parse(msg.content);
-      if (parsedMsg.type && messageRouter) {
-        messageRouter.routeMessage(parsedMsg);
+  p2pClient.onEvent((event) => {
+    if (event.type === 'direct-message') {
+      try {
+        const parsedMsg = JSON.parse(event.message);
+        if (parsedMsg.type && messageRouter) {
+          messageRouter.routeMessage(parsedMsg);
+        }
+      } catch {
+        // Not an AMP message, display as regular message
+        console.log(`\n[${event.fromNickname}]: ${event.message}`);
       }
-    } catch {
-      // Not an AMP message, display as regular message
-      console.log(`\n[${msg.fromNickname}]: ${msg.content}`);
+    } else if (event.type === 'group-message') {
+      try {
+        const parsedMsg = event.content;
+        if (parsedMsg.type === 'text') {
+          // Text message, display in readable format
+          console.log(`\n[${event.fromNickname}]: ${parsedMsg.text}`);
+        } else if (parsedMsg.type && messageRouter) {
+          // AMP message, route through message router
+          messageRouter.routeMessage(parsedMsg);
+        } else {
+          // Other message types, display as JSON
+          console.log(
+            `\n[${event.fromNickname}] in ${event.group}: ${typeof parsedMsg === 'string' ? parsedMsg : JSON.stringify(parsedMsg)}`
+          );
+        }
+      } catch {
+        // Not an AMP message, display as regular message
+        console.log(
+          `\n[${event.fromNickname}] in ${event.group}: ${JSON.stringify(event.content)}`
+        );
+      }
     }
   });
 
@@ -104,6 +136,10 @@ async function initializeP2P(mnemonic: string, nickname: string) {
   await p2pClient.start();
   console.log('P2P client started successfully!');
   console.log(`Your peer ID: ${p2pClient.getPeerId()}`);
+  logger.info({
+    message: 'P2P client started successfully',
+    peerId: p2pClient.getPeerId(),
+  });
 
   currentNickname = nickname;
 }
@@ -233,7 +269,7 @@ async function startInteractiveChat() {
           break;
 
         case '/peers':
-          const peers = p2pClient!.getPeers();
+          const peers = p2pClient!.listConnectedPeers();
           if (peers.length === 0) {
             console.log('No peers connected');
           } else {
@@ -300,8 +336,11 @@ async function startInteractiveChat() {
     } else {
       // Send to current group
       if (currentGroup) {
-        await p2pClient!.sendGroupMessage(currentGroup, trimmed);
-        console.log(`[You]: ${trimmed}`);
+        await p2pClient!.sendGroupMessage(currentGroup, {
+          type: 'text',
+          text: trimmed,
+        });
+        // Don't display user's own message - it will be received back from the P2P network
       } else {
         console.log('Not in any group. Use /join <group> to join a group.');
       }
@@ -332,12 +371,19 @@ program
         mnemonic = generateMnemonic();
         console.log(`Your mnemonic: ${mnemonic}`);
         console.log('Please save this mnemonic securely!');
+        logger.info('Generated new mnemonic');
+      } else {
+        logger.info('Using provided mnemonic');
       }
 
       await initializeP2P(mnemonic, options.nickname);
       await startInteractiveChat();
     } catch (err) {
       console.error('Failed to initialize:', err);
+      logger.error({
+        message: 'Failed to initialize P2P client',
+        error: err,
+      });
       process.exit(1);
     }
   });

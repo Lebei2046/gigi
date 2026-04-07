@@ -1,4 +1,4 @@
-import type { GroupInfo } from './types.js';
+import type { GroupInfo } from './types';
 
 export class GroupManager {
   private groups: Map<string, GroupInfo> = new Map();

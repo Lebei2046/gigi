@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'crypto';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, basename } from 'path';
-import type { FileInfo, SharedFile } from './types.js';
+import type { FileInfo, SharedFile } from './types';
 
 interface SharedFileWithPath extends SharedFile {
   filePath: string;
