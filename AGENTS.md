@@ -8,39 +8,97 @@ This document serves as a comprehensive guideline for the Gigi P2P ecosystem, de
 
 The Gigi P2P ecosystem is a decentralized network of components designed to enable secure, direct communication between peers without relying on centralized servers. It is built on top of Libp2p, a modular network stack for peer-to-peer applications.
 
-### Applications & Plugins
+### Projects Index
 
-| Name | Description | Type | Documentation |
-|------|-------------|------|---------------|
-| Gigi Mobile | Mobile application for Gigi P2P network | Application | [apps/gigi-mobile/README.md](apps/gigi-mobile/README.md) |
-| Gigi Network Node | Standalone network node for bootstrap/relay | Application | [docs/gigi-node.md](docs/gigi-node.md) |
-| Gigi OpenClaw Plugin | Integration plugin for OpenClaw chat application | Plugin | [apps/gigi-openclaw/README.md](apps/gigi-openclaw/README.md) |
+#### TypeScript Projects
+- **gigi-amp-ts**: AMP (Asynchronous Message Protocol) implementation
+- **gigi-dns-ts**: DNS functionality for the P2P network
+- **gigi-logging**: Logging utilities using Pino
+- **gigi-p2p-example**: Example usage of the Gigi P2P client
+- **gigi-p2p-ts**: High-level TypeScript client for P2P communication
+- **gigi-request-response-ts**: Request-response protocol implementation
 
-### Core Components
+#### Rust Projects
+- **gigi-auth**: Authentication and key management
+- **gigi-dns**: Decentralized name resolution
+- **gigi-file-sharing**: File sharing utilities
+- **gigi-p2p**: Core P2P functionality with high performance
+- **gigi-store**: Persistence layer for data storage
+- **tauri-plugin-gigi**: Integration with Tauri desktop/mobile apps
 
-| Component | Description | Documentation |
-|-----------|-------------|---------------|
-| Gigi P2P Rust Client | Core P2P functionality with high performance | [docs/gigi-p2p.md](docs/gigi-p2p.md) |
-| Gigi P2P TypeScript Client | High-level API for TypeScript applications | [docs/gigi-p2p-ts.md](docs/gigi-p2p-ts.md) |
-| Gigi Request-Response TS | Request-response protocol for TypeScript | [typescript/gigi-request-response-ts/README.md](typescript/gigi-request-response-ts/README.md) |
-| Gigi Auth | Authentication and key management | [docs/gigi-auth.md](docs/gigi-auth.md) |
-| Gigi DNS | Decentralized name resolution | [docs/gigi-dns.md](docs/gigi-dns.md) |
-| Gigi File Sharing | File sharing utilities | [docs/gigi-file-sharing.md](docs/gigi-file-sharing.md) |
-| Gigi Store | Persistence layer for data storage | [docs/gigi-store.md](docs/gigi-store.md) |
-| Tauri Plugin Gigi | Integration with Tauri desktop/mobile apps | [docs/tauri-plugin-gigi.md](docs/tauri-plugin-gigi.md) |
+#### Applications
+- **gigi-mobile**: Mobile application for Gigi P2P network
+- **gigi-node**: Standalone network node for bootstrap/relay
+- **gigi-openclaw**: Integration plugin for OpenClaw chat application
 
-### Integration Flow
+## 2. Project Structure Rules
 
-1. **User Setup**: User configures Gigi channel in OpenClaw or integrates Gigi P2P into their application
-2. **Connection**: Gigi client starts and connects to the P2P network
-3. **Discovery**: Peer discovery via Kademlia DHT and mDNS
-4. **Communication**: Send/receive messages and files
-5. **Group Interaction**: Join and participate in groups
-6. **Data Persistence**: Store messages, contacts, and other data
+### TypeScript Project Rules
 
-## 2. Architecture
+1. **Project Structure**
+   - Source code in `src/` directory
+   - Tests in `src/__tests__/` directory
+   - Configuration files at root:
+     - `package.json` for dependencies and scripts
+     - `tsconfig.json` for TypeScript configuration
+     - `eslint.config.js` for ESLint configuration
+     - `.prettierrc` for Prettier configuration
+     - `README.md` for documentation
 
-### 2.1 Layers
+2. **Testing**
+   - Use Vitest for testing with built-in TypeScript support
+   - Test files follow `*.test.ts` naming convention
+   - Place tests in `__tests__` directories
+   - Aim for 80%+ test coverage
+
+3. **Linting and Formatting**
+   - Use ESLint for code linting
+   - Use Prettier for code formatting
+   - Include `format-all` script that runs `prettier --write . && eslint "src/**/*.{ts,tsx,js,jsx}" --ext ts,tsx,js,jsx --fix`
+
+4. **Package Management**
+   - Use pnpm as the package manager
+   - Maintain consistent dependency patterns across projects
+
+5. **Logging**
+   - Use Pino for structured JSON logging
+   - Centralize logging utilities in the `gigi-logging` package
+   - Replace `console.log` with structured logging
+
+### Rust Project Rules
+
+1. **Project Structure**
+   - Source code in `src/` directory
+   - Tests in `tests/` directory
+   - Configuration files at root:
+     - `Cargo.toml` for dependencies and configuration
+     - `README.md` for documentation
+   - Optional directories:
+     - `examples/` for example code
+     - `docs/` for documentation
+
+2. **Testing**
+   - Use Rust's built-in test framework
+   - Test files follow `*_test.rs` naming convention
+   - Place tests in the `tests/` directory
+   - Include both unit and integration tests
+
+3. **Code Organization**
+   - Use modules with `mod.rs` files
+   - Follow Rust's standard project structure
+   - Maintain clear separation of concerns
+
+4. **Package Management**
+   - Use Cargo as the package manager
+   - Maintain consistent dependency patterns across projects
+
+5. **Documentation**
+   - Include comprehensive documentation in `docs/` directory
+   - Use Rustdoc for code documentation
+
+## 3. Architecture
+
+### 3.1 Layers
 
 The Gigi P2P ecosystem follows a layered architecture:
 
@@ -50,7 +108,7 @@ The Gigi P2P ecosystem follows a layered architecture:
 
 For detailed information about the architecture, see [docs/architecture.md](docs/architecture.md).
 
-### 2.2 Network Topology
+### 3.2 Network Topology
 
 The Gigi P2P network uses a combination of several peer discovery and routing mechanisms:
 
@@ -59,7 +117,7 @@ The Gigi P2P network uses a combination of several peer discovery and routing me
 - **GossipSub**: Topic-based publish/subscribe messaging for groups
 - **Circuit Relay**: NAT traversal for peers behind firewalls
 
-### 2.3 Technology Stacks
+### 3.3 Technology Stacks
 
 - **Libp2p**: Core P2P networking library
 - **TypeScript**: For TypeScript client and OpenClaw plugin
@@ -67,7 +125,7 @@ The Gigi P2P network uses a combination of several peer discovery and routing me
 - **Tauri**: For desktop and mobile integration
 - **SQLite**: For data persistence in Gigi Store
 
-### 2.4 Scalability Considerations
+### 3.4 Scalability Considerations
 
 The Gigi P2P ecosystem is designed to scale efficiently:
 
@@ -75,7 +133,7 @@ The Gigi P2P ecosystem is designed to scale efficiently:
 - **Performance Optimization**: Connection pooling, parallel processing, and caching
 - **Network Resilience**: Redundancy, fault tolerance, and self-healing
 
-### 2.5 Security Architecture
+### 3.5 Security Architecture
 
 The Gigi P2P ecosystem implements multiple layers of security:
 
@@ -85,7 +143,7 @@ The Gigi P2P ecosystem implements multiple layers of security:
 
 For detailed information about the security architecture, see [docs/architecture.md](docs/architecture.md).
 
-### 2.6 Security Considerations
+### 3.6 Security Considerations
 
 - **Encryption**: All communications are encrypted
 - **Peer Verification**: Peers are verified by their public keys
@@ -93,9 +151,9 @@ For detailed information about the security architecture, see [docs/architecture
 - **File Safety**: Be cautious when downloading files from unknown peers
 - **Privacy**: Protect user privacy through anonymous communication
 
-## 3. Best Practices
+## 4. Best Practices
 
-### 3.1 Testing Best Practices for Node.js/TypeScript
+### 4.1 Testing Best Practices for Node.js/TypeScript
 
 Testing is crucial for maintaining code quality, catching bugs early, and ensuring your application works as expected. Follow these guidelines for testing Node.js/TypeScript projects in the Gigi P2P ecosystem:
 
@@ -113,13 +171,22 @@ Testing is crucial for maintaining code quality, catching bugs early, and ensuri
 
 For detailed documentation and examples, see [docs/testing-best-practices.md](docs/testing-best-practices.md).
 
-## 4. Contribution & Support
+### 4.2 Best Practices for Rust Projects
 
-### 4.1 Contributing
+- **Code Quality**: Use rustfmt for code formatting and clippy for linting
+- **Error Handling**: Use Result type and proper error propagation
+- **Testing**: Write comprehensive unit and integration tests
+- **Documentation**: Document public APIs with Rustdoc
+- **Performance**: Profile and optimize critical paths
+- **Safety**: Leverage Rust's type system and ownership model for memory safety
+
+## 5. Contribution & Support
+
+### 5.1 Contributing
 
 Contributions to the Gigi P2P ecosystem are welcome! Please see the project's GitHub repository for guidelines.
 
-### 4.2 Troubleshooting
+### 5.2 Troubleshooting
 
 #### Common Issues
 - **Connection Problems**: Check network connectivity and firewall settings
@@ -131,11 +198,11 @@ Contributions to the Gigi P2P ecosystem are welcome! Please see the project's Gi
 #### Logs
 Check the application logs and Gigi client logs for detailed error information.
 
-### 4.3 Getting Started
+### 5.3 Getting Started
 
 For a step-by-step guide to getting started with the Gigi P2P ecosystem, see [docs/quick-start.md](docs/quick-start.md).
 
-## 5. Additional Resources
+## 6. Additional Resources
 
 ### API Reference
 
