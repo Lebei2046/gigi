@@ -488,7 +488,7 @@ export class P2pClient {
                 message: '[P2pClient] Received plain text message',
                 group: groupName,
                 from: from,
-                message: messageData,
+                content: messageData,
               });
 
               const nickname =
@@ -1011,6 +1011,13 @@ export class P2pClient {
     logger.info('[P2pClient] Entering downloadFileByPeerId');
     const downloadId = randomUUID();
 
+    // Get peer address from peer manager or use peer ID as fallback
+    let peerAddress = peerId;
+    const peerInfo = this.peerManager.getByPeerId(peerId);
+    if (peerInfo && peerInfo.addresses && peerInfo.addresses.length > 0) {
+      peerAddress = peerInfo.addresses[0];
+    }
+
     // Send file request to get file info
     const fileRequest: FileRequest = {
       type: 'request',
@@ -1020,7 +1027,7 @@ export class P2pClient {
     };
 
     try {
-      const response = await this.sendFileMessage(peerId, fileRequest);
+      const response = await this.sendFileMessage(peerAddress, fileRequest);
       logger.debug({
         message: '[P2pClient] Received response',
         type: response.type,
@@ -1076,7 +1083,7 @@ export class P2pClient {
           };
 
           const chunkResponse = await this.sendFileMessage(
-            peerId,
+            peerAddress,
             chunkRequest
           );
           logger.debug({

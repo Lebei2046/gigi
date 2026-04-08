@@ -367,6 +367,9 @@ importers:
       typescript:
         specifier: ^5.6.2
         version: 5.8.3
+      vitest:
+        specifier: ^4.0.3
+        version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
 
   typescript/gigi-p2p-ts:
     dependencies:
@@ -485,9 +488,12 @@ importers:
       '@libp2p/interface-peer-id':
         specifier: ^2.0.1
         version: 2.0.2
+      '@libp2p/peer-id':
+        specifier: ^6.0.4
+        version: 6.0.4
       '@multiformats/multiaddr':
-        specifier: ^12.3.0
-        version: 12.5.1
+        specifier: ^13.0.1
+        version: 13.0.1
       cbor-x:
         specifier: ^1.6.0
         version: 1.6.4

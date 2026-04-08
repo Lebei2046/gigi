@@ -11,6 +11,7 @@
     "start": "tsx index.ts",
     "build": "tsc",
     "dev": "tsx index.ts",
+    "test": "vitest run tests/gigi-dns-integration.test.ts && vitest run tests/file-sharing.test.ts",
     "lint": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx",
     "lint:fix": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
+    "vitest": "^4.0.3",
     "@eslint/eslintrc": "^3.3.5",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
