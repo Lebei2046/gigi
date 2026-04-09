@@ -25,9 +25,9 @@
     "generate-mnemonic": "node --loader ts-node/esm scripts/generate-mnemonic.ts"
   },
   "dependencies": {
-    "@gigi/amp-ts": "file:../../typescript/gigi-amp-ts",
-    "@gigi/p2p-ts": "file:../../typescript/gigi-p2p-ts",
-    "@gigi/request-response-ts": "file:../../typescript/gigi-request-response-ts",
+    "@gigi/amp": "file:../../typescript/amp",
+    "@gigi/p2p": "file:../../typescript/p2p",
+    "@gigi/request-response": "file:../../typescript/request-response",
     "@sinclair/typebox": "^0.34.0"
   },
   "peerDependencies": {

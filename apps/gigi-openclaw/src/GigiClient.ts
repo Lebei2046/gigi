@@ -1,10 +1,10 @@
-import { P2pClient, P2pClientOptions } from '@gigi/p2p-ts';
-import type { P2pEvent } from '@gigi/p2p-ts';
+import { P2pClient, P2pClientOptions } from '@gigi/p2p';
+import type { P2pEvent } from '@gigi/p2p';
 import {
   AmpMessageRouter,
   AmpMessageFactory,
   InMemoryAgentRegistry,
-} from '@gigi/amp-ts';
+} from '@gigi/amp';
 import type { IGigiClient, GigiClientConfig, GigiMessage } from './types.js';
 
 export class GigiClient implements IGigiClient {

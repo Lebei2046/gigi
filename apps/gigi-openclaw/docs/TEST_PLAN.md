@@ -28,8 +28,8 @@ pnpm build
 cd ../../apps/gigi-openclaw
 pnpm run build:bundle
 
-# Build gigi-p2p-example
-cd ../../typescript/gigi-p2p-example
+# Build p2p-example
+cd ../../typescript/p2p-example
 pnpm install
 ```
 
@@ -79,10 +79,10 @@ openclaw plugins list
 
 #### Steps
 
-1. **Start gigi-p2p-example client:**
+1. **Start p2p-example client:**
 
    ```bash
-   cd /home/lebei/dev/gigi/typescript/gigi-p2p-example
+   cd /home/lebei/dev/gigi/typescript/p2p-example
    npx tsx index.ts "ExampleClient"
    ```
 
@@ -106,7 +106,7 @@ openclaw plugins list
 
 #### Steps
 
-1. **In gigi-p2p-example client, share a file:**
+1. **In p2p-example client, share a file:**
 
    ```
    /share /path/to/test-file.txt
@@ -114,7 +114,7 @@ openclaw plugins list
 
    Note the share code returned.
 
-2. **In gigi-p2p-example client, share the file in the group:**
+2. **In p2p-example client, share the file in the group:**
 
    ```
    /group test-group /file <share-code>
@@ -145,7 +145,7 @@ openclaw plugins list
 
    - Check the OpenClaw logs for the share code
 
-2. **In gigi-p2p-example client, download the file:**
+2. **In p2p-example client, download the file:**
 
    ```
    /download <share-code>
@@ -158,7 +158,7 @@ openclaw plugins list
 
 #### Steps
 
-1. **In gigi-p2p-example client, join another group:**
+1. **In p2p-example client, join another group:**
 
    ```
    /join another-group
@@ -203,7 +203,7 @@ openclaw plugins list
    openclaw gateway stop
    ```
 
-2. **Stop gigi-p2p-example client:**
+2. **Stop p2p-example client:**
    - Press Ctrl+C in the example client terminal
 
 3. **Uninstall the plugin (optional):**

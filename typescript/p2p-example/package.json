@@ -1,5 +1,5 @@
 {
-  "name": "gigi-p2p-example",
+  "name": "p2p-example",
   "version": "1.0.0",
   "type": "module",
   "description": "Example application using Gigi P2P for group chat, file sharing, and more",
@@ -19,9 +19,9 @@
     "format-all": "prettier --write . && eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix"
   },
   "dependencies": {
-    "@gigi/p2p-ts": "workspace:*",
-    "@gigi/amp-ts": "workspace:*",
-    "@gigi/dns-ts": "workspace:*",
+    "@gigi/p2p": "workspace:*",
+    "@gigi/amp": "workspace:*",
+    "@gigi/mdns": "workspace:*",
     "@gigi/logging": "workspace:*",
     "commander": "^11.1.0"
   },

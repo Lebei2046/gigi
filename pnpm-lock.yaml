@@ -10,9 +10,9 @@ importers:
 
   apps/gigi-mobile:
     dependencies:
-      '@gigi/amp-ts':
+      '@gigi/amp':
         specifier: workspace:*
-        version: link:../../typescript/gigi-amp-ts
+        version: link:../../typescript/amp
       '@radix-ui/react-avatar':
         specifier: ^1.1.10
         version: 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -146,15 +146,15 @@ importers:
 
   apps/gigi-openclaw:
     dependencies:
-      '@gigi/amp-ts':
-        specifier: file:../../typescript/gigi-amp-ts
-        version: link:../../typescript/gigi-amp-ts
-      '@gigi/p2p-ts':
-        specifier: file:../../typescript/gigi-p2p-ts
-        version: file:typescript/gigi-p2p-ts
-      '@gigi/request-response-ts':
-        specifier: file:../../typescript/gigi-request-response-ts
-        version: link:../../typescript/gigi-request-response-ts
+      '@gigi/amp':
+        specifier: file:../../typescript/amp
+        version: link:../../typescript/amp
+      '@gigi/p2p':
+        specifier: file:../../typescript/p2p
+        version: file:typescript/p2p
+      '@gigi/request-response':
+        specifier: file:../../typescript/request-response
+        version: link:../../typescript/request-response
       '@sinclair/typebox':
         specifier: ^0.34.0
         version: 0.34.48
@@ -215,7 +215,7 @@ importers:
         specifier: ^5.3.3
         version: 5.8.3
 
-  typescript/gigi-amp-ts:
+  typescript/amp:
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.5
@@ -248,7 +248,41 @@ importers:
         specifier: ^4.0.3
         version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
 
-  typescript/gigi-dns-ts:
+  typescript/logging:
+    dependencies:
+      pino:
+        specifier: ^9.0.0
+        version: 9.14.0
+    devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.0.0
+        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.0.0
+        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^9.0.0
+        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.3
+      vitest:
+        specifier: ^4.0.3
+        version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
+
+  typescript/mdns:
     dependencies:
       '@libp2p/interface':
         specifier: ^1.0.0
@@ -291,97 +325,17 @@ importers:
         specifier: ^4.0.3
         version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
 
-  typescript/gigi-logging:
+  typescript/p2p:
     dependencies:
-      pino:
-        specifier: ^9.0.0
-        version: 9.14.0
-    devDependencies:
-      '@eslint/eslintrc':
-        specifier: ^3.3.5
-        version: 3.3.5
-      '@types/node':
-        specifier: ^25.5.0
-        version: 25.5.0
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.0.0
-        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.0.0
-        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
-      eslint:
-        specifier: ^9.0.0
-        version: 9.39.4(jiti@2.6.1)
-      eslint-config-prettier:
-        specifier: ^9.0.0
-        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
-      prettier:
-        specifier: ^3.0.0
-        version: 3.8.1
-      typescript:
-        specifier: ^5.0.0
-        version: 5.8.3
-      vitest:
-        specifier: ^4.0.3
-        version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
-
-  typescript/gigi-p2p-example:
-    dependencies:
-      '@gigi/amp-ts':
-        specifier: workspace:*
-        version: link:../gigi-amp-ts
-      '@gigi/dns-ts':
-        specifier: workspace:*
-        version: link:../gigi-dns-ts
       '@gigi/logging':
         specifier: workspace:*
-        version: link:../gigi-logging
-      '@gigi/p2p-ts':
+        version: link:../logging
+      '@gigi/mdns':
         specifier: workspace:*
-        version: link:../gigi-p2p-ts
-      commander:
-        specifier: ^11.1.0
-        version: 11.1.0
-    devDependencies:
-      '@eslint/eslintrc':
-        specifier: ^3.3.5
-        version: 3.3.5
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.0.0
-        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.0.0
-        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
-      eslint:
-        specifier: ^9.0.0
-        version: 9.39.4(jiti@2.6.1)
-      eslint-config-prettier:
-        specifier: ^9.0.0
-        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
-      prettier:
-        specifier: ^3.0.0
-        version: 3.8.1
-      tsx:
-        specifier: ^4.19.1
-        version: 4.21.0
-      typescript:
-        specifier: ^5.6.2
-        version: 5.8.3
-      vitest:
-        specifier: ^4.0.3
-        version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
-
-  typescript/gigi-p2p-ts:
-    dependencies:
-      '@gigi/dns-ts':
+        version: link:../mdns
+      '@gigi/request-response':
         specifier: workspace:*
-        version: link:../gigi-dns-ts
-      '@gigi/logging':
-        specifier: workspace:*
-        version: link:../gigi-logging
-      '@gigi/request-response-ts':
-        specifier: workspace:*
-        version: link:../gigi-request-response-ts
+        version: link:../request-response
       '@libp2p/autonat':
         specifier: ^3.0.13
         version: 3.0.13
@@ -477,7 +431,53 @@ importers:
         specifier: ^4.0.3
         version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
 
-  typescript/gigi-request-response-ts:
+  typescript/p2p-example:
+    dependencies:
+      '@gigi/amp':
+        specifier: workspace:*
+        version: link:../amp
+      '@gigi/logging':
+        specifier: workspace:*
+        version: link:../logging
+      '@gigi/mdns':
+        specifier: workspace:*
+        version: link:../mdns
+      '@gigi/p2p':
+        specifier: workspace:*
+        version: link:../p2p
+      commander:
+        specifier: ^11.1.0
+        version: 11.1.0
+    devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.0.0
+        version: 8.57.2(@typescript-eslint/parser@8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.0.0
+        version: 8.57.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.3)
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^9.0.0
+        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      tsx:
+        specifier: ^4.19.1
+        version: 4.21.0
+      typescript:
+        specifier: ^5.6.2
+        version: 5.8.3
+      vitest:
+        specifier: ^4.0.3
+        version: 4.1.1(@types/node@25.5.0)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
+
+  typescript/request-response:
     dependencies:
       '@libp2p/interface-connection':
         specifier: ^5.1.1
@@ -1088,8 +1088,8 @@ packages:
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@gigi/p2p-ts@file:typescript/gigi-p2p-ts':
-    resolution: {directory: typescript/gigi-p2p-ts, type: directory}
+  '@gigi/p2p@file:typescript/p2p':
+    resolution: {directory: typescript/p2p, type: directory}
 
   '@google/genai@1.46.0':
     resolution: {integrity: sha512-ewPMN5JkKfgU5/kdco9ZhXBHDPhVqZpMQqIFQhwsHLf8kyZfx1cNpw1pHo1eV6PGEW7EhIBFi3aYZraFndAXqg==}
@@ -6490,11 +6490,11 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@gigi/p2p-ts@file:typescript/gigi-p2p-ts':
+  '@gigi/p2p@file:typescript/p2p':
     dependencies:
-      '@gigi/dns-ts': link:typescript/gigi-dns-ts
-      '@gigi/logging': link:typescript/gigi-logging
-      '@gigi/request-response-ts': link:typescript/gigi-request-response-ts
+      '@gigi/logging': link:typescript/logging
+      '@gigi/mdns': link:typescript/mdns
+      '@gigi/request-response': link:typescript/request-response
       '@libp2p/autonat': 3.0.13
       '@libp2p/circuit-relay-v2': 2.1.5
       '@libp2p/crypto': 5.1.14

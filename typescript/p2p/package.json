@@ -1,5 +1,5 @@
 {
-  "name": "@gigi/p2p-ts",
+  "name": "@gigi/p2p",
   "version": "0.1.0",
   "type": "module",
   "description": "TypeScript port of Gigi P2P networking library",
@@ -12,8 +12,8 @@
     }
   },
   "dependencies": {
-    "@gigi/request-response-ts": "workspace:*",
-    "@gigi/dns-ts": "workspace:*",
+    "@gigi/request-response": "workspace:*",
+    "@gigi/mdns": "workspace:*",
     "@gigi/logging": "workspace:*",
     "@libp2p/autonat": "^3.0.13",
     "@libp2p/circuit-relay-v2": "^2.0.15",

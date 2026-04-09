@@ -13,7 +13,7 @@ Gigi DNS is the decentralized DNS service for the Gigi P2P network, allowing pee
 ## Installation
 
 ```bash
-pnpm add @gigi/dns-ts
+pnpm add @gigi/mdns
 ```
 
 ## Usage
@@ -25,7 +25,7 @@ import {
   GigiDnsBehaviour,
   GigiDnsCommand,
   defaultGigiDnsConfig,
-} from '@gigi/dns-ts';
+} from '@gigi/mdns';
 import { createPeerId } from '@libp2p/peer-id';
 
 // Create a peer ID
@@ -90,7 +90,7 @@ dns.stop();
 ### Custom Configuration
 
 ```typescript
-import { GigiDnsBehaviour, GigiDnsConfig } from '@gigi/dns-ts';
+import { GigiDnsBehaviour, GigiDnsConfig } from '@gigi/mdns';
 
 const customConfig: GigiDnsConfig = {
   nickname: 'MyNode',

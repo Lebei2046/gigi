@@ -1,16 +1,16 @@
 #!/usr/bin/env tsx
 import { Command } from 'commander';
-import { P2pClient, derivePeerId, generateMnemonic } from '@gigi/p2p-ts';
+import { P2pClient, derivePeerId, generateMnemonic } from '@gigi/p2p';
 import {
   AmpMessageRouter,
   AmpMessageFactory,
   InMemoryAgentRegistry,
-} from '@gigi/amp-ts';
-import type { AgentInfo } from '@gigi/amp-ts';
+} from '@gigi/amp';
+import type { AgentInfo } from '@gigi/amp';
 import { createLogger } from '@gigi/logging';
 import * as fs from 'fs';
 
-const logger = createLogger({ name: 'gigi-p2p-example' });
+const logger = createLogger({ name: 'p2p-example' });
 
 const program = new Command();
 

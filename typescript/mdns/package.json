@@ -1,5 +1,5 @@
 {
-  "name": "@gigi/dns-ts",
+  "name": "@gigi/mdns",
   "version": "0.1.0",
   "type": "module",
   "description": "Gigi DNS - Auto-discovery protocol for local networks with nicknames",

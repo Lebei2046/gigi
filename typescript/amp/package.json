@@ -1,5 +1,5 @@
 {
-  "name": "@gigi/amp-ts",
+  "name": "@gigi/amp",
   "version": "0.1.0",
   "type": "module",
   "description": "Agent Messaging Protocol for Gigi P2P",

@@ -7,7 +7,7 @@ import type {
   SenderInfo,
   TargetInfo,
   AgentInfo,
-} from '@gigi/amp-ts';
+} from '@gigi/amp';
 
 export type {
   TextMessage,

@@ -86,7 +86,7 @@ const clientConfig = {
 ### Basic Usage
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 // Create client
 const client = new P2pClient({
@@ -569,7 +569,7 @@ Get network statistics.
 ### Basic Messaging
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 // Create and start client
 const client = new P2pClient({
@@ -599,7 +599,7 @@ client.onEvent((event) => {
 ### Group Chat
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 // Create and start client
 const client = new P2pClient({
@@ -629,7 +629,7 @@ client.onEvent((event) => {
 ### File Sharing
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 // Create and start client
 const client = new P2pClient({

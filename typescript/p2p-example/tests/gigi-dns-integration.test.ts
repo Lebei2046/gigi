@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 // Function to connect with retries to handle race conditions
 async function connectWithRetry(

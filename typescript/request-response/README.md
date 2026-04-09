@@ -18,7 +18,7 @@ This package provides a request-response protocol implementation for js-libp2p t
 ## Installation
 
 ```bash
-pnpm add @gigi/request-response-ts
+pnpm add @gigi/request-response
 ```
 
 ## Usage
@@ -27,7 +27,7 @@ pnpm add @gigi/request-response-ts
 
 ```typescript
 import { createLibp2p } from 'libp2p';
-import { RequestResponse, JsonCodec } from '@gigi/request-response-ts';
+import { RequestResponse, JsonCodec } from '@gigi/request-response';
 
 // Define request and response types
 interface MyRequest {
@@ -86,7 +86,7 @@ console.log('Received response:', response);
 ### Using CBOR Codec
 
 ```typescript
-import { CborCodec } from '@gigi/request-response-ts';
+import { CborCodec } from '@gigi/request-response';
 
 // Create CBOR codec
 const codec = new CborCodec<MyRequest, MyResponse>('/my-protocol/1.0.0');

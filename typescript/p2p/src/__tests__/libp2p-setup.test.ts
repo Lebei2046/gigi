@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLibp2pInstance, PROTOCOLS } from '../libp2p-setup';
 import { createLibp2p } from 'libp2p';
-import { GigiDnsBehaviour } from '@gigi/dns-ts';
+import { GigiDnsBehaviour } from '@gigi/mdns';
 
 // Get the mocked GigiDnsBehaviour constructor
 const mockGigiDnsBehaviour = vi.mocked(GigiDnsBehaviour);
 
 // Mock dependencies
 vi.mock('libp2p');
-vi.mock('@gigi/dns-ts', () => {
+vi.mock('@gigi/mdns', () => {
   const mockGigiDnsBehaviour = vi.fn();
   mockGigiDnsBehaviour.mockImplementation(function () {
     return {

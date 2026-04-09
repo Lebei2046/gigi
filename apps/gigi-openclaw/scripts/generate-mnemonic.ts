@@ -8,7 +8,7 @@
  * peer ID and private key for the Gigi P2P client.
  */
 
-import { generateMnemonic, derivePeerId } from '@gigi/p2p-ts';
+import { generateMnemonic, derivePeerId } from '@gigi/p2p';
 
 console.log('Generating BIP-39 mnemonic phrase for Gigi P2P...\n');
 

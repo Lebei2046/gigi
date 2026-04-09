@@ -6,8 +6,8 @@ import { GroupManager } from './group';
 import { PeerManager } from './peer-manager';
 import { multiaddr as multiaddrFromString } from '@multiformats/multiaddr';
 import { randomUUID } from 'crypto';
-import { RequestResponse } from '@gigi/request-response-ts';
-import { JsonCodec } from '@gigi/request-response-ts';
+import { RequestResponse } from '@gigi/request-response';
+import { JsonCodec } from '@gigi/request-response';
 import { createLogger } from '@gigi/logging';
 
 const logger = createLogger({ name: 'gigi-p2p' });

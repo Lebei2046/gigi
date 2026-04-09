@@ -32,7 +32,7 @@ npm install
 ## Usage
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 async function main() {
   const client = new P2pClient({
@@ -164,7 +164,7 @@ import {
   derivePeerId,
   deriveGroupId,
   derivePeerPrivateKey,
-} from '@gigi/p2p-ts';
+} from '@gigi/p2p';
 
 // Generate a new mnemonic phrase
 const mnemonic = generateMnemonic();

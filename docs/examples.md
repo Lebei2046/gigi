@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### TypeScript Client Example
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 async function main() {
   try {
@@ -191,7 +191,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### TypeScript Client Example
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 async function main() {
   try {
@@ -293,7 +293,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### TypeScript Client Example
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 
 async function main() {
   try {
@@ -581,7 +581,7 @@ class GigiPlugin extends Plugin {
 
   async initGigi(config) {
     try {
-      const { P2pClient } = require('@gigi/p2p-ts');
+      const { P2pClient } = require('@gigi/p2p');
       this.client = new P2pClient(config.nickname || 'OpenClaw User', {
         bootstrapNodes: config.bootstrap_nodes || [],
         enableKademlia: config.enable_kademlia !== false,
@@ -897,7 +897,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Secure Messaging with End-to-End Encryption
 
 ```typescript
-import { P2pClient } from '@gigi/p2p-ts';
+import { P2pClient } from '@gigi/p2p';
 import * as crypto from 'crypto';
 
 async function main() {

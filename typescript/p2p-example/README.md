@@ -26,7 +26,7 @@ This is a comprehensive example application demonstrating how to use the Gigi P2
 
 3. **Install dependencies for the example**:
    ```bash
-   cd ../gigi-p2p-example
+   cd ../p2p-example
    pnpm install
    ```
 

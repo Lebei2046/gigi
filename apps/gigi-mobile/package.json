@@ -20,7 +20,7 @@
     "format-all": "prettier --write . && eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix"
   },
   "dependencies": {
-    "@gigi/amp-ts": "workspace:*",
+    "@gigi/amp": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-label": "^2.1.7",

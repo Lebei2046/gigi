@@ -12,7 +12,7 @@ The Gigi Agent Messaging Protocol (AMP) TypeScript library provides a robust fra
 ## Installation
 
 ```bash
-pnpm add @gigi/amp-ts
+pnpm add @gigi/amp
 ```
 
 ## Usage
@@ -24,7 +24,7 @@ import {
   InMemoryAgentRegistry,
   AmpMessageRouter,
   AmpMessageFactory,
-} from '@gigi/amp-ts';
+} from '@gigi/amp';
 
 // Create agent registry
 const agentRegistry = new InMemoryAgentRegistry();

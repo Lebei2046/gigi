@@ -35,7 +35,7 @@ import {
   listGigiGroups,
   setGigiRuntime,
 } from './src/channel.js';
-import { generateMnemonic } from '@gigi/p2p-ts';
+import { generateMnemonic } from '@gigi/p2p';
 
 // Plugin registration for OpenClaw
 export default definePluginEntry({

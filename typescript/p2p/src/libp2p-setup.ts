@@ -4,7 +4,7 @@ import { webTransport } from '@libp2p/webtransport';
 import { tcp } from '@libp2p/tcp';
 import { noise } from '@libp2p/noise';
 import { yamux } from '@libp2p/yamux';
-import { GigiDnsBehaviour, defaultGigiDnsConfig } from '@gigi/dns-ts';
+import { GigiDnsBehaviour, defaultGigiDnsConfig } from '@gigi/mdns';
 import { kadDHT } from '@libp2p/kad-dht';
 import {
   circuitRelayServer,

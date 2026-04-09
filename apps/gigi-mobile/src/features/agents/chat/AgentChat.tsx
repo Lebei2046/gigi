@@ -3,7 +3,7 @@ import { useAppDispatch } from '@/store'
 import { addLog } from '@/store/logsSlice'
 import { agentMessagingClient } from '@/utils/agentMessaging'
 import type { Agent } from '@/utils/agentMessaging'
-import type { TextMessage, FileMessage } from '@gigi/amp-ts'
+import type { TextMessage, FileMessage } from '@gigi/amp'
 import { MessagingClient } from '@/utils/messaging'
 import {
   CardDescription,

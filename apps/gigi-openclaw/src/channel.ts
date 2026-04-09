@@ -48,7 +48,7 @@ import {
   AgentSettingsQuery,
   AgentSettingsResponse,
   AmpMessageFactory,
-} from '@gigi/amp-ts';
+} from '@gigi/amp';
 
 const CHANNEL_ID = 'gigi-openclaw';
 const TEXT_CHUNK_LIMIT = 4000;

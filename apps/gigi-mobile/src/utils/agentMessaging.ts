@@ -1,10 +1,10 @@
 import { MessagingClient, MessagingEvents } from './messaging'
-import type { AmpMessage, AgentInfo } from '@gigi/amp-ts'
+import type { AmpMessage, AgentInfo } from '@gigi/amp'
 import {
   InMemoryAgentRegistry,
   AmpMessageRouter,
   AmpMessageFactory,
-} from '@gigi/amp-ts'
+} from '@gigi/amp'
 
 // Extend AgentInfo to include OpenClaw agents
 export interface Agent extends AgentInfo {

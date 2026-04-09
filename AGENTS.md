@@ -14,7 +14,7 @@ The Gigi P2P ecosystem is a decentralized network of components designed to enab
 - **gigi-amp-ts**: AMP (Asynchronous Message Protocol) implementation
 - **gigi-dns-ts**: DNS functionality for the P2P network
 - **gigi-logging**: Logging utilities using Pino
-- **gigi-p2p-example**: Example usage of the Gigi P2P client
+- **p2p-example**: Example usage of the Gigi P2P client
 - **gigi-p2p-ts**: High-level TypeScript client for P2P communication
 - **gigi-request-response-ts**: Request-response protocol implementation
 
