@@ -561,6 +561,50 @@ describe('Node-to-Node Messaging Integration Tests', () => {
     expect(bobMessages.some((msg) => msg.includes('Alice'))).toBe(true);
   });
 
+  test('Agent-to-node messaging using AMP', async () => {
+    const testMessage = 'Hello Bob! This is a message from Test Agent.';
+    const agentId = 'test-agent-2';
+    const agentName = 'Test Agent';
+
+    // Register an agent with Alice's agent registry
+    await aliceMessageRouter.agentRegistry.registerAgent({
+      id: agentId,
+      name: agentName,
+      description: 'A test agent',
+      ownerId: alice.getPeerId(),
+      capabilities: [],
+    });
+
+    // Create AMP message from Agent to Bob
+    const bobPeerId = bob.getPeerId();
+    const ampMessage = AmpMessageFactory.createNodeTextMessage(
+      testMessage,
+      bobPeerId,
+      {
+        id: agentId,
+        name: agentName,
+        type: 'agent',
+      }
+    );
+
+    // Send direct message from Alice's client (acting as the agent's node)
+    await alice.sendDirectMessage(bobPeerId, ampMessage);
+
+    // Wait for message to be received
+    await waitFor(() => bobMessages.length > 0);
+
+    // Verify Bob received the message from the agent
+    expect(bobMessages.length).toBeGreaterThan(0);
+    expect(
+      bobMessages.some((msg) =>
+        msg.includes('Hello Bob! This is a message from Test Agent.')
+      )
+    ).toBe(true);
+    expect(bobMessages.some((msg) => msg.includes('[AGENT] Test Agent:'))).toBe(
+      true
+    );
+  });
+
   test('Group messaging with multiple peers (3+ nodes)', async () => {
     const testMessage = 'Hello everyone! This is a group message from Alice.';
     const groupName = 'multi-peer-group';
