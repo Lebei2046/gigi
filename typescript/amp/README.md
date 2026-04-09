@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Gigi Agent Messaging Protocol (AMP) TypeScript library provides a robust framework for communication between the Claw Owner and their agents through the Gigi P2P network. It enables:
+The Gigi Agent Messaging Protocol (AMP) TypeScript library provides a robust framework for communication between the Agent Owner and their agents through the Gigi P2P network. It enables:
 
 - Agents sending text and file messages to the owner
 - The owner sending text and file messages to specific agents or multiple agents
@@ -108,6 +108,31 @@ const textMessage = AmpMessageFactory.createTextMessage(
 messageRouter.routeMessage(textMessage);
 ```
 
+#### Text Message to Another Node
+
+```typescript
+const nodeTextMessage = AmpMessageFactory.createNodeTextMessage(
+  'Hello from Node 1',
+  'node2-peer-id',
+  { id: 'node1', name: 'Node 1', type: 'node' }
+);
+
+messageRouter.routeMessage(nodeTextMessage);
+```
+
+#### Text Message to Specific Agent on Another Node
+
+```typescript
+const nodeAgentTextMessage = AmpMessageFactory.createNodeAgentTextMessage(
+  'Hello Agent on Node 2',
+  'node2-peer-id',
+  'agent1',
+  { id: 'node1', name: 'Node 1', type: 'node' }
+);
+
+messageRouter.routeMessage(nodeAgentTextMessage);
+```
+
 #### File Message
 
 ```typescript
@@ -122,15 +147,56 @@ const fileMessage = AmpMessageFactory.createFileMessage(
 messageRouter.routeMessage(fileMessage);
 ```
 
+#### File Message to Another Node
+
+```typescript
+const nodeFileMessage = AmpMessageFactory.createNodeFileMessage(
+  'document.pdf',
+  1024000,
+  'hash456',
+  'node2-peer-id',
+  { id: 'node1', name: 'Node 1', type: 'node' }
+);
+
+messageRouter.routeMessage(nodeFileMessage);
+```
+
+#### File Message to Specific Agent on Another Node
+
+```typescript
+const nodeAgentFileMessage = AmpMessageFactory.createNodeAgentFileMessage(
+  'report.docx',
+  512000,
+  'hash789',
+  'node2-peer-id',
+  'agent1',
+  { id: 'node1', name: 'Node 1', type: 'node' }
+);
+
+messageRouter.routeMessage(nodeAgentFileMessage);
+```
+
 #### Agent Settings Query
 
 ```typescript
 const queryMessage = AmpMessageFactory.createAgentSettingsQuery(
-  undefined, // Query all agents
-  { id: 'owner1', name: 'Owner', type: 'owner' }
+  { id: 'owner1', name: 'Owner', type: 'owner' },
+  undefined // Query all agents
 );
 
 messageRouter.routeMessage(queryMessage);
+```
+
+#### Agent Settings Query for Another Node
+
+```typescript
+const nodeQueryMessage = AmpMessageFactory.createNodeAgentSettingsQuery(
+  'node2-peer-id',
+  { id: 'node1', name: 'Node 1', type: 'node' },
+  undefined // Query all agents on the node
+);
+
+messageRouter.routeMessage(nodeQueryMessage);
 ```
 
 ## API
@@ -147,6 +213,17 @@ messageRouter.routeMessage(queryMessage);
 - `InMemoryAgentRegistry`: In-memory implementation of AgentRegistry interface
 - `AmpMessageRouter`: Routes messages to appropriate agents
 - `AmpMessageFactory`: Creates messages with proper structure
+
+### Factory Methods
+
+- `createTextMessage()`: Create a text message to agents
+- `createNodeTextMessage()`: Create a text message to another node
+- `createNodeAgentTextMessage()`: Create a text message to a specific agent on another node
+- `createFileMessage()`: Create a file message to agents
+- `createNodeFileMessage()`: Create a file message to another node
+- `createNodeAgentFileMessage()`: Create a file message to a specific agent on another node
+- `createAgentSettingsQuery()`: Create a settings query for local agents
+- `createNodeAgentSettingsQuery()`: Create a settings query for agents on another node
 
 ### Interfaces
 

@@ -143,55 +143,81 @@ export type P2pEvent =
   | { type: 'pending-messages-available'; peer: string; nickname: string };
 
 type Listener = (event: P2pEvent) => void | Promise<void>;
-const listeners: Map<string, Set<Listener>> = new Map();
 
-export const eventEmitter = {
+// Create a singleton event emitter
+class EventEmitter {
+  private listeners: Map<string, Set<Listener>> = new Map();
+  private id: string = Math.random().toString(36).substr(2, 9);
+
   on(eventType: string, listener: Listener): () => void {
-    if (!listeners.has(eventType)) {
-      listeners.set(eventType, new Set());
+    if (!this.listeners.has(eventType)) {
+      this.listeners.set(eventType, new Set());
     }
-    listeners.get(eventType)!.add(listener);
-    return () => listeners.get(eventType)?.delete(listener);
-  },
+    this.listeners.get(eventType)!.add(listener);
+    return () => this.listeners.get(eventType)?.delete(listener);
+  }
 
   off(eventType: string, listener: Listener): void {
-    listeners.get(eventType)?.delete(listener);
-  },
+    this.listeners.get(eventType)?.delete(listener);
+  }
 
   async emit(event: P2pEvent): Promise<void> {
     const eventType = event.type;
-    const listenersForEvent = listeners.get(eventType);
+    console.log(
+      `EventEmitter ${this.id} - Event emitted:`,
+      eventType,
+      'Listeners count:',
+      this.listenerCount(eventType)
+    );
+    const listenersForEvent = this.listeners.get(eventType);
     if (listenersForEvent) {
+      console.log(
+        `EventEmitter ${this.id} - Listeners for event:`,
+        listenersForEvent.size
+      );
       await Promise.all(
         Array.from(listenersForEvent).map((listener) =>
           Promise.resolve(listener(event)).catch((err) =>
-            console.error(`Error in event listener for ${eventType}:`, err)
+            console.error(
+              `EventEmitter ${this.id} - Error in event listener for ${eventType}:`,
+              err
+            )
           )
         )
       );
     }
     // Also notify 'any' listeners
-    const anyListeners = listeners.get('any');
+    const anyListeners = this.listeners.get('any');
     if (anyListeners) {
       await Promise.all(
         Array.from(anyListeners).map((listener) =>
           Promise.resolve(listener(event)).catch((err) =>
-            console.error(`Error in 'any' event listener:`, err)
+            console.error(
+              `EventEmitter ${this.id} - Error in 'any' event listener:`,
+              err
+            )
           )
         )
       );
     }
-  },
+  }
+
+  getId(): string {
+    return this.id;
+  }
 
   listenerCount(eventType: string): number {
-    return listeners.get(eventType)?.size ?? 0;
-  },
+    return this.listeners.get(eventType)?.size ?? 0;
+  }
 
   removeAllListeners(eventType?: string): void {
     if (eventType) {
-      listeners.delete(eventType);
+      this.listeners.delete(eventType);
     } else {
-      listeners.clear();
+      this.listeners.clear();
     }
-  },
-};
+  }
+}
+
+// Export the singleton instance
+export const eventEmitter = new EventEmitter();

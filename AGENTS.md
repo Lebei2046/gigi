@@ -11,12 +11,12 @@ The Gigi P2P ecosystem is a decentralized network of components designed to enab
 ### Projects Index
 
 #### TypeScript Projects
-- **gigi-amp-ts**: AMP (Asynchronous Message Protocol) implementation
-- **gigi-dns-ts**: DNS functionality for the P2P network
-- **gigi-logging**: Logging utilities using Pino
+- **@gigi/amp**: AMP (Agent Messaging Protocol) implementation
+- **@gigi/logging**: Logging utilities using Pino
+- **@gigi/mdns**: mDNS functionality for local peer discovery
+- **@gigi/p2p**: High-level TypeScript client for P2P communication
+- **@gigi/@request-response**: Request-response protocol implementation
 - **p2p-example**: Example usage of the Gigi P2P client
-- **gigi-p2p-ts**: High-level TypeScript client for P2P communication
-- **gigi-request-response-ts**: Request-response protocol implementation
 
 #### Rust Projects
 - **gigi-auth**: Authentication and key management
@@ -62,7 +62,7 @@ The Gigi P2P ecosystem is a decentralized network of components designed to enab
 
 5. **Logging**
    - Use Pino for structured JSON logging
-   - Centralize logging utilities in the `gigi-logging` package
+   - Centralize logging utilities in the `@gigi/logging` package
    - Replace `console.log` with structured logging
 
 ### Rust Project Rules

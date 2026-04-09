@@ -7,7 +7,7 @@ export type {
   FileInfo,
   ActiveDownload,
 } from './types';
-export { P2pEventType } from './events';
+export { P2pEventType, eventEmitter } from './events';
 export type { P2pEvent } from './events';
 export { P2pError, ErrorCode } from './errors';
 export { FileSharingManager, CHUNK_SIZE } from './file-sharing';

@@ -1,3 +1,5 @@
+import type { MessageContent } from '@gigi/message-types';
+
 export interface PeerInfo {
   peerId: string;
   nickname: string;
@@ -97,43 +99,9 @@ export interface StoredMessage {
   expiresAt: number;
 }
 
-// Input type for sending messages (without auto-populated fields)
-export type MessageContentInput =
-  | { type: 'text'; text: string }
-  | {
-      type: 'fileShare';
-      shareCode: string;
-      filename: string;
-      fileSize: number;
-      fileType: string;
-    }
-  | {
-      type: 'shareGroup';
-      groupId: string;
-      groupName: string;
-      inviterNickname: string;
-    };
-
-// Full message content type (with all fields populated)
-export type MessageContent =
-  | { type: 'text'; text: string; fromPeerId: string; fromNickname: string }
-  | {
-      type: 'fileShare';
-      shareCode: string;
-      filename: string;
-      fileSize: number;
-      fileType: string;
-      fromPeerId: string;
-      fromNickname: string;
-    }
-  | {
-      type: 'shareGroup';
-      groupId: string;
-      groupName: string;
-      inviterNickname: string;
-      fromPeerId: string;
-      fromNickname: string;
-    };
+// Re-export shared message types
+export type { MessageContent } from '@gigi/message-types';
+export type { MessageContentInput } from '@gigi/message-types';
 
 export interface P2pConfig {
   bootstrapNodes: string[];

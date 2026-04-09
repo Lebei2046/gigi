@@ -5,6 +5,7 @@ import { FileSharingManager } from './file-sharing';
 import { GroupManager } from './group';
 import { PeerManager } from './peer-manager';
 import { multiaddr as multiaddrFromString } from '@multiformats/multiaddr';
+import { peerIdFromString } from '@libp2p/peer-id';
 import { randomUUID } from 'crypto';
 import { RequestResponse } from '@gigi/request-response';
 import { JsonCodec } from '@gigi/request-response';
@@ -362,28 +363,41 @@ export class P2pClient {
   private async setupProtocolHandlers(): Promise<void> {
     if (!this.libp2p) return;
 
-    await this.libp2p.handle(
-      this.DIRECT_PROTOCOL,
-      async ({ stream, connection }: any) => {
-        try {
-          const fromPeerId = connection?.remotePeer?.toString() || 'unknown';
-          const message = await this.readStreamMessage(stream);
+    await this.libp2p.handle(this.DIRECT_PROTOCOL, async (data: any) => {
+      try {
+        // Handle different parameter structures
+        const stream = data.stream || data;
+        const connection = data.connection;
 
-          await eventEmitter.emit({
-            type: 'direct-message',
-            from: fromPeerId,
-            fromNickname:
-              this.peerManager.getNickname(fromPeerId) || fromPeerId,
-            message,
-          } as P2pEvent);
-        } catch (error) {
-          logger.error({
-            message: '[P2pClient] Error handling direct message',
-            error: error,
+        if (!stream) {
+          logger.warn({
+            message: '[P2pClient] No stream provided in protocol handler',
           });
+          return;
         }
+
+        const fromPeerId = connection?.remotePeer?.toString() || 'unknown';
+        const message = await this.readStreamMessage(stream);
+
+        console.log('Emitting direct-message event:', {
+          type: 'direct-message',
+          from: fromPeerId,
+          fromNickname: this.peerManager.getNickname(fromPeerId) || fromPeerId,
+          message,
+        });
+        await eventEmitter.emit({
+          type: 'direct-message',
+          from: fromPeerId,
+          fromNickname: this.peerManager.getNickname(fromPeerId) || fromPeerId,
+          message,
+        } as P2pEvent);
+      } catch (error) {
+        logger.error({
+          message: '[P2pClient] Error handling direct message',
+          error: error,
+        });
       }
-    );
+    });
 
     // File protocol is now handled by request-response protocol
     // The old stream-based handler is no longer needed
@@ -598,9 +612,98 @@ export class P2pClient {
 
   private async readStreamMessage(stream: any): Promise<string> {
     const chunks: Uint8Array[] = [];
-    for await (const chunk of stream.source) {
-      chunks.push(chunk);
+
+    try {
+      // Handle nested stream objects (common in some libp2p implementations)
+      if (stream.stream) {
+        stream = stream.stream;
+      }
+
+      // Try for streams with async iterator first (YamuxStream supports this)
+      if (typeof stream[Symbol.asyncIterator] === 'function') {
+        for await (const chunk of stream) {
+          // Handle different chunk types
+          if (Buffer.isBuffer(chunk)) {
+            chunks.push(new Uint8Array(chunk));
+          } else if (chunk instanceof Uint8Array) {
+            chunks.push(chunk);
+          } else if (Array.isArray(chunk)) {
+            chunks.push(new Uint8Array(chunk));
+          } else if (chunk && typeof chunk.toUint8Array === 'function') {
+            // Handle Uint8ArrayList
+            chunks.push(chunk.toUint8Array());
+          } else if (chunk && typeof chunk.slice === 'function') {
+            // Try to slice as a last resort
+            chunks.push(new Uint8Array(chunk.slice(0)));
+          } else {
+            // Try to convert to Uint8Array anyway
+            try {
+              chunks.push(new Uint8Array(chunk));
+            } catch (error) {
+              console.error('[P2pClient] Error converting chunk:', error);
+            }
+          }
+        }
+      } else if (typeof (stream as any).receive === 'function') {
+        // Try YamuxStream receive method
+        let chunk;
+        while ((chunk = await (stream as any).receive()) !== null) {
+          chunks.push(new Uint8Array(chunk));
+        }
+      } else if (typeof (stream as any).read === 'function') {
+        // Try stream.read() method
+        let chunk;
+        while ((chunk = (stream as any).read()) !== null) {
+          chunks.push(new Uint8Array(chunk));
+        }
+      }
+      // Try the most common duplex stream API
+      else if (stream.source) {
+        for await (const chunk of stream.source) {
+          chunks.push(chunk);
+        }
+      }
+      // Try Web Streams API
+      else if (stream.readable) {
+        const reader = stream.readable.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          if (value) {
+            chunks.push(value);
+          }
+        }
+      }
+      // Try event emitter pattern
+      else if (typeof stream.on === 'function') {
+        await new Promise<void>((resolve, reject) => {
+          stream.on('data', (chunk: Buffer) => {
+            chunks.push(new Uint8Array(chunk));
+          });
+          stream.on('end', () => {
+            resolve();
+          });
+          stream.on('error', (error: Error) => {
+            reject(error);
+          });
+        });
+      }
+      // Try to get data from stream directly
+      else {
+        // For some stream types, the data might be available immediately
+        throw new Error('Unsupported stream type');
+      }
+    } catch (error) {
+      console.error('[P2pClient] Error reading stream:', error);
+      throw error;
     }
+
+    if (chunks.length === 0) {
+      return '';
+    }
+
     const allBytes = new Uint8Array(
       chunks.reduce((sum, c) => sum + c.length, 0)
     );
@@ -831,21 +934,60 @@ export class P2pClient {
     return this.started;
   }
 
-  async sendDirectMessage(
-    targetPeerId: string,
-    message: string
-  ): Promise<void> {
+  async sendDirectMessage(targetPeerId: string, message: any): Promise<void> {
     if (!this.libp2p || !this.started) {
       throw P2pError.notStarted();
     }
 
     try {
+      // Always use peerId directly to avoid multiaddr version issues
+      const peerId = peerIdFromString(targetPeerId);
       const stream = await this.libp2p.dialProtocol(
-        targetPeerId,
+        peerId,
         this.DIRECT_PROTOCOL
       );
-      const data = new TextEncoder().encode(message);
-      await stream.sink([data]);
+      const messageString =
+        typeof message === 'string' ? message : JSON.stringify(message);
+      const data = new TextEncoder().encode(messageString);
+
+      // Try multiple methods to send data, similar to RequestResponse
+      if (typeof (stream as any).send === 'function') {
+        // Use send method if available (YamuxStream)
+        await (stream as any).send(data);
+        // Close the stream
+        if (typeof (stream as any).close === 'function') {
+          await (stream as any).close();
+        }
+      } else if (typeof stream.write === 'function') {
+        // Use write method if available
+        await new Promise<void>((resolve, reject) => {
+          stream.write(data, (error: Error | null) => {
+            if (error) {
+              reject(error);
+            } else {
+              if (typeof stream.end === 'function') {
+                stream.end(resolve);
+              } else {
+                resolve();
+              }
+            }
+          });
+        });
+      } else if (typeof stream.sink === 'function') {
+        // Use sink method if available
+        await stream.sink([data]);
+      } else if (
+        typeof stream.writable === 'object' &&
+        stream.writable.writable
+      ) {
+        // Use Web Streams API
+        const writer = stream.writable.getWriter();
+        await writer.write(data);
+        await writer.close();
+      } else {
+        // Last resort - throw error
+        throw new Error('No write method available for stream');
+      }
     } catch (error) {
       throw P2pError.networkError(
         `Failed to send message to ${targetPeerId}`,

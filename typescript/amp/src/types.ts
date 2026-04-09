@@ -1,4 +1,5 @@
 // Message types for Agent Messaging Protocol
+import { SenderInfo, TextMessage, FileMessage } from '@gigi/message-types';
 
 export type MessageType =
   | 'text'
@@ -6,40 +7,10 @@ export type MessageType =
   | 'agent-settings-query'
   | 'agent-settings-response';
 
-export interface SenderInfo {
-  id: string;
-  name: string;
-  type: 'owner' | 'agent';
-}
-
-export interface TargetInfo {
-  type: 'all' | 'specific';
-  agentIds?: string[];
-}
-
-export interface TextMessage {
-  type: 'text';
-  content: string;
-  target: TargetInfo;
-  sender: SenderInfo;
-  timestamp: number;
-  id: string;
-}
-
-export interface FileMessage {
-  type: 'file';
-  filename: string;
-  fileSize: number;
-  fileHash: string;
-  target: TargetInfo;
-  sender: SenderInfo;
-  timestamp: number;
-  id: string;
-}
-
 export interface AgentSettingsQuery {
   type: 'agent-settings-query';
   agentIds?: string[];
+  nodeId?: string; // Optional node ID for node-level queries
   sender: SenderInfo;
   timestamp: number;
   id: string;
@@ -87,3 +58,6 @@ export interface MessageRouter {
   registerAgent(agent: AgentInfo): void;
   unregisterAgent(agentId: string): void;
 }
+
+// Re-export shared types
+export { SenderInfo, TextMessage, FileMessage } from '@gigi/message-types';

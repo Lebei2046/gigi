@@ -3,11 +3,10 @@ import {
   AgentInfo,
   AgentRegistry,
   MessageRouter,
-  TextMessage,
-  FileMessage,
   AgentSettingsQuery,
   AgentSettingsResponse,
 } from './types';
+import { TextMessage, FileMessage } from '@gigi/message-types';
 
 export class InMemoryAgentRegistry implements AgentRegistry {
   private agents: Map<string, AgentInfo> = new Map();
@@ -83,6 +82,20 @@ export class AmpMessageRouter implements MessageRouter {
           this.invokeMessageHandler('text', message, agentId);
         }
       });
+    } else if (message.target.type === 'node' && message.target.nodeId) {
+      // Node-to-node message - route to node handler
+      this.invokeMessageHandler('text', message, message.target.nodeId);
+    } else if (
+      message.target.type === 'node-agent' &&
+      message.target.nodeId &&
+      message.target.agentIds
+    ) {
+      // Node-to-specific agent message - route to node and then to specific agent
+      this.invokeMessageHandler(
+        'text',
+        message,
+        `${message.target.nodeId}:${message.target.agentIds[0]}`
+      );
     }
   }
 
@@ -103,36 +116,60 @@ export class AmpMessageRouter implements MessageRouter {
           this.invokeMessageHandler('file', message, agentId);
         }
       });
+    } else if (message.target.type === 'node' && message.target.nodeId) {
+      // Node-to-node file message - route to node handler
+      this.invokeMessageHandler('file', message, message.target.nodeId);
+    } else if (
+      message.target.type === 'node-agent' &&
+      message.target.nodeId &&
+      message.target.agentIds
+    ) {
+      // Node-to-specific agent file message - route to node and then to specific agent
+      this.invokeMessageHandler(
+        'file',
+        message,
+        `${message.target.nodeId}:${message.target.agentIds[0]}`
+      );
     }
   }
 
   private handleAgentSettingsQuery(message: AgentSettingsQuery): void {
-    // Get requested agents or all agents
-    const agents = message.agentIds
-      ? message.agentIds
-          .map((id) => this.agentRegistry.getAgentById(id))
-          .filter((agent): agent is AgentInfo => agent !== undefined)
-      : this.agentRegistry.getAllAgents();
+    if (message.nodeId) {
+      // Node-level query - route to node handler
+      this.invokeMessageHandler(
+        'agent-settings-query',
+        message,
+        message.nodeId
+      );
+    } else {
+      // Local agent query
+      // Get requested agents or all agents
+      const agents = message.agentIds
+        ? message.agentIds
+            .map((id) => this.agentRegistry.getAgentById(id))
+            .filter((agent): agent is AgentInfo => agent !== undefined)
+        : this.agentRegistry.getAllAgents();
 
-    // Create response message
-    const response: AgentSettingsResponse = {
-      type: 'agent-settings-response',
-      agents,
-      sender: {
-        id: 'system',
-        name: 'System',
-        type: 'agent',
-      },
-      timestamp: Date.now(),
-      id: `response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    };
+      // Create response message
+      const response: AgentSettingsResponse = {
+        type: 'agent-settings-response',
+        agents,
+        sender: {
+          id: 'system',
+          name: 'System',
+          type: 'agent',
+        },
+        timestamp: Date.now(),
+        id: `response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      };
 
-    // Send response to the sender
-    this.invokeMessageHandler(
-      'agent-settings-response',
-      response,
-      message.sender.id
-    );
+      // Send response to the sender
+      this.invokeMessageHandler(
+        'agent-settings-response',
+        response,
+        message.sender.id
+      );
+    }
   }
 
   private handleAgentSettingsResponse(message: AgentSettingsResponse): void {
@@ -182,8 +219,17 @@ export class AmpMessageRouter implements MessageRouter {
 export class AmpMessageFactory {
   static createTextMessage(
     content: string,
-    target: { type: 'all' | 'specific'; agentIds?: string[] },
-    sender: { id: string; name: string; type: 'owner' | 'agent' }
+    target: {
+      type: 'all' | 'specific' | 'node' | 'node-agent';
+      agentIds?: string[];
+      nodeId?: string;
+    },
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
   ): TextMessage {
     return {
       type: 'text',
@@ -195,12 +241,62 @@ export class AmpMessageFactory {
     };
   }
 
+  static createNodeTextMessage(
+    content: string,
+    nodeId: string,
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
+  ): TextMessage {
+    return {
+      type: 'text',
+      content,
+      target: { type: 'node', nodeId },
+      sender,
+      timestamp: Date.now(),
+      id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
+  static createNodeAgentTextMessage(
+    content: string,
+    nodeId: string,
+    agentId: string,
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
+  ): TextMessage {
+    return {
+      type: 'text',
+      content,
+      target: { type: 'node-agent', nodeId, agentIds: [agentId] },
+      sender,
+      timestamp: Date.now(),
+      id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
   static createFileMessage(
     filename: string,
     fileSize: number,
     fileHash: string,
-    target: { type: 'all' | 'specific'; agentIds?: string[] },
-    sender: { id: string; name: string; type: 'owner' | 'agent' }
+    target: {
+      type: 'all' | 'specific' | 'node' | 'node-agent';
+      agentIds?: string[];
+      nodeId?: string;
+    },
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
   ): FileMessage {
     return {
       type: 'file',
@@ -214,8 +310,62 @@ export class AmpMessageFactory {
     };
   }
 
+  static createNodeFileMessage(
+    filename: string,
+    fileSize: number,
+    fileHash: string,
+    nodeId: string,
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
+  ): FileMessage {
+    return {
+      type: 'file',
+      filename,
+      fileSize,
+      fileHash,
+      target: { type: 'node', nodeId },
+      sender,
+      timestamp: Date.now(),
+      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
+  static createNodeAgentFileMessage(
+    filename: string,
+    fileSize: number,
+    fileHash: string,
+    nodeId: string,
+    agentId: string,
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
+  ): FileMessage {
+    return {
+      type: 'file',
+      filename,
+      fileSize,
+      fileHash,
+      target: { type: 'node-agent', nodeId, agentIds: [agentId] },
+      sender,
+      timestamp: Date.now(),
+      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
   static createAgentSettingsQuery(
-    sender: { id: string; name: string; type: 'owner' | 'agent' },
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    },
     agentIds?: string[]
   ): AgentSettingsQuery {
     return {
@@ -227,9 +377,34 @@ export class AmpMessageFactory {
     };
   }
 
+  static createNodeAgentSettingsQuery(
+    nodeId: string,
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    },
+    agentIds?: string[]
+  ): AgentSettingsQuery {
+    return {
+      type: 'agent-settings-query',
+      agentIds,
+      nodeId,
+      sender,
+      timestamp: Date.now(),
+      id: `query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
   static createAgentSettingsResponse(
     agents: any[],
-    sender: { id: string; name: string; type: 'owner' | 'agent' }
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
   ): AgentSettingsResponse {
     return {
       type: 'agent-settings-response',

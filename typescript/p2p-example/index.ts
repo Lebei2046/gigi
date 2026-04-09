@@ -23,7 +23,7 @@ const DEFAULT_CONFIG = {
 };
 
 // Global state
-let p2pClient: P2pClient | null = null;
+const p2pClient: P2pClient | null = null;
 let agentRegistry: InMemoryAgentRegistry | null = null;
 let messageRouter: AmpMessageRouter | null = null;
 let currentNickname = 'anonymous';
@@ -44,10 +44,12 @@ async function initializeP2P(mnemonic: string, nickname: string) {
   });
 
   // Create P2P client
-  p2pClient = new P2pClient({
-    mnemonic,
+  const p2pClient = new P2pClient({
     nickname,
-    bootstrapNodes: DEFAULT_CONFIG.bootstrapNodes,
+    mnemonic,
+    config: {
+      bootstrapNodes: DEFAULT_CONFIG.bootstrapNodes,
+    },
   });
 
   // Initialize AMP components
@@ -58,16 +60,26 @@ async function initializeP2P(mnemonic: string, nickname: string) {
   messageRouter.registerMessageHandler(
     'text',
     (message: any, _agentId: string | undefined) => {
-      console.log(`\n[AGENT] ${message.sender.name}: ${message.content}`);
+      if (message.sender.type === 'node') {
+        console.log(`\n[NODE] ${message.sender.name}: ${message.content}`);
+      } else {
+        console.log(`\n[AGENT] ${message.sender.name}: ${message.content}`);
+      }
     }
   );
 
   messageRouter.registerMessageHandler(
     'file',
     (message: any, _agentId: string | undefined) => {
-      console.log(
-        `\n[AGENT] ${message.sender.name} shared a file: ${message.filename} (${message.fileSize} bytes)`
-      );
+      if (message.sender.type === 'node') {
+        console.log(
+          `\n[NODE] ${message.sender.name} shared a file: ${message.filename} (${message.fileSize} bytes)`
+        );
+      } else {
+        console.log(
+          `\n[AGENT] ${message.sender.name} shared a file: ${message.filename} (${message.fileSize} bytes)`
+        );
+      }
       console.log(`File hash: ${message.fileHash}`);
     }
   );
@@ -111,12 +123,27 @@ async function initializeP2P(mnemonic: string, nickname: string) {
     } else if (event.type === 'group-message') {
       try {
         const parsedMsg = event.content;
-        if (parsedMsg.type === 'text') {
-          // Text message, display in readable format
+        if (parsedMsg.type === 'text' && parsedMsg.text) {
+          // Regular text message
           console.log(`\n[${event.fromNickname}]: ${parsedMsg.text}`);
-        } else if (parsedMsg.type && messageRouter) {
-          // AMP message, route through message router
-          messageRouter.routeMessage(parsedMsg);
+        } else if (messageRouter) {
+          // Check if it's an AMP message
+          const ampMsg = parsedMsg as any;
+          if (
+            ampMsg.content &&
+            ampMsg.target &&
+            ampMsg.sender &&
+            ampMsg.timestamp &&
+            ampMsg.id
+          ) {
+            // AMP message, route through message router
+            messageRouter.routeMessage(ampMsg);
+          } else {
+            // Other message types, display as JSON
+            console.log(
+              `\n[${event.fromNickname}] in ${event.group}: ${typeof parsedMsg === 'string' ? parsedMsg : JSON.stringify(parsedMsg)}`
+            );
+          }
         } else {
           // Other message types, display as JSON
           console.log(
@@ -217,14 +244,14 @@ async function startInteractiveChat() {
             const peer = parts[1];
             const message = parts.slice(2).join(' ');
 
-            // Create AMP text message
-            const textMessage = AmpMessageFactory.createTextMessage(
+            // Create AMP node-to-node text message
+            const textMessage = AmpMessageFactory.createNodeTextMessage(
               message,
-              { type: 'specific', agentIds: [peer] },
+              peer,
               {
                 id: p2pClient!.getPeerId(),
                 name: currentNickname,
-                type: 'owner',
+                type: 'node',
               }
             );
 
@@ -243,7 +270,18 @@ async function startInteractiveChat() {
             const filePath = parts[1];
             if (fs.existsSync(filePath)) {
               const shareCode = await p2pClient!.shareFile(filePath);
+              const fileStats = fs.statSync(filePath);
+              const fileName = filePath.split('/').pop() || filePath;
+
               console.log(`File shared! Share code: ${shareCode}`);
+
+              // Create message for current group if in one
+              if (currentGroup) {
+                await p2pClient!.sendGroupMessage(currentGroup, {
+                  type: 'text',
+                  text: `Shared file: ${fileName} (${fileStats.size} bytes) - Share code: ${shareCode}`,
+                });
+              }
             } else {
               console.log(`File not found: ${filePath}`);
             }
@@ -262,6 +300,14 @@ async function startInteractiveChat() {
                 shareCode
               );
               console.log(`File downloaded to: ${downloadPath}`);
+
+              // Create message for download completion
+              if (currentGroup) {
+                await p2pClient!.sendGroupMessage(currentGroup, {
+                  type: 'text',
+                  text: `Downloaded file to: ${downloadPath}`,
+                });
+              }
             } catch (err) {
               console.error('Download failed:', err);
             }
@@ -336,6 +382,7 @@ async function startInteractiveChat() {
     } else {
       // Send to current group
       if (currentGroup) {
+        // Create message for group
         await p2pClient!.sendGroupMessage(currentGroup, {
           type: 'text',
           text: trimmed,
