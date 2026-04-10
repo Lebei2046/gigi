@@ -14,11 +14,13 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest",
-    "lint": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx",
-    "lint:fix": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format-all": "prettier --write . && eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix"
+    "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:root": "prettier --write \"*.json\" \"*.md\"",
+    "format:root:check": "prettier --check \"*.json\" \"*.md\"",
+    "format-all": "prettier --write \"src/**/*.{ts,tsx,json,css,md}\" \"*.json\" && eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix"
   },
   "devDependencies": {
     "typescript": "^5.6.2",

@@ -5,7 +5,6 @@ import type {
   AgentSettingsQuery,
   AgentSettingsResponse,
   SenderInfo,
-  TargetInfo,
   AgentInfo,
 } from '@gigi/amp';
 
@@ -15,7 +14,6 @@ export type {
   AgentSettingsQuery,
   AgentSettingsResponse,
   SenderInfo,
-  TargetInfo,
   AgentInfo,
 };
 

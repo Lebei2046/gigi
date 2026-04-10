@@ -133,6 +133,8 @@ const mockFileSharingManager = {
   getChunk: vi.fn().mockResolvedValue(new Uint8Array(0)),
   saveFile: vi.fn().mockResolvedValue(undefined),
   list: vi.fn().mockReturnValue([]),
+  listAll: vi.fn().mockReturnValue([]),
+  getShareCodes: vi.fn().mockReturnValue(['mock-share-code']),
   revoke: vi.fn(),
 };
 vi.mock('../file-sharing', () => ({

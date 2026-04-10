@@ -16,9 +16,12 @@ describe('File Sharing Integration Tests', () => {
   });
 
   it('should share and download files between peers', async () => {
-    // Create Alice and Bob clients
-    alice = new P2pClient({ nickname: 'Alice' });
-    bob = new P2pClient({ nickname: 'Bob' });
+    // Create Alice and Bob clients with unique nicknames to avoid interference between tests
+    const timestamp = Date.now();
+    const aliceNickname = `Alice-${timestamp}`;
+    const bobNickname = `Bob-${timestamp}`;
+    alice = new P2pClient({ nickname: aliceNickname });
+    bob = new P2pClient({ nickname: bobNickname });
 
     // Start both clients
     await alice.start();
@@ -29,8 +32,8 @@ describe('File Sharing Integration Tests', () => {
     const bobAddrs = bob.getMultiaddrs();
 
     // Explicitly add each other's addresses
-    bob.addPeer('Alice', alicePeerId, aliceAddrs);
-    alice.addPeer('Bob', bob.getPeerId(), bobAddrs);
+    bob.addPeer(aliceNickname, alicePeerId, aliceAddrs);
+    alice.addPeer(bobNickname, bob.getPeerId(), bobAddrs);
 
     // Connect to each other
     if (aliceAddrs.length > 0 && bobAddrs.length > 0) {
@@ -44,6 +47,9 @@ describe('File Sharing Integration Tests', () => {
     // Alice shares a file
     const shareCode = await alice.shareFile('/home/lebei/crdt.pdf');
     expect(shareCode).toBeTruthy();
+
+    // Wait for file to be fully shared
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Both join the chat group
     await alice.joinGroup('chat');
@@ -65,7 +71,7 @@ describe('File Sharing Integration Tests', () => {
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Bob downloads the file
-    const downloadId = await bob.downloadFile('Alice', shareCode);
+    const downloadId = await bob.downloadFile(aliceNickname, shareCode);
     expect(downloadId).toBeTruthy();
 
     // Wait for download to complete

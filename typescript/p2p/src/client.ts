@@ -720,19 +720,33 @@ export class P2pClient {
     request: FileRequest,
     channel: any
   ): Promise<void> {
-    logger.info({
-      message: '[P2pClient] Handling file request',
-      peerId: peerId,
-    });
-    logger.debug({
-      message: '[P2pClient] File request details',
-      request: request,
-    });
+    logger.info(`[P2pClient] ====== Handling file request ======`);
+    logger.info(`[P2pClient] Peer ID: ${peerId}`);
+    logger.info(`[P2pClient] Request: ${JSON.stringify(request)}`);
+    logger.info(`[P2pClient] Share code from request: ${request.shareCode}`);
+    logger.info(
+      `[P2pClient] Number of files in manager: ${this.fileManager.list().length}`
+    );
+    logger.info(
+      `[P2pClient] Available files: ${this.fileManager
+        .list()
+        .map((f) => `${f.info.name} (${f.shareCode})`)
+        .join(', ')}`
+    );
 
     const file = this.fileManager.getByShareCode(request.shareCode);
+    logger.info(
+      `[P2pClient] Found file: ${file ? file.info.name : 'undefined'}`
+    );
     if (!file) {
-      console.log(
+      logger.info(
         `[P2pClient] File not found for share code: ${request.shareCode}`
+      );
+      logger.info(
+        `[P2pClient] Available share codes: ${this.fileManager
+          .list()
+          .map((f) => f.shareCode)
+          .join(', ')}`
       );
       channel.send({
         type: 'error',
@@ -1101,7 +1115,23 @@ export class P2pClient {
       throw P2pError.notStarted();
     }
 
+    logger.info(`[P2pClient] Sharing file: ${filePath}`);
     const sharedFile = await this.fileManager.share(filePath);
+    logger.info(
+      `[P2pClient] Shared file: ${sharedFile.info.name} with share code: ${sharedFile.shareCode}`
+    );
+    logger.info(
+      `[P2pClient] Available files after sharing: ${this.fileManager
+        .list()
+        .map((f) => `${f.info.name} (${f.shareCode})`)
+        .join(', ')}`
+    );
+    logger.info(
+      `[P2pClient] Share code index size: ${this.fileManager.getShareCodes().length}`
+    );
+    logger.info(
+      `[P2pClient] Share codes in index: ${this.fileManager.getShareCodes().join(', ')}`
+    );
 
     await eventEmitter.emit({
       type: 'file-shared',
@@ -1152,14 +1182,6 @@ export class P2pClient {
   ): Promise<string> {
     logger.info('[P2pClient] Entering downloadFileByPeerId');
     const downloadId = randomUUID();
-
-    // Get peer address from peer manager or use peer ID as fallback
-    let peerAddress = peerId;
-    const peerInfo = this.peerManager.getByPeerId(peerId);
-    if (peerInfo && peerInfo.addresses && peerInfo.addresses.length > 0) {
-      peerAddress = peerInfo.addresses[0];
-    }
-
     // Send file request to get file info
     const fileRequest: FileRequest = {
       type: 'request',
@@ -1169,7 +1191,8 @@ export class P2pClient {
     };
 
     try {
-      const response = await this.sendFileMessage(peerAddress, fileRequest);
+      // Always use peerId for sendFileMessage, not multiaddr
+      const response = await this.sendFileMessage(peerId, fileRequest);
       logger.debug({
         message: '[P2pClient] Received response',
         type: response.type,
@@ -1224,8 +1247,9 @@ export class P2pClient {
             chunk: new Uint8Array(0), // Empty chunk, just requesting data
           };
 
+          // Always use peerId for sendFileMessage, not multiaddr
           const chunkResponse = await this.sendFileMessage(
-            peerAddress,
+            peerId,
             chunkRequest
           );
           logger.debug({

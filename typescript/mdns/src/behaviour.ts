@@ -86,10 +86,14 @@ export class GigiDnsBehaviour {
       // Bind to the Gigi DNS port on all interfaces
       this.udpSocket.bind(GIGI_DNS_PORT, '0.0.0.0', () => {
         try {
+          // Check if socket is still valid (may be null in test environments)
+          if (!this.udpSocket) {
+            return;
+          }
           // Enable multicast on the default interface
-          this.udpSocket!.addMembership(IPV4_MDNS_MULTICAST_ADDRESS);
+          this.udpSocket.addMembership(IPV4_MDNS_MULTICAST_ADDRESS);
           if (this.config.enableIpv6) {
-            this.udpSocket!.addMembership(IPV6_MDNS_MULTICAST_ADDRESS);
+            this.udpSocket.addMembership(IPV6_MDNS_MULTICAST_ADDRESS);
           }
           console.log(`Gigi DNS listening on 0.0.0.0:${GIGI_DNS_PORT}`);
         } catch (err) {

@@ -149,6 +149,9 @@ importers:
       '@gigi/amp':
         specifier: file:../../typescript/amp
         version: file:typescript/amp
+      '@gigi/logging':
+        specifier: file:../../typescript/logging
+        version: link:../../typescript/logging
       '@gigi/p2p':
         specifier: file:../../typescript/p2p
         version: file:typescript/p2p

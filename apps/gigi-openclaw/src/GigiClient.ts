@@ -6,6 +6,9 @@ import {
   InMemoryAgentRegistry,
 } from '@gigi/amp';
 import type { IGigiClient, GigiClientConfig, GigiMessage } from './types.js';
+import { createLogger } from '@gigi/logging';
+
+const logger = createLogger({ name: 'gigi-client' });
 
 export class GigiClient implements IGigiClient {
   private p2pClient: P2pClient;
@@ -51,7 +54,7 @@ export class GigiClient implements IGigiClient {
               : event.message;
           this.emitMessage(messageData as GigiMessage);
         } catch (error) {
-          console.error('[GigiClient] Error parsing direct message:', error);
+          logger.error('Error parsing direct message', { error });
         }
       } else if (event.type === 'group-message') {
         try {
@@ -65,13 +68,12 @@ export class GigiClient implements IGigiClient {
             const messageData = JSON.parse(event.content.text);
             this.emitMessage(messageData as GigiMessage);
           } else {
-            console.error(
-              '[GigiClient] Unexpected group message format:',
-              event.content
-            );
+            logger.error('Unexpected group message format', {
+              content: event.content,
+            });
           }
         } catch (error) {
-          console.error('[GigiClient] Error parsing group message:', error);
+          logger.error('Error parsing group message', { error });
         }
       }
     });
@@ -89,8 +91,7 @@ export class GigiClient implements IGigiClient {
     const peerId = this.p2pClient.getPeerId();
     const multiaddrs = this.p2pClient.getMultiaddrs();
 
-    console.log(`[GigiClient] Started with peer ID: ${peerId}`);
-    console.log(`[GigiClient] Listening on: ${multiaddrs.join(', ')}`);
+    logger.info('GigiClient started', { peerId, multiaddrs });
   }
 
   async stop(): Promise<void> {
@@ -100,7 +101,7 @@ export class GigiClient implements IGigiClient {
 
     await this.p2pClient.stop();
     this.started = false;
-    console.log('[GigiClient] Stopped');
+    logger.info('GigiClient stopped');
   }
 
   async sendMessage(target: string, message: string): Promise<void> {
@@ -118,7 +119,7 @@ export class GigiClient implements IGigiClient {
     );
 
     await this.p2pClient.sendDirectMessage(target, JSON.stringify(textMessage));
-    console.log(`[GigiClient] Sent text message to ${target}`);
+    logger.info('Sent text message', { target, messageLength: message.length });
   }
 
   async sendFileMessage(
@@ -145,7 +146,7 @@ export class GigiClient implements IGigiClient {
     );
 
     await this.p2pClient.sendDirectMessage(target, JSON.stringify(fileMessage));
-    console.log(`[GigiClient] Sent file message to ${target}`);
+    logger.info('Sent file message', { target, filename, fileSize });
   }
 
   async sendGroupMessage(groupName: string, content: string): Promise<void> {
@@ -160,7 +161,10 @@ export class GigiClient implements IGigiClient {
     };
 
     await this.p2pClient.sendGroupMessage(groupName, messageContent);
-    console.log(`[GigiClient] Sent group text message to ${groupName}`);
+    logger.info('Sent group text message', {
+      groupName,
+      messageLength: content.length,
+    });
   }
 
   async sendGroupFileMessage(
@@ -190,7 +194,12 @@ export class GigiClient implements IGigiClient {
     };
 
     await this.p2pClient.sendGroupMessage(groupName, messageContent);
-    console.log(`[GigiClient] Sent group file message to ${groupName}`);
+    logger.info('Sent group file message', {
+      groupName,
+      filename,
+      fileSize,
+      fileType,
+    });
   }
 
   async joinGroup(groupName: string): Promise<void> {
@@ -199,7 +208,7 @@ export class GigiClient implements IGigiClient {
     }
 
     await this.p2pClient.joinGroup(groupName);
-    console.log(`[GigiClient] Joined group: ${groupName}`);
+    logger.info('Joined group', { groupName });
   }
 
   async leaveGroup(groupName: string): Promise<void> {
@@ -208,7 +217,7 @@ export class GigiClient implements IGigiClient {
     }
 
     await this.p2pClient.leaveGroup(groupName);
-    console.log(`[GigiClient] Left group: ${groupName}`);
+    logger.info('Left group', { groupName });
   }
 
   async shareFile(filePath: string): Promise<string> {
@@ -236,7 +245,10 @@ export class GigiClient implements IGigiClient {
       try {
         handler(message);
       } catch (error) {
-        console.error('[GigiClient] Error in message handler:', error);
+        logger.error('Error in message handler', {
+          error,
+          messageType: message.type,
+        });
       }
     }
   }

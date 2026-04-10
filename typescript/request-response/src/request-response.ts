@@ -400,10 +400,18 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         if (typeof stream.sendCloseWrite === 'function') {
           console.log(`[RequestResponse] Closing write side of stream`);
           await stream.sendCloseWrite();
-        } else if (typeof stream.close === 'function') {
-          // Fallback to close if sendCloseWrite is not available
-          console.log(`[RequestResponse] Closing stream`);
-          await stream.close();
+        } else if (typeof stream.end === 'function') {
+          // Fallback to end if sendCloseWrite is not available
+          console.log(`[RequestResponse] Ending stream write`);
+          await new Promise<void>((resolve, reject) => {
+            stream.end((error: Error | null) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve();
+              }
+            });
+          });
         }
       } else if (typeof stream.write === 'function') {
         // Try to use write method if available

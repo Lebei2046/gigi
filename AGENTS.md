@@ -15,7 +15,7 @@ The Gigi P2P ecosystem is a decentralized network of components designed to enab
 - **@gigi/logging**: Logging utilities using Pino
 - **@gigi/mdns**: mDNS functionality for local peer discovery
 - **@gigi/p2p**: High-level TypeScript client for P2P communication
-- **@gigi/@request-response**: Request-response protocol implementation
+- **@gigi/request-response**: Request-response protocol implementation
 - **p2p-example**: Example usage of the Gigi P2P client
 
 #### Rust Projects
@@ -56,11 +56,15 @@ The Gigi P2P ecosystem is a decentralized network of components designed to enab
    - Use Prettier for code formatting
    - Include `format-all` script that runs `prettier --write . && eslint "src/**/*.{ts,tsx,js,jsx}" --ext ts,tsx,js,jsx --fix`
 
-4. **Package Management**
+4. **Import Conventions**
+   - Do not use `.js` file extensions in TypeScript imports
+   - TypeScript will automatically resolve the correct file extensions during compilation
+
+5. **Package Management**
    - Use pnpm as the package manager
    - Maintain consistent dependency patterns across projects
 
-5. **Logging**
+6. **Logging**
    - Use Pino for structured JSON logging
    - Centralize logging utilities in the `@gigi/logging` package
    - Replace `console.log` with structured logging
