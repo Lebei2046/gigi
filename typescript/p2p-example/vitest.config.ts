@@ -9,5 +9,6 @@ export default defineConfig({
     run: {
       serial: true, // Run tests sequentially to avoid port conflicts
     },
+    silent: true, // Hide console logs
   },
 });

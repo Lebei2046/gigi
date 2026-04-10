@@ -79,15 +79,12 @@ describe('Node-to-Node Messaging Integration Tests', () => {
     bobMessageRouter.registerMessageHandler(
       'text',
       (message: any, _agentId: string | undefined) => {
-        console.log('Bob message handler called:', message);
         if (message.sender.type === 'node') {
           bobMessages.push(`[NODE] ${message.sender.name}: ${message.content}`);
-          console.log('Added message to bobMessages:', bobMessages);
         } else {
           bobMessages.push(
             `[AGENT] ${message.sender.name}: ${message.content}`
           );
-          console.log('Added message to bobMessages:', bobMessages);
         }
       }
     );
@@ -117,18 +114,11 @@ describe('Node-to-Node Messaging Integration Tests', () => {
 
     // Set up P2P event listeners for Bob
     const bobDirectMessageListener = (event: any) => {
-      console.log('Bob received direct message event:', event);
       try {
         const parsedMsg =
           typeof event.message === 'string'
             ? JSON.parse(event.message)
             : event.message;
-        console.log('Bob parsed message:', parsedMsg);
-        console.log('Bob parsed message has content:', !!parsedMsg.content);
-        console.log('Bob parsed message has target:', !!parsedMsg.target);
-        console.log('Bob parsed message has sender:', !!parsedMsg.sender);
-        console.log('Bob parsed message has timestamp:', !!parsedMsg.timestamp);
-        console.log('Bob parsed message has id:', !!parsedMsg.id);
         if (
           parsedMsg.content &&
           parsedMsg.target &&
@@ -136,17 +126,12 @@ describe('Node-to-Node Messaging Integration Tests', () => {
           parsedMsg.timestamp &&
           parsedMsg.id
         ) {
-          console.log('Bob routing message through message router');
           bobMessageRouter.routeMessage(parsedMsg);
         } else {
-          console.log('Bob adding message to bobMessages directly');
           bobMessages.push(`[${event.fromNickname}]: ${event.message}`);
-          console.log('Bob messages after adding:', bobMessages);
         }
-      } catch (error) {
-        console.log('Bob error parsing message:', error);
+      } catch {
         bobMessages.push(`[${event.fromNickname}]: ${event.message}`);
-        console.log('Bob messages after error:', bobMessages);
       }
     };
 
@@ -170,8 +155,7 @@ describe('Node-to-Node Messaging Integration Tests', () => {
           // Handle AMP message
           aliceMessageRouter.routeMessage(content);
         }
-      } catch (error) {
-        console.log('Alice error parsing group message:', error);
+      } catch {
         aliceMessages.push(
           `[${event.fromNickname}] in ${event.group}: ${JSON.stringify(event.content)}`
         );
@@ -197,8 +181,7 @@ describe('Node-to-Node Messaging Integration Tests', () => {
           // Handle AMP message
           bobMessageRouter.routeMessage(content);
         }
-      } catch (error) {
-        console.log('Bob error parsing group message:', error);
+      } catch {
         bobMessages.push(
           `[${event.fromNickname}] in ${event.group}: ${JSON.stringify(event.content)}`
         );
@@ -210,7 +193,6 @@ describe('Node-to-Node Messaging Integration Tests', () => {
     await bob.start();
 
     // Register listeners using client's onEvent method
-    console.log('About to register listeners');
     aliceDirectMessageUnsubscribe = alice.onEvent((event) => {
       if (event.type === P2pEventType.DIRECT_MESSAGE) {
         aliceDirectMessageListener(event);
@@ -218,7 +200,6 @@ describe('Node-to-Node Messaging Integration Tests', () => {
         aliceGroupMessageListener(event);
       }
     });
-    console.log('Registered alice listeners');
 
     bobDirectMessageUnsubscribe = bob.onEvent((event) => {
       if (event.type === P2pEventType.DIRECT_MESSAGE) {
@@ -227,7 +208,6 @@ describe('Node-to-Node Messaging Integration Tests', () => {
         bobGroupMessageListener(event);
       }
     });
-    console.log('Registered bob listeners');
 
     // Wait for clients to discover each other via mDNS
     await waitFor(
@@ -347,7 +327,6 @@ describe('Node-to-Node Messaging Integration Tests', () => {
 
     // Wait for Bob to receive
     await waitFor(() => bobMessages.length > 0, 5000);
-    console.log('Bob received messages:', bobMessages);
 
     // Clear Alice's messages to avoid confusion
     aliceMessages = [];
@@ -365,12 +344,10 @@ describe('Node-to-Node Messaging Integration Tests', () => {
         type: 'node',
       }
     );
-    console.log('Bob is sending message to Alice:', ampMessage2);
     await bob.sendDirectMessage(alicePeerId, ampMessage2);
 
     // Wait for Alice to receive
     await waitFor(() => aliceMessages.length > 0, 5000);
-    console.log('Alice received messages:', aliceMessages);
 
     // Verify both received messages
     // Bob might receive multiple messages, but we just need to check he got at least one

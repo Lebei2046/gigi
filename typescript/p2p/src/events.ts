@@ -1,4 +1,7 @@
 import type { MessageContent } from './types';
+import { createLogger } from '@gigi/logging';
+
+const logger = createLogger({ name: 'gigi-events' });
 
 export enum P2pEventType {
   PEER_DISCOVERED = 'peer-discovered',
@@ -163,22 +166,12 @@ class EventEmitter {
 
   async emit(event: P2pEvent): Promise<void> {
     const eventType = event.type;
-    console.log(
-      `EventEmitter ${this.id} - Event emitted:`,
-      eventType,
-      'Listeners count:',
-      this.listenerCount(eventType)
-    );
     const listenersForEvent = this.listeners.get(eventType);
     if (listenersForEvent) {
-      console.log(
-        `EventEmitter ${this.id} - Listeners for event:`,
-        listenersForEvent.size
-      );
       await Promise.all(
         Array.from(listenersForEvent).map((listener) =>
           Promise.resolve(listener(event)).catch((err) =>
-            console.error(
+            logger.error(
               `EventEmitter ${this.id} - Error in event listener for ${eventType}:`,
               err
             )
@@ -192,7 +185,7 @@ class EventEmitter {
       await Promise.all(
         Array.from(anyListeners).map((listener) =>
           Promise.resolve(listener(event)).catch((err) =>
-            console.error(
+            logger.error(
               `EventEmitter ${this.id} - Error in 'any' event listener:`,
               err
             )

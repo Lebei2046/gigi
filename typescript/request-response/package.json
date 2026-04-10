@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
+    "test": "LOG_LEVEL=silent vitest",
     "test:coverage": "vitest --coverage",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx",
     "lint:fix": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
@@ -40,6 +40,7 @@
     "@libp2p/interface-peer-id": "^2.0.1",
     "@libp2p/peer-id": "^6.0.4",
     "@multiformats/multiaddr": "^13.0.1",
-    "cbor-x": "^1.6.0"
+    "cbor-x": "^1.6.0",
+    "@gigi/logging": "workspace:*"
   }
 }

@@ -7,6 +7,9 @@ import {
   AgentSettingsResponse,
 } from './types';
 import { TextMessage, FileMessage } from '@gigi/message-types';
+import { createLogger } from '@gigi/logging';
+
+const logger = createLogger({ name: 'gigi-amp' });
 
 export class InMemoryAgentRegistry implements AgentRegistry {
   private agents: Map<string, AgentInfo> = new Map();
@@ -61,7 +64,7 @@ export class AmpMessageRouter implements MessageRouter {
         this.handleAgentSettingsResponse(message as AgentSettingsResponse);
         break;
       default:
-        console.warn(`Unknown message type: ${(message as any).type}`);
+        logger.warn(`Unknown message type: ${(message as any).type}`);
     }
   }
 
@@ -187,7 +190,7 @@ export class AmpMessageRouter implements MessageRouter {
       try {
         handler(message, agentId);
       } catch (error) {
-        console.error(`Error handling ${type} message:`, error);
+        logger.error(error, `Error handling ${type} message:`);
       }
     }
   }

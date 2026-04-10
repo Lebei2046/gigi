@@ -23,6 +23,8 @@ import pino from "pino";
 describe("createLogger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear LOG_LEVEL to avoid interference from environment
+    delete process.env.LOG_LEVEL;
   });
 
   it("should create a logger with default options", () => {

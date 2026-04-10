@@ -18,6 +18,9 @@ import {
 
 // Import peerIdFromString to convert string peer IDs to PeerId objects
 import { peerIdFromString } from '@libp2p/peer-id';
+import { createLogger } from '@gigi/logging';
+
+const logger = createLogger({ name: 'gigi-request-response' });
 
 // Incoming stream data interface
 export interface IncomingStreamData {
@@ -94,7 +97,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       if (stream) {
         await this.handleIncomingStream({ stream, connection });
       } else {
-        console.error('[RequestResponse] Missing stream in incoming data');
+        logger.error('[RequestResponse] Missing stream in incoming data');
       }
     });
   }
@@ -184,7 +187,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         },
       });
     } catch (error) {
-      console.error('Error handling incoming stream:', error);
+      logger.error(error, 'Error handling incoming stream:');
       this.emitEvent({
         type: 'InboundFailure',
         peer: peerId,
@@ -244,19 +247,19 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         await writer.write(encodedResponse);
         await writer.close();
       } else {
-        console.error(
+        logger.error(
           `[RequestResponse] No valid write method found for stream`
         );
         throw new Error('No write method available');
       }
     } catch (error) {
-      console.error('Error sending response:', error);
+      logger.error(error, 'Error sending response:');
     } finally {
       if (typeof stream.close === 'function') {
         try {
           await stream.close();
         } catch (error) {
-          console.error('Error closing stream:', error);
+          logger.error(error, 'Error closing stream:');
         }
       }
     }
@@ -485,11 +488,10 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
 
       // Close the stream after processing the response
       if (typeof stream.close === 'function') {
-        console.log(`[RequestResponse] Closing stream`);
         try {
           await stream.close();
         } catch (error) {
-          console.error(`[RequestResponse] Error closing stream:`, error);
+          logger.error(error, `[RequestResponse] Error closing stream:`);
         }
       }
 
@@ -498,7 +500,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       // Clear pending request
       this.clearOutboundRequest(requestId);
 
-      console.error(`[RequestResponse] Error in sendRequest:`, error);
+      logger.error(error, `[RequestResponse] Error in sendRequest:`);
 
       // Emit failure event
       this.emitEvent({
@@ -578,7 +580,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
             try {
               chunks.push(new Uint8Array(chunk));
             } catch (error) {
-              console.error('[RequestResponse] Error converting chunk:', error);
+              logger.error(error, '[RequestResponse] Error converting chunk:');
             }
           }
         }
@@ -634,7 +636,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
         throw new Error('Unsupported stream type');
       }
     } catch (error) {
-      console.error('[RequestResponse] Error reading stream:', error);
+      logger.error(error, '[RequestResponse] Error reading stream:');
       throw error;
     }
 
@@ -679,7 +681,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       try {
         listener(event);
       } catch (error) {
-        console.error('Error in event listener:', error);
+        logger.error(error, 'Error in event listener:');
       }
     }
   }

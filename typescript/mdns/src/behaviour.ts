@@ -11,6 +11,9 @@ import * as dgram from 'dgram';
 import { createSocket } from 'dgram';
 // networkInterfaces is available for future use when per-interface socket binding is needed
 // import { networkInterfaces } from 'os';
+import { createLogger } from '@gigi/logging';
+
+const logger = createLogger({ name: 'gigi-mdns' });
 
 /// Commands that can be sent to the GigiDnsBehaviour
 ///
@@ -95,7 +98,7 @@ export class GigiDnsBehaviour {
           if (this.config.enableIpv6) {
             this.udpSocket.addMembership(IPV6_MDNS_MULTICAST_ADDRESS);
           }
-          console.log(`Gigi DNS listening on 0.0.0.0:${GIGI_DNS_PORT}`);
+
         } catch (err) {
           this.emitError(err as Error, 'Failed to configure multicast');
         }
@@ -306,7 +309,7 @@ export class GigiDnsBehaviour {
   /// @param error - The error that occurred
   /// @param context - Contextual information about where the error occurred
   private emitError(error: Error, context: string): void {
-    console.error(`Gigi DNS error (${context}):`, error);
+    logger.error(error, `Gigi DNS error (${context}):`);
     this.emit({ type: 'Error', error, context });
   }
 
@@ -413,7 +416,7 @@ export class GigiDnsBehaviour {
     // Close the UDP socket
     if (this.udpSocket) {
       this.udpSocket.close(() => {
-        console.log('Gigi DNS UDP socket closed');
+
       });
       this.udpSocket = null;
     }

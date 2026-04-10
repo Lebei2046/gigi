@@ -20,9 +20,7 @@ export class FileSharingManager {
   }
 
   async share(filePath: string): Promise<SharedFile> {
-    console.log(`[FileSharingManager] Sharing file: ${filePath}`);
     if (!existsSync(filePath)) {
-      console.log(`[FileSharingManager] File not found: ${filePath}`);
       throw new Error(`File not found: ${filePath}`);
     }
 
@@ -32,10 +30,6 @@ export class FileSharingManager {
     const shareCode = this.generateShareCode(basename(filePath));
     const chunkCount = Math.ceil(content.length / CHUNK_SIZE);
     const mimeType = this.guessMimeType(filePath);
-
-    console.log(
-      `[FileSharingManager] Generated share code: ${shareCode} for file: ${basename(filePath)}`
-    );
 
     const info: FileInfo = {
       fileId,
@@ -58,14 +52,6 @@ export class FileSharingManager {
 
     this.files.set(fileId, sharedFile);
     this.shareCodeIndex.set(shareCode, fileId);
-
-    console.log(
-      `[FileSharingManager] Added file to manager: ${sharedFile.info.name} with share code: ${sharedFile.shareCode}`
-    );
-    console.log(`[FileSharingManager] Files in manager: ${this.files.size}`);
-    console.log(
-      `[FileSharingManager] Share codes in index: ${this.shareCodeIndex.size}`
-    );
 
     return sharedFile;
   }
@@ -130,18 +116,8 @@ export class FileSharingManager {
   }
 
   getByShareCode(shareCode: string): SharedFile | undefined {
-    console.log(
-      `[FileSharingManager] Looking for file with share code: ${shareCode}`
-    );
-    console.log(
-      `[FileSharingManager] Share codes in index: ${Array.from(this.shareCodeIndex.keys()).join(', ')}`
-    );
     const fileId = this.shareCodeIndex.get(shareCode);
-    console.log(`[FileSharingManager] Found fileId: ${fileId}`);
     const file = fileId ? this.files.get(fileId) : undefined;
-    console.log(
-      `[FileSharingManager] Found file: ${file ? file.info.name : 'undefined'}`
-    );
     return file;
   }
 

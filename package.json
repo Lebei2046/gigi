@@ -12,6 +12,6 @@
     "lint:fix": "pnpm --filter @gigi/amp --filter @gigi/p2p --filter @gigi/request-response --filter @gigi/mdns --filter @gigi/logging --filter p2p-example --filter gigi-mobile --filter gigi-openclaw lint:fix",
     "format": "pnpm --filter @gigi/amp --filter @gigi/p2p --filter @gigi/request-response --filter @gigi/mdns --filter @gigi/logging --filter p2p-example --filter gigi-mobile --filter gigi-openclaw format",
     "format-all": "pnpm --filter @gigi/amp --filter @gigi/p2p --filter @gigi/request-response --filter @gigi/mdns --filter @gigi/logging --filter p2p-example --filter gigi-mobile --filter gigi-openclaw format-all",
-    "test": "pnpm --filter @gigi/amp --filter @gigi/p2p --filter @gigi/request-response --filter @gigi/mdns --filter @gigi/logging test && pnpm --filter p2p-example test"
+    "test": "LOG_LEVEL=silent pnpm --filter @gigi/amp --filter @gigi/p2p --filter @gigi/request-response --filter @gigi/mdns --filter @gigi/logging test && LOG_LEVEL=silent pnpm --filter p2p-example test"
   }
 }

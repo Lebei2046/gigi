@@ -186,7 +186,7 @@ export class P2pClient {
 
       // Add error event listener to prevent uncaught exceptions
       this.addEventListener('error', (error: any) => {
-        console.warn('[P2pClient] Libp2p error:', error);
+        logger.warn('[P2pClient] Libp2p error:', error);
       });
 
       // Set up Gigi DNS event listeners for peer discovery with nicknames
@@ -241,7 +241,7 @@ export class P2pClient {
 
           // Only try to connect if the multiaddr is valid
           if (peerInfo.multiaddr) {
-            connectWithRetry().catch(console.error);
+            connectWithRetry().catch((error) => logger.error('[P2pClient] Error connecting:', error));
           }
         });
 
@@ -379,12 +379,7 @@ export class P2pClient {
         const fromPeerId = connection?.remotePeer?.toString() || 'unknown';
         const message = await this.readStreamMessage(stream);
 
-        console.log('Emitting direct-message event:', {
-          type: 'direct-message',
-          from: fromPeerId,
-          fromNickname: this.peerManager.getNickname(fromPeerId) || fromPeerId,
-          message,
-        });
+
         await eventEmitter.emit({
           type: 'direct-message',
           from: fromPeerId,
@@ -535,7 +530,7 @@ export class P2pClient {
 
     this.libp2p.addEventListener('peer:connect', async (event: any) => {
       if (!event.detail) {
-        console.warn('[P2pClient] peer:connect event without detail:', event);
+        logger.warn('[P2pClient] peer:connect event without detail:', event);
         return;
       }
 
@@ -556,7 +551,7 @@ export class P2pClient {
 
     this.libp2p.addEventListener('peer:disconnect', async (event: any) => {
       if (!event.detail) {
-        console.warn(
+        logger.warn(
           '[P2pClient] peer:disconnect event without detail:',
           event
         );
@@ -640,7 +635,7 @@ export class P2pClient {
             try {
               chunks.push(new Uint8Array(chunk));
             } catch (error) {
-              console.error('[P2pClient] Error converting chunk:', error);
+              logger.error(error, '[P2pClient] Error converting chunk:');
             }
           }
         }
@@ -696,7 +691,7 @@ export class P2pClient {
         throw new Error('Unsupported stream type');
       }
     } catch (error) {
-      console.error('[P2pClient] Error reading stream:', error);
+      logger.error(error, '[P2pClient] Error reading stream:');
       throw error;
     }
 
