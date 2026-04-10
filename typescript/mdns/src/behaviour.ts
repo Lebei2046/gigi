@@ -98,7 +98,6 @@ export class GigiDnsBehaviour {
           if (this.config.enableIpv6) {
             this.udpSocket.addMembership(IPV6_MDNS_MULTICAST_ADDRESS);
           }
-
         } catch (err) {
           this.emitError(err as Error, 'Failed to configure multicast');
         }
@@ -415,9 +414,7 @@ export class GigiDnsBehaviour {
 
     // Close the UDP socket
     if (this.udpSocket) {
-      this.udpSocket.close(() => {
-
-      });
+      this.udpSocket.close(() => {});
       this.udpSocket = null;
     }
   }

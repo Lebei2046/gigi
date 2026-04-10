@@ -241,7 +241,9 @@ export class P2pClient {
 
           // Only try to connect if the multiaddr is valid
           if (peerInfo.multiaddr) {
-            connectWithRetry().catch((error) => logger.error('[P2pClient] Error connecting:', error));
+            connectWithRetry().catch((error) =>
+              logger.error('[P2pClient] Error connecting:', error)
+            );
           }
         });
 
@@ -378,7 +380,6 @@ export class P2pClient {
 
         const fromPeerId = connection?.remotePeer?.toString() || 'unknown';
         const message = await this.readStreamMessage(stream);
-
 
         await eventEmitter.emit({
           type: 'direct-message',
@@ -551,10 +552,7 @@ export class P2pClient {
 
     this.libp2p.addEventListener('peer:disconnect', async (event: any) => {
       if (!event.detail) {
-        logger.warn(
-          '[P2pClient] peer:disconnect event without detail:',
-          event
-        );
+        logger.warn('[P2pClient] peer:disconnect event without detail:', event);
         return;
       }
 

@@ -32,7 +32,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "LOG_LEVEL=silent vitest",
+    "test": "vitest",
     "test:coverage": "vitest --coverage",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx",
     "lint:fix": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",

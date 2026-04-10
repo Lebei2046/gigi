@@ -11,7 +11,7 @@
     "start": "tsx index.ts",
     "build": "tsc",
     "dev": "tsx index.ts",
-    "test": "LOG_LEVEL=silent vitest run",
+    "test": "vitest run",
     "test:coverage": "vitest --coverage",
     "lint": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx",
     "lint:fix": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
