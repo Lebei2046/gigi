@@ -25,6 +25,7 @@ export class GigiClient implements IGigiClient {
     // Mnemonic derivation will be handled in the start method
     const p2pOptions: P2pClientOptions = {
       nickname:
+        config.nickname ||
         config.displayName ||
         `gigi-${Math.random().toString(36).substring(2, 10)}`,
       config: {
@@ -58,15 +59,30 @@ export class GigiClient implements IGigiClient {
         }
       } else if (event.type === 'group-message') {
         try {
-          // For group messages, the content is an object with type and text properties
-          // The actual AMP message is in the text field
+          // For group messages, handle both AMP messages and regular text messages
           if (
             event.content &&
             event.content.type === 'text' &&
             typeof event.content.text === 'string'
           ) {
-            const messageData = JSON.parse(event.content.text);
-            this.emitMessage(messageData as GigiMessage);
+            try {
+              // Try to parse as AMP message
+              const messageData = JSON.parse(event.content.text);
+              this.emitMessage(messageData as GigiMessage);
+            } catch {
+              // If not an AMP message, create a regular text message
+              const textMessage = AmpMessageFactory.createTextMessage(
+                event.content.text,
+                { type: 'all' },
+                {
+                  id: event.from,
+                  name: event.fromNickname || event.from,
+                  type: 'owner',
+                }
+              );
+
+              this.emitMessage(textMessage as GigiMessage);
+            }
           } else {
             logger.error('Unexpected group message format', {
               content: event.content,
@@ -199,6 +215,18 @@ export class GigiClient implements IGigiClient {
       filename,
       fileSize,
       fileType,
+    });
+  }
+
+  async sendDirectMessage(target: string, message: string): Promise<void> {
+    if (!this.started) {
+      throw new Error('GigiClient not started');
+    }
+
+    await this.p2pClient.sendDirectMessage(target, message);
+    logger.info('Sent direct message', {
+      target,
+      messageLength: message.length,
     });
   }
 

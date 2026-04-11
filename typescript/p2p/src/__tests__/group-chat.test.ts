@@ -53,6 +53,9 @@ vi.mock('../libp2p-setup.js', () => ({
     gigiDns: {
       on: vi.fn(),
       stop: vi.fn(),
+      updateListenAddresses: vi.fn(),
+      startService: vi.fn(),
+      sendQuery: vi.fn(),
     },
   }),
 }));

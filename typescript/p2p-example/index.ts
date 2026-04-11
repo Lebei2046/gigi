@@ -6,7 +6,6 @@ import {
   AmpMessageFactory,
   InMemoryAgentRegistry,
 } from '@gigi/amp';
-import type { AgentInfo } from '@gigi/amp';
 import { createLogger } from '@gigi/logging';
 import * as fs from 'fs';
 
@@ -23,7 +22,7 @@ const DEFAULT_CONFIG = {
 };
 
 // Global state
-const p2pClient: P2pClient | null = null;
+let p2pClient: P2pClient | null = null;
 let agentRegistry: InMemoryAgentRegistry | null = null;
 let messageRouter: AmpMessageRouter | null = null;
 let currentNickname = 'anonymous';
@@ -44,7 +43,7 @@ async function initializeP2P(mnemonic: string, nickname: string) {
   });
 
   // Create P2P client
-  const p2pClient = new P2pClient({
+  p2pClient = new P2pClient({
     nickname,
     mnemonic,
     config: {
@@ -84,30 +83,6 @@ async function initializeP2P(mnemonic: string, nickname: string) {
     }
   );
 
-  messageRouter.registerMessageHandler(
-    'agent-settings-response',
-    (message: any, _agentId: string | undefined) => {
-      const response = message as any;
-      console.log('\n[AGENT SETTINGS RESPONSE]');
-      response.agents.forEach((agent: any) => {
-        console.log(`Agent: ${agent.name} (${agent.id})`);
-        console.log(`  Type: ${agent.type}`);
-        console.log(`  Version: ${agent.version}`);
-        console.log(`  Status: ${agent.status}`);
-        console.log(`  Settings:`);
-        agent.settings.forEach((setting: any) => {
-          console.log(`    - ${setting.name}: ${setting.value}`);
-        });
-        if (agent.openclawAgents && agent.openclawAgents.length > 0) {
-          console.log(`  OpenClaw Agents:`);
-          agent.openclawAgents.forEach((openclawAgent: any) => {
-            console.log(`    - ${openclawAgent.name} (${openclawAgent.id})`);
-          });
-        }
-      });
-    }
-  );
-
   // Set up P2P event listeners
   p2pClient.onEvent((event) => {
     if (event.type === 'direct-message') {
@@ -124,8 +99,20 @@ async function initializeP2P(mnemonic: string, nickname: string) {
       try {
         const parsedMsg = event.content;
         if (parsedMsg.type === 'text' && parsedMsg.text) {
-          // Regular text message
-          console.log(`\n[${event.fromNickname}]: ${parsedMsg.text}`);
+          try {
+            // Try to parse as AMP message
+            const ampMsg = JSON.parse(parsedMsg.text);
+            if (ampMsg.type && messageRouter) {
+              // AMP message, route through message router
+              messageRouter.routeMessage(ampMsg);
+            } else {
+              // Regular text message
+              console.log(`\n[${event.fromNickname}]: ${parsedMsg.text}`);
+            }
+          } catch {
+            // Regular text message
+            console.log(`\n[${event.fromNickname}]: ${parsedMsg.text}`);
+          }
         } else if (messageRouter) {
           // Check if it's an AMP message
           const ampMsg = parsedMsg as any;
@@ -180,16 +167,17 @@ async function startInteractiveChat() {
 
   console.log('\n=== Gigi P2P Interactive Chat ===');
   console.log('Commands:');
-  console.log('  /join <group>     - Join a group');
-  console.log('  /leave            - Leave current group');
-  console.log('  /msg <peer> <msg> - Send direct message');
-  console.log('  /share <file>     - Share a file');
-  console.log('  /download <code>  - Download a file');
-  console.log('  /peers            - List connected peers');
-  console.log('  /agents           - List registered agents');
-  console.log('  /settings         - Query agent settings');
-  console.log('  /quit             - Exit');
-  console.log('  <message>         - Send to current group\n');
+  console.log('  /join <group>         - Join a group');
+  console.log('  /leave                - Leave current group');
+  console.log('  /msg <peer> <msg>     - Send direct message to a node');
+  console.log(
+    '  /agent-msg <node> <agent> <msg> - Send message to a specific agent'
+  );
+  console.log('  /share <file>         - Share a file');
+  console.log('  /download <code>      - Download a file');
+  console.log('  /peers                - List connected peers');
+  console.log('  /quit                 - Exit');
+  console.log('  <message>             - Send to current group\n');
 
   // Set up readline interface
   const readline = await import('readline');
@@ -263,6 +251,34 @@ async function startInteractiveChat() {
           }
           break;
 
+        case '/agent-msg':
+          if (parts.length < 4) {
+            console.log('Usage: /agent-msg <node> <agent> <message>');
+          } else {
+            const node = parts[1];
+            const agent = parts[2];
+            const message = parts.slice(3).join(' ');
+
+            // Create AMP node-to-agent text message
+            const textMessage = AmpMessageFactory.createNodeAgentTextMessage(
+              message,
+              node,
+              agent,
+              {
+                id: p2pClient!.getPeerId(),
+                name: currentNickname,
+                type: 'node',
+              }
+            );
+
+            await p2pClient!.sendDirectMessage(
+              node,
+              JSON.stringify(textMessage)
+            );
+            console.log(`Sent to agent ${agent} on node ${node}: ${message}`);
+          }
+          break;
+
         case '/share':
           if (parts.length < 2) {
             console.log('Usage: /share <file>');
@@ -315,58 +331,14 @@ async function startInteractiveChat() {
           break;
 
         case '/peers':
-          const peers = p2pClient!.listConnectedPeers();
+          const peers = p2pClient!.listPeers();
           if (peers.length === 0) {
-            console.log('No peers connected');
+            console.log('No peers discovered');
           } else {
-            console.log('Connected peers:');
+            console.log('Discovered peers:');
             peers.forEach((peer) => {
               console.log(`  - ${peer.nickname} (${peer.peerId})`);
             });
-          }
-          break;
-
-        case '/agents':
-          if (agentRegistry) {
-            const agents = agentRegistry.getAllAgents();
-            if (agents.length === 0) {
-              console.log('No agents registered');
-            } else {
-              console.log('Registered agents:');
-              agents.forEach((agent) => {
-                console.log(
-                  `  - ${agent.name} (${agent.id}) - ${agent.status}`
-                );
-              });
-            }
-          }
-          break;
-
-        case '/settings':
-          if (messageRouter && agentRegistry) {
-            // Register a temporary agent to receive the response
-            const tempAgent: AgentInfo = {
-              id: 'settings-query',
-              name: 'Settings Query',
-              type: 'query',
-              version: '1.0.0',
-              settings: [],
-              status: 'online',
-            };
-            agentRegistry.registerAgent(tempAgent);
-
-            // Create and send settings query
-            const query = AmpMessageFactory.createAgentSettingsQuery(
-              {
-                id: p2pClient!.getPeerId(),
-                name: currentNickname,
-                type: 'owner',
-              },
-              undefined
-            );
-
-            messageRouter.routeMessage(query);
-            console.log('Sent agent settings query');
           }
           break;
 
@@ -382,10 +354,21 @@ async function startInteractiveChat() {
     } else {
       // Send to current group
       if (currentGroup) {
-        // Create message for group
+        // Create AMP text message for group
+        const textMessage = AmpMessageFactory.createTextMessage(
+          trimmed,
+          { type: 'all' },
+          {
+            id: p2pClient!.getPeerId(),
+            name: currentNickname,
+            type: 'node',
+          }
+        );
+
+        // Send as JSON string in text message
         await p2pClient!.sendGroupMessage(currentGroup, {
           type: 'text',
-          text: trimmed,
+          text: JSON.stringify(textMessage),
         });
         // Don't display user's own message - it will be received back from the P2P network
       } else {
@@ -411,6 +394,7 @@ program
   .option('-m, --mnemonic <mnemonic>', 'BIP-39 mnemonic phrase')
   .option('-n, --nickname <nickname>', 'Your nickname', 'anonymous')
   .action(async (options) => {
+    console.log('Options received:', options);
     try {
       let mnemonic = options.mnemonic;
       if (!mnemonic) {
@@ -423,6 +407,7 @@ program
         logger.info('Using provided mnemonic');
       }
 
+      console.log('Calling initializeP2P with nickname:', options.nickname);
       await initializeP2P(mnemonic, options.nickname);
       await startInteractiveChat();
     } catch (err) {

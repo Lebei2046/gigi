@@ -261,6 +261,19 @@ export class P2pClient {
             nickname: peerInfo.nickname,
           } as P2pEvent);
         });
+
+        this.gigiDns.on('Error', (event: any) => {
+          logger.error({
+            message: '[P2pClient] Gigi DNS error',
+            error: event.error,
+            context: event.context,
+          });
+        });
+
+        // Emit events for any peers discovered before the listeners were set up
+        if (typeof this.gigiDns.emitDiscoveredPeers === 'function') {
+          this.gigiDns.emitDiscoveredPeers();
+        }
       }
 
       // Initialize request-response protocol for file sharing
@@ -297,6 +310,21 @@ export class P2pClient {
 
       await this.libp2p.start();
       await this.setupProtocolHandlers();
+
+      // Force a new DNS query after starting to discover existing peers
+      if (this.gigiDns) {
+        // Update listen addresses in Gigi DNS with the actual addresses libp2p is listening on
+        const listenAddrs = this.libp2p.getMultiaddrs();
+        this.gigiDns.updateListenAddresses(listenAddrs);
+
+        logger.info('[P2pClient] Starting Gigi DNS service');
+        this.gigiDns.startService();
+
+        logger.info('[P2pClient] Sending initial DNS query to discover peers');
+        // Manually trigger a DNS query to discover existing peers
+        // This ensures we find peers that were already online when we started
+        this.gigiDns.sendQuery();
+      }
 
       this.started = true;
       logger.info({
@@ -542,6 +570,14 @@ export class P2pClient {
       // Get the peer's nickname from the peer store or use peer ID as fallback
       const peerNickname = this.peerManager.getNickname(peerId) || peerId;
       this.peerManager.addConnected(peerId, peerNickname);
+
+      // Send a DNS query when a new peer connects to discover their nickname
+      if (this.gigiDns) {
+        logger.info(
+          '[P2pClient] New peer connected, sending DNS query to discover nickname'
+        );
+        this.gigiDns.sendQuery();
+      }
 
       await eventEmitter.emit({
         type: 'connected',

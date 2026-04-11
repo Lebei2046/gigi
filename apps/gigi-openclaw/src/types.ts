@@ -46,9 +46,9 @@ export type GigiMessage =
  * Gigi client configuration
  */
 export interface GigiClientConfig {
-  peerId: string;
   multiaddrs: string[];
   displayName?: string;
+  nickname?: string;
   bootstrapPeers?: string[];
   enableMdns?: boolean;
   enableDht?: boolean;
@@ -63,6 +63,7 @@ export interface IGigiClient {
   start(): Promise<void>;
   stop(): Promise<void>;
   sendMessage(target: string, message: string): Promise<void>;
+  sendDirectMessage(target: string, message: string): Promise<void>;
   sendFileMessage(
     target: string,
     filename: string,
@@ -107,6 +108,7 @@ export interface GatewayConfig {
 export interface GigiAccount {
   accountId: string;
   displayName?: string;
+  nickname?: string;
   peerId: string;
   multiaddrs: string[];
   bootstrapPeers?: string[];

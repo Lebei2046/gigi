@@ -7,6 +7,7 @@ import { DEFAULT_ACCOUNT_ID } from 'openclaw/plugin-sdk/account-id';
 
 import type { PluginRuntime } from 'openclaw/plugin-sdk';
 import { createLogger } from '@gigi/logging';
+import { generateMnemonic } from '@gigi/p2p';
 
 const logger = createLogger({ name: 'gigi-plugin' });
 
@@ -112,9 +113,9 @@ async function sendGigiMessage({
 
     // Create Gigi P2P client
     const client = new GigiClient({
-      peerId: account.peerId,
       multiaddrs: account.multiaddrs,
       displayName: account.displayName,
+      nickname: account.nickname,
       mnemonic: account.mnemonic,
       bootstrapPeers: account.bootstrapPeers,
       enableMdns: account.enableMdns,
@@ -298,8 +299,8 @@ async function sendGigiMessage({
 
   // Construct AMP message with proper sender information
   let senderName =
-    gateway.account.displayName || gateway.account.peerId.substring(0, 8);
-  let senderId = gateway.account.peerId;
+    gateway.account.displayName || gateway.client.getPeerId().substring(0, 8);
+  let senderId = gateway.client.getPeerId();
 
   // Use accounts mapping if agentId is provided
   if (agentId && gateway.account.accounts) {
@@ -488,12 +489,12 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
       return null;
     },
     applyAccountConfig: ({ cfg, accountId: _accountId, input }) => {
-      // Generate a temporary peer ID placeholder
-      const tempPeerId = `gigi-temp-${Math.random().toString(36).substring(2, 10)}`;
+      // Generate BIP-39 mnemonic
+      const mnemonic = generateMnemonic();
 
       // Get display name from input or use default
-      const displayName =
-        input.name || `Gigi Node ${tempPeerId.substring(0, 8)}`;
+      const displayName = input.name || 'My Gigi Node';
+      const nickname = (input as any).nickname || displayName;
 
       // Apply configuration
       const gigiConfig = (cfg.channels?.[CHANNEL_ID] ?? {}) as any;
@@ -503,9 +504,10 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           ...cfg.channels,
           [CHANNEL_ID]: {
             ...gigiConfig,
-            peerId: tempPeerId,
+            mnemonic: mnemonic,
             multiaddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/tcp/0/ws'],
             displayName: displayName,
+            nickname: nickname,
             enabled: true,
           },
         },
@@ -529,7 +531,8 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           accountId: DEFAULT_ACCOUNT_ID,
         });
         return Boolean(
-          account?.peerId?.trim() && account?.multiaddrs?.length > 0
+          (account?.peerId?.trim() || account?.mnemonic?.trim()) &&
+          account?.multiaddrs?.length > 0
         );
       },
     },
@@ -549,15 +552,20 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
         placeholder: 'My Gigi Node',
         required: false,
       },
+      {
+        inputKey: 'nickname' as any,
+        message: 'Enter a nickname for your Gigi node',
+        placeholder: 'My Gigi Node',
+        required: false,
+      },
     ],
     finalize: async ({ cfg, accountId: _accountId, credentialValues }) => {
       // Apply the configuration
-      const name =
-        credentialValues.name?.trim() ||
-        `Gigi Node ${Math.random().toString(36).substring(2, 10)}`;
+      const name = credentialValues.name?.trim() || 'My Gigi Node';
+      const nickname = credentialValues.nickname?.trim() || name;
 
-      // Generate a temporary peer ID placeholder
-      const tempPeerId = `gigi-temp-${Math.random().toString(36).substring(2, 10)}`;
+      // Generate BIP-39 mnemonic
+      const mnemonic = generateMnemonic();
 
       // Apply configuration
       const gigiConfig = (cfg.channels?.[CHANNEL_ID] ?? {}) as any;
@@ -567,9 +575,10 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           ...cfg.channels,
           [CHANNEL_ID]: {
             ...gigiConfig,
-            peerId: tempPeerId,
+            mnemonic: mnemonic,
             multiaddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/tcp/0/ws'],
             displayName: name,
+            nickname: nickname,
             enabled: true,
           },
         },
@@ -639,13 +648,21 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
     // Check if account is configured
     isConfigured: (account: GigiAccount) => {
-      return Boolean(account.peerId?.trim() && account.multiaddrs?.length > 0);
+      return Boolean(
+        (account.peerId?.trim() || account.mnemonic?.trim()) &&
+        account.multiaddrs?.length > 0
+      );
     },
 
     // Describe account info
     describeAccount: (account: GigiAccount) => ({
       accountId: account.accountId,
       name:
+        account.displayName ||
+        account.peerId?.substring(0, 8) ||
+        account.accountId,
+      nickname:
+        account.nickname ||
         account.displayName ||
         account.peerId?.substring(0, 8) ||
         account.accountId,
@@ -921,8 +938,8 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
             channel: CHANNEL_ID,
             accountId,
             kind: 'config',
-            message: 'Gigi P2P 未配置 peerId 或 multiaddrs',
-            fix: 'Run: openclaw channels add gigi --peer-id <peerId> --multiaddrs <multiaddrs>',
+            message: 'Gigi P2P 未配置 mnemonic/peerId 或 multiaddrs',
+            fix: 'Run: openclaw channels add gigi --mnemonic <mnemonic> --multiaddrs <multiaddrs>',
           });
         }
         return issues;
@@ -987,16 +1004,16 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           throw new Error(`Account configuration not found for ${accountId}`);
         }
 
-        logger.info('Starting gateway', { accountId, peerId: account.peerId });
+        logger.info('Starting gateway', { accountId });
 
         // Log before creating GigiClient
         logger.debug('Creating GigiClient', { accountId });
 
         // Create Gigi P2P client
         const client = new GigiClient({
-          peerId: account.peerId,
           multiaddrs: account.multiaddrs,
           displayName: account.displayName,
+          nickname: account.nickname,
           mnemonic: account.mnemonic,
           bootstrapPeers: account.bootstrapPeers,
           enableMdns: account.enableMdns,
@@ -1129,11 +1146,11 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                               type: 'text' as const,
                               content: `[${agent.name || agent.id}] ${payload.text}`,
                               target: {
-                                type: 'specific' as const,
-                                agentIds: [textMessage.sender.id],
+                                type: 'node' as const,
+                                nodeId: textMessage.sender.id,
                               },
                               sender: {
-                                id: gatewayContext.account.peerId,
+                                id: gatewayContext.client.getPeerId(),
                                 name: agent.name || agent.id,
                                 type: 'agent' as const,
                               },
@@ -1142,8 +1159,8 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                             };
 
                             // Send the response back to the sender
-                            await gatewayContext.client.sendGroupMessage(
-                              'gigi-agents',
+                            await gatewayContext.client.sendDirectMessage(
+                              textMessage.sender.id,
                               JSON.stringify(responseMessage)
                             );
                             console.log(
@@ -1314,11 +1331,11 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                               type: 'text' as const,
                               content: `[${agent.name || agent.id}] ${payload.text}`,
                               target: {
-                                type: 'specific' as const,
-                                agentIds: [fileMessage.sender.id],
+                                type: 'node' as const,
+                                nodeId: fileMessage.sender.id,
                               },
                               sender: {
-                                id: gatewayContext.account.peerId,
+                                id: gatewayContext.client.getPeerId(),
                                 name: agent.name || agent.id,
                                 type: 'agent' as const,
                               },
@@ -1327,8 +1344,8 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                             };
 
                             // Send the response back to the sender
-                            await gatewayContext.client.sendGroupMessage(
-                              'gigi-agents',
+                            await gatewayContext.client.sendDirectMessage(
+                              fileMessage.sender.id,
                               JSON.stringify(responseMessage)
                             );
                             console.log(
@@ -1434,13 +1451,13 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                             type: 'string',
                             value:
                               gatewayContext.account.displayName ||
-                              gatewayContext.account.peerId.substring(0, 8),
+                              gatewayContext.client.getPeerId().substring(0, 8),
                           },
                           {
                             id: 'peerId',
                             name: 'Peer ID',
                             type: 'string',
-                            value: gatewayContext.account.peerId,
+                            value: gatewayContext.client.getPeerId(),
                           },
                           {
                             id: 'multiaddrs',
@@ -1454,10 +1471,10 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                       },
                     ],
                     {
-                      id: gatewayContext.account.peerId,
+                      id: gatewayContext.client.getPeerId(),
                       name:
                         gatewayContext.account.displayName ||
-                        gatewayContext.account.peerId.substring(0, 8),
+                        gatewayContext.client.getPeerId().substring(0, 8),
                       type: 'agent',
                     }
                   );

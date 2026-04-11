@@ -36,7 +36,7 @@ describe('GigiDnsProtocol', () => {
     const addr = multiaddr('/ip4/192.168.1.100/tcp/8000');
     protocol.updateListenAddresses([addr]);
 
-    const response = protocol.buildResponse();
+    const response = protocol.buildResponse(12345);
     expect(response.success).toBe(true);
     expect(Array.isArray(response.result)).toBe(true);
     expect(response.result.length).toBe(1);
@@ -44,7 +44,7 @@ describe('GigiDnsProtocol', () => {
 
   it('should handle empty listen addresses', () => {
     protocol.updateListenAddresses([]);
-    const response = protocol.buildResponse();
+    const response = protocol.buildResponse(12345);
     expect(response.success).toBe(false);
     expect(response.result).toBe('No listen addresses available');
   });
@@ -54,7 +54,7 @@ describe('GigiDnsProtocol', () => {
     const addr2 = multiaddr('/ip4/192.168.1.101/tcp/8001');
 
     protocol.updateListenAddresses([addr1, addr2]);
-    const response = protocol.buildResponse();
+    const response = protocol.buildResponse(12345);
     expect(response.success).toBe(true);
     expect(Array.isArray(response.result)).toBe(true);
     expect(response.result.length).toBe(2);
@@ -102,13 +102,13 @@ describe('GigiDnsProtocol', () => {
   it('should handle network changes with multiple addresses', () => {
     // Start with no addresses
     protocol.updateListenAddresses([]);
-    let response = protocol.buildResponse();
+    let response = protocol.buildResponse(12345);
     expect(response.success).toBe(false);
 
     // Add one address
     const addr1 = multiaddr('/ip4/192.168.1.100/tcp/8000');
     protocol.updateListenAddresses([addr1]);
-    response = protocol.buildResponse();
+    response = protocol.buildResponse(12345);
     expect(response.success).toBe(true);
     expect(Array.isArray(response.result)).toBe(true);
     expect(response.result.length).toBe(1);
@@ -117,7 +117,7 @@ describe('GigiDnsProtocol', () => {
     const addr2 = multiaddr('/ip4/192.168.1.101/tcp/8001');
     const addr3 = multiaddr('/ip4/192.168.1.102/tcp/8002');
     protocol.updateListenAddresses([addr1, addr2, addr3]);
-    response = protocol.buildResponse();
+    response = protocol.buildResponse(12345);
     expect(response.success).toBe(true);
     expect(Array.isArray(response.result)).toBe(true);
     expect(response.result.length).toBe(3);
@@ -137,7 +137,7 @@ describe('GigiDnsProtocol', () => {
     protocol.updateListenAddresses([addr1, addr2, addr3]);
 
     // Should still work correctly
-    const response = protocol.buildResponse();
+    const response = protocol.buildResponse(12345);
     expect(response.success).toBe(true);
     expect(Array.isArray(response.result)).toBe(true);
     expect(response.result.length).toBe(3);

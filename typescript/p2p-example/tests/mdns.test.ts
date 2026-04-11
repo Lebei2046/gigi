@@ -51,13 +51,6 @@ describe('Gigi DNS Integration Tests', () => {
       },
     });
 
-    // Start both clients
-    await alice.start();
-    await bob.start();
-
-    const aliceMultiaddrs = alice.getMultiaddrs();
-    const aliceMultiaddr = aliceMultiaddrs[0];
-
     // Store discovered peer IDs and addresses
     let aliceDiscoveredBob = false;
     let bobDiscoveredAlice = false;
@@ -76,6 +69,13 @@ describe('Gigi DNS Integration Tests', () => {
         bobDiscoveredAlice = true;
       }
     });
+
+    // Start both clients
+    await alice.start();
+    await bob.start();
+
+    const aliceMultiaddrs = alice.getMultiaddrs();
+    const aliceMultiaddr = aliceMultiaddrs[0];
 
     // Wait for discovery with timeout
     const discoveryTimeout = 10000;

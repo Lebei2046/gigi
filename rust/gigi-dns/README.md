@@ -1,8 +1,10 @@
 # Gigi DNS
 
-Gigi DNS is a custom mDNS protocol that automatically discovers peers with nicknames, capabilities, and metadata in local area networks.
+## Overview
 
-## Features
+Gigi DNS is a custom mDNS protocol that automatically discovers peers with nicknames, capabilities, and metadata in local area networks. It provides a libp2p-compatible NetworkBehaviour for peer discovery with human-readable nicknames.
+
+### Features
 
 - Auto-discovery peers with nickname + peer_id + multiaddr in ONE protocol
 - Rich metadata including capabilities and key-value pairs
@@ -12,18 +14,26 @@ Gigi DNS is a custom mDNS protocol that automatically discovers peers with nickn
 - Zero configuration - works out of box
 - Low bandwidth - efficient multicast-based discovery
 
-## Quick Start
+## Installation/Test
 
-```rust
-use gigi_dns::{GigiDnsConfig, GigiDnsBehaviour};
+### Installation
 
-let config = GigiDnsConfig {
-    nickname: "Alice".to_string(),
-    capabilities: vec!["chat".to_string()],
-    ..Default::default()
-};
+Add to your `Cargo.toml`:
 
-let mdns = GigiDnsBehaviour::new(local_peer_id, config)?;
+```toml
+[dependencies]
+gigi-dns = {
+  path = "../gigi-dns",
+  version = "0.1.0"
+}
+```
+
+### Testing
+
+Run the tests to verify functionality:
+
+```bash
+cargo test
 ```
 
 ## License

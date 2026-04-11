@@ -40,3 +40,7 @@ openclaw/
 # file-sharing
 downloads
 shared.json
+
+# Coverage directories
+coverage/
+**/coverage/

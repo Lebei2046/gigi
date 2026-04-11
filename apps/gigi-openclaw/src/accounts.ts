@@ -54,6 +54,7 @@ export function resolveGigiAccount({
   return {
     accountId,
     displayName: accountConfig.displayName || accountId,
+    nickname: accountConfig.nickname || accountConfig.displayName || accountId,
     peerId: accountConfig.peerId,
     multiaddrs: accountConfig.multiaddrs || [],
     bootstrapPeers: accountConfig.bootstrapPeers || [],

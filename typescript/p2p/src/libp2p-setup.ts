@@ -52,6 +52,7 @@ export async function createLibp2pInstance(
   options: CreateLibp2pOptions
 ): Promise<Libp2pInstance> {
   const {
+    nickname = 'anonymous',
     listenAddrs = ['/ip4/0.0.0.0/tcp/0'],
     bootstrapNodes = [],
     enableMdns = true,
@@ -160,18 +161,18 @@ export async function createLibp2pInstance(
   if (enableMdns) {
     const dnsConfig = {
       ...defaultGigiDnsConfig,
-      nickname: options.nickname,
+      nickname: nickname,
     };
     // Use type assertion to work around version compatibility
     gigiDns = new GigiDnsBehaviour(libp2p.peerId as any, dnsConfig);
 
     // Update listen addresses
-    const listenAddrs = libp2p.getMultiaddrs().map((m: any) => m.toString());
+    const listenAddrs = libp2p.getMultiaddrs();
     gigiDns.updateListenAddresses(listenAddrs);
 
     logger.info({
       message: '[libp2p-setup] Gigi DNS initialized',
-      nickname: options.nickname,
+      nickname: nickname,
     });
   }
 

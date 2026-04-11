@@ -110,13 +110,13 @@ export type MessageContentInput =
 // Type guards
 export function isTextMessage(message: any): message is TextMessage {
   return (
-    message && message.type === 'text' && typeof message.content === 'string'
+    message != null && message.type === 'text' && typeof message.content === 'string'
   );
 }
 
 export function isFileMessage(message: any): message is FileMessage {
   return (
-    message && message.type === 'file' && typeof message.filename === 'string'
+    message != null && message.type === 'file' && typeof message.filename === 'string'
   );
 }
 
@@ -124,7 +124,7 @@ export function isGroupShareMessage(
   message: any,
 ): message is GroupShareMessage {
   return (
-    message &&
+    message != null &&
     message.type === 'shareGroup' &&
     typeof message.groupId === 'string'
   );
@@ -132,7 +132,7 @@ export function isGroupShareMessage(
 
 export function isFileShareMessage(message: any): message is FileShareMessage {
   return (
-    message &&
+    message != null &&
     message.type === 'fileShare' &&
     typeof message.shareCode === 'string'
   );

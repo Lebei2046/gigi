@@ -170,4 +170,18 @@ describe('GigiDnsRecord encoding/decoding', () => {
     expect(decodeResult.success).toBe(false);
     expect(decodeResult.result).toBe('Missing addr');
   });
+
+  it('should handle record too long error', () => {
+    const record: GigiDnsRecord = {
+      peerId: '12D3KooW' + 'o'.repeat(1000), // Long peer ID
+      nickname: 'Alice' + 'a'.repeat(1000), // Long nickname
+      addr: '/ip4/192.168.1.100/tcp/8000' + '/tcp/8000'.repeat(100), // Long address
+      capabilities: 'cap1,cap2,cap3'.repeat(100), // Long capabilities
+      metadata: 'key1:value1,key2:value2'.repeat(100), // Long metadata
+    };
+
+    const encodeResult = encodeGigiDnsRecord(record);
+    expect(encodeResult.success).toBe(false);
+    expect(encodeResult.result).toMatch(/Record too long:/);
+  });
 });

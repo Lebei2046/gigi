@@ -1,8 +1,10 @@
 # gigi-file-sharing
 
-File sharing management functionality for gigi.
+## Overview
 
-## Features
+File sharing management functionality for gigi. Provides a robust system for sharing files between peers in the Gigi P2P network.
+
+### Features
 
 - File sharing manager with chunked transfer support
 - Support for both filesystem paths and URIs (content://, file://)
@@ -10,19 +12,24 @@ File sharing management functionality for gigi.
 - File hash calculation (SHA256)
 - Share code generation using BLAKE3
 
-## Usage
+## Installation/Test
 
-```rust
-use gigi_file_sharing::{FileSharingManager, CHUNK_SIZE};
+### Installation
 
-let mut manager = FileSharingManager::new();
+Add this to your `Cargo.toml`:
 
-// Share a file
-let share_code = manager.share_file(&PathBuf::from("my_file.txt")).await?;
+```toml
+[dependencies]
+gigi-file-sharing = {
+  path = "../gigi-file-sharing",
+  version = "0.1.0"
+}
+```
 
-// List shared files
-let files = manager.list_shared_files();
+### Testing
 
-// Unshare a file
-manager.unshare_file(&share_code)?;
+Run the tests to verify functionality:
+
+```bash
+cargo test
 ```

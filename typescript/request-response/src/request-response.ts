@@ -575,7 +575,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
           } else if (chunk && typeof chunk.slice === 'function') {
             // Try to slice as a last resort
             chunks.push(new Uint8Array(chunk.slice(0)));
-          } else {
+          } else if (chunk) {
             // Try to convert to Uint8Array anyway
             try {
               chunks.push(new Uint8Array(chunk));
@@ -583,6 +583,7 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
               logger.error(error, '[RequestResponse] Error converting chunk:');
             }
           }
+          // Skip undefined chunks
         }
       } else if (typeof (stream as any).receive === 'function') {
         // Try YamuxStream receive method
@@ -644,13 +645,18 @@ export class RequestResponse<TRequest, TResponse, TProtocol extends string> {
       return new Uint8Array(0);
     }
 
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const totalLength = chunks.reduce(
+      (sum, chunk) => sum + (chunk ? chunk.length : 0),
+      0
+    );
     const data = new Uint8Array(totalLength);
     let offset = 0;
 
     for (const chunk of chunks) {
-      data.set(chunk, offset);
-      offset += chunk.length;
+      if (chunk) {
+        data.set(chunk, offset);
+        offset += chunk.length;
+      }
     }
 
     return data;

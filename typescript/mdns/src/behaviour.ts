@@ -52,6 +52,9 @@ export class GigiDnsBehaviour {
   private protocol: GigiDnsProtocol;
   private cleanupInterval: NodeJS.Timeout | null;
   private udpSocket: dgram.Socket | null = null; // Single UDP socket bound to 0.0.0.0
+  private queryInterval: NodeJS.Timeout | null = null;
+  private socketBound: boolean = false;
+  private queuedQueries: number = 0; // Number of queries to send when socket is ready
 
   /// Creates a new GigiDnsBehaviour instance
   ///
@@ -65,18 +68,49 @@ export class GigiDnsBehaviour {
     this.protocol = new GigiDnsProtocol(localPeerId, config);
     this.cleanupInterval = null;
 
-    // Create single UDP socket bound to 0.0.0.0
-    this.createUdpSocket();
+    try {
+      this.createUdpSocket();
+    } catch (err) {
+      this.emitError(err as Error, 'Failed to create UDP socket');
+    }
 
     // Start cleanup interval
     this.startCleanupInterval();
   }
 
+  /// Starts the Gigi DNS service
+  startService(): void {
+    // Start periodic queries
+    this.queryInterval = setInterval(() => {
+      this.sendQuery();
+    }, this.config.queryInterval);
+
+    // Send initial query
+    this.sendQuery();
+  }
+
+  /// Emits events for all discovered peers
+  /// This is called after setting up event listeners to ensure no peers are missed
+  emitDiscoveredPeers(): void {
+    for (const peerInfo of this.discoveredPeers.values()) {
+      this.emit({ type: 'Discovered', peerInfo });
+    }
+  }
+
+  /// libp2p behaviour start method (called automatically by libp2p)
+  async start(): Promise<void> {
+    // Do nothing here - we'll start the service manually after setting up event listeners
+  }
+
   /// Creates a single UDP socket bound to 0.0.0.0
   private createUdpSocket(): void {
     try {
-      // Create socket with reuseAddr to allow multiple processes to bind to the same port
-      this.udpSocket = createSocket({ type: 'udp4', reuseAddr: true });
+      // Create socket with reuseAddr and reusePort to allow multiple sockets in the same process to bind to the same port
+      this.udpSocket = createSocket({
+        type: 'udp4',
+        reuseAddr: true,
+        reusePort: true,
+      });
 
       this.udpSocket.on('error', (err) => {
         this.emitError(err as Error, 'Socket error');
@@ -98,13 +132,21 @@ export class GigiDnsBehaviour {
           if (this.config.enableIpv6) {
             this.udpSocket.addMembership(IPV6_MDNS_MULTICAST_ADDRESS);
           }
+
+          // Initial query will be sent when startService is called
+          this.socketBound = true;
+
+          // Send any queued queries
+          if (this.queuedQueries > 0) {
+            for (let i = 0; i < this.queuedQueries; i++) {
+              this.sendQuery();
+            }
+            this.queuedQueries = 0;
+          }
         } catch (err) {
           this.emitError(err as Error, 'Failed to configure multicast');
         }
       });
-
-      // Send initial query
-      this.sendQuery();
     } catch (err) {
       this.emitError(err as Error, 'Failed to create UDP socket');
     }
@@ -128,15 +170,26 @@ export class GigiDnsBehaviour {
       this.processEvent(event);
     }
 
-    // If it's a query, send a response
+    // If it's a query, send a response with the same transaction ID
     if (this.protocol.isQuery(msg)) {
-      this.sendResponse();
+      // Extract transaction ID from the query
+      if (msg.length >= 2) {
+        const view = new DataView(msg.buffer);
+        const transactionId = view.getUint16(0, false);
+        this.sendResponse(transactionId, rinfo.address, rinfo.port);
+      }
     }
   }
 
   /// Sends a DNS query using the single socket
-  private sendQuery(): void {
-    if (!this.udpSocket) return;
+  sendQuery(): void {
+    if (!this.udpSocket || !this.socketBound) {
+      this.queuedQueries++;
+      logger.info(
+        `[GigiDnsBehaviour] Socket not ready, queued query. Total queued: ${this.queuedQueries}`
+      );
+      return;
+    }
 
     const query = this.protocol.buildQuery();
 
@@ -150,6 +203,10 @@ export class GigiDnsBehaviour {
       (err: Error | null) => {
         if (err) {
           this.emitError(err, 'Error sending DNS query');
+        } else {
+          logger.info(
+            `[GigiDnsBehaviour] Sent DNS query to ${IPV4_MDNS_MULTICAST_ADDRESS}:${GIGI_DNS_PORT}`
+          );
         }
       }
     );
@@ -165,6 +222,10 @@ export class GigiDnsBehaviour {
         (err: Error | null) => {
           if (err) {
             this.emitError(err, 'Error sending IPv6 DNS query');
+          } else {
+            logger.info(
+              `[GigiDnsBehaviour] Sent IPv6 DNS query to ${IPV6_MDNS_MULTICAST_ADDRESS}:${GIGI_DNS_PORT}`
+            );
           }
         }
       );
@@ -173,11 +234,17 @@ export class GigiDnsBehaviour {
 
   /// Sends DNS responses for all listen addresses
   ///
-  /// @param interfaceAddress - Local interface address
-  private sendResponse(): void {
+  /// @param transactionId - Transaction ID from the query packet
+  /// @param _targetAddress - Address to send the response to
+  /// @param _targetPort - Port to send the response to
+  private sendResponse(
+    transactionId: number,
+    _targetAddress: string,
+    _targetPort: number
+  ): void {
     if (!this.udpSocket) return;
 
-    const responseResult = this.protocol.buildResponse();
+    const responseResult = this.protocol.buildResponse(transactionId);
     if (!responseResult.success) {
       this.emitError(
         new Error(responseResult.result as string),
@@ -187,9 +254,10 @@ export class GigiDnsBehaviour {
     }
 
     const packets = responseResult.result as Uint8Array[];
+    logger.info(`[GigiDnsBehaviour] Sending ${packets.length} DNS response(s)`);
 
     for (const packet of packets) {
-      // Send to IPv4 multicast address
+      // Send to multicast address so all peers can receive it
       this.udpSocket.send(
         packet,
         0,
@@ -199,25 +267,13 @@ export class GigiDnsBehaviour {
         (err: Error | null) => {
           if (err) {
             this.emitError(err, 'Error sending DNS response');
+          } else {
+            logger.info(
+              `[GigiDnsBehaviour] Sent DNS response to multicast address`
+            );
           }
         }
       );
-
-      // If IPv6 is enabled, send to IPv6 multicast address
-      if (this.config.enableIpv6) {
-        this.udpSocket.send(
-          packet,
-          0,
-          packet.length,
-          GIGI_DNS_PORT,
-          IPV6_MDNS_MULTICAST_ADDRESS,
-          (err: Error | null) => {
-            if (err) {
-              this.emitError(err, 'Error sending IPv6 DNS response');
-            }
-          }
-        );
-      }
     }
   }
 
@@ -407,6 +463,12 @@ export class GigiDnsBehaviour {
 
   /// Stops the behaviour and cleans up resources
   stop(): void {
+    // Cleanup query interval
+    if (this.queryInterval) {
+      clearInterval(this.queryInterval);
+      this.queryInterval = null;
+    }
+
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;

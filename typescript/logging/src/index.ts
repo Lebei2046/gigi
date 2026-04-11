@@ -1,4 +1,4 @@
-import pino from "pino";
+import pino, { Logger } from "pino";
 
 export interface LoggerOptions {
   level?: string;
@@ -6,7 +6,7 @@ export interface LoggerOptions {
   serializers?: Record<string, pino.SerializerFn>;
 }
 
-export const createLogger = (options: LoggerOptions = {}) => {
+export const createLogger = (options: LoggerOptions = {}): Logger => {
   const {
     level = process.env.LOG_LEVEL ||
       (process.env.NODE_ENV === "production" ? "info" : "debug"),

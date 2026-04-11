@@ -266,6 +266,187 @@ describe('RequestResponse - Comprehensive Tests', () => {
     );
   });
 
+  it('should handle incoming stream with different connection structures', async () => {
+    // Get the handler function from the mock
+    const handler = mockLibp2p.handle.mock.calls[0][1];
+
+    // Test with stream.conn
+    const mockStreamWithConn = {
+      sink: vi.fn().mockResolvedValue(undefined),
+      source: {
+        [Symbol.asyncIterator]: async function* () {
+          yield new TextEncoder().encode(
+            JSON.stringify({
+              type: 'ping',
+              timestamp: Date.now(),
+            })
+          );
+        },
+      },
+      conn: {
+        id: 'mock-connection-id',
+        remotePeer: 'mock-peer-id',
+      },
+    };
+
+    const eventListener = vi.fn();
+    requestResponse.onEvent(eventListener);
+
+    // Call the handler with the mock stream
+    await handler({
+      stream: mockStreamWithConn,
+      connection: undefined,
+    });
+
+    // Wait for events to be processed
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify that a Message event was emitted
+    expect(eventListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'Message',
+        message: expect.objectContaining({
+          type: 'Request',
+        }),
+      })
+    );
+  });
+
+  it('should handle incoming stream with stream._connection', async () => {
+    // Get the handler function from the mock
+    const handler = mockLibp2p.handle.mock.calls[0][1];
+
+    // Test with stream._connection
+    const mockStreamWithUnderscoreConnection = {
+      sink: vi.fn().mockResolvedValue(undefined),
+      source: {
+        [Symbol.asyncIterator]: async function* () {
+          yield new TextEncoder().encode(
+            JSON.stringify({
+              type: 'ping',
+              timestamp: Date.now(),
+            })
+          );
+        },
+      },
+      _connection: {
+        id: 'mock-connection-id',
+        remotePeer: 'mock-peer-id',
+      },
+    };
+
+    const eventListener = vi.fn();
+    requestResponse.onEvent(eventListener);
+
+    // Call the handler with the mock stream
+    await handler({
+      stream: mockStreamWithUnderscoreConnection,
+      connection: undefined,
+    });
+
+    // Wait for events to be processed
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify that a Message event was emitted
+    expect(eventListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'Message',
+        message: expect.objectContaining({
+          type: 'Request',
+        }),
+      })
+    );
+  });
+
+  it('should handle incoming stream with peerId from stream', async () => {
+    // Get the handler function from the mock
+    const handler = mockLibp2p.handle.mock.calls[0][1];
+
+    // Test with peerId from stream
+    const mockStreamWithPeerId = {
+      sink: vi.fn().mockResolvedValue(undefined),
+      source: {
+        [Symbol.asyncIterator]: async function* () {
+          yield new TextEncoder().encode(
+            JSON.stringify({
+              type: 'ping',
+              timestamp: Date.now(),
+            })
+          );
+        },
+      },
+      remotePeer: 'mock-peer-id-from-stream',
+    };
+
+    const eventListener = vi.fn();
+    requestResponse.onEvent(eventListener);
+
+    // Call the handler with the mock stream
+    await handler({
+      stream: mockStreamWithPeerId,
+      connection: undefined,
+    });
+
+    // Wait for events to be processed
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify that a Message event was emitted
+    expect(eventListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'Message',
+        message: expect.objectContaining({
+          type: 'Request',
+        }),
+      })
+    );
+  });
+
+  it('should handle inbound timeout', async () => {
+    // Get the handler function from the mock
+    const handler = mockLibp2p.handle.mock.calls[0][1];
+
+    // Create a mock inbound stream
+    const mockInboundStream = {
+      sink: vi.fn().mockResolvedValue(undefined),
+      source: {
+        [Symbol.asyncIterator]: async function* () {
+          yield new TextEncoder().encode(
+            JSON.stringify({
+              type: 'ping',
+              timestamp: Date.now(),
+            })
+          );
+        },
+      },
+      connection: {
+        id: 'mock-inbound-connection',
+        remotePeer: 'mock-inbound-peer',
+      },
+    };
+
+    const eventListener = vi.fn();
+    requestResponse.onEvent(eventListener);
+
+    // Call the handler with the mock stream
+    await handler({
+      stream: mockInboundStream,
+      connection: mockInboundStream.connection,
+    });
+
+    // Wait for events to be processed
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify that a Message event was emitted
+    expect(eventListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'Message',
+        message: expect.objectContaining({
+          type: 'Request',
+        }),
+      })
+    );
+  });
+
   it('should handle multiple concurrent requests', async () => {
     const request1: TestRequest = {
       type: 'ping',

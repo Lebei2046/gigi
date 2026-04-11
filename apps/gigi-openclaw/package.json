@@ -35,18 +35,19 @@
     "openclaw": ">=2026.4.5"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "esbuild": "^0.27.4",
-    "openclaw": "^2026.4.5",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.0.0",
-    "vitest": "^3.0.0",
     "@eslint/eslintrc": "^3.3.5",
+    "@types/node": "^25.5.0",
+    "@types/pino": "^7.0.5",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "esbuild": "^0.27.4",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
-    "prettier": "^3.0.0"
+    "openclaw": "^2026.4.5",
+    "prettier": "^3.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
   },
   "openclaw": {
     "extensions": [
