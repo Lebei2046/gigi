@@ -46,13 +46,7 @@ import type { GigiAccount } from './types.js';
 import { GigiClient } from './GigiClient.js';
 import { OutboundManager } from './outbound.js';
 import { listGigiAccountIds, resolveGigiAccount } from './accounts.js';
-import {
-  TextMessage,
-  FileMessage,
-  AgentSettingsQuery,
-  AgentSettingsResponse,
-  AmpMessageFactory,
-} from '@gigi/amp';
+import { TextMessage, FileMessage, AmpMessageFactory } from '@gigi/amp';
 
 const CHANNEL_ID = 'gigi-openclaw';
 const TEXT_CHUNK_LIMIT = 4000;
@@ -98,9 +92,7 @@ async function sendGigiMessage({
 
   if (!gateway || !gateway.client.isConnected()) {
     // Gateway not started or not connected, try to start it
-    logger.info('Gateway not connected, starting it', {
-      accountId: resolvedAccountId,
-    });
+    logger.info('Gateway not connected, starting it');
 
     // Get the account configuration
     const account = resolveGigiAccount({ cfg, accountId: resolvedAccountId });
@@ -128,39 +120,23 @@ async function sendGigiMessage({
 
     // Set up message handler
     client.onMessage(async (gigiMessage) => {
-      logger.debug('Received message', { messageType: gigiMessage.type });
+      logger.debug('Received message');
 
       // Handle different message types
       if ('type' in gigiMessage) {
         const msg = gigiMessage as { type: string };
         switch (msg.type) {
           case 'text': {
-            const textMessage = gigiMessage as TextMessage;
-            logger.debug('Received text message', {
-              sender: textMessage.sender.name,
-              senderId: textMessage.sender.id,
-              messageLength: textMessage.content.length,
-            });
+            logger.debug('Received text message');
             break;
           }
           case 'file': {
-            const fileMessage = gigiMessage as FileMessage;
-            logger.debug('Received file message', {
-              sender: fileMessage.sender.name,
-              senderId: fileMessage.sender.id,
-              filename: fileMessage.filename,
-              fileSize: fileMessage.fileSize,
-              fileHash: fileMessage.fileHash,
-            });
+            logger.debug('Received file message');
             // Note: File sharing functionality would use the file hash or another identifier to retrieve the file
             break;
           }
           case 'agent-settings-query': {
-            const queryMessage = gigiMessage as AgentSettingsQuery;
-            logger.debug('Received agent settings query', {
-              sender: queryMessage.sender.name,
-              senderId: queryMessage.sender.id,
-            });
+            logger.debug('Received agent settings query');
 
             // Ensure gateway is defined
             if (!gateway) {
@@ -185,14 +161,17 @@ async function sendGigiMessage({
               }
             }
 
+            // Get peer ID from the client (it's derived from mnemonic)
+            const peerId = gateway.client.getPeerId();
+            const displayName =
+              gateway.account.displayName || peerId.substring(0, 8);
+
             const responseMessage =
               AmpMessageFactory.createAgentSettingsResponse(
                 [
                   {
-                    id: gateway.account.peerId,
-                    name:
-                      gateway.account.displayName ||
-                      gateway.account.peerId.substring(0, 8),
+                    id: peerId,
+                    name: displayName,
                     type: 'openclaw-agent',
                     version: '1.0.0',
                     settings: [
@@ -206,15 +185,13 @@ async function sendGigiMessage({
                         id: 'displayName',
                         name: 'Display Name',
                         type: 'string',
-                        value:
-                          gateway.account.displayName ||
-                          gateway.account.peerId.substring(0, 8),
+                        value: displayName,
                       },
                       {
                         id: 'peerId',
                         name: 'Peer ID',
                         type: 'string',
-                        value: gateway.account.peerId,
+                        value: peerId,
                       },
                       {
                         id: 'multiaddrs',
@@ -228,10 +205,8 @@ async function sendGigiMessage({
                   },
                 ],
                 {
-                  id: gateway.account.peerId,
-                  name:
-                    gateway.account.displayName ||
-                    gateway.account.peerId.substring(0, 8),
+                  id: peerId,
+                  name: displayName,
                   type: 'agent',
                 }
               );
@@ -241,44 +216,33 @@ async function sendGigiMessage({
                 'gigi-agents',
                 JSON.stringify(responseMessage)
               );
-              logger.info('Sent agent settings response', {
-                group: 'gigi-agents',
-              });
-            } catch (error) {
-              logger.error('Error sending agent settings response', { error });
+              logger.info('Sent agent settings response');
+            } catch {
+              logger.error('Error sending agent settings response');
             }
             break;
           }
           case 'agent-settings-response': {
-            const responseMessage = gigiMessage as AgentSettingsResponse;
-            logger.debug('Received agent settings response', {
-              sender: responseMessage.sender.name,
-              senderId: responseMessage.sender.id,
-              agentCount: responseMessage.agents.length,
-            });
+            logger.debug('Received agent settings response');
             break;
           }
           default:
-            logger.debug('Received unknown message type', {
-              messageType: msg.type,
-            });
+            logger.debug('Received unknown message type');
         }
       }
     });
 
     // Start P2P client
-    logger.info('Starting P2P client', { accountId: resolvedAccountId });
+    logger.info('Starting P2P client');
     await client.start();
-    logger.info('P2P client started', { accountId: resolvedAccountId });
+    logger.info('P2P client started');
 
     // Join the agent group
     try {
       await client.joinGroup('gigi-agents');
-      logger.info('Joined agent group', { group: 'gigi-agents' });
-    } catch (error) {
-      logger.warn('Failed to join agent group', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      logger.info('Joined agent group');
+    } catch {
+      logger.warn('Failed to join agent group');
     }
 
     // Create gateway context
@@ -352,7 +316,7 @@ async function joinGigiGroup({
   }
 
   await gateway.client.joinGroup(groupName);
-  logger.info('Joined group', { groupName });
+  logger.info('Joined group');
 }
 
 /**
@@ -373,7 +337,7 @@ async function shareGigiFile({
   }
 
   const shareCode = await gateway.client.shareFile(filePath);
-  logger.info('Shared file', { filePath, shareCode });
+  logger.info('Shared file');
   return shareCode;
 }
 
@@ -397,7 +361,7 @@ async function downloadGigiFile({
   }
 
   const downloadId = await gateway.client.downloadFile(peerId, shareCode);
-  logger.info('Started download', { peerId, shareCode, downloadId });
+  logger.info('Started download');
   return downloadId;
 }
 
@@ -419,7 +383,7 @@ async function leaveGigiGroup({
   }
 
   await gateway.client.leaveGroup(groupName);
-  logger.info('Left group', { groupName });
+  logger.info('Left group');
 }
 
 /**
@@ -1004,10 +968,10 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           throw new Error(`Account configuration not found for ${accountId}`);
         }
 
-        logger.info('Starting gateway', { accountId });
+        logger.info('Starting gateway');
 
         // Log before creating GigiClient
-        logger.debug('Creating GigiClient', { accountId });
+        logger.debug('Creating GigiClient');
 
         // Create Gigi P2P client
         const client = new GigiClient({
@@ -1021,12 +985,12 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           enableRelay: account.enableRelay,
         });
 
-        logger.debug('GigiClient created', { accountId });
+        logger.debug('GigiClient created');
 
         // Create outbound manager
         const outbound = new OutboundManager(client);
 
-        logger.debug('OutboundManager created', { accountId });
+        logger.debug('OutboundManager created');
 
         // Create gateway context first
         const gatewayContext: GatewayContext = {
@@ -1042,28 +1006,63 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
 
         // Set up message handler
         client.onMessage(async (gigiMessage) => {
-          logger.debug('Received message', { messageType: gigiMessage.type });
+          console.log('[GigiPlugin] Received message from P2P network');
+          console.log(
+            '[GigiPlugin] Message content:',
+            JSON.stringify(gigiMessage, null, 2)
+          );
+          logger.info('Received message from P2P network');
+          logger.debug(
+            'Message content: ' + JSON.stringify(gigiMessage, null, 2)
+          );
 
           // Handle different message types
           if ('type' in gigiMessage) {
             const msg = gigiMessage as { type: string };
+            console.log('[GigiPlugin] Received message of type:', msg.type);
+            logger.info(`Received message of type: ${msg.type}`);
             switch (msg.type) {
               case 'text': {
                 const textMessage = gigiMessage as TextMessage;
-                logger.debug('Received text message', {
-                  sender: textMessage.sender.name,
-                  senderId: textMessage.sender.id,
-                  messageLength: textMessage.content.length,
-                });
+                console.log('[GigiPlugin] Received text message');
+                console.log(
+                  '[GigiPlugin] Text message content:',
+                  JSON.stringify(textMessage, null, 2)
+                );
+                logger.info('Received text message');
+                logger.debug(
+                  'Text message content: ' +
+                    JSON.stringify(textMessage, null, 2)
+                );
 
                 // Use the OpenClaw plugin SDK to dispatch the message to all agents
                 try {
-                  // Get the list of available agents from config
-                  const agentsConfig = (ctx.cfg as Record<string, unknown>)
-                    .agents as
-                    | { list?: Array<{ id: string; name?: string }> }
-                    | undefined;
-                  let agents = agentsConfig?.list ?? [];
+                  // Get the list of available agents - default to main agent
+                  let agents = [{ id: 'main', name: 'main' }];
+                  console.log('[GigiPlugin] Found agents:', agents);
+                  console.log('[GigiPlugin] Using main agent');
+                  logger.info('Found agents');
+                  logger.info('Using main agent');
+
+                  // Try to get agents from config if available
+                  try {
+                    // Use gatewayContext.account instead of account
+                    const agentsConfig = (gatewayContext.account as any)
+                      .agents as any;
+                    if (agentsConfig && agentsConfig.list) {
+                      agents = agentsConfig.list;
+                      console.log(
+                        '[GigiPlugin] Using agents from config:',
+                        agents
+                      );
+                      logger.info('Using agents from config');
+                    }
+                  } catch {
+                    console.log(
+                      '[GigiPlugin] No agents config found, using main agent'
+                    );
+                    logger.debug('No agents config found, using main agent');
+                  }
 
                   // If target is specific, filter agents to only include the specified ones
                   if (
@@ -1073,159 +1072,196 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                     agents = agents.filter((agent) =>
                       textMessage.target.agentIds?.includes(agent.id)
                     );
-                    logger.debug('Filtered agents', {
-                      agentIds: agents.map((a) => a.id),
-                    });
+                    console.log('[GigiPlugin] Filtered agents:', agents);
+                    logger.info('Filtered agents');
                   } else {
-                    logger.debug('Found agents', {
-                      agentCount: agents.length,
-                      agentIds: agents.map((a) => a.id),
-                    });
+                    console.log('[GigiPlugin] Using all agents');
+                    logger.info('Using all agents');
                   }
 
                   // Dispatch message to each agent
                   for (const agent of agents) {
-                    logger.debug('Dispatching message to agent', {
-                      agentId: agent.id,
-                    });
+                    console.log(
+                      '[GigiPlugin] Dispatching message to agent:',
+                      agent.id
+                    );
+                    logger.debug('Dispatching message to agent');
 
-                    // Build the inbound context payload for this agent
-                    const ctxPayload = (
-                      runtime as any
-                    ).channel.reply.finalizeInboundContext({
-                      channel: CHANNEL_ID,
-                      accountId: gatewayContext.accountId,
-                      from: textMessage.sender.id,
-                      to: agent.id,
-                      text: textMessage.content,
-                      body: textMessage.content,
-                      rawBody: textMessage.content,
-                      payload: {
-                        text: textMessage.content,
-                        type: 'text',
-                      },
-                      senderName: textMessage.sender.name,
-                      messageId: textMessage.id,
-                      timestamp: textMessage.timestamp,
-                      extraFields: {
-                        target: textMessage.target,
-                        senderType: textMessage.sender.type,
-                        agentId: agent.id,
-                      },
-                    });
+                    try {
+                      // Get the global runtime object
+                      const runtime = getGigiRuntime();
+                      console.log('[GigiPlugin] Got runtime object');
 
-                    // Create a proper reply dispatcher for this agent
-                    const { dispatcher, replyOptions } = (
-                      runtime as any
-                    ).channel.reply.createReplyDispatcherWithTyping({
-                      responsePrefix: '',
-                      responsePrefixContextProvider: () => ({}),
-                      humanDelay: (
+                      // Build the inbound context payload for this agent
+                      const ctxPayload = (
                         runtime as any
-                      ).channel.reply.resolveHumanDelayConfig(
-                        ctx.cfg,
-                        agent.id
-                      ),
-
-                      onReplyStart: async () => {
-                        logger.debug('Reply started for agent', {
+                      ).channel.reply.finalizeInboundContext({
+                        channel: CHANNEL_ID,
+                        accountId: gatewayContext.accountId,
+                        from: textMessage.sender.id,
+                        to: agent.id,
+                        text: textMessage.content,
+                        body: textMessage.content,
+                        rawBody: textMessage.content,
+                        payload: {
+                          text: textMessage.content,
+                          type: 'text',
+                        },
+                        senderName: textMessage.sender.name,
+                        messageId: textMessage.id,
+                        timestamp: textMessage.timestamp,
+                        extraFields: {
+                          target: textMessage.target,
+                          senderType: textMessage.sender.type,
                           agentId: agent.id,
-                        });
-                      },
+                        },
+                      });
+                      console.log('[GigiPlugin] Built context payload');
 
-                      deliver: async (payload: any) => {
-                        logger.debug('Agent response', {
-                          agentId: agent.id,
-                          responseLength: payload.text?.length,
-                        });
-                        // Send the agent's response back to the P2P network
-                        try {
-                          if (payload.text) {
-                            // Create a text message response
-                            const responseMessage = {
-                              type: 'text' as const,
-                              content: `[${agent.name || agent.id}] ${payload.text}`,
-                              target: {
-                                type: 'node' as const,
-                                nodeId: textMessage.sender.id,
-                              },
-                              sender: {
-                                id: gatewayContext.client.getPeerId(),
-                                name: agent.name || agent.id,
-                                type: 'agent' as const,
-                              },
-                              timestamp: Date.now(),
-                              id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                            };
+                      // Create a proper reply dispatcher for this agent
+                      const { dispatcher, replyOptions } = (
+                        runtime as any
+                      ).channel.reply.createReplyDispatcherWithTyping({
+                        responsePrefix: '',
+                        responsePrefixContextProvider: () => ({}),
+                        humanDelay: (
+                          runtime as any
+                        ).channel.reply.resolveHumanDelayConfig(cfg, agent.id),
 
-                            // Send the response back to the sender
-                            await gatewayContext.client.sendDirectMessage(
-                              textMessage.sender.id,
-                              JSON.stringify(responseMessage)
+                        onReplyStart: async () => {
+                          console.log(
+                            '[GigiPlugin] Reply started for agent:',
+                            agent.id
+                          );
+                          logger.debug('Reply started for agent');
+                        },
+
+                        deliver: async (payload: any) => {
+                          console.log(
+                            '[GigiPlugin] Agent response received:',
+                            payload
+                          );
+                          logger.info('Agent response received');
+                          // Send the agent's response back to the P2P network
+                          try {
+                            if (payload.text) {
+                              // Create a text message response
+                              const responseMessage = {
+                                type: 'text' as const,
+                                content: payload.text,
+                                target: {
+                                  type: 'specific' as const,
+                                  agentIds: [textMessage.sender.id],
+                                },
+                                sender: {
+                                  id: agent.id,
+                                  name: agent.name || agent.id,
+                                  type: 'agent' as const,
+                                },
+                                timestamp: Date.now(),
+                                id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                              };
+                              console.log(
+                                '[GigiPlugin] Sending response back to P2P network:',
+                                JSON.stringify(responseMessage, null, 2)
+                              );
+                              logger.info(
+                                'Sending response back to P2P network'
+                              );
+
+                              // Send the response back to the sender
+                              await gatewayContext.client.sendDirectMessage(
+                                textMessage.sender.id,
+                                JSON.stringify(responseMessage)
+                              );
+                              console.log(
+                                '[GigiPlugin] Sent response from agent',
+                                agent.id,
+                                'to P2P network'
+                              );
+                              logger.info(
+                                `Sent response from agent ${agent.id} to P2P network`
+                              );
+                            }
+                          } catch (error) {
+                            console.error(
+                              '[GigiPlugin] Error sending response from agent',
+                              agent.id,
+                              'to P2P network:',
+                              error
                             );
-                            console.log(
-                              `[GigiPlugin] Sent response from agent ${agent.id} to P2P network`
+                            logger.error(
+                              `Error sending response from agent ${agent.id} to P2P network`
                             );
                           }
-                        } catch (error) {
+                        },
+
+                        onError: async (_err: any, _info: any) => {
                           console.error(
-                            `[GigiPlugin] Error sending response from agent ${agent.id} to P2P network:`,
-                            error
+                            '[GigiPlugin] Reply error for agent:',
+                            agent.id
                           );
-                        }
-                      },
+                          logger.error('Reply error for agent');
+                        },
 
-                      onError: async (err: any, info: any) => {
-                        logger.error('Reply error for agent', {
-                          agentId: agent.id,
-                          error: err,
-                          info,
-                        });
-                      },
+                        onIdle: async () => {
+                          console.log(
+                            '[GigiPlugin] Reply idle for agent:',
+                            agent.id
+                          );
+                          logger.debug('Reply idle for agent');
+                        },
 
-                      onIdle: async () => {
-                        logger.debug('Reply idle for agent', {
-                          agentId: agent.id,
-                        });
-                      },
+                        onCleanup: async () => {
+                          console.log(
+                            '[GigiPlugin] Reply cleanup for agent:',
+                            agent.id
+                          );
+                          logger.debug('Reply cleanup for agent');
+                        },
+                      });
+                      console.log('[GigiPlugin] Created reply dispatcher');
 
-                      onCleanup: async () => {
-                        logger.debug('Reply cleanup for agent', {
-                          agentId: agent.id,
-                        });
-                      },
-                    });
+                      // Dispatch the message to the agent
+                      console.log(
+                        '[GigiPlugin] Dispatching reply from config for agent:',
+                        agent.id
+                      );
+                      await (
+                        runtime as any
+                      ).channel.reply.dispatchReplyFromConfig({
+                        ctx: ctxPayload,
+                        cfg: cfg,
+                        dispatcher,
+                        replyOptions,
+                      });
 
-                    // Dispatch the message to the agent
-                    await (
-                      runtime as any
-                    ).channel.reply.dispatchReplyFromConfig({
-                      ctx: ctxPayload,
-                      cfg: ctx.cfg,
-                      dispatcher,
-                      replyOptions,
-                    });
-
-                    logger.debug('Message dispatched to OpenClaw agent', {
-                      agentId: agent.id,
-                    });
+                      console.log(
+                        '[GigiPlugin] Message dispatched to OpenClaw agent:',
+                        agent.id
+                      );
+                      logger.debug('Message dispatched to OpenClaw agent');
+                    } catch (agentError) {
+                      console.error(
+                        '[GigiPlugin] Error processing agent',
+                        agent.id,
+                        ':',
+                        agentError
+                      );
+                      logger.error(`Error processing agent ${agent.id}`);
+                    }
                   }
-                } catch (error) {
-                  logger.error('Error dispatching message to agents', {
-                    error,
-                  });
+                } catch {
+                  console.error(
+                    '[GigiPlugin] Error dispatching message to agents'
+                  );
+                  logger.error('Error dispatching message to agents');
                 }
                 break;
               }
               case 'file': {
                 const fileMessage = gigiMessage as FileMessage;
-                logger.debug('Received file message', {
-                  sender: fileMessage.sender.name,
-                  senderId: fileMessage.sender.id,
-                  filename: fileMessage.filename,
-                  fileSize: fileMessage.fileSize,
-                  fileHash: fileMessage.fileHash,
-                });
+                logger.debug('Received file message');
 
                 // Create file share message content
                 const fileShareContent = {
@@ -1239,7 +1275,7 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                 // Use the OpenClaw plugin SDK to dispatch the message to all agents
                 try {
                   // Get the list of available agents from config
-                  const agentsConfig = (ctx.cfg as Record<string, unknown>)
+                  const agentsConfig = (cfg as Record<string, unknown>)
                     .agents as
                     | { list?: Array<{ id: string; name?: string }> }
                     | undefined;
@@ -1253,21 +1289,14 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                     agents = agents.filter((agent) =>
                       fileMessage.target.agentIds?.includes(agent.id)
                     );
-                    logger.debug('Filtered agents', {
-                      agentIds: agents.map((a) => a.id),
-                    });
+                    logger.debug('Filtered agents');
                   } else {
-                    logger.debug('Found agents', {
-                      agentCount: agents.length,
-                      agentIds: agents.map((a) => a.id),
-                    });
+                    logger.debug('Found agents');
                   }
 
                   // Dispatch message to each agent
                   for (const agent of agents) {
-                    logger.debug('Dispatching file message to agent', {
-                      agentId: agent.id,
-                    });
+                    logger.debug('Dispatching file message to agent');
 
                     // Build the inbound context payload for this agent
                     const ctxPayload = (
@@ -1307,35 +1336,27 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                       responsePrefixContextProvider: () => ({}),
                       humanDelay: (
                         runtime as any
-                      ).channel.reply.resolveHumanDelayConfig(
-                        ctx.cfg,
-                        agent.id
-                      ),
+                      ).channel.reply.resolveHumanDelayConfig(cfg, agent.id),
 
                       onReplyStart: async () => {
-                        logger.debug('Reply started for agent', {
-                          agentId: agent.id,
-                        });
+                        logger.debug('Reply started for agent');
                       },
 
                       deliver: async (payload: any) => {
-                        logger.debug('Agent response', {
-                          agentId: agent.id,
-                          responseLength: payload.text?.length,
-                        });
+                        logger.debug('Agent response');
                         // Send the agent's response back to the P2P network
                         try {
                           if (payload.text) {
                             // Create a text message response
                             const responseMessage = {
                               type: 'text' as const,
-                              content: `[${agent.name || agent.id}] ${payload.text}`,
+                              content: payload.text,
                               target: {
-                                type: 'node' as const,
-                                nodeId: fileMessage.sender.id,
+                                type: 'specific' as const,
+                                agentIds: [fileMessage.sender.id],
                               },
                               sender: {
-                                id: gatewayContext.client.getPeerId(),
+                                id: agent.id,
                                 name: agent.name || agent.id,
                                 type: 'agent' as const,
                               },
@@ -1360,24 +1381,16 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                         }
                       },
 
-                      onError: async (err: any, info: any) => {
-                        logger.error('Reply error for agent', {
-                          agentId: agent.id,
-                          error: err,
-                          info,
-                        });
+                      onError: async (_err: any, _info: any) => {
+                        logger.error('Reply error for agent');
                       },
 
                       onIdle: async () => {
-                        logger.debug('Reply idle for agent', {
-                          agentId: agent.id,
-                        });
+                        logger.debug('Reply idle for agent');
                       },
 
                       onCleanup: async () => {
-                        logger.debug('Reply cleanup for agent', {
-                          agentId: agent.id,
-                        });
+                        logger.debug('Reply cleanup for agent');
                       },
                     });
 
@@ -1386,28 +1399,20 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                       runtime as any
                     ).channel.reply.dispatchReplyFromConfig({
                       ctx: ctxPayload,
-                      cfg: ctx.cfg,
+                      cfg: cfg,
                       dispatcher,
                       replyOptions,
                     });
 
-                    logger.debug('File message dispatched to OpenClaw agent', {
-                      agentId: agent.id,
-                    });
+                    logger.debug('File message dispatched to OpenClaw agent');
                   }
-                } catch (error) {
-                  logger.error('Error dispatching file message to agents', {
-                    error,
-                  });
+                } catch {
+                  logger.error('Error dispatching file message to agents');
                 }
                 break;
               }
               case 'agent-settings-query': {
-                const queryMessage = gigiMessage as AgentSettingsQuery;
-                logger.debug('Received agent settings query', {
-                  sender: queryMessage.sender.name,
-                  senderId: queryMessage.sender.id,
-                });
+                logger.debug('Received agent settings query');
                 // Create and send agent settings response
                 // Get OpenClaw agent information from config if available
                 const openclawAgents = [];
@@ -1428,14 +1433,17 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                   }
                 }
 
+                // Get peer ID from the client (it's derived from mnemonic)
+                const peerId = gatewayContext.client.getPeerId();
+                const displayName =
+                  gatewayContext.account.displayName || peerId.substring(0, 8);
+
                 const responseMessage =
                   AmpMessageFactory.createAgentSettingsResponse(
                     [
                       {
-                        id: gatewayContext.account.peerId,
-                        name:
-                          gatewayContext.account.displayName ||
-                          gatewayContext.account.peerId.substring(0, 8),
+                        id: peerId,
+                        name: displayName,
                         type: 'openclaw-agent',
                         version: '1.0.0',
                         settings: [
@@ -1449,15 +1457,13 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                             id: 'displayName',
                             name: 'Display Name',
                             type: 'string',
-                            value:
-                              gatewayContext.account.displayName ||
-                              gatewayContext.client.getPeerId().substring(0, 8),
+                            value: displayName,
                           },
                           {
                             id: 'peerId',
                             name: 'Peer ID',
                             type: 'string',
-                            value: gatewayContext.client.getPeerId(),
+                            value: peerId,
                           },
                           {
                             id: 'multiaddrs',
@@ -1471,10 +1477,8 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                       },
                     ],
                     {
-                      id: gatewayContext.client.getPeerId(),
-                      name:
-                        gatewayContext.account.displayName ||
-                        gatewayContext.client.getPeerId().substring(0, 8),
+                      id: peerId,
+                      name: displayName,
                       type: 'agent',
                     }
                   );
@@ -1484,29 +1488,18 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                     'gigi-agents',
                     JSON.stringify(responseMessage)
                   );
-                  logger.info('Sent agent settings response', {
-                    group: 'gigi-agents',
-                  });
-                } catch (error) {
-                  logger.error('Error sending agent settings response', {
-                    error,
-                  });
+                  logger.info('Sent agent settings response');
+                } catch {
+                  logger.error('Error sending agent settings response');
                 }
                 break;
               }
               case 'agent-settings-response': {
-                const responseMessage = gigiMessage as AgentSettingsResponse;
-                logger.debug('Received agent settings response', {
-                  sender: responseMessage.sender.name,
-                  senderId: responseMessage.sender.id,
-                  agentCount: responseMessage.agents.length,
-                });
+                logger.debug('Received agent settings response');
                 break;
               }
               default:
-                logger.debug('Received unknown message type', {
-                  messageType: msg.type,
-                });
+                logger.debug('Received unknown message type');
             }
           }
         });
@@ -1642,12 +1635,16 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
           });
         }
 
-        console.log(`[GigiPlugin] Stopped gateway for ${accountId}`);
+        console.log(
+          `[GigiPlugin] Gateway stopped successfully for ${accountId}`
+        );
+        logger.info(`Gateway stopped successfully for ${accountId}`);
       } catch (error) {
         console.error(
           `[GigiPlugin] Error stopping gateway for ${accountId}:`,
           error
         );
+        logger.error(`Error stopping gateway for ${accountId}`);
         if (setStatus) {
           setStatus({
             accountId,

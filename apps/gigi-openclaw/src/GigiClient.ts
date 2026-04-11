@@ -54,8 +54,8 @@ export class GigiClient implements IGigiClient {
               ? JSON.parse(event.message)
               : event.message;
           this.emitMessage(messageData as GigiMessage);
-        } catch (error) {
-          logger.error('Error parsing direct message', { error });
+        } catch {
+          logger.error('Error parsing direct message');
         }
       } else if (event.type === 'group-message') {
         try {
@@ -84,12 +84,10 @@ export class GigiClient implements IGigiClient {
               this.emitMessage(textMessage as GigiMessage);
             }
           } else {
-            logger.error('Unexpected group message format', {
-              content: event.content,
-            });
+            logger.error('Unexpected group message format');
           }
-        } catch (error) {
-          logger.error('Error parsing group message', { error });
+        } catch {
+          logger.error('Error parsing group message');
         }
       }
     });
@@ -103,11 +101,7 @@ export class GigiClient implements IGigiClient {
     await this.p2pClient.start();
     this.started = true;
 
-    // Get peer ID and multiaddrs after setting started to true
-    const peerId = this.p2pClient.getPeerId();
-    const multiaddrs = this.p2pClient.getMultiaddrs();
-
-    logger.info('GigiClient started', { peerId, multiaddrs });
+    logger.info('GigiClient started');
   }
 
   async stop(): Promise<void> {
@@ -135,7 +129,7 @@ export class GigiClient implements IGigiClient {
     );
 
     await this.p2pClient.sendDirectMessage(target, JSON.stringify(textMessage));
-    logger.info('Sent text message', { target, messageLength: message.length });
+    logger.info('Sent text message');
   }
 
   async sendFileMessage(
@@ -162,7 +156,7 @@ export class GigiClient implements IGigiClient {
     );
 
     await this.p2pClient.sendDirectMessage(target, JSON.stringify(fileMessage));
-    logger.info('Sent file message', { target, filename, fileSize });
+    logger.info('Sent file message');
   }
 
   async sendGroupMessage(groupName: string, content: string): Promise<void> {
@@ -177,10 +171,7 @@ export class GigiClient implements IGigiClient {
     };
 
     await this.p2pClient.sendGroupMessage(groupName, messageContent);
-    logger.info('Sent group text message', {
-      groupName,
-      messageLength: content.length,
-    });
+    logger.info('Sent group text message');
   }
 
   async sendGroupFileMessage(
@@ -210,12 +201,7 @@ export class GigiClient implements IGigiClient {
     };
 
     await this.p2pClient.sendGroupMessage(groupName, messageContent);
-    logger.info('Sent group file message', {
-      groupName,
-      filename,
-      fileSize,
-      fileType,
-    });
+    logger.info('Sent group file message');
   }
 
   async sendDirectMessage(target: string, message: string): Promise<void> {
@@ -224,10 +210,7 @@ export class GigiClient implements IGigiClient {
     }
 
     await this.p2pClient.sendDirectMessage(target, message);
-    logger.info('Sent direct message', {
-      target,
-      messageLength: message.length,
-    });
+    logger.info('Sent direct message');
   }
 
   async joinGroup(groupName: string): Promise<void> {
@@ -236,7 +219,7 @@ export class GigiClient implements IGigiClient {
     }
 
     await this.p2pClient.joinGroup(groupName);
-    logger.info('Joined group', { groupName });
+    logger.info('Joined group');
   }
 
   async leaveGroup(groupName: string): Promise<void> {
@@ -245,7 +228,7 @@ export class GigiClient implements IGigiClient {
     }
 
     await this.p2pClient.leaveGroup(groupName);
-    logger.info('Left group', { groupName });
+    logger.info('Left group');
   }
 
   async shareFile(filePath: string): Promise<string> {
@@ -272,11 +255,8 @@ export class GigiClient implements IGigiClient {
     for (const handler of this.messageHandlers) {
       try {
         handler(message);
-      } catch (error) {
-        logger.error('Error in message handler', {
-          error,
-          messageType: message.type,
-        });
+      } catch {
+        logger.error('Error in message handler');
       }
     }
   }

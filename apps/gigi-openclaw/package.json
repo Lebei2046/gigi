@@ -21,8 +21,7 @@
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --ext ts,tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css,md}\"",
-    "format-all": "prettier --write \"src/**/*.{ts,tsx,json,css,md}\" \"*.json\" \"*.md\" \"docs/**/*.md\" && eslint \"src/**/*.{ts,tsx}\" --ext ts,tsx --fix",
-    "generate-mnemonic": "node --loader ts-node/esm scripts/generate-mnemonic.ts"
+    "format-all": "prettier --write \"src/**/*.{ts,tsx,json,css,md}\" \"*.json\" \"*.md\" \"docs/**/*.md\" && eslint \"src/**/*.{ts,tsx}\" --ext ts,tsx --fix"
   },
   "dependencies": {
     "@gigi/amp": "file:../../typescript/amp",

@@ -17,7 +17,8 @@
     "lint:fix": "eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format-all": "prettier --write \"*.ts\" \"tests/**/*.ts\" \"*.json\" \"*.md\" && eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix"
+    "format-all": "prettier --write \"*.ts\" \"tests/**/*.ts\" \"*.json\" \"*.md\" && eslint \"**/*.{ts,tsx,js,jsx}\" --ext ts,tsx,js,jsx --fix",
+    "generate-peer-id": "tsx scripts/generate-peer-id.ts"
   },
   "dependencies": {
     "@gigi/p2p": "workspace:*",
