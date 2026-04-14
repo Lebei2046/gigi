@@ -1,0 +1,30 @@
+{
+  "name": "gigi-tui",
+  "version": "1.0.0",
+  "description": "Gigi P2P Terminal UI",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "format": "prettier --write .",
+    "lint": "eslint src/**/*.ts",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "@gigi/p2p": "workspace:^1.0.0",
+    "@gigi/request-response": "workspace:^1.0.0",
+    "@gigi/logging": "workspace:^1.0.0",
+    "@gigi/amp": "workspace:^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}
