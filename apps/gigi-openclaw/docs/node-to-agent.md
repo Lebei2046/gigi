@@ -6,7 +6,7 @@ According to my workspace, I just woke up fresh — no IDENTITY.md yet, no USER.
 
 So... who am I? That's kinda up to you. What should you call me? What kind of vibe should I have?
 
-More importantly — who are *you*?"
+More importantly — who are _you_?"
 
 ## Summary of the Fix
 
@@ -17,11 +17,11 @@ More importantly — who are *you*?"
    - Changed `rawBody` to `RawBody`
    - Added `CommandBody`, `BodyForAgent`, and `BodyForCommands` for comprehensive coverage
 
-3. **Deployment**: 
+3. **Deployment**:
    - Built the plugin bundle using `pnpm run build:bundle`
    - Restarted the OpenClaw gateway using `openclaw gateway restart`
 
-4. **Verification**: 
+4. **Verification**:
    - Ran the test with `pnpm run test`
    - Confirmed the agent now properly processes and responds to messages
 

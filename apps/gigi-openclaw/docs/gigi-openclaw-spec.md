@@ -8,13 +8,13 @@ The Gigi OpenClaw plugin enables P2P communication between OpenClaw agents and e
 
 ### 2.1 Core Components
 
-| Component | Description | Location |
-|-----------|-------------|----------|
-| GigiClient | Wrapper around @gigi/p2p client for P2P communication | src/GigiClient.ts |
-| Channel Plugin | OpenClaw channel implementation | src/channel.ts |
-| OutboundManager | Handles outbound message queuing and retries | src/outbound.ts |
-| Account Management | Manages Gigi account configurations | src/accounts.ts |
-| Types | Type definitions for the plugin | src/types.ts |
+| Component          | Description                                           | Location          |
+| ------------------ | ----------------------------------------------------- | ----------------- |
+| GigiClient         | Wrapper around @gigi/p2p client for P2P communication | src/GigiClient.ts |
+| Channel Plugin     | OpenClaw channel implementation                       | src/channel.ts    |
+| OutboundManager    | Handles outbound message queuing and retries          | src/outbound.ts   |
+| Account Management | Manages Gigi account configurations                   | src/accounts.ts   |
+| Types              | Type definitions for the plugin                       | src/types.ts      |
 
 ### 2.2 Gateway Architecture
 
@@ -55,40 +55,40 @@ flowchart TD
 
 ### 4.1 Account Configuration
 
-| Configuration Option | Type | Description | Default |
-|----------------------|------|-------------|---------|
-| mnemonic | string | BIP-39 mnemonic for identity | Generated during setup |
-| multiaddrs | string[] | Network addresses to listen on | ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"] |
-| displayName | string | Human-readable display name | "My Gigi Node" |
-| nickname | string | Network nickname | Same as displayName |
-| bootstrapPeers | string[] | Bootstrap nodes for network discovery | [] |
-| enableMdns | boolean | Enable mDNS for local discovery | true |
-| enableDht | boolean | Enable Kademlia DHT | true |
-| enableRelay | boolean | Enable circuit relay | true |
-| config.allowFrom | string[] | List of allowed peer IDs | [] |
-| config.dmPolicy | string | Direct message policy (open/pairing) | "open" |
-| config.groupPolicy | string | Group message policy (open/allowlist) | "open" |
-| config.groupAllowFrom | string[] | List of allowed groups | [] |
-| config.agents | object | Agent configurations | {} |
+| Configuration Option  | Type     | Description                           | Default                                         |
+| --------------------- | -------- | ------------------------------------- | ----------------------------------------------- |
+| mnemonic              | string   | BIP-39 mnemonic for identity          | Generated during setup                          |
+| multiaddrs            | string[] | Network addresses to listen on        | ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"] |
+| displayName           | string   | Human-readable display name           | "My Gigi Node"                                  |
+| nickname              | string   | Network nickname                      | Same as displayName                             |
+| bootstrapPeers        | string[] | Bootstrap nodes for network discovery | []                                              |
+| enableMdns            | boolean  | Enable mDNS for local discovery       | true                                            |
+| enableDht             | boolean  | Enable Kademlia DHT                   | true                                            |
+| enableRelay           | boolean  | Enable circuit relay                  | true                                            |
+| config.allowFrom      | string[] | List of allowed peer IDs              | []                                              |
+| config.dmPolicy       | string   | Direct message policy (open/pairing)  | "open"                                          |
+| config.groupPolicy    | string   | Group message policy (open/allowlist) | "open"                                          |
+| config.groupAllowFrom | string[] | List of allowed groups                | []                                              |
+| config.agents         | object   | Agent configurations                  | {}                                              |
 
 ### 4.2 Security Configuration
 
-| Security Option | Type | Description | Default |
-|-----------------|------|-------------|---------|
-| dmPolicy | string | Direct message policy | "open" |
-| allowFrom | string[] | Allowed peer IDs for direct messages | [] |
-| groupPolicy | string | Group message policy | "open" |
-| groupAllowFrom | string[] | Allowed groups | [] |
+| Security Option | Type     | Description                          | Default |
+| --------------- | -------- | ------------------------------------ | ------- |
+| dmPolicy        | string   | Direct message policy                | "open"  |
+| allowFrom       | string[] | Allowed peer IDs for direct messages | []      |
+| groupPolicy     | string   | Group message policy                 | "open"  |
+| groupAllowFrom  | string[] | Allowed groups                       | []      |
 
 ## 5. Message Types
 
 ### 5.1 Supported Message Types
 
-| Message Type | Description | Format |
-|--------------|-------------|--------|
-| Text | Plain text messages | AMP TextMessage |
-| File | File sharing messages | AMP FileMessage |
-| Agent Settings Query | Query for agent information | AMP AgentSettingsQuery |
+| Message Type            | Description                     | Format                    |
+| ----------------------- | ------------------------------- | ------------------------- |
+| Text                    | Plain text messages             | AMP TextMessage           |
+| File                    | File sharing messages           | AMP FileMessage           |
+| Agent Settings Query    | Query for agent information     | AMP AgentSettingsQuery    |
 | Agent Settings Response | Response with agent information | AMP AgentSettingsResponse |
 
 ### 5.2 Message Structure
@@ -119,33 +119,33 @@ interface AmpMessage {
 
 ### 6.1 Channel Plugin API
 
-| Method | Description | Parameters | Return Type |
-|--------|-------------|------------|-------------|
-| sendText | Send text message | ctx: { to, text, accountId, cfg, agentId } | Promise<{ channel, messageId, chatId }> |
-| sendMedia | Send media message | ctx: { to, text, mediaUrl, accountId, cfg, agentId } | Promise<{ channel, messageId, chatId }> |
-| startAccount | Start gateway for account | ctx: { accountId, setStatus, cfg, runtime } | Promise<void> |
-| listPeers | List connected peers | ctx: { accountId } | Promise<Array<{ id, kind, name, avatar }>> |
-| listGroups | List joined groups | ctx: { accountId } | Promise<Array<{ id, kind, name, avatar, memberCount }>> |
+| Method       | Description               | Parameters                                           | Return Type                                             |
+| ------------ | ------------------------- | ---------------------------------------------------- | ------------------------------------------------------- |
+| sendText     | Send text message         | ctx: { to, text, accountId, cfg, agentId }           | Promise<{ channel, messageId, chatId }>                 |
+| sendMedia    | Send media message        | ctx: { to, text, mediaUrl, accountId, cfg, agentId } | Promise<{ channel, messageId, chatId }>                 |
+| startAccount | Start gateway for account | ctx: { accountId, setStatus, cfg, runtime }          | Promise<void>                                           |
+| listPeers    | List connected peers      | ctx: { accountId }                                   | Promise<Array<{ id, kind, name, avatar }>>              |
+| listGroups   | List joined groups        | ctx: { accountId }                                   | Promise<Array<{ id, kind, name, avatar, memberCount }>> |
 
 ### 6.2 GigiClient API
 
-| Method | Description | Parameters | Return Type |
-|--------|-------------|------------|-------------|
-| start | Start P2P client | N/A | Promise<void> |
-| stop | Stop P2P client | N/A | Promise<void> |
-| sendMessage | Send text message | target: string, message: string | Promise<void> |
-| sendFileMessage | Send file message | target: string, filename: string, fileSize: number | Promise<void> |
-| sendGroupMessage | Send group message | groupName: string, content: string | Promise<void> |
-| sendDirectMessage | Send direct message | target: string, message: string | Promise<void> |
-| joinGroup | Join P2P group | groupName: string | Promise<void> |
-| leaveGroup | Leave P2P group | groupName: string | Promise<void> |
-| shareFile | Share file | filePath: string | Promise<string> (share code) |
-| downloadFile | Download file | peerId: string, shareCode: string | Promise<string> (download ID) |
-| getPeerId | Get current peer ID | N/A | string |
-| getMultiaddrs | Get network addresses | N/A | string[] |
-| isConnected | Check connection status | N/A | boolean |
-| listPeers | List connected peers | N/A | any[] |
-| listGroups | List joined groups | N/A | any[] |
+| Method            | Description             | Parameters                                         | Return Type                   |
+| ----------------- | ----------------------- | -------------------------------------------------- | ----------------------------- |
+| start             | Start P2P client        | N/A                                                | Promise<void>                 |
+| stop              | Stop P2P client         | N/A                                                | Promise<void>                 |
+| sendMessage       | Send text message       | target: string, message: string                    | Promise<void>                 |
+| sendFileMessage   | Send file message       | target: string, filename: string, fileSize: number | Promise<void>                 |
+| sendGroupMessage  | Send group message      | groupName: string, content: string                 | Promise<void>                 |
+| sendDirectMessage | Send direct message     | target: string, message: string                    | Promise<void>                 |
+| joinGroup         | Join P2P group          | groupName: string                                  | Promise<void>                 |
+| leaveGroup        | Leave P2P group         | groupName: string                                  | Promise<void>                 |
+| shareFile         | Share file              | filePath: string                                   | Promise<string> (share code)  |
+| downloadFile      | Download file           | peerId: string, shareCode: string                  | Promise<string> (download ID) |
+| getPeerId         | Get current peer ID     | N/A                                                | string                        |
+| getMultiaddrs     | Get network addresses   | N/A                                                | string[]                      |
+| isConnected       | Check connection status | N/A                                                | boolean                       |
+| listPeers         | List connected peers    | N/A                                                | any[]                         |
+| listGroups        | List joined groups      | N/A                                                | any[]                         |
 
 ## 7. Integration Points
 
@@ -187,12 +187,12 @@ interface AmpMessage {
 
 ### 9.1 Common Errors
 
-| Error Type | Description | Handling |
-|------------|-------------|----------|
-| Connection Error | P2P client fails to connect | Retry with exponential backoff |
-| Message Delivery Failure | Message fails to send | Queue and retry via OutboundManager |
-| Account Configuration Error | Missing or invalid account config | Return error to OpenClaw |
-| File Sharing Error | File share/download fails | Fallback to text message with file path |
+| Error Type                  | Description                       | Handling                                |
+| --------------------------- | --------------------------------- | --------------------------------------- |
+| Connection Error            | P2P client fails to connect       | Retry with exponential backoff          |
+| Message Delivery Failure    | Message fails to send             | Queue and retry via OutboundManager     |
+| Account Configuration Error | Missing or invalid account config | Return error to OpenClaw                |
+| File Sharing Error          | File share/download fails         | Fallback to text message with file path |
 
 ### 9.2 Error Reporting
 

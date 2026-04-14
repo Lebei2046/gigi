@@ -8,12 +8,12 @@ The Agent Messaging Protocol (AMP) is a lightweight, extensible messaging protoc
 
 ### Core Components
 
-| Component | Description | Location |
-|-----------|-------------|----------|
-| Message Types | Type definitions for AMP messages | src/types.ts |
-| Message Router | Routes messages to appropriate handlers | src/message-router.ts |
-| Agent Registry | Manages agent information and status | src/message-router.ts |
-| Message Factory | Creates standardized AMP messages | src/message-router.ts |
+| Component       | Description                             | Location              |
+| --------------- | --------------------------------------- | --------------------- |
+| Message Types   | Type definitions for AMP messages       | src/types.ts          |
+| Message Router  | Routes messages to appropriate handlers | src/message-router.ts |
+| Agent Registry  | Manages agent information and status    | src/message-router.ts |
+| Message Factory | Creates standardized AMP messages       | src/message-router.ts |
 
 ### Message Flow
 
@@ -31,12 +31,12 @@ flowchart TD
 
 ### Supported Message Types
 
-| Message Type | Description | Purpose |
-|--------------|-------------|---------|
-| Text | Plain text messages | General communication |
-| File | File sharing messages | Sharing files between peers |
-| Agent Settings Query | Query for agent information | Discovering agent capabilities |
-| Agent Settings Response | Response with agent information | Providing agent details |
+| Message Type            | Description                     | Purpose                        |
+| ----------------------- | ------------------------------- | ------------------------------ |
+| Text                    | Plain text messages             | General communication          |
+| File                    | File sharing messages           | Sharing files between peers    |
+| Agent Settings Query    | Query for agent information     | Discovering agent capabilities |
+| Agent Settings Response | Response with agent information | Providing agent details        |
 
 ### Message Structure
 
@@ -44,79 +44,83 @@ All AMP messages follow a consistent structure:
 
 ```typescript
 interface AmpMessage {
-  type: string;           // Message type
-  id: string;             // Unique message ID
-  timestamp: number;      // Unix timestamp
-  sender: SenderInfo;     // Sender information
-  target: MessageTarget;  // Target information
+  type: string; // Message type
+  id: string; // Unique message ID
+  timestamp: number; // Unix timestamp
+  sender: SenderInfo; // Sender information
+  target: MessageTarget; // Target information
   // Additional type-specific fields
 }
 
 interface SenderInfo {
-  id: string;             // Sender ID
-  name: string;           // Sender name
+  id: string; // Sender ID
+  name: string; // Sender name
   type: 'owner' | 'agent' | 'node'; // Sender type
-  nodeId?: string;        // Optional node ID
+  nodeId?: string; // Optional node ID
 }
 
 interface MessageTarget {
   type: 'all' | 'specific' | 'node' | 'node-agent'; // Target type
-  agentIds?: string[];    // Agent IDs for specific targets
-  nodeId?: string;        // Node ID for node targets
+  agentIds?: string[]; // Agent IDs for specific targets
+  nodeId?: string; // Node ID for node targets
 }
 ```
 
 ### Type-Specific Fields
 
 #### Text Message
+
 ```typescript
 interface TextMessage extends AmpMessage {
   type: 'text';
-  content: string;        // Message content
+  content: string; // Message content
 }
 ```
 
 #### File Message
+
 ```typescript
 interface FileMessage extends AmpMessage {
   type: 'file';
-  filename: string;       // File name
-  fileSize: number;       // File size in bytes
-  fileHash: string;       // File hash or share code
+  filename: string; // File name
+  fileSize: number; // File size in bytes
+  fileHash: string; // File hash or share code
 }
 ```
 
 #### Agent Settings Query
+
 ```typescript
 interface AgentSettingsQuery extends AmpMessage {
   type: 'agent-settings-query';
-  agentIds?: string[];    // Optional agent IDs to query
-  nodeId?: string;        // Optional node ID for node-level queries
+  agentIds?: string[]; // Optional agent IDs to query
+  nodeId?: string; // Optional node ID for node-level queries
 }
 ```
 
 #### Agent Settings Response
+
 ```typescript
 interface AgentSettingsResponse extends AmpMessage {
   type: 'agent-settings-response';
-  agents: AgentInfo[];    // Agent information
+  agents: AgentInfo[]; // Agent information
 }
 
 interface AgentInfo {
-  id: string;             // Agent ID
-  name: string;           // Agent name
-  type: string;           // Agent type
-  version: string;        // Agent version
+  id: string; // Agent ID
+  name: string; // Agent name
+  type: string; // Agent type
+  version: string; // Agent version
   settings: AgentSetting[]; // Agent settings
   status: 'online' | 'offline' | 'busy'; // Agent status
 }
 
 interface AgentSetting {
-  id: string;             // Setting ID
-  name: string;           // Setting name
-  type: string;           // Setting type
-  value: any;             // Setting value
-  description?: string;   // Optional description
+  id: string; // Setting ID
+  name: string; // Setting name
+  type: string; // Setting type
+  value: any; // Setting value
+  description?: string; // Optional description
 }
 ```
 
@@ -124,37 +128,37 @@ interface AgentSetting {
 
 ### Message Factory
 
-| Method | Description | Parameters | Return Type |
-|--------|-------------|------------|-------------|
-| createTextMessage | Create text message | content: string, target: MessageTarget, sender: SenderInfo | TextMessage |
-| createNodeTextMessage | Create node-specific text message | content: string, nodeId: string, sender: SenderInfo | TextMessage |
-| createNodeAgentTextMessage | Create node-agent text message | content: string, nodeId: string, agentId: string, sender: SenderInfo | TextMessage |
-| createFileMessage | Create file message | filename: string, fileSize: number, fileHash: string, target: MessageTarget, sender: SenderInfo | FileMessage |
-| createNodeFileMessage | Create node-specific file message | filename: string, fileSize: number, fileHash: string, nodeId: string, sender: SenderInfo | FileMessage |
-| createNodeAgentFileMessage | Create node-agent file message | filename: string, fileSize: number, fileHash: string, nodeId: string, agentId: string, sender: SenderInfo | FileMessage |
-| createAgentSettingsQuery | Create agent settings query | sender: SenderInfo, agentIds?: string[] | AgentSettingsQuery |
-| createNodeAgentSettingsQuery | Create node-specific agent settings query | nodeId: string, sender: SenderInfo, agentIds?: string[] | AgentSettingsQuery |
-| createAgentSettingsResponse | Create agent settings response | agents: AgentInfo[], sender: SenderInfo | AgentSettingsResponse |
+| Method                       | Description                               | Parameters                                                                                                | Return Type           |
+| ---------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------- |
+| createTextMessage            | Create text message                       | content: string, target: MessageTarget, sender: SenderInfo                                                | TextMessage           |
+| createNodeTextMessage        | Create node-specific text message         | content: string, nodeId: string, sender: SenderInfo                                                       | TextMessage           |
+| createNodeAgentTextMessage   | Create node-agent text message            | content: string, nodeId: string, agentId: string, sender: SenderInfo                                      | TextMessage           |
+| createFileMessage            | Create file message                       | filename: string, fileSize: number, fileHash: string, target: MessageTarget, sender: SenderInfo           | FileMessage           |
+| createNodeFileMessage        | Create node-specific file message         | filename: string, fileSize: number, fileHash: string, nodeId: string, sender: SenderInfo                  | FileMessage           |
+| createNodeAgentFileMessage   | Create node-agent file message            | filename: string, fileSize: number, fileHash: string, nodeId: string, agentId: string, sender: SenderInfo | FileMessage           |
+| createAgentSettingsQuery     | Create agent settings query               | sender: SenderInfo, agentIds?: string[]                                                                   | AgentSettingsQuery    |
+| createNodeAgentSettingsQuery | Create node-specific agent settings query | nodeId: string, sender: SenderInfo, agentIds?: string[]                                                   | AgentSettingsQuery    |
+| createAgentSettingsResponse  | Create agent settings response            | agents: AgentInfo[], sender: SenderInfo                                                                   | AgentSettingsResponse |
 
 ### Message Router
 
-| Method | Description | Parameters | Return Type |
-|--------|-------------|------------|-------------|
-| routeMessage | Route message to appropriate handler | message: AmpMessage | void |
-| registerMessageHandler | Register message handler | type: string, handler: (message: AmpMessage, agentId?: string) => void | void |
-| unregisterMessageHandler | Unregister message handler | type: string | void |
-| registerAgent | Register agent with registry | agent: AgentInfo | void |
-| unregisterAgent | Unregister agent from registry | agentId: string | void |
+| Method                   | Description                          | Parameters                                                             | Return Type |
+| ------------------------ | ------------------------------------ | ---------------------------------------------------------------------- | ----------- |
+| routeMessage             | Route message to appropriate handler | message: AmpMessage                                                    | void        |
+| registerMessageHandler   | Register message handler             | type: string, handler: (message: AmpMessage, agentId?: string) => void | void        |
+| unregisterMessageHandler | Unregister message handler           | type: string                                                           | void        |
+| registerAgent            | Register agent with registry         | agent: AgentInfo                                                       | void        |
+| unregisterAgent          | Unregister agent from registry       | agentId: string                                                        | void        |
 
 ### Agent Registry
 
-| Method | Description | Parameters | Return Type |
-|--------|-------------|------------|-------------|
-| getAgentById | Get agent by ID | id: string | AgentInfo  undefined |
-| getAllAgents | Get all agents | N/A | AgentInfo[] |
-| updateAgentStatus | Update agent status | id: string, status: 'online'  'offline'  'busy' | void |
-| registerAgent | Register new agent | agent: AgentInfo | void |
-| unregisterAgent | Unregister agent | agentId: string | void |
+| Method            | Description         | Parameters                                    | Return Type         |
+| ----------------- | ------------------- | --------------------------------------------- | ------------------- |
+| getAgentById      | Get agent by ID     | id: string                                    | AgentInfo undefined |
+| getAllAgents      | Get all agents      | N/A                                           | AgentInfo[]         |
+| updateAgentStatus | Update agent status | id: string, status: 'online' 'offline' 'busy' | void                |
+| registerAgent     | Register new agent  | agent: AgentInfo                              | void                |
+| unregisterAgent   | Unregister agent    | agentId: string                               | void                |
 
 ## Routing Logic
 
@@ -211,15 +215,11 @@ AMP is used by the Gigi OpenClaw plugin to handle communication between OpenClaw
 
 ```typescript
 // Example integration with OpenClaw
-const ampMessage = AmpMessageFactory.createTextMessage(
-  content,
-  target,
-  {
-    id: senderId,
-    name: senderName,
-    type: 'agent',
-  }
-);
+const ampMessage = AmpMessageFactory.createTextMessage(content, target, {
+  id: senderId,
+  name: senderName,
+  type: 'agent',
+});
 
 await gateway.outbound.sendMessage(to, JSON.stringify(ampMessage));
 ```
