@@ -164,14 +164,30 @@ export class P2PChatClient {
           // Parse group message data
           const messageData = event.content;
           if (messageData.type === 'text' && messageData.text) {
-            // Parse the AMP message from the text content
-            const ampMessage = JSON.parse(messageData.text);
-            if (ampMessage.type === "text" && ampMessage.content && ampMessage.sender && ampMessage.sender.id === 'main') {
+            // Parse the message content
+            const messageContent = JSON.parse(messageData.text);
+            
+            // Check if it's a response message
+            if (messageContent.type === "response" && messageContent.event === 'sessions.list' && messageContent.payload) {
+              // Handle session list events
+              this.onEvent?.({
+                event: 'sessions.list',
+                payload: messageContent.payload,
+                seq: messageContent.id,
+              });
+            } else if (messageContent.type === "text" && messageContent.content && messageContent.sender && messageContent.sender.id === 'main') {
               // The content is the actual response text from the agent
               this.onEvent?.({
                 event: 'chat',
-                payload: { content: ampMessage.content },
-                seq: ampMessage.id,
+                payload: { content: messageContent.content },
+                seq: messageContent.id,
+              });
+            } else if (messageContent.event) {
+              // Handle other events
+              this.onEvent?.({
+                event: messageContent.event,
+                payload: messageContent.payload,
+                seq: messageContent.id,
               });
             }
           }
@@ -322,35 +338,37 @@ export class P2PChatClient {
   async listSessions(opts?: { limit?: number; activeMinutes?: number; includeGlobal?: boolean; includeUnknown?: boolean; includeDerivedTitles?: boolean; includeLastMessage?: boolean; agentId?: string }) {
     await this.waitForReady();
 
-    // Create AMP-compliant message using AmpMessageFactory
-    const ampMessage = AmpMessageFactory.createTextMessage(
-      'List sessions',  // Message content
-      { type: 'specific', agentIds: ['main'] },  // Target main agent
-      {
-        id: this.client.getPeerId(),  // Sender ID (gigi-tui's peer ID)
-        name: this.nickname,  // Sender name
-        type: "agent"  // Sender type
+    // Create structured request message
+    const requestMessage = {
+      type: 'request' as const,
+      method: 'sessions.list' as const,
+      params: opts || {},
+      id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      sender: {
+        id: this.client.getPeerId(),
+        name: this.nickname,
+        type: "agent" as const
       }
-    );
+    };
 
-    // Send the AMP message via group chat
+    // Send the structured request via group chat
     try {
       // Format message correctly for P2pClient
       const messageContent = {
         type: 'text' as const,
-        text: JSON.stringify(ampMessage)
+        text: JSON.stringify(requestMessage)
       };
       await this.client.sendGroupMessage('gigi-agents', messageContent);
-      logger.info('Group message sent to gigi-agents successfully');
+      logger.info('Session list request sent to gigi-agents successfully');
     } catch (error) {
-      logger.error('Failed to send group message: ' + String(error));
+      logger.error('Failed to send session list request: ' + String(error));
       // Retry sending message
       const messageContent = {
         type: 'text' as const,
-        text: JSON.stringify(ampMessage)
+        text: JSON.stringify(requestMessage)
       };
       await this.client.sendGroupMessage('gigi-agents', messageContent);
-      logger.info('Group message sent after retry');
+      logger.info('Session list request sent after retry');
     }
     // Return a placeholder - actual data will come through onEvent
     return { sessions: [], ts: Date.now(), path: "", count: 0 } as GatewaySessionList;
@@ -534,5 +552,114 @@ export class P2PChatClient {
       logger.info('Group message sent after retry');
     }
     return [];
+  }
+
+  async createSession(label: string): Promise<string> {
+    await this.waitForReady();
+    const sessionKey = `session-${Date.now()}`;
+
+    // Create structured request message
+    const requestMessage = {
+      type: 'request' as const,
+      method: 'sessions.create' as const,
+      params: { label },
+      id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      sender: {
+        id: this.client.getPeerId(),
+        name: this.nickname,
+        type: "agent" as const
+      }
+    };
+
+    // Send the structured request via group chat
+    try {
+      // Format message correctly for P2pClient
+      const messageContent = {
+        type: 'text' as const,
+        text: JSON.stringify(requestMessage)
+      };
+      await this.client.sendGroupMessage('gigi-agents', messageContent);
+      logger.info('Session create request sent to gigi-agents successfully');
+    } catch (error) {
+      logger.error('Failed to send session create request: ' + String(error));
+      // Retry sending message
+      const messageContent = {
+        type: 'text' as const,
+        text: JSON.stringify(requestMessage)
+      };
+      await this.client.sendGroupMessage('gigi-agents', messageContent);
+      logger.info('Session create request sent after retry');
+    }
+    return sessionKey;
+  }
+
+  async deleteSession(sessionKey: string): Promise<void> {
+    await this.waitForReady();
+
+    // Create AMP-compliant message using AmpMessageFactory
+    const ampMessage = AmpMessageFactory.createTextMessage(
+      `Delete session: ${sessionKey}`,  // Message content
+      { type: 'specific', agentIds: ['main'] },  // Target main agent
+      {
+        id: this.client.getPeerId(),  // Sender ID (gigi-tui's peer ID)
+        name: this.nickname,  // Sender name
+        type: "agent"  // Sender type
+      }
+    );
+
+    // Send the AMP message via group chat
+    try {
+      // Format message correctly for P2pClient
+      const messageContent = {
+        type: 'text' as const,
+        text: JSON.stringify(ampMessage)
+      };
+      await this.client.sendGroupMessage('gigi-agents', messageContent);
+      logger.info('Group message sent to gigi-agents successfully');
+    } catch (error) {
+      logger.error('Failed to send group message: ' + String(error));
+      // Retry sending message
+      const messageContent = {
+        type: 'text' as const,
+        text: JSON.stringify(ampMessage)
+      };
+      await this.client.sendGroupMessage('gigi-agents', messageContent);
+      logger.info('Group message sent after retry');
+    }
+  }
+
+  async switchSession(sessionKey: string): Promise<void> {
+    await this.waitForReady();
+
+    // Create AMP-compliant message using AmpMessageFactory
+    const ampMessage = AmpMessageFactory.createTextMessage(
+      `Switch session: ${sessionKey}`,  // Message content
+      { type: 'specific', agentIds: ['main'] },  // Target main agent
+      {
+        id: this.client.getPeerId(),  // Sender ID (gigi-tui's peer ID)
+        name: this.nickname,  // Sender name
+        type: "agent"  // Sender type
+      }
+    );
+
+    // Send the AMP message via group chat
+    try {
+      // Format message correctly for P2pClient
+      const messageContent = {
+        type: 'text' as const,
+        text: JSON.stringify(ampMessage)
+      };
+      await this.client.sendGroupMessage('gigi-agents', messageContent);
+      logger.info('Group message sent to gigi-agents successfully');
+    } catch (error) {
+      logger.error('Failed to send group message: ' + String(error));
+      // Retry sending message
+      const messageContent = {
+        type: 'text' as const,
+        text: JSON.stringify(ampMessage)
+      };
+      await this.client.sendGroupMessage('gigi-agents', messageContent);
+      logger.info('Group message sent after retry');
+    }
   }
 }

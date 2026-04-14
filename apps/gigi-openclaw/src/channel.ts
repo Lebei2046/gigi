@@ -46,7 +46,7 @@ import type { GigiAccount } from './types.js';
 import { GigiClient } from './GigiClient.js';
 import { OutboundManager } from './outbound.js';
 import { listGigiAccountIds, resolveGigiAccount } from './accounts.js';
-import { TextMessage, FileMessage, AmpMessageFactory } from '@gigi/amp';
+import { TextMessage, FileMessage, AmpMessageFactory, SessionCreate, SessionDelete, SessionSwitch, SessionList, SessionResponse } from '@gigi/amp';
 
 const CHANNEL_ID = 'gigi-openclaw';
 const TEXT_CHUNK_LIMIT = 4000;
@@ -1131,134 +1131,235 @@ export const gigiPlugin: ChannelPlugin<GigiAccount> = {
                           runtime as any
                         ).channel.reply.resolveHumanDelayConfig(cfg, agent.id),
 
-                        onReplyStart: async () => {
-                          console.log(
-                            '[GigiPlugin] Reply started for agent:',
-                            agent.id
-                          );
-                          logger.debug('Reply started for agent');
-                        },
-
-                        deliver: async (payload: any) => {
-                          console.log(
-                            '[GigiPlugin] Agent response received:',
-                            payload
-                          );
-                          logger.info('Agent response received');
-                          // Send the agent's response back to the P2P network
-                          try {
-                            if (payload.text) {
-                              // Create a text message response
-                              const responseMessage = {
-                                type: 'text' as const,
-                                content: payload.text,
-                                target: {
-                                  type: 'specific' as const,
-                                  agentIds: [textMessage.sender.id],
-                                },
-                                sender: {
-                                  id: agent.id,
-                                  name: agent.name || agent.id,
-                                  type: 'agent' as const,
-                                },
-                                timestamp: Date.now(),
-                                id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                              };
-                              console.log(
-                                '[GigiPlugin] Sending response back to P2P network:',
-                                JSON.stringify(responseMessage, null, 2)
-                              );
-                              logger.info(
-                                'Sending response back to P2P network'
-                              );
-
-                              // Send the response back to the sender
-                              await gatewayContext.client.sendDirectMessage(
-                                textMessage.sender.id,
-                                JSON.stringify(responseMessage)
-                              );
-                              console.log(
-                                '[GigiPlugin] Sent response from agent',
-                                agent.id,
-                                'to P2P network'
-                              );
-                              logger.info(
-                                `Sent response from agent ${agent.id} to P2P network`
-                              );
-                            }
-                          } catch (error) {
-                            console.error(
-                              '[GigiPlugin] Error sending response from agent',
-                              agent.id,
-                              'to P2P network:',
-                              error
+                          onReplyStart: async () => {
+                            console.log(
+                              '[GigiPlugin] Reply started for agent:',
+                              agent.id
                             );
-                            logger.error(
-                              `Error sending response from agent ${agent.id} to P2P network`
+                            logger.debug('Reply started for agent');
+                          },
+
+                          deliver: async (payload: any) => {
+                            console.log(
+                              '[GigiPlugin] Agent response received:',
+                              payload
+                            );
+                            logger.info('Agent response received');
+                            // Send the agent's response back to the P2P network
+                        try {
+                          if (payload.text) {
+                            // Create a text message response
+                            const responseMessage = {
+                              type: 'text' as const,
+                              content: payload.text,
+                              target: {
+                                type: 'specific' as const,
+                                agentIds: [textMessage.sender.id],
+                              },
+                              sender: {
+                                id: agent.id,
+                                name: agent.name || agent.id,
+                                type: 'agent' as const,
+                              },
+                              timestamp: Date.now(),
+                              id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            };
+                            console.log(
+                              '[GigiPlugin] Sending response back to P2P network:',
+                              JSON.stringify(responseMessage, null, 2)
+                            );
+                            logger.info(
+                              'Sending response back to P2P network'
+                            );
+
+                            // Send the response via group chat instead of direct message
+                            // This is more reliable in P2P networks
+                            await gatewayContext.client.sendGroupMessage(
+                              'gigi-agents',
+                              JSON.stringify(responseMessage)
+                            );
+                            console.log(
+                              '[GigiPlugin] Sent response from agent',
+                              agent.id,
+                              'to P2P network via group chat'
+                            );
+                            logger.info(
+                              `Sent response from agent ${agent.id} to P2P network via group chat`
                             );
                           }
-                        },
-
-                        onError: async (_err: any, _info: any) => {
+                        } catch (error) {
                           console.error(
-                            '[GigiPlugin] Reply error for agent:',
-                            agent.id
+                            '[GigiPlugin] Error sending response from agent',
+                            agent.id,
+                            'to P2P network:',
+                            error
                           );
-                          logger.error('Reply error for agent');
-                        },
-
-                        onIdle: async () => {
-                          console.log(
-                            '[GigiPlugin] Reply idle for agent:',
-                            agent.id
+                          logger.error(
+                            `Error sending response from agent ${agent.id} to P2P network`
                           );
-                          logger.debug('Reply idle for agent');
-                        },
+                        }
+                          },
 
-                        onCleanup: async () => {
-                          console.log(
-                            '[GigiPlugin] Reply cleanup for agent:',
-                            agent.id
-                          );
-                          logger.debug('Reply cleanup for agent');
-                        },
-                      });
-                      console.log('[GigiPlugin] Created reply dispatcher');
+                          onError: async (_err: any, _info: any) => {
+                            console.error(
+                              '[GigiPlugin] Reply error for agent:',
+                              agent.id
+                            );
+                            logger.error('Reply error for agent');
+                          },
 
-                      // Dispatch the message to the agent
-                      console.log(
-                        '[GigiPlugin] Dispatching reply from config for agent:',
-                        agent.id
-                      );
-                      await (
-                        runtime as any
-                      ).channel.reply.dispatchReplyFromConfig({
-                        ctx: ctxPayload,
-                        cfg: cfg,
-                        dispatcher,
-                        replyOptions,
-                      });
+                          onIdle: async () => {
+                            console.log(
+                              '[GigiPlugin] Reply idle for agent:',
+                              agent.id
+                            );
+                            logger.debug('Reply idle for agent');
+                          },
 
-                      console.log(
-                        '[GigiPlugin] Message dispatched to OpenClaw agent:',
-                        agent.id
-                      );
-                      logger.debug('Message dispatched to OpenClaw agent');
-                    } catch (agentError) {
-                      console.error(
-                        '[GigiPlugin] Error processing agent',
-                        agent.id,
-                        ':',
-                        agentError
-                      );
-                      logger.error(`Error processing agent ${agent.id}`);
+                          onCleanup: async () => {
+                            console.log(
+                              '[GigiPlugin] Reply cleanup for agent:',
+                              agent.id
+                            );
+                            logger.debug('Reply cleanup for agent');
+                          },
+                        });
+                        console.log('[GigiPlugin] Created reply dispatcher');
+
+                        // Dispatch the message to the agent
+                        console.log(
+                          '[GigiPlugin] Dispatching reply from config for agent:',
+                          agent.id
+                        );
+                        await (
+                          runtime as any
+                        ).channel.reply.dispatchReplyFromConfig({
+                          ctx: ctxPayload,
+                          cfg: cfg,
+                          dispatcher,
+                          replyOptions,
+                        });
+
+                        console.log(
+                          '[GigiPlugin] Message dispatched to OpenClaw agent:',
+                          agent.id
+                        );
+                        logger.debug('Message dispatched to OpenClaw agent');
+                      } catch (agentError) {
+                        console.error(
+                          '[GigiPlugin] Error processing agent',
+                          agent.id,
+                          ':',
+                          agentError
+                        );
+                        logger.error(`Error processing agent ${agent.id}`);
+                      }
                     }
+                  } catch {
+                    console.error(
+                      '[GigiPlugin] Error dispatching message to agents'
+                    );
+                    logger.error('Error dispatching message to agents');
                   }
-                } catch {
-                  console.error(
-                    '[GigiPlugin] Error dispatching message to agents'
+                break;
+              }
+              case 'session-create': {
+                const sessionCreateMessage = gigiMessage as unknown as SessionCreate;
+                console.log('[GigiPlugin] Received session-create message:', sessionCreateMessage.label);
+                logger.info(`Received session-create message: ${sessionCreateMessage.label}`);
+                
+                // Get the global runtime object
+                const runtime = getGigiRuntime();
+                
+                try {
+                  // Create a new session by sending a chat message
+                  // This will implicitly create a session in OpenClaw
+                  const sessionKey = `session-${Date.now()}`;
+                  
+                  // Send the session create response back to the sender
+                  const responseMessage = AmpMessageFactory.createSessionResponse(
+                    {
+                      id: 'main',
+                      name: 'main',
+                      type: 'agent'
+                    },
+                    sessionKey,
+                    sessionCreateMessage.label
                   );
-                  logger.error('Error dispatching message to agents');
+                  
+                  await gatewayContext.client.sendGroupMessage(
+                    'gigi-agents',
+                    JSON.stringify(responseMessage)
+                  );
+                  console.log('[GigiPlugin] Sent session-create response');
+                } catch (error) {
+                  console.error('[GigiPlugin] Error creating session:', error);
+                  // Send error response
+                  const errorResponse = AmpMessageFactory.createSessionResponse(
+                    {
+                      id: 'main',
+                      name: 'main',
+                      type: 'agent'
+                    },
+                    undefined,
+                    undefined,
+                    undefined,
+                    'Failed to create session'
+                  );
+                  await gatewayContext.client.sendGroupMessage(
+                    'gigi-agents',
+                    JSON.stringify(errorResponse)
+                  );
+                }
+                break;
+              }
+              case 'session-list': {
+                const sessionListMessage = gigiMessage as unknown as SessionList;
+                console.log('[GigiPlugin] Received session-list message');
+                logger.info('Received session-list message');
+                
+                // Get the global runtime object
+                const runtime = getGigiRuntime();
+                
+                try {
+                  const sessionsList = await (runtime as any).channel.reply.request('sessions.list', { includeGlobal: sessionListMessage.includeGlobal });
+                  console.log('[GigiPlugin] Sessions list received:', sessionsList);
+                  
+                  // Send the session list back to the sender
+                  const responseMessage = AmpMessageFactory.createSessionResponse(
+                    {
+                      id: 'main',
+                      name: 'main',
+                      type: 'agent'
+                    },
+                    undefined,
+                    undefined,
+                    sessionsList.sessions
+                  );
+                  
+                  await gatewayContext.client.sendGroupMessage(
+                    'gigi-agents',
+                    JSON.stringify(responseMessage)
+                  );
+                  console.log('[GigiPlugin] Sent session-list response');
+                } catch (error) {
+                  console.error('[GigiPlugin] Error fetching sessions list:', error);
+                  // Send error response
+                  const errorResponse = AmpMessageFactory.createSessionResponse(
+                    {
+                      id: 'main',
+                      name: 'main',
+                      type: 'agent'
+                    },
+                    undefined,
+                    undefined,
+                    undefined,
+                    'Failed to fetch sessions list'
+                  );
+                  await gatewayContext.client.sendGroupMessage(
+                    'gigi-agents',
+                    JSON.stringify(errorResponse)
+                  );
                 }
                 break;
               }

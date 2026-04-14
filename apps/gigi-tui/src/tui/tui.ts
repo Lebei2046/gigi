@@ -9,6 +9,8 @@ import type {
   TuiOptions,
   TuiStateAccess,
 } from "./tui-types";
+import { marked } from 'marked';
+import TerminalRenderer from 'marked-terminal';
 
 export function resolveTuiSessionKey(params: {
   raw?: string;
@@ -104,6 +106,12 @@ export function resolveCtrlCAction(params: {
 }
 
 export async function runTui(opts: TuiOptions) {
+  // Configure marked to use TerminalRenderer for markdown support
+  const renderer = new TerminalRenderer();
+  marked.setOptions({
+    renderer: renderer as any
+  });
+
   const initialSessionInput = (opts.session ?? "").trim();
   let sessionScope: SessionScope = "per-sender";
   let sessionMainKey = "main";
@@ -498,7 +506,9 @@ export async function runTui(opts: TuiOptions) {
   const handleChatEvent = (payload: any) => {
     if (payload.type === "message") {
       if (payload.role === "assistant") {
-        console.log(`Assistant: ${payload.content}`);
+        // Render markdown content
+        const renderedContent = marked(payload.content);
+        console.log(`Assistant: ${renderedContent}`);
         setActivityStatus("idle");
         // Only display status after the entire response is shown
         setTimeout(() => {
@@ -507,7 +517,8 @@ export async function runTui(opts: TuiOptions) {
       }
     } else if (payload.content) {
       // Handle direct content responses
-      console.log(`Assistant: ${payload.content}`);
+      const renderedContent = marked(payload.content);
+      console.log(`Assistant: ${renderedContent}`);
       setActivityStatus("idle");
       // Only display status after the entire response is shown
       setTimeout(() => {
@@ -555,10 +566,66 @@ export async function runTui(opts: TuiOptions) {
     switch (cmd) {
       case "session":
         if (args.length > 0) {
-          currentSessionKey = resolveSessionKey(args.join(" "));
-          updateHeader();
-          updateFooter();
-          setActivityStatus(`switched to session ${currentSessionKey}`);
+          if (args[0] === "list") {
+            // List all sessions
+            void (async () => {
+              try {
+                setActivityStatus("loading sessions");
+                displayStatus();
+                await client.listSessions({ includeGlobal: true });
+                // Session list will be displayed via the sessions.list event
+              } catch (error) {
+                console.error(theme.error(`Failed to list sessions: ${String(error)}`));
+                setActivityStatus("idle");
+                displayStatus();
+              }
+            })();
+          } else if (args[0] === "create" && args.length > 1) {
+            // Create a new session
+            void (async () => {
+              try {
+                setActivityStatus("creating session");
+                displayStatus();
+                const sessionKey = await client.createSession(args.slice(1).join(" "));
+                currentSessionKey = sessionKey;
+                updateHeader();
+                updateFooter();
+                setActivityStatus(`created and switched to session ${formatSessionKey(sessionKey)}`);
+                displayStatus();
+              } catch (error) {
+                console.error(theme.error(`Failed to create session: ${String(error)}`));
+                setActivityStatus("idle");
+                displayStatus();
+              }
+            })();
+          } else if (args[0] === "delete" && args.length > 1) {
+            // Delete a session
+            void (async () => {
+              try {
+                setActivityStatus("deleting session");
+                displayStatus();
+                const sessionToDelete = resolveSessionKey(args.slice(1).join(" "));
+                await client.deleteSession(sessionToDelete);
+                if (currentSessionKey === sessionToDelete) {
+                  currentSessionKey = resolveSessionKey();
+                  updateHeader();
+                  updateFooter();
+                }
+                setActivityStatus(`deleted session ${formatSessionKey(sessionToDelete)}`);
+                displayStatus();
+              } catch (error) {
+                console.error(theme.error(`Failed to delete session: ${String(error)}`));
+                setActivityStatus("idle");
+                displayStatus();
+              }
+            })();
+          } else {
+            // Switch to a session
+            currentSessionKey = resolveSessionKey(args.join(" "));
+            updateHeader();
+            updateFooter();
+            setActivityStatus(`switched to session ${currentSessionKey}`);
+          }
         }
         break;
       case "agent":
@@ -576,6 +643,7 @@ export async function runTui(opts: TuiOptions) {
         updateFooter();
         break;
       case "exit":
+      case "quit":
         requestExit();
         break;
       default:
@@ -590,6 +658,19 @@ export async function runTui(opts: TuiOptions) {
       handleBtwEvent(evt.payload);
     } else if (evt.event === "agent") {
       handleAgentEvent(evt.payload);
+    } else if (evt.event === "sessions.list") {
+      // Handle session list events
+      console.log("\nSessions:");
+      const payload = evt.payload as { sessions?: any[] };
+      if (Array.isArray(payload?.sessions)) {
+        payload.sessions.forEach((session: any) => {
+          const key = formatSessionKey(session.key);
+          const name = session.displayName ? ` (${session.displayName})` : "";
+          console.log(`- ${key}${name}`);
+        });
+      }
+      setActivityStatus("idle");
+      displayStatus();
     }
   };
 
@@ -654,13 +735,56 @@ export async function runTui(opts: TuiOptions) {
 
   // Start reading user input
   console.log("\nType messages below (press Enter to send, / for commands):");
+  
+  let inputBuffer = '';
+  let isPasting = false;
+  let pasteTimer: NodeJS.Timeout | null = null;
+  
   process.stdin.on('data', (data) => {
-    const input = data.toString().trim();
-    if (input) {
-      if (input.startsWith("/")) {
-        handleCommand(input);
-      } else {
-        void sendMessage(input);
+    const chunk = data.toString();
+    inputBuffer += chunk;
+    
+    // Detect if this is a paste operation (rapid input)
+    if (!isPasting) {
+      isPasting = true;
+      
+      // Set a timeout to check if more input is coming
+      pasteTimer = setTimeout(() => {
+        isPasting = false;
+        pasteTimer = null;
+        
+        // Process the entire buffer as a single message
+        const input = inputBuffer.trim();
+        inputBuffer = '';
+        
+        if (input) {
+          if (input.startsWith("/")) {
+            handleCommand(input);
+          } else {
+            void sendMessage(input);
+          }
+        }
+      }, 100); // 100ms timeout to detect paste
+    } else {
+      // More input is coming, reset the timer
+      if (pasteTimer) {
+        clearTimeout(pasteTimer);
+        pasteTimer = setTimeout(() => {
+          isPasting = false;
+          pasteTimer = null;
+          
+          // Process the entire buffer as a single message
+          const input = inputBuffer.trim();
+          inputBuffer = '';
+          
+          if (input) {
+            if (input.startsWith("/")) {
+              handleCommand(input);
+            } else {
+              void sendMessage(input);
+            }
+          }
+        }, 100);
       }
     }
   });

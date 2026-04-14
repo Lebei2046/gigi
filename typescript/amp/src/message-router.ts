@@ -5,6 +5,11 @@ import {
   MessageRouter,
   AgentSettingsQuery,
   AgentSettingsResponse,
+  SessionCreate,
+  SessionDelete,
+  SessionSwitch,
+  SessionList,
+  SessionResponse,
 } from './types';
 import { TextMessage, FileMessage } from '@gigi/message-types';
 import { createLogger } from '@gigi/logging';
@@ -62,6 +67,15 @@ export class AmpMessageRouter implements MessageRouter {
         break;
       case 'agent-settings-response':
         this.handleAgentSettingsResponse(message as AgentSettingsResponse);
+        break;
+      case 'session-create':
+      case 'session-delete':
+      case 'session-switch':
+      case 'session-list':
+        this.routeSessionMessage(message);
+        break;
+      case 'session-response':
+        this.handleSessionResponse(message as SessionResponse);
         break;
       default:
         logger.warn(`Unknown message type: ${(message as any).type}`);
@@ -178,6 +192,23 @@ export class AmpMessageRouter implements MessageRouter {
   private handleAgentSettingsResponse(message: AgentSettingsResponse): void {
     // Route response to the owner or original requester
     this.invokeMessageHandler('agent-settings-response', message);
+  }
+
+  private routeSessionMessage(message: any): void {
+    // Route session management messages to specific agents
+    if (message.target.type === 'specific' && message.target.agentIds) {
+      message.target.agentIds.forEach((agentId: string) => {
+        const agent = this.agentRegistry.getAgentById(agentId);
+        if (agent && agent.status === 'online') {
+          this.invokeMessageHandler(message.type, message, agentId);
+        }
+      });
+    }
+  }
+
+  private handleSessionResponse(message: SessionResponse): void {
+    // Route session response to the original requester
+    this.invokeMessageHandler('session-response', message);
   }
 
   private invokeMessageHandler(
@@ -415,6 +446,127 @@ export class AmpMessageFactory {
       sender,
       timestamp: Date.now(),
       id: `response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
+  // Session management message creation methods
+  static createSessionCreate(
+    label: string,
+    target: {
+      type: 'specific';
+      agentIds: string[];
+    },
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
+  ): SessionCreate {
+    return {
+      type: 'session-create',
+      label,
+      target,
+      sender,
+      timestamp: Date.now(),
+      id: `session-create-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
+  static createSessionDelete(
+    sessionKey: string,
+    target: {
+      type: 'specific';
+      agentIds: string[];
+    },
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
+  ): SessionDelete {
+    return {
+      type: 'session-delete',
+      sessionKey,
+      target,
+      sender,
+      timestamp: Date.now(),
+      id: `session-delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
+  static createSessionSwitch(
+    sessionKey: string,
+    target: {
+      type: 'specific';
+      agentIds: string[];
+    },
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
+  ): SessionSwitch {
+    return {
+      type: 'session-switch',
+      sessionKey,
+      target,
+      sender,
+      timestamp: Date.now(),
+      id: `session-switch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
+  static createSessionList(
+    includeGlobal: boolean,
+    target: {
+      type: 'specific';
+      agentIds: string[];
+    },
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    }
+  ): SessionList {
+    return {
+      type: 'session-list',
+      includeGlobal,
+      target,
+      sender,
+      timestamp: Date.now(),
+      id: `session-list-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+  }
+
+  static createSessionResponse(
+    sender: {
+      id: string;
+      name: string;
+      type: 'owner' | 'agent' | 'node';
+      nodeId?: string;
+    },
+    sessionKey?: string,
+    label?: string,
+    sessions?: Array<{
+      key: string;
+      displayName?: string;
+      updatedAt?: number;
+    }>,
+    error?: string
+  ): SessionResponse {
+    return {
+      type: 'session-response',
+      sessionKey,
+      label,
+      sessions,
+      error,
+      sender,
+      timestamp: Date.now(),
+      id: `session-response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 }

@@ -13,13 +13,16 @@
     "test": "vitest"
   },
   "dependencies": {
-    "commander": "^12.0.0",
+    "@gigi/amp": "workspace:^1.0.0",
+    "@gigi/logging": "workspace:^1.0.0",
     "@gigi/p2p": "workspace:^1.0.0",
     "@gigi/request-response": "workspace:^1.0.0",
-    "@gigi/logging": "workspace:^1.0.0",
-    "@gigi/amp": "workspace:^1.0.0"
+    "commander": "^12.0.0",
+    "marked": "^12.0.0",
+    "marked-terminal": "^6.0.0"
   },
   "devDependencies": {
+    "@types/marked-terminal": "^6.1.1",
     "@types/node": "^20.0.0",
     "eslint": "^9.0.0",
     "prettier": "^3.0.0",
