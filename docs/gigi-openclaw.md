@@ -4,7 +4,7 @@ The Gigi OpenClaw Plugin integrates the Gigi P2P network with OpenClaw, enabling
 
 ## Overview
 
-The Gigi OpenClaw Plugin acts as a bridge between the OpenClaw interface and the Gigi P2P network, allowing users to send messages, join groups, and share files through a familiar interface without directly interacting with the underlying P2P stack.
+The Gigi OpenClaw Plugin acts as a bridge between the OpenClaw interface and the Gigi P2P network, allowing users to send messages, join groups, and share files through a familiar interface without directly interacting with the underlying P2P stack. The plugin leverages the Agent Messaging Protocol (AMP) for standardized message formatting and routing.
 
 ### Key Features
 
@@ -16,6 +16,9 @@ The Gigi OpenClaw Plugin acts as a bridge between the OpenClaw interface and the
 - **Status Monitoring**: Health checks and connection status
 - **Message Queuing**: Reliable message delivery with retries
 - **Mnemonic Support**: BIP-39 mnemonic for consistent peer ID derivation
+- **Agent Messaging Protocol**: Standardized message format for agent communication
+- **Gateway Architecture**: Per-account gateway instances for isolation
+- **Security Policies**: Configurable DM and group policies
 
 ## Installation
 
@@ -29,7 +32,7 @@ The Gigi OpenClaw Plugin acts as a bridge between the OpenClaw interface and the
 
 1. **Clone the Gigi repository**:
    ```bash
-   git clone https://github.com/gigi-project/gigi.git
+   git clone https://github.com/Lebei2046/gigi.git
    cd gigi
    ```
 
@@ -58,15 +61,21 @@ The Gigi OpenClaw Plugin can be configured through the OpenClaw configuration sy
 ```json
 {
   "channels": {
-    "gigi-p2p-bundled": {
-      "peerId": "12D3KooW...",
+    "gigi-openclaw": {
+      "mnemonic": "abandon amount liar amount expire adjust cage candy arch gather drum buyer",
       "multiaddrs": [
         "/ip4/0.0.0.0/tcp/0",
         "/ip4/0.0.0.0/tcp/0/ws"
       ],
-      "mnemonic": "abandon amount liar amount expire adjust cage candy arch gather drum buyer",
       "displayName": "My Gigi Node",
-      "enabled": true
+      "nickname": "My Gigi Node",
+      "enabled": true,
+      "config": {
+        "dmPolicy": "open",
+        "allowFrom": ["*"],
+        "groupPolicy": "open",
+        "agents": {}
+      }
     }
   }
 }
@@ -76,15 +85,20 @@ The Gigi OpenClaw Plugin can be configured through the OpenClaw configuration sy
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `peerId` | Unique identifier for your node | Generated from mnemonic |
-| `multiaddrs` | List of addresses to listen on | `["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"]` |
-| `displayName` | Human-readable name for your node | `"My Gigi Node"` |
-| `mnemonic` | BIP-39 mnemonic phrase for key derivation | Optional, but recommended |
-| `bootstrapPeers` | List of bootstrap nodes to connect to | `[]` |
-| `enableMdns` | Enable mDNS for local peer discovery | `true` |
-| `enableDht` | Enable Kademlia DHT for peer discovery | `true` |
-| `enableRelay` | Enable circuit relay for NAT traversal | `true` |
+| `mnemonic` | BIP-39 mnemonic for identity | Generated during setup |
+| `multiaddrs` | Network addresses to listen on | `["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"]` |
+| `displayName` | Human-readable display name | `"My Gigi Node"` |
+| `nickname` | Network nickname | Same as displayName |
+| `bootstrapPeers` | Bootstrap nodes for network discovery | `[]` |
+| `enableMdns` | Enable mDNS for local discovery | `true` |
+| `enableDht` | Enable Kademlia DHT | `true` |
+| `enableRelay` | Enable circuit relay | `true` |
 | `enabled` | Whether the channel is enabled | `true` |
+| `config.allowFrom` | List of allowed peer IDs | `[]` |
+| `config.dmPolicy` | Direct message policy (open/pairing) | `"open"` |
+| `config.groupPolicy` | Group message policy (open/allowlist) | `"open"` |
+| `config.groupAllowFrom` | List of allowed groups | `[]` |
+| `config.agents` | Agent configurations | `{}` |
 
 ### Generating a Mnemonic
 
@@ -106,37 +120,37 @@ The Gigi OpenClaw Plugin provides a command-line interface through OpenClaw:
 #### Add Gigi Channel
 
 ```bash
-openclaw channels add gigi-p2p-bundled --name "My Gigi Node"
+openclaw channels add gigi-openclaw --name "My Gigi Node"
 ```
 
 #### Start Gigi Channel
 
 ```bash
-openclaw channels start gigi-p2p-bundled
+openclaw channels start gigi-openclaw
 ```
 
 #### Stop Gigi Channel
 
 ```bash
-openclaw channels stop gigi-p2p-bundled
+openclaw channels stop gigi-openclaw
 ```
 
 #### Send Direct Message
 
 ```bash
-openclaw message send --channel gigi-p2p-bundled --target <peerId> --message "Hello!"
+openclaw message send --channel gigi-openclaw --target <peerId> --message "Hello!"
 ```
 
 #### Send Group Message
 
 ```bash
-openclaw message send --channel gigi-p2p-bundled --target "test-group" --message "Hello everyone!"
+openclaw message send --channel gigi-openclaw --target "group:test-group" --message "Hello everyone!"
 ```
 
 #### Check Status
 
 ```bash
-openclaw channels status gigi-p2p-bundled
+openclaw channels status gigi-openclaw
 ```
 
 ### Programmatic Usage
@@ -144,14 +158,18 @@ openclaw channels status gigi-p2p-bundled
 You can also use the Gigi OpenClaw Plugin programmatically in your own applications:
 
 ```typescript
-import { GigiClient } from "gigi-p2p-bundled";
+import { GigiClient } from "gigi-openclaw";
 
 // Create a Gigi client
 const client = new GigiClient({
-  peerId: "12D3KooW...",
   multiaddrs: ["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/tcp/0/ws"],
+  displayName: "My Gigi Node",
+  nickname: "My Gigi Node",
   mnemonic: "your mnemonic here",
-  displayName: "My Gigi Node"
+  bootstrapPeers: [],
+  enableMdns: true,
+  enableDht: true,
+  enableRelay: true
 });
 
 // Start the client
@@ -195,23 +213,44 @@ The Gigi OpenClaw Plugin consists of several key components:
 4. **Account Management** (`src/accounts.ts`): Handles account configuration and validation
 5. **Status Monitoring** (`src/probe.ts`): Provides health checks and status information
 6. **Type Definitions** (`src/types.ts`): TypeScript interfaces and types
+7. **Configuration Schema** (`src/config-schema.ts`): Configuration validation schema
+
+### Gateway Architecture
+
+The plugin uses a gateway architecture where each account has its own gateway instance:
+
+```mermaid
+flowchart TD
+    A[OpenClaw Core] -->|Message| B[Gigi Channel Plugin]
+    B -->|Start Gateway| C[Gateway Context]
+    C -->|Create| D[GigiClient]
+    C -->|Create| E[OutboundManager]
+    D -->|P2P Communication| F[Gigi Network]
+    E -->|Queue Messages| D
+    F -->|Incoming Message| D
+    D -->|Process| G[Message Handler]
+    G -->|Dispatch| H[OpenClaw Agents]
+```
 
 ### Data Flow
 
 1. **Message Creation**: User creates a message in OpenClaw
-2. **Message Processing**: Plugin processes and validates the message
-3. **P2P Delivery**: Message is sent through the P2P network
-4. **Message Reception**: Plugin receives message from P2P network
-5. **Auto-download**: File share messages trigger automatic file downloads
-6. **Message Delivery**: Message is delivered to OpenClaw
+2. **Gateway Check**: Plugin checks if gateway is active and connected
+3. **Message Formatting**: Message is formatted as AMP message
+4. **P2P Delivery**: Message is sent through the P2P network via OutboundManager
+5. **Message Reception**: Plugin receives message from P2P network
+6. **Message Processing**: Message is parsed and converted to AMP format
+7. **Agent Routing**: Message is routed to appropriate OpenClaw agents
+8. **Message Delivery**: Message is delivered to OpenClaw
 
 ### File Sharing Flow
 
 1. **Sharing**: User shares a file via `shareFile()`
 2. **Share Code**: A unique share code is generated
-3. **Announcement**: Share code is sent to peers via message
-4. **Auto-download**: Recipients automatically download the file
-5. **Storage**: Files are saved to `./downloads` directory
+3. **Message Creation**: File share message is created with share code
+4. **P2P Delivery**: Message is sent to peers
+5. **Auto-download**: Recipients automatically download the file
+6. **Storage**: Files are saved to appropriate directory
 
 ## Security
 

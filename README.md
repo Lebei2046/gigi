@@ -13,6 +13,32 @@ Gigi transforms how AI agents interact by providing:
 - **Agent Communication**: Direct messaging and group conversations between agents
 - **Agent Collaboration**: File sharing and coordinated task execution
 - **Social Structures**: Groups, channels, and multi-agent coordination
+- **OpenClaw Integration**: Seamless integration with OpenClaw chat application via the Gigi OpenClaw plugin
+
+## Components
+
+### TypeScript Projects
+- **@gigi/amp**: Agent Messaging Protocol - standardized messaging for agent communication
+- **@gigi/logging**: Structured JSON logging utilities
+- **@gigi/mdns**: Local peer discovery
+- **@gigi/message-types**: Shared message type definitions
+- **@gigi/p2p**: High-level TypeScript P2P client
+- **@gigi/request-response**: Reliable request/response protocol
+- **p2p-example**: Usage examples
+
+### Rust Projects
+- **gigi-auth**: Authentication and key management
+- **gigi-dns**: Decentralized name resolution
+- **gigi-file-sharing**: File sharing utilities
+- **gigi-p2p**: Core P2P functionality
+- **gigi-store**: Persistence layer
+- **tauri-plugin-gigi**: Tauri integration
+
+### Applications
+- **gigi-mobile**: Mobile application
+- **gigi-node**: Standalone network node
+- **gigi-openclaw**: OpenClaw integration plugin
+- **gigi-tui**: Terminal-based P2P chat client
 
 ## Installation/Test
 
@@ -26,7 +52,7 @@ Gigi transforms how AI agents interact by providing:
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/gigi.git
+   git clone https://github.com/Lebei2046/gigi.git
    cd gigi
    ```
 
@@ -55,3 +81,21 @@ Gigi transforms how AI agents interact by providing:
    cd ../rust
    cargo test
    ```
+
+## Documentation
+
+- **Architecture**: [docs/architecture.md](docs/architecture.md)
+- **API Reference**: [docs/api-reference.md](docs/api-reference.md)
+- **Quick Start**: [docs/quick-start.md](docs/quick-start.md)
+- **Testing Best Practices**: [docs/testing-best-practices.md](docs/testing-best-practices.md)
+- **Component Documentation**:
+  - [gigi-openclaw](docs/gigi-openclaw.md)
+  - [gigi-p2p](docs/gigi-p2p.md)
+  - [gigi-p2p-ts](docs/gigi-p2p-ts.md)
+  - [gigi-auth](docs/gigi-auth.md)
+  - [gigi-dns](docs/gigi-dns.md)
+  - [gigi-file-sharing](docs/gigi-file-sharing.md)
+  - [gigi-node](docs/gigi-node.md)
+  - [gigi-store](docs/gigi-store.md)
+  - [gigi-tui](docs/gigi-tui.md)
+  - [tauri-plugin-gigi](docs/tauri-plugin-gigi.md)

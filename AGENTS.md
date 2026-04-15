@@ -6,30 +6,32 @@ This document serves as a comprehensive guideline for the Gigi P2P ecosystem, de
 
 ### Ecosystem Overview
 
-The Gigi P2P ecosystem is a decentralized network of components designed to enable secure, direct communication between peers without relying on centralized servers. It is built on top of Libp2p, a modular network stack for peer-to-peer applications.
+The Gigi P2P ecosystem is a decentralized network of components designed to enable secure, direct communication between peers without relying on centralized servers. It is built on top of Libp2p, a modular network stack for peer-to-peer applications. The ecosystem facilitates communication between AI agents, enabling them to form social structures and collaborate seamlessly.
 
 ### Projects Index
 
 #### TypeScript Projects
-- **@gigi/amp**: AMP (Agent Messaging Protocol) implementation
-- **@gigi/logging**: Logging utilities using Pino
-- **@gigi/mdns**: mDNS functionality for local peer discovery
-- **@gigi/p2p**: High-level TypeScript client for P2P communication
-- **@gigi/request-response**: Request-response protocol implementation
-- **p2p-example**: Example usage of the Gigi P2P client
+- **@gigi/amp**: AMP (Agent Messaging Protocol) implementation - standardized messaging protocol for agent communication
+- **@gigi/logging**: Logging utilities using Pino - structured JSON logging
+- **@gigi/mdns**: mDNS functionality for local peer discovery - finds peers on the same network
+- **@gigi/message-types**: Shared message type definitions - common message structures
+- **@gigi/p2p**: High-level TypeScript client for P2P communication - main client library
+- **@gigi/request-response**: Request-response protocol implementation - reliable request/response pattern
+- **p2p-example**: Example usage of the Gigi P2P client - demonstration code
 
 #### Rust Projects
-- **gigi-auth**: Authentication and key management
-- **gigi-dns**: Decentralized name resolution
-- **gigi-file-sharing**: File sharing utilities
-- **gigi-p2p**: Core P2P functionality with high performance
-- **gigi-store**: Persistence layer for data storage
-- **tauri-plugin-gigi**: Integration with Tauri desktop/mobile apps
+- **gigi-auth**: Authentication and key management - secure identity handling
+- **gigi-dns**: Decentralized name resolution - peer discovery and naming
+- **gigi-file-sharing**: File sharing utilities - efficient file transfer
+- **gigi-p2p**: Core P2P functionality with high performance - low-level networking
+- **gigi-store**: Persistence layer for data storage - local data management
+- **tauri-plugin-gigi**: Integration with Tauri desktop/mobile apps - cross-platform support
 
 #### Applications
-- **gigi-mobile**: Mobile application for Gigi P2P network
-- **gigi-node**: Standalone network node for bootstrap/relay
-- **gigi-openclaw**: Integration plugin for OpenClaw chat application
+- **gigi-mobile**: Mobile application for Gigi P2P network - mobile client
+- **gigi-node**: Standalone network node for bootstrap/relay - network infrastructure
+- **gigi-openclaw**: Integration plugin for OpenClaw chat application - P2P channel for OpenClaw
+- **gigi-tui**: Terminal-based P2P chat client - command-line interface for agent communication
 
 ## 2. Project Structure Rules
 
@@ -215,3 +217,16 @@ For detailed API documentation for all components, see [docs/api-reference.md](d
 ### Examples
 
 For practical examples of how to use the Gigi P2P ecosystem, see [docs/examples.md](docs/examples.md).
+
+### Component Documentation
+
+- [gigi-auth](docs/gigi-auth.md)
+- [gigi-dns](docs/gigi-dns.md)
+- [gigi-file-sharing](docs/gigi-file-sharing.md)
+- [gigi-node](docs/gigi-node.md)
+- [gigi-openclaw](docs/gigi-openclaw.md)
+- [gigi-p2p](docs/gigi-p2p.md)
+- [gigi-p2p-ts](docs/gigi-p2p-ts.md)
+- [gigi-store](docs/gigi-store.md)
+- [gigi-tui](docs/gigi-tui.md)
+- [tauri-plugin-gigi](docs/tauri-plugin-gigi.md)
