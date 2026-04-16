@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "apps/gigi-dioxus",
   "apps/gigi-mobile/src-tauri",
   "apps/gigi-node",
   "rust/gigi-auth",
@@ -8,7 +9,7 @@ members = [
   "rust/gigi-dns",
   "rust/gigi-file-sharing",
   "rust/gigi-store",
-  "rust/tauri-plugin-gigi",
+  "rust/tauri-plugin-gigi", 
 ]
 [workspace.package]
 version = "0.0.1"
@@ -63,7 +64,6 @@ gigi-p2p = { version = "0.0.1", path = "./rust/gigi-p2p" }
 gigi-file-sharing = { version = "0.1.0", path = "./rust/gigi-file-sharing" }
 gigi-store = { version = "0.0.1", path = "./rust/gigi-store" }
 gigi-auth = { version = "0.0.1", path = "./rust/gigi-auth" }
-
 
 [profile.release]
 lto = true

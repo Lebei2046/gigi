@@ -2,15 +2,15 @@ use anyhow::Result;
 use clap::Parser;
 use futures::StreamExt;
 use libp2p::{
-    gossipsub, identity, kad, relay, identify, ping,
+    gossipsub, identify, identity, kad, ping, relay,
     swarm::{NetworkBehaviour, SwarmEvent},
-    PeerId, Swarm, Transport, Multiaddr,
+    Multiaddr, PeerId, Swarm, Transport,
 };
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::io::AsyncBufReadExt;
-use tracing::{info, warn, debug};
-use std::collections::HashMap;
+use tracing::{debug, info, warn};
 
 #[derive(NetworkBehaviour)]
 struct ClientBehaviour {
@@ -51,13 +51,23 @@ struct Args {
     #[arg(long, help = "Your display name in the chat")]
     username: String,
 
-    #[arg(long, default_value = "0", help = "Port to listen on (0 for auto-assign)")]
+    #[arg(
+        long,
+        default_value = "0",
+        help = "Port to listen on (0 for auto-assign)"
+    )]
     port: u16,
 
-    #[arg(long, help = "Bootstrap node address (e.g., /ip4/host.docker.internal/tcp/4001/p2p/Qm...)")]
+    #[arg(
+        long,
+        help = "Bootstrap node address (e.g., /ip4/host.docker.internal/tcp/4001/p2p/Qm...)"
+    )]
     bootstrap: Option<String>,
 
-    #[arg(long, help = "Relay node address (e.g., /ip4/host.docker.internal/tcp/4002/p2p/Qm...)")]
+    #[arg(
+        long,
+        help = "Relay node address (e.g., /ip4/host.docker.internal/tcp/4002/p2p/Qm...)"
+    )]
     relay: Option<String>,
 }
 
@@ -71,12 +81,15 @@ async fn main() -> Result<()> {
         .init();
 
     let args = Args::parse();
-    
+
     let username = &args.username;
     let listen_port = args.port;
     let bootstrap_addr = args.bootstrap.as_deref().unwrap_or("");
-    
-    info!("Username: {}, Listen port: {}, Bootstrap: {}", username, listen_port, bootstrap_addr);
+
+    info!(
+        "Username: {}, Listen port: {}, Bootstrap: {}",
+        username, listen_port, bootstrap_addr
+    );
 
     let key = identity::Keypair::generate_ed25519();
     let peer_id = PeerId::from(key.public());
@@ -145,16 +158,26 @@ async fn main() -> Result<()> {
         if let Some((bootstrap_peer_id, bootstrap_base_addr)) = parse_peer_addr(bootstrap_addr) {
             // Extract the base address from the bootstrap_addr (remove /p2p/peer_id)
             let base_addr = bootstrap_base_addr.to_string();
-            info!("Bootstrap peer: {} at base address {}", bootstrap_peer_id, base_addr);
-            
+            info!(
+                "Bootstrap peer: {} at base address {}",
+                bootstrap_peer_id, base_addr
+            );
+
             // Add bootstrap to explicit peers for GossipSub
-            swarm.behaviour_mut().gossipsub.add_explicit_peer(&bootstrap_peer_id);
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .add_explicit_peer(&bootstrap_peer_id);
             info!("Added bootstrap as explicit peer for GossipSub");
-            
+
             // Add to Kademlia and dial
-            swarm.behaviour_mut().kademlia.add_address(&bootstrap_peer_id, base_addr.parse()?);
-            
-            let full_addr: libp2p::Multiaddr = format!("{}/p2p/{}", base_addr, bootstrap_peer_id).parse()?;
+            swarm
+                .behaviour_mut()
+                .kademlia
+                .add_address(&bootstrap_peer_id, base_addr.parse()?);
+
+            let full_addr: libp2p::Multiaddr =
+                format!("{}/p2p/{}", base_addr, bootstrap_peer_id).parse()?;
             match swarm.dial(full_addr.clone()) {
                 Ok(_) => {
                     info!("Dialed bootstrap at {}", full_addr);
@@ -163,7 +186,7 @@ async fn main() -> Result<()> {
                     warn!("Failed to dial {}: {}", full_addr, e);
                 }
             }
-            
+
             match swarm.behaviour_mut().kademlia.bootstrap() {
                 Ok(_) => info!("DHT bootstrap initiated"),
                 Err(e) => warn!("DHT bootstrap failed: {:?}", e),
@@ -175,13 +198,20 @@ async fn main() -> Result<()> {
     if let Some(relay_addr) = &args.relay {
         if let Some((relay_peer_id, relay_base_addr)) = parse_peer_addr(relay_addr) {
             let base_addr = relay_base_addr.to_string();
-            info!("Relay peer: {} at base address {}", relay_peer_id, base_addr);
-            
+            info!(
+                "Relay peer: {} at base address {}",
+                relay_peer_id, base_addr
+            );
+
             // Add relay to explicit peers for GossipSub
-            swarm.behaviour_mut().gossipsub.add_explicit_peer(&relay_peer_id);
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .add_explicit_peer(&relay_peer_id);
             info!("Added relay as explicit peer for GossipSub");
-            
-            let full_relay_addr: libp2p::Multiaddr = format!("{}/p2p/{}", base_addr, relay_peer_id).parse()?;
+
+            let full_relay_addr: libp2p::Multiaddr =
+                format!("{}/p2p/{}", base_addr, relay_peer_id).parse()?;
             match swarm.dial(full_relay_addr.clone()) {
                 Ok(_) => {
                     info!("Dialed relay at {}", full_relay_addr);
@@ -205,12 +235,12 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         let stdin = tokio::io::stdin();
         let mut reader = tokio::io::BufReader::new(stdin).lines();
-        
+
         println!("\n=== Group Chat Started ===");
         println!("You are: {}", username_clone);
         println!("Type your messages and press Enter to send.");
         println!("==========================\n");
-        
+
         while let Ok(Some(line)) = reader.next_line().await {
             if !line.trim().is_empty() {
                 let _ = tx_clone.send(line).await;
@@ -219,7 +249,7 @@ async fn main() -> Result<()> {
     });
 
     info!("Starting chat loop for {}...", username);
-    
+
     loop {
         tokio::select! {
             Some(msg) = msg_tx.recv() => {
@@ -234,14 +264,14 @@ async fn main() -> Result<()> {
                     stats.lock().unwrap().messages_sent += 1;
                 }
             }
-            
+
             event = swarm.select_next_some() => {
                 match event {
                     SwarmEvent::Behaviour(ClientBehaviourEvent::Gossipsub(
                         gossipsub::Event::Message { message, .. }
                     )) => {
                         let text = String::from_utf8_lossy(&message.data);
-                        
+
                         if !text.starts_with(&format!("{}:", username)) {
                             let mut s = stats.lock().unwrap();
                             s.messages_received += 1;
