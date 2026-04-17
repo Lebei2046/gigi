@@ -149,19 +149,39 @@ pub fn SignupProvider(children: Element) -> Element {
     });
 
     let save_account_info = use_callback(move |_| {
-        // In a real implementation, this would call the authSignup function
-        // For now, we'll just simulate a successful response
         let current_state = state.read();
-        let _mnemonic_str = current_state.mnemonic.join(" ");
+        let mnemonic_str = current_state.mnemonic.join(" ");
+        let password = current_state.password.clone();
+        let name = current_state.name.clone();
+        let create_group = current_state.create_group;
+        let group_name = if create_group {
+            Some(current_state.group_name.clone())
+        } else {
+            None
+        };
+        let dispatch_clone = dispatch.clone();
 
-        // Simulate API call
-        // let account_info = auth_signup(mnemonic_str, current_state.password, current_state.name, current_state.create_group.then(|| current_state.group_name.clone())).await;
-
-        // Update state with mock data
-        dispatch.call(SignupAction::SetAddress(
-            "0x1234567890123456789012345678901234567890".to_string(),
-        ));
-        dispatch.call(SignupAction::SetPeerId("Qmabcdef1234567890".to_string()));
+        spawn(async move {
+            match crate::services::auth_service::AuthService::new().await {
+                Ok(mut auth_service) => {
+                    match auth_service
+                        .create_account(&mnemonic_str, &password, &name, group_name.as_deref())
+                        .await
+                    {
+                        Ok(account_info) => {
+                            dispatch_clone.call(SignupAction::SetAddress(account_info.address));
+                            dispatch_clone.call(SignupAction::SetPeerId(account_info.peer_id));
+                        }
+                        Err(err) => {
+                            println!("Error creating account: {:?}", err);
+                        }
+                    }
+                }
+                Err(err) => {
+                    println!("Error creating auth service: {:?}", err);
+                }
+            }
+        });
     });
 
     let save_group_info = use_callback(move |_| {

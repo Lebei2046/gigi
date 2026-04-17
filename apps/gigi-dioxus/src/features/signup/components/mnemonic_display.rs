@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 
 use crate::features::signup::components::agree_to_continue::AgreeToContinue;
 use crate::features::signup::context::use_signup_context;
+use crate::services::auth_service::AuthService;
 
 #[component]
 pub fn MnemonicDisplay() -> Element {
@@ -9,24 +10,38 @@ pub fn MnemonicDisplay() -> Element {
 
     let context = use_signup_context();
     let state = context.state.read();
+    let dispatch = context.dispatch.clone();
 
-    // Generate a mock mnemonic phrase for demonstration
-    // In a real implementation, this would call the authGenerateMnemonic function
-    let mnemonic = state.mnemonic.clone();
+    let mut loading = use_signal(|| true);
+    let mut mnemonic = use_signal::<Vec<String>>(|| vec![String::new(); 12]);
 
-    // If mnemonic is empty, generate a mock one
-    let display_mnemonic = if mnemonic.iter().all(|word| word.is_empty()) {
-        vec![
-            "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract",
-            "absurd", "abuse", "access", "accident",
-        ]
-        .iter()
-        .map(|&s| s.to_string())
-        .collect()
-    } else {
-        mnemonic
-    };
+    // Generate mnemonic when component mounts
+    use_effect(move || {
+        spawn(async move {
+            match AuthService::new().await {
+                Ok(auth_service) => match auth_service.generate_mnemonic().await {
+                    Ok(generated_mnemonic) => {
+                        let mnemonic_vec: Vec<String> = generated_mnemonic;
+                        mnemonic.set(mnemonic_vec.clone());
+                        dispatch.call(crate::features::signup::context::SignupAction::SetMnemonic(
+                            mnemonic_vec,
+                        ));
+                        loading.set(false);
+                    }
+                    Err(err) => {
+                        println!("Error generating mnemonic: {:?}", err);
+                        loading.set(false);
+                    }
+                },
+                Err(err) => {
+                    println!("Error creating auth service: {:?}", err);
+                    loading.set(false);
+                }
+            }
+        });
+    });
 
+    let display_mnemonic = mnemonic.read();
     let display_mnemonic_clone = display_mnemonic.clone();
     let handle_copy = move |_| {
         let mnemonic_string = display_mnemonic_clone.join(" ");
@@ -34,6 +49,14 @@ pub fn MnemonicDisplay() -> Element {
         // For now, we'll just log it
         println!("Copied to clipboard: {}", mnemonic_string);
     };
+
+    if *loading.read() {
+        return rsx! {
+            div { class: "flex justify-center items-center h-64",
+                div { class: "text-gray-500", "Generating seed phrase..." }
+            }
+        };
+    }
 
     rsx! {
         div { class: "space-y-6",

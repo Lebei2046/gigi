@@ -65,6 +65,8 @@ use ed25519_compact::KeyPair;
 use hex;
 use keccak_hash::keccak;
 use libp2p::{identity, PeerId};
+use rand::rngs::OsRng;
+use rand::RngCore;
 use secp256k1::{PublicKey, Secp256k1};
 
 /// Derive peer_id (Ed25519) from mnemonic using BIP-32 path m/44'/60'/2'/0/0
@@ -424,6 +426,48 @@ pub fn derive_peer_private_key(mnemonic: &str) -> Result<String> {
 
     // Return 32-byte private key as hex (for libp2p's ed25519_from_bytes)
     Ok(hex::encode(seed_array))
+}
+
+/// Generate a random BIP-39 mnemonic phrase
+///
+/// This function generates a cryptographically secure BIP-39 mnemonic phrase
+/// with the specified number of words.
+///
+/// # Arguments
+///
+/// * `word_count` - Number of words in the mnemonic phrase (12, 18, or 24)
+///
+/// # Returns
+///
+/// Returns `Ok(Vec<String>)` containing the mnemonic words.
+///
+/// # Example
+///
+/// ```no_run
+/// use gigi_auth::key_derivation::generate_mnemonic;
+///
+/// let mnemonic_words = generate_mnemonic(12).unwrap();
+/// println!("Mnemonic: {}", mnemonic_words.join(" "));
+/// ```
+pub fn generate_mnemonic(word_count: usize) -> Result<Vec<String>> {
+    // Determine entropy size based on word count
+    let entropy_size = match word_count {
+        12 => 16, // 128 bits
+        18 => 24, // 192 bits
+        24 => 32, // 256 bits
+        _ => return Err(anyhow::anyhow!("Invalid word count. Must be 12, 18, or 24")),
+    };
+
+    // Generate cryptographically secure entropy
+    let mut entropy = vec![0u8; entropy_size];
+    OsRng.fill_bytes(&mut entropy);
+
+    // Create mnemonic from entropy
+    let mnemonic = Mnemonic::from_entropy(&entropy)?;
+    let phrase = mnemonic.to_string();
+    let words: Vec<String> = phrase.split_whitespace().map(|s| s.to_string()).collect();
+
+    Ok(words)
 }
 
 #[cfg(test)]

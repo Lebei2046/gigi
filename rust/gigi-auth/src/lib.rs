@@ -79,5 +79,5 @@ pub mod settings_manager;
 
 pub use auth_manager::{AccountInfo, AuthManager, LoginResult};
 pub use encryption::{EncryptedAccountData, EncryptionError};
-pub use key_derivation::{derive_evm_address, derive_group_id, derive_peer_id};
+pub use key_derivation::{derive_evm_address, derive_group_id, derive_peer_id, generate_mnemonic};
 pub use settings_manager::SettingsManager;

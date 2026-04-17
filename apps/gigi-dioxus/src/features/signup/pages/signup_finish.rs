@@ -1,11 +1,11 @@
-use dioxus::prelude::*;
-
 use crate::features::signup::context::use_signup_context;
+use dioxus::prelude::*;
 
 #[component]
 pub fn SignupFinish() -> Element {
     let context = use_signup_context();
     let state = context.state.read();
+    let navigator = use_navigator();
 
     rsx! {
         div { class: "text-center space-y-6",
@@ -33,8 +33,12 @@ pub fn SignupFinish() -> Element {
                     }
                 }
             }
-            button { class: "mt-6 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-xl transition-colors duration-200",
-                "Get Started"
+            button {
+                class: "mt-6 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-xl transition-colors duration-200",
+                onclick: move |_| {
+                    navigator.push("/unlock");
+                },
+                "Login"
             }
         }
     }

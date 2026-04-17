@@ -7,18 +7,29 @@ pub fn StepNavigation() -> Element {
     let context = use_signup_context();
     let state = context.state.read();
     let dispatch = context.dispatch;
+    let save_account_info = context.save_account_info;
 
-    // Check if current step is completed
+    const FINISH_STEP: usize = 4;
+
     let is_current_step_completed = state.steps[state.current_step];
+    let is_on_last_step = state.current_step == FINISH_STEP - 1;
 
-    // Handle next button click
     let handle_next = move |_| {
         if is_current_step_completed {
-            dispatch.call(SignupAction::GoToNextStep);
+            if is_on_last_step {
+                // Save account info first, then navigate
+                save_account_info.call(());
+                // Wait a bit to ensure account info is saved before navigating
+                spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                    dispatch.call(SignupAction::GoToNextStep);
+                });
+            } else {
+                dispatch.call(SignupAction::GoToNextStep);
+            }
         }
     };
 
-    // Handle back button click
     let handle_back = move |_| {
         dispatch.call(SignupAction::GoToPrevStep);
     };
@@ -41,7 +52,11 @@ pub fn StepNavigation() -> Element {
                 ),
                 onclick: handle_next,
                 disabled: !is_current_step_completed,
-                "Next →"
+                if is_on_last_step {
+                    "Complete ✓"
+                } else {
+                    "Next →"
+                }
             }
         }
     }

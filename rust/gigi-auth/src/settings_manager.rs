@@ -47,7 +47,8 @@
 //! ```
 
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, NotSet, QueryFilter, Set,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, NotSet,
+    QueryFilter, Set, Statement,
 };
 use tracing::{debug, info};
 
@@ -291,5 +292,91 @@ impl SettingsManager {
             .await?;
 
         Ok(result.is_some())
+    }
+
+    /// Create the groups table if it doesn't exist
+    ///
+    /// The groups table stores group information with the following schema:
+    /// - group_id: Primary key (String)
+    /// - name: Group display name (String)
+    /// - joined: Whether the user has joined this group (bool)
+    /// - created_at: Timestamp in milliseconds (i64)
+    ///
+    /// This should be called during account creation to ensure the table exists.
+    pub async fn create_groups_table(&self) -> Result<(), DbErr> {
+        debug!("Creating groups table if it doesn't exist");
+
+        let create_table_sql = r#"
+            CREATE TABLE IF NOT EXISTS groups (
+                group_id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                joined INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL
+            )
+        "#;
+
+        self.db
+            .execute(Statement::from_string(
+                self.db.get_database_backend(),
+                create_table_sql.to_string(),
+            ))
+            .await?;
+
+        info!("Groups table ready");
+        Ok(())
+    }
+
+    /// Insert or update a group in the groups table
+    ///
+    /// # Arguments
+    ///
+    /// * `group_id` - The unique group identifier
+    /// * `name` - The group display name
+    /// * `joined` - Whether the user has joined this group
+    pub async fn upsert_group(
+        &self,
+        group_id: &str,
+        name: &str,
+        joined: bool,
+    ) -> Result<(), DbErr> {
+        debug!("Upserting group: {}", group_id);
+
+        let now = chrono::Utc::now().timestamp_millis();
+        let joined_int = if joined { 1 } else { 0 };
+
+        let insert_sql = format!(
+            r#"INSERT INTO groups (group_id, name, joined, created_at) VALUES ('{}', '{}', {}, {})"#,
+            group_id, name, joined_int, now
+        );
+
+        self.db
+            .execute(Statement::from_string(
+                self.db.get_database_backend(),
+                insert_sql,
+            ))
+            .await?;
+
+        info!("Group '{}' upserted successfully", group_id);
+        Ok(())
+    }
+
+    /// Clear all groups from the groups table
+    ///
+    /// This method deletes all records from the groups table. It's called
+    /// during account deletion to ensure clean state.
+    pub async fn clear_groups(&self) -> Result<(), DbErr> {
+        debug!("Clearing all groups");
+
+        let delete_sql = "DELETE FROM groups";
+
+        self.db
+            .execute(Statement::from_string(
+                self.db.get_database_backend(),
+                delete_sql.to_string(),
+            ))
+            .await?;
+
+        info!("Groups table cleared");
+        Ok(())
     }
 }

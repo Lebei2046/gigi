@@ -111,7 +111,6 @@ use crate::key_derivation;
 pub struct AccountInfo {
     pub address: String,
     pub peer_id: String,
-    pub group_id: String,
     pub name: String,
 }
 
@@ -283,28 +282,25 @@ impl AuthManager {
         mnemonic: &str,
         password: &str,
         name: Option<String>,
+        group_name: Option<String>,
     ) -> Result<AccountInfo> {
         info!("Creating new account");
 
-        // Check if account already exists
         if self.has_account().await? {
             return Err(anyhow::anyhow!("Account already exists"));
         }
 
-        // Derive keys from mnemonic
         let peer_id = key_derivation::derive_peer_id(mnemonic)?;
         let group_id = key_derivation::derive_group_id(mnemonic)?;
         let address = key_derivation::derive_evm_address(mnemonic)?;
 
-        // Store name if provided, otherwise use default
         let name = name.unwrap_or_else(|| "User".to_string());
+        let group_name = group_name.unwrap_or_else(|| "Default Group".to_string());
 
-        // Encrypt mnemonic with password
         let encrypted_data = crate::encryption::encrypt_mnemonic(
             mnemonic, password, &peer_id, &group_id, &address, &name,
         )?;
 
-        // Store encrypted account data (contains all account info)
         self.settings_manager
             .set(
                 crate::settings_manager::GIGI_KEY,
@@ -314,12 +310,16 @@ impl AuthManager {
             .await
             .context("Failed to store encrypted mnemonic")?;
 
+        self.settings_manager.create_groups_table().await?;
+        self.settings_manager
+            .upsert_group(&group_id, &group_name, false)
+            .await?;
+
         info!("Account created successfully for peer_id: {}", peer_id);
 
         Ok(AccountInfo {
             address,
             peer_id,
-            group_id,
             name,
         })
     }
@@ -411,8 +411,7 @@ impl AuthManager {
             return Err(anyhow::anyhow!("Invalid password"));
         }
 
-        // Derive group_id and private keys
-        let group_id = key_derivation::derive_group_id(&mnemonic)?;
+        // Derive private key
         let address = encrypted_data.address.clone();
         let private_key = key_derivation::derive_peer_private_key(&mnemonic)?;
 
@@ -422,7 +421,6 @@ impl AuthManager {
             account_info: AccountInfo {
                 address,
                 peer_id: derived_peer_id,
-                group_id,
                 name: encrypted_data.name,
             },
             private_key,
@@ -481,7 +479,6 @@ impl AuthManager {
         Ok(Some(AccountInfo {
             address: encrypted_data.address,
             peer_id: encrypted_data.peer_id,
-            group_id: encrypted_data.group_id,
             name: encrypted_data.name,
         }))
     }
@@ -614,10 +611,16 @@ impl AuthManager {
     pub async fn delete_account(&self) -> Result<()> {
         info!("Deleting account");
 
+        // Delete account data
         self.settings_manager
             .delete(crate::settings_manager::GIGI_KEY)
             .await
             .context("Failed to delete encrypted mnemonic")?;
+
+        // Clear groups table
+        if let Err(e) = self.settings_manager.clear_groups().await {
+            warn!("Failed to clear groups table: {:?}", e);
+        }
 
         info!("Account deleted successfully");
         Ok(())
