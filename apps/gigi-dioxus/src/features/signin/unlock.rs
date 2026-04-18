@@ -51,11 +51,6 @@ pub fn Unlock() -> Element {
         });
     };
 
-    let handle_submit = move |e: Event<FormData>| {
-        e.prevent_default();
-        handle_unlock(());
-    };
-
     rsx! {
         div { class: "min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-50 px-4",
             div { class: "w-full max-w-md",
@@ -65,18 +60,23 @@ pub fn Unlock() -> Element {
                 }
 
                 div { class: "bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-6",
-                    form { onsubmit: handle_submit, class: "space-y-4",
+                    div { class: "space-y-4",
                         div { class: "space-y-2",
                             label { class: "text-sm font-medium text-gray-700", "Password" }
                             input {
                                 id: "password",
                                 r#type: "password",
                                 placeholder: "Enter your password",
-                                oninput: move |event: Event<FormData>| {
-                                    let value = event.value().clone();
+                                oninput: move |event| {
+                                    let value = event.value();
                                     password.set(value.clone());
                                     if error.read().is_some() {
                                         error.set(None);
+                                    }
+                                },
+                                onkeydown: move |e: KeyboardEvent| {
+                                    if e.key() == Key::Enter {
+                                        handle_unlock(());
                                     }
                                 },
                                 disabled: *is_loading.read(),
@@ -90,9 +90,13 @@ pub fn Unlock() -> Element {
                         }
 
                         button {
-                            r#type: "submit",
+                            r#type: "button",
                             disabled: *is_loading.read() || password().is_empty(),
                             class: "w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all duration-200",
+                            onclick: move |e: MouseEvent| {
+                                e.prevent_default();
+                                handle_unlock(());
+                            },
                             {
                                 if *is_loading.read() {
                                     rsx! {
