@@ -16,6 +16,9 @@ futures-channel = "0.3.32"
 futures-util = "0.3.32"
 gigi-auth = { path = "../../rust/gigi-auth" }
 gigi-store = { path = "../../rust/gigi-store" }
+gigi-p2p = { path = "../../rust/gigi-p2p" }
+gigi-dns = { path = "../../rust/gigi-dns" }
+hex = "0.4"
 sea-orm = { version = "1.1.19", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros"] }
 tokio = { version = "1", features = ["full"] }
 

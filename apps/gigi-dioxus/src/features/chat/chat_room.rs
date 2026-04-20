@@ -30,7 +30,7 @@ pub fn ChatRoom(id: String) -> Element {
     };
 
     let go_back = move |_| {
-        navigator.push("/chat");
+        navigator.push("/");
     };
 
     rsx! {

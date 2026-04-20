@@ -1,6 +1,7 @@
 use dirs;
 use gigi_auth::{generate_mnemonic, AccountInfo, AuthManager, LoginResult};
 use sea_orm::{ConnectionTrait, Database, Statement};
+use std::env;
 use std::path::PathBuf;
 
 pub struct AuthService {
@@ -9,10 +10,16 @@ pub struct AuthService {
 
 impl AuthService {
     pub async fn new() -> anyhow::Result<Self> {
-        let db_path = dirs::data_local_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("gigi-dioxus")
-            .join("gigi.db");
+        let data_dir = env::var("GIGI_DATA_DIR")
+            .unwrap_or_else(|_| {
+                dirs::data_local_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join("gigi-dioxus")
+                    .to_string_lossy()
+                    .to_string()
+            });
+        
+        let db_path = PathBuf::from(data_dir).join("gigi.db");
 
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)?;

@@ -3,6 +3,7 @@ use dioxus_router::{use_navigator, Link};
 
 use crate::services::auth_context::{AccountInfo, AuthContext};
 use crate::services::auth_service::AuthService;
+use crate::services::p2p_service::P2pService;
 
 #[component]
 pub fn Unlock() -> Element {
@@ -19,15 +20,22 @@ pub fn Unlock() -> Element {
         spawn(async move {
             match AuthService::new().await {
                 Ok(mut auth_service) => match auth_service.login(&password_clone).await {
-                    Ok(_) => {
+                    Ok(login_result) => {
                         match auth_service.get_account_info().await {
                             Ok(Some(info)) => {
+                                let name = info.name.clone();
                                 let account_info = AccountInfo {
                                     name: info.name,
                                     peer_id: info.peer_id,
                                     address: info.address,
                                 };
                                 AuthContext::set_authenticated(account_info);
+                                
+                                // Initialize P2P network
+                                if let Err(err) = P2pService::initialize(&login_result.private_key, &name).await {
+                                    println!("Failed to initialize P2P network: {:?}", err);
+                                }
+                                
                                 navigator.push("/");
                             }
                             _ => {

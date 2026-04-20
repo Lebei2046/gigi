@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use crate::services::p2p_service::P2pService;
 
 // Types for chat data
 #[derive(Debug, Clone, PartialEq)]
@@ -202,4 +203,39 @@ pub fn use_chat_state() -> Signal<ChatState> {
 
 pub fn use_chat_room_state() -> Signal<ChatRoomState> {
     use_signal(ChatRoomState::default)
+}
+
+// Helper functions for chat operations
+pub async fn send_message(to_nickname: &str, message: &str) {
+    if let Err(err) = P2pService::send_message(to_nickname, message).await {
+        println!("Failed to send message: {:?}", err);
+    }
+}
+
+pub async fn send_group_message(group_name: &str, message: &str) {
+    if let Err(err) = P2pService::send_group_message(group_name, message).await {
+        println!("Failed to send group message: {:?}", err);
+    }
+}
+
+pub async fn join_group(group_name: &str) {
+    if let Err(err) = P2pService::join_group(group_name).await {
+        println!("Failed to join group: {:?}", err);
+    }
+}
+
+pub async fn leave_group(group_name: &str) {
+    if let Err(err) = P2pService::leave_group(group_name).await {
+        println!("Failed to leave group: {:?}", err);
+    }
+}
+
+pub fn list_peers() -> Vec<String> {
+    match P2pService::list_peers() {
+        Ok(peers) => peers,
+        Err(err) => {
+            println!("Failed to list peers: {:?}", err);
+            vec![]
+        }
+    }
 }

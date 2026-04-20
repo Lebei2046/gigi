@@ -8,8 +8,6 @@ mod services;
 enum Route {
     #[route("/")]
     Home {},
-    #[route("/chat")]
-    Chat {},
     #[route("/chat/:id")]
     ChatRoom { id: String },
     #[route("/signup")]

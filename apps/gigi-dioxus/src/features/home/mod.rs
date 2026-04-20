@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use dioxus_router::use_route;
 
 fn get_tab_class(is_active: bool) -> &'static str {
     if is_active {
@@ -11,6 +12,7 @@ fn get_tab_class(is_active: bool) -> &'static str {
 #[component]
 pub fn Home() -> Element {
     let mut active_tab = use_signal(|| "chat".to_string());
+    let route = use_route::<crate::Route>();
 
     let chat_class = get_tab_class(active_tab() == "chat");
     let me_class = get_tab_class(active_tab() == "me");
@@ -18,7 +20,10 @@ pub fn Home() -> Element {
     rsx! {
         div { class: "flex flex-col w-full h-screen bg-gray-50",
             div { class: "flex-grow w-full overflow-hidden",
-                if active_tab() == "chat" {
+                // Check if we're in a chat room route
+                if let crate::Route::ChatRoom { id } = route {
+                    crate::features::chat::chat_room::ChatRoom { id: id.clone() }
+                } else if active_tab() == "chat" {
                     crate::features::chat::Chat {}
                 } else {
                     crate::features::me::Me {}

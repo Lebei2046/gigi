@@ -20,23 +20,28 @@ pub fn Chat() -> Element {
     use_chat_data_refresh();
     
     // Get action handlers
-    let (handle_peer_click,) = use_peer_actions();
     let (handle_share_group, handle_accept_group_share, handle_ignore_group_share, handle_clear_messages) = use_group_actions();
 
     let handle_group_click = move |group_id: String| {
         navigator.push(format!("/chat/{}", group_id));
     };
 
+    let handle_peer_click = move |peer_id: String| {
+        navigator.push(format!("/chat/{}", peer_id));
+    };
+
     // Create group chat cards
     let group_cards = chat_state.read().groups.clone().into_iter().map(|group| {
         let share_group = handle_share_group.clone();
         let clear_messages = handle_clear_messages.clone();
+        let group_id = group.id.clone();
+        let group_click = handle_group_click.clone();
         rsx! {
             GroupChatCard {
                 key: "{group.id}",
                 group: group.clone(),
                 conversation: chat_state.read().conversations.clone().into_iter().find(|c| c.group_id == Some(group.id.clone())),
-                on_click: move |id| handle_group_click(id),
+                on_click: move |_| group_click(group_id.clone()),
                 on_share: move |id| share_group(id),
                 on_clear: move |id| clear_messages(id),
             }
@@ -45,14 +50,15 @@ pub fn Chat() -> Element {
 
     // Create peer chat cards
     let peer_cards = chat_state.read().peers.clone().into_iter().map(|peer| {
-        let peer_click = handle_peer_click.clone();
+        let peer_id = peer.id.clone();
         let clear_messages = handle_clear_messages.clone();
+        let peer_click = handle_peer_click.clone();
         rsx! {
             PeerChatCard {
                 key: "{peer.id}",
                 peer: peer.clone(),
                 conversation: chat_state.read().conversations.clone().into_iter().find(|c| c.peer_id == Some(peer.id.clone())),
-                on_click: move |id| peer_click(id),
+                on_click: move |_| peer_click(peer_id.clone()),
                 on_clear: move |id| clear_messages(id),
             }
         }

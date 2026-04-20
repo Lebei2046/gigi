@@ -86,13 +86,14 @@ pub fn use_chat_data_refresh() {
 }
 
 // Hook for peer actions
-pub fn use_peer_actions() -> (Arc<dyn Fn(String) + Send + Sync>,) {
+pub fn use_peer_actions() -> (impl Fn(String),) {
     let chat_state = use_chat_state();
+    let navigator = dioxus_router::use_navigator();
 
-    let handle_peer_click = Arc::new(move |peer_id: String| {
-        // In a real app, this would navigate to the chat room for the peer
-        println!("Peer clicked: {}", peer_id);
-    });
+    let handle_peer_click = move |peer_id: String| {
+        // Navigate to the chat room for the peer
+        navigator.push(format!("/chat/{}", peer_id));
+    };
 
     (handle_peer_click,)
 }
@@ -150,6 +151,19 @@ pub fn use_message_actions() -> (
             };
             chat_room_state.write().messages.push(new_msg.clone());
             chat_room_state.write().new_message = "".to_string();
+            
+            // Send message via P2P
+            if let Some(chat_name) = chat_room_state.read().chat_name.clone() {
+                let message_content = new_msg.content.clone();
+                let is_group_chat = chat_room_state.read().is_group_chat;
+                spawn(async move {
+                    if is_group_chat {
+                        crate::features::chat::chat_state::send_group_message(&chat_name, &message_content).await;
+                    } else {
+                        crate::features::chat::chat_state::send_message(&chat_name, &message_content).await;
+                    }
+                });
+            }
             
             // Save message to persistence
             if let Some(chat_id) = chat_room_state.read().chat_id.clone() {
