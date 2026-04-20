@@ -8,6 +8,10 @@ mod services;
 enum Route {
     #[route("/")]
     Home {},
+    #[route("/chat")]
+    Chat {},
+    #[route("/chat/:id")]
+    ChatRoom { id: String },
     #[route("/signup")]
     Signup {},
     #[route("/unlock")]
@@ -70,6 +74,22 @@ pub fn Home() -> Element {
         rsx! {
             features::home::Home {}
         }
+    }
+}
+
+/// Chat page
+#[component]
+pub fn Chat() -> Element {
+    rsx! {
+        features::chat::Chat {}
+    }
+}
+
+/// Chat Room page
+#[component]
+pub fn ChatRoom(id: String) -> Element {
+    rsx! {
+        features::chat::chat_room::ChatRoom { id: id }
     }
 }
 

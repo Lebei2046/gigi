@@ -24,27 +24,27 @@ pub fn Me() -> Element {
     let default_name = get_default_name(info);
     let default_peer_id = get_default_peer_id(info);
 
-    let contact_list_class = if active_tab() == "contacts" {
-        "flex-1 flex flex-col items-center justify-center py-2 text-blue-600 transition-colors duration-200"
+    let contacts_class = if active_tab() == "contacts" {
+        "flex-1 py-2 px-4 rounded-md text-center text-sm font-medium transition-colors duration-200 bg-white text-blue-600"
     } else {
-        "flex-1 flex flex-col items-center justify-center py-2 text-gray-500 hover:text-gray-400 transition-colors duration-200"
+        "flex-1 py-2 px-4 rounded-md text-center text-sm font-medium transition-colors duration-200 text-white hover:bg-white/30"
     };
 
     let qr_code_class = if active_tab() == "qr-code" {
-        "flex-1 flex flex-col items-center justify-center py-2 text-blue-600 transition-colors duration-200"
+        "flex-1 py-2 px-4 rounded-md text-center text-sm font-medium transition-colors duration-200 bg-white text-blue-600"
     } else {
-        "flex-1 flex flex-col items-center justify-center py-2 text-gray-500 hover:text-gray-400 transition-colors duration-200"
+        "flex-1 py-2 px-4 rounded-md text-center text-sm font-medium transition-colors duration-200 text-white hover:bg-white/30"
     };
 
     let settings_class = if active_tab() == "settings" {
-        "flex-1 flex flex-col items-center justify-center py-2 text-blue-600 transition-colors duration-200"
+        "flex-1 py-2 px-4 rounded-md text-center text-sm font-medium transition-colors duration-200 bg-white text-blue-600"
     } else {
-        "flex-1 flex flex-col items-center justify-center py-2 text-gray-500 hover:text-gray-400 transition-colors duration-200"
+        "flex-1 py-2 px-4 rounded-md text-center text-sm font-medium transition-colors duration-200 text-white hover:bg-white/30"
     };
 
     rsx! {
         div { class: "flex flex-col h-full bg-gray-50",
-            div { class: "bg-gradient-to-br from-blue-600 to-purple-700 p-6 pb-8",
+            div { class: "bg-gradient-to-br from-blue-600 to-purple-700 p-6",
                 div { class: "flex items-center space-x-4",
                     div { class: "w-16 h-16 bg-white/20 rounded-full flex items-center justify-center",
                         svg {
@@ -73,6 +73,24 @@ pub fn Me() -> Element {
                         }
                     }
                 }
+
+                div { class: "mt-6 flex bg-white/20 rounded-lg p-1",
+                    button {
+                        class: "{contacts_class}",
+                        onclick: move |_| active_tab.set("contacts".to_string()),
+                        "Contacts"
+                    }
+                    button {
+                        class: "{qr_code_class}",
+                        onclick: move |_| active_tab.set("qr-code".to_string()),
+                        "QR Code"
+                    }
+                    button {
+                        class: "{settings_class}",
+                        onclick: move |_| active_tab.set("settings".to_string()),
+                        "Settings"
+                    }
+                }
             }
 
             div { class: "flex-1 bg-white rounded-t-3xl -mt-4 relative overflow-y-auto",
@@ -80,18 +98,18 @@ pub fn Me() -> Element {
                     div { class: "w-12 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-4" }
 
                     if active_tab() == "contacts" {
-                        div { class: "h-[calc(100vh-250px)]",
+                        div { class: "h-full",
                             contact_list::ContactList {}
                         }
                     } else if active_tab() == "qr-code" {
-                        div { class: "h-[calc(100vh-250px)]",
+                        div { class: "h-full",
                             qr_code::QRCodeTab {
                                 name: default_name.clone(),
                                 peer_id: default_peer_id.clone(),
                             }
                         }
                     } else if active_tab() == "settings" {
-                        div { class: "p-6 h-[calc(100vh-250px)]",
+                        div { class: "p-6 h-full",
                             div { class: "bg-gray-50 rounded-xl p-6 text-center",
                                 div { class: "w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4",
                                     svg {
@@ -118,70 +136,6 @@ pub fn Me() -> Element {
                                     "Settings and preferences will be available in the next update."
                                 }
                             }
-                        }
-                    }
-                }
-
-                div { class: "fixed inset-x-0 bottom-16 h-14 bg-white border-t border-gray-200 shadow-lg",
-                    div { class: "flex h-full",
-                        button {
-                            class: "{contact_list_class}",
-                            onclick: move |_| active_tab.set("contacts".to_string()),
-                            svg {
-                                class: "w-5 h-5 mb-1",
-                                fill: "none",
-                                stroke: "currentColor",
-                                view_box: "0 0 24 24",
-                                path {
-                                    stroke_linecap: "round",
-                                    stroke_linejoin: "round",
-                                    stroke_width: "2",
-                                    d: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                                }
-                            }
-                            span { class: "text-xs font-medium", "Contacts" }
-                        }
-
-                        button {
-                            class: "{qr_code_class}",
-                            onclick: move |_| active_tab.set("qr-code".to_string()),
-                            svg {
-                                class: "w-5 h-5 mb-1",
-                                fill: "none",
-                                stroke: "currentColor",
-                                view_box: "0 0 24 24",
-                                path {
-                                    stroke_linecap: "round",
-                                    stroke_linejoin: "round",
-                                    stroke_width: "2",
-                                    d: "M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                                }
-                            }
-                            span { class: "text-xs font-medium", "QR Code" }
-                        }
-
-                        button {
-                            class: "{settings_class}",
-                            onclick: move |_| active_tab.set("settings".to_string()),
-                            svg {
-                                class: "w-5 h-5 mb-1",
-                                fill: "none",
-                                stroke: "currentColor",
-                                view_box: "0 0 24 24",
-                                path {
-                                    stroke_linecap: "round",
-                                    stroke_linejoin: "round",
-                                    stroke_width: "2",
-                                    d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                                }
-                                path {
-                                    stroke_linecap: "round",
-                                    stroke_linejoin: "round",
-                                    stroke_width: "2",
-                                    d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                }
-                            }
-                            span { class: "text-xs font-medium", "Settings" }
                         }
                     }
                 }
