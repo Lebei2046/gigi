@@ -50,7 +50,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, NotSet,
     QueryFilter, Set, Statement,
 };
-use tracing::{debug, info};
+use gigi_logging::{debug, info};
 
 use crate::entities::settings;
 

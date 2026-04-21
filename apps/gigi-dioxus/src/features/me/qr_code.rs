@@ -76,7 +76,7 @@ pub fn QRCodeTab(props: QRCodeTabProps) -> Element {
                     button {
                         class: "w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors duration-200 flex items-center justify-center gap-2",
                         onclick: move |_| {
-                            tracing::info!("Scan QR Code clicked - scanner not implemented");
+                            gigi_logging::info!("Scan QR Code clicked - scanner not implemented yet");
                         },
                         svg {
                             class: "w-5 h-5",

@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use gigi_logging::info;
 
 /// Shared file information stored in gigi-store
 #[derive(Debug, Clone, Serialize, Deserialize)]

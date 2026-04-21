@@ -132,12 +132,12 @@ pub use types::{FileInfo, FilePath, SharedFile};
 
 use anyhow::Result;
 use blake3::Hasher;
+use gigi_logging::{info, error, instrument};
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
-use tracing::info;
 use url::Url;
 
 use gigi_store::FileSharingStore;
@@ -764,7 +764,7 @@ impl FileSharingManager {
             let store_clone = Arc::clone(store);
             tokio::task::spawn(async move {
                 if let Err(e) = store_clone.store_shared_file(&info).await {
-                    tracing::error!("Failed to save shared file to store: {}", e);
+                    error!("Failed to save shared file to store: {}", e);
                 }
             });
         }

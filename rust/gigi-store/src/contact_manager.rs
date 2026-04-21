@@ -5,7 +5,7 @@ use sea_orm::{
     PaginatorTrait, QueryFilter, Set,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use gigi_logging::{debug, info};
 
 use crate::entities::contacts;
 

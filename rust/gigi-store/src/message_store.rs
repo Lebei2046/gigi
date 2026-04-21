@@ -38,12 +38,12 @@ use crate::events::StoredMessage;
 use crate::PersistenceConfig;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use gigi_logging::{debug, error, info, instrument};
 use sea_orm::prelude::Expr;
 use sea_orm::*;
 use sea_orm_migration::MigratorTrait;
 use std::fs;
 use std::path::PathBuf;
-use tracing::{debug, error, info};
 
 /// Message store - manages persistent message storage
 ///

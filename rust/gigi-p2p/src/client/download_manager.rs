@@ -218,7 +218,7 @@ impl DownloadManager {
             .collect();
 
         for download_id in downloads_to_remove {
-            tracing::debug!("Removing old download: {}", download_id);
+            gigi_logging::debug!("Removing old download: {}", download_id);
             self.active_downloads.remove(&download_id);
             self.download_share_codes.remove(&download_id);
             self.downloading_files.remove(&download_id);

@@ -25,7 +25,7 @@
 
 use anyhow::Result;
 use libp2p::{swarm::SwarmEvent, PeerId};
-use tracing::info;
+use gigi_logging::info;
 
 use super::P2pClient;
 use crate::behaviour::UnifiedEvent;
@@ -110,7 +110,7 @@ impl<'a> SwarmEventHandler<'a> {
                     self.client
                         .connection_recovery
                         .peer_disconnected(peer_id, address);
-                    tracing::info!("Peer {} disconnected, will attempt reconnection", peer_id);
+                    info!("Peer {} disconnected, will attempt reconnection", peer_id);
                 }
 
                 // Notify sync manager if persistence is enabled (simplified - no async for now)
@@ -118,7 +118,7 @@ impl<'a> SwarmEventHandler<'a> {
                     // TODO: Implement proper async offline notification
                 }
 
-                tracing::debug!("Connection to {} closed: {:?}", peer_id, cause);
+                gigi_logging::debug!("Connection to {} closed: {:?}", peer_id, cause);
             }
             _ => {}
         }

@@ -14,7 +14,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-tracing = { workspace = true }
+gigi-logging = { path = "../gigi-logging" }
 url = "2.5"
 gigi-store = { path = "../gigi-store" }
 

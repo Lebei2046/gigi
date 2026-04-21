@@ -156,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("");
             }
             event => {
-                tracing::debug!("Unhandled event: {:?}", event);
+                gigi_logging::debug!("Unhandled event: {:?}", event);
             }
         }
     }

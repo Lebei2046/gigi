@@ -3,20 +3,11 @@
 use anyhow::Result;
 use futures::channel::mpsc;
 use gigi_dns::GigiDnsConfig;
-use libp2p::{
-    identity::Keypair,
-    kad,
-    multiaddr::Multiaddr,
-    relay,
-    request_response::{self, ProtocolSupport},
-    swarm::SwarmEvent,
-    PeerId, StreamProtocol,
-};
-
+use gigi_logging::{error, info, instrument, warn};
+use libp2p::{identity::Keypair, kad, multiaddr::Multiaddr, relay, request_response::{self, ProtocolSupport}, swarm::SwarmEvent, PeerId, StreamProtocol};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, info, instrument, warn};
 
 use super::{
     connection_recovery::ConnectionRecovery, download_manager::DownloadManager,
@@ -700,12 +691,125 @@ impl P2pClient {
 
         match peer_id {
             Some(peer_id) => {
-                // Peer is online, send immediately
-                self.swarm
-                    .behaviour_mut()
-                    .direct_msg
-                    .send_request(&peer_id, DirectMessage::Text { message });
-                Ok(())
+                // Check if peer is actually connected
+                if let Some(peer) = self.peer_manager.get_peer(&peer_id) {
+                    if peer.connected {
+                        // Peer is online, send immediately
+                        info!("Sending direct message to {} ({})", nickname, peer_id);
+                        let request_id = self.swarm
+                            .behaviour_mut()
+                            .direct_msg
+                            .send_request(&peer_id, DirectMessage::Text { message });
+                        info!("Sent direct message request with ID: {:?}", request_id);
+                        Ok(())
+                    } else {
+                        // Peer is not connected, store message for later delivery
+                        if let Some(message_store) = &self.message_store {
+                            use chrono::Utc;
+                            use gigi_store::MessageContent;
+                            use gigi_store::MessageDirection;
+
+                            // Create stored message
+                            let message_id = uuid::Uuid::new_v4().to_string();
+                            let stored_msg = gigi_store::StoredMessage {
+                                id: message_id.clone(),
+                                msg_type: gigi_store::MessageType::Direct,
+                                direction: MessageDirection::Sent,
+                                content: MessageContent::Text {
+                                    text: message.clone(),
+                                },
+                                sender_nickname: self.local_nickname.clone(),
+                                recipient_nickname: Some(nickname.to_string()),
+                                group_name: None,
+                                peer_id: peer_id.to_string(), // Store peer_id since we have it
+                                timestamp: Utc::now(),
+                                created_at: Utc::now(),
+
+                                delivered: false,
+                                delivered_at: None,
+
+                                read: false,
+                                read_at: None,
+
+                                sync_status: gigi_store::SyncStatus::Pending,
+                                sync_attempts: 0,
+                                last_sync_attempt: None,
+
+                                expires_at: Utc::now() + chrono::Duration::days(7), // Expire after 7 days
+                            };
+
+                            // Store message and add to offline queue
+                            let msg_clone = message_store.clone();
+                            tokio::task::block_in_place(|| {
+                                tokio::runtime::Handle::current().block_on(async {
+                                    msg_clone.store_message(stored_msg).await?;
+                                    msg_clone
+                                        .enqueue_offline(message_id, nickname.to_string())
+                                        .await?;
+                                    Ok::<(), anyhow::Error>(())
+                                })
+                            })?;
+                        }
+
+                        Err(anyhow::anyhow!(
+                            "Peer '{}' is not online. Message saved for later delivery.",
+                            nickname
+                        ))
+                    }
+                } else {
+                    // Peer not found, store message for later delivery
+                    if let Some(message_store) = &self.message_store {
+                        use chrono::Utc;
+                        use gigi_store::MessageContent;
+                        use gigi_store::MessageDirection;
+
+                        // Create stored message
+                        let message_id = uuid::Uuid::new_v4().to_string();
+                        let stored_msg = gigi_store::StoredMessage {
+                            id: message_id.clone(),
+                            msg_type: gigi_store::MessageType::Direct,
+                            direction: MessageDirection::Sent,
+                            content: MessageContent::Text {
+                                text: message.clone(),
+                            },
+                            sender_nickname: self.local_nickname.clone(),
+                            recipient_nickname: Some(nickname.to_string()),
+                            group_name: None,
+                            peer_id: peer_id.to_string(), // Store peer_id since we have it
+                            timestamp: Utc::now(),
+                            created_at: Utc::now(),
+
+                            delivered: false,
+                            delivered_at: None,
+
+                            read: false,
+                            read_at: None,
+
+                            sync_status: gigi_store::SyncStatus::Pending,
+                            sync_attempts: 0,
+                            last_sync_attempt: None,
+
+                            expires_at: Utc::now() + chrono::Duration::days(7), // Expire after 7 days
+                        };
+
+                        // Store message and add to offline queue
+                        let msg_clone = message_store.clone();
+                        tokio::task::block_in_place(|| {
+                            tokio::runtime::Handle::current().block_on(async {
+                                msg_clone.store_message(stored_msg).await?;
+                                msg_clone
+                                    .enqueue_offline(message_id, nickname.to_string())
+                                    .await?;
+                                Ok::<(), anyhow::Error>(())
+                            })
+                        })?;
+                    }
+
+                    Err(anyhow::anyhow!(
+                        "Peer '{}' is not online. Message saved for later delivery.",
+                        nickname
+                    ))
+                }
             }
             None => {
                 // Peer is offline, store message for later delivery

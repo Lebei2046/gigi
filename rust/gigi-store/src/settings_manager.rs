@@ -4,7 +4,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
     TransactionTrait,
 };
-use tracing::{debug, info};
+use gigi_logging::{debug, info};
 
 use crate::entities::settings;
 

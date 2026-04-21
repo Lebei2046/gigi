@@ -23,6 +23,9 @@ const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
+    // Initialize logging
+    crate::services::logging::initialize();
+
     // Initialize event bus
     crate::services::event_bus::EventBus::init();
 
@@ -30,7 +33,7 @@ fn main() {
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         if let Err(e) = crate::services::persistence_service::PersistenceService::initialize().await
         {
-            eprintln!("Failed to initialize persistence service: {:?}", e);
+            crate::services::logging::error(format!("Failed to initialize persistence service: {:?}", e));
         }
     });
 

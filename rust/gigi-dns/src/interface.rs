@@ -19,6 +19,7 @@
 
 use crate::protocol::GigiDnsProtocol;
 use crate::types::*;
+use gigi_logging::error;
 use if_watch::IfEvent;
 use std::collections::VecDeque;
 use std::net::{IpAddr, SocketAddr};
@@ -161,7 +162,7 @@ impl InterfaceTask {
                                 let _ = packet_tx.send(InterfacePacket::Received(packet, src));
                             }
                             Err(e) => {
-                                tracing::error!("Interface {} recv error: {}", interface_ip, e);
+                                error!("Interface {} recv error: {}", interface_ip, e);
                             }
                         }
                     }
@@ -171,7 +172,7 @@ impl InterfaceTask {
 
                             }
                             Err(e) => {
-                                tracing::error!("Interface {} send error: {}", interface_ip, e);
+                                error!("Interface {} send error: {}", interface_ip, e);
                             }
                         }
                     }
@@ -583,7 +584,7 @@ pub fn handle_if_event(
             Some((addr, false)) // false = down
         }
         Err(e) => {
-            tracing::error!("if-watch error: {}", e);
+            error!("if-watch error: {}", e);
             None
         }
     }

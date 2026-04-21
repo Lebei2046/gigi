@@ -20,7 +20,7 @@ use anyhow::Result;
 use futures::channel::mpsc;
 use libp2p::{gossipsub::IdentTopic, PeerId, Swarm};
 use std::collections::HashMap;
-use tracing::{debug, info, instrument, warn};
+use gigi_logging::{debug, info, instrument, warn};
 
 use crate::behaviour::UnifiedBehaviour;
 use crate::error::P2pError;

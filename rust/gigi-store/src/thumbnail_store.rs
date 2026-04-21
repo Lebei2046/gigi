@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, NotSet, QueryFilter, Set,
 };
-use tracing::info;
+use gigi_logging::info;
 
 /// Thumbnail store - handles mapping of file paths to thumbnail paths
 pub struct ThumbnailStore {

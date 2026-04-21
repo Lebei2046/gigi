@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info};
+use gigi_logging::{debug, error, info};
 
 /// Sync state for a peer
 #[derive(Debug, Clone)]

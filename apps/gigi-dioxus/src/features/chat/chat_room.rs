@@ -4,20 +4,21 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::features::chat::components::{ChatRoomHeader, ChatRoomInput, MessageList};
-use crate::features::chat::hooks::{use_chat_room_initialization, use_message_actions};
+use crate::features::chat::hooks::{use_chat_initialization, use_chat_room_initialization, use_message_actions};
 
 // Chat Room Component
 #[component]
 pub fn ChatRoom(id: String) -> Element {
     let navigator = use_navigator();
-    let mut chat_room_state = use_chat_room_initialization(id);
+    let chat_state = use_chat_initialization();
+    let mut chat_room_state = use_chat_room_initialization(id, chat_state);
     let (
         mut handle_send_message,
         handle_image_select,
         handle_file_select,
         handle_file_download_request,
         _handle_share_file,
-    ) = use_message_actions();
+    ) = use_message_actions(chat_room_state.clone());
 
     // Create a shared reference to the send message closure
     let send_message = Rc::new(RefCell::new(handle_send_message));
@@ -27,8 +28,8 @@ pub fn ChatRoom(id: String) -> Element {
         chat_room_state.write().new_message = value;
     };
 
-    let handle_key_down = move |e: Event<KeyboardData>| {
-        if e.data.key() == Key::Enter {
+    let handle_key_down = move |e: KeyboardEvent| {
+        if e.key() == Key::Enter {
             e.prevent_default();
             let mut send_msg = send_message_clone.borrow_mut();
             send_msg();

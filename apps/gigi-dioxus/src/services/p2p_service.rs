@@ -9,9 +9,10 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing;
+use gigi_logging::tracing;
 
 static P2P_CLIENT: Lazy<Arc<Mutex<Option<P2pClient>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
+static LOCAL_NICKNAME: Lazy<Arc<Mutex<Option<String>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
 pub struct P2pService;
 
@@ -36,11 +37,9 @@ impl P2pService {
             std::fs::create_dir_all(parent)?;
         }
 
-        // Create P2P config with bootstrap nodes
+        // Create P2P config without bootstrap nodes (use mDNS for local discovery)
         let p2p_config = P2pConfig {
-            bootstrap_nodes: vec![
-                "/ip4/127.0.0.1/tcp/3000/p2p/12D3KooWJf7PzDq9J5vV78QyQ3X6q2n8X4Y7Z9W8U7V6T5R4E3W2Q1A".to_string(),
-            ],
+            bootstrap_nodes: vec![],
             ..Default::default()
         };
 
@@ -51,8 +50,9 @@ impl P2pService {
         // Start listening
         client.start_listening("/ip4/0.0.0.0/tcp/0".parse()?)?;
 
-        // Store client
+        // Store client and local nickname
         *P2P_CLIENT.lock().await = Some(client);
+        *LOCAL_NICKNAME.lock().await = Some(nickname.to_string());
 
         // Spawn task to handle swarm events
         // This is essential for GigiDnsBehaviour to poll interfaces for peer discovery
@@ -62,7 +62,7 @@ impl P2pService {
                 if let Ok(Some(mut client_guard)) = Self::get_client().await {
                     if let Some(client) = client_guard.as_mut() {
                         if let Err(e) = client.handle_next_swarm_event().await {
-                            tracing::error!("Error handling swarm event: {}", e);
+                            gigi_logging::error!("Error handling swarm event: {}", e);
                         }
                     }
                 }
@@ -98,17 +98,22 @@ impl P2pService {
             P2pEvent::DirectMessage {
                 from_nickname,
                 message,
+                from,
                 ..
             } => {
                 println!("Message from {}: {}", from_nickname, message);
-                let _ =
-                    crate::services::persistence_service::PersistenceService::store_direct_message(
-                        from_nickname,
-                        "".to_string(),
-                        message,
-                        false,
-                    )
-                    .await;
+                let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
+                let msg_id = crate::services::persistence_service::PersistenceService::store_direct_message(
+                    from_nickname.clone(),
+                    local_nickname,
+                    message,
+                    false,
+                )
+                .await;
+                if msg_id.is_ok() {
+                    // Send event to update UI with peer ID as chat ID
+                    let _ = EventBus::send(AppEvent::MessageSaved(from.to_string()));
+                }
             }
             P2pEvent::FileDownloadProgress {
                 downloaded_chunks,
@@ -128,8 +133,47 @@ impl P2pService {
     pub async fn send_message(to_nickname: &str, message: &str) -> Result<()> {
         if let Ok(Some(mut client_guard)) = Self::get_client().await {
             if let Some(client) = client_guard.as_mut() {
-                client.send_direct_message(to_nickname, message.to_string())?;
+                println!("Sending message to {}: {}", to_nickname, message);
+                match client.send_direct_message(to_nickname, message.to_string()) {
+                    Ok(_) => println!("Message sent successfully to {}", to_nickname),
+                    Err(e) => {
+                        println!("Failed to send message to {}: {:?}", to_nickname, e);
+                        return Err(e);
+                    }
+                }
+            } else {
+                println!("P2P client is not initialized");
+                return Err(anyhow::anyhow!("P2P client not initialized"));
             }
+        } else {
+            println!("Failed to get P2P client");
+            return Err(anyhow::anyhow!("Failed to get P2P client"));
+        }
+        Ok(())
+    }
+
+    pub async fn deliver_pending_messages(nickname: &str) -> Result<()> {
+        if let Ok(Some(mut client_guard)) = Self::get_client().await {
+            if let Some(client) = client_guard.as_mut() {
+                println!("Delivering pending messages to {}", nickname);
+                match client.send_pending_messages(nickname).await {
+                    Ok(count) => {
+                        if count > 0 {
+                            println!("Delivered {} pending messages to {}", count, nickname);
+                        }
+                    }
+                    Err(e) => {
+                        println!("Failed to deliver pending messages to {}: {:?}", nickname, e);
+                        return Err(e);
+                    }
+                }
+            } else {
+                println!("P2P client is not initialized");
+                return Err(anyhow::anyhow!("P2P client not initialized"));
+            }
+        } else {
+            println!("Failed to get P2P client");
+            return Err(anyhow::anyhow!("Failed to get P2P client"));
         }
         Ok(())
     }

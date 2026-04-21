@@ -93,7 +93,7 @@ impl ConnectionRecovery {
         if self.enabled {
             let state = ReconnectionState::new(address);
             self.reconnecting_peers.insert(peer_id, state);
-            tracing::info!("Tracking peer {} for reconnection", peer_id);
+            gigi_logging::info!("Tracking peer {} for reconnection", peer_id);
         }
     }
 
@@ -103,7 +103,7 @@ impl ConnectionRecovery {
     pub fn peer_connected(&mut self, peer_id: &PeerId) {
         if let Some(mut state) = self.reconnecting_peers.remove(peer_id) {
             state.reset();
-            tracing::info!(
+            gigi_logging::info!(
                 "Peer {} reconnected after {} attempts",
                 peer_id,
                 state.attempts
@@ -147,7 +147,7 @@ impl ConnectionRecovery {
             // Check max attempts
             if let Some(state) = self.reconnecting_peers.get(&peer_id) {
                 if self.max_attempts > 0 && state.attempts >= self.max_attempts {
-                    tracing::warn!(
+                    gigi_logging::warn!(
                         "Giving up on peer {} after {} attempts",
                         peer_id,
                         state.attempts
@@ -160,7 +160,7 @@ impl ConnectionRecovery {
             // Attempt dial
             match swarm.dial(address.clone()) {
                 Ok(_) => {
-                    tracing::info!("Attempting reconnection to {} (attempt {})", peer_id, {
+                    gigi_logging::info!("Attempting reconnection to {} (attempt {})", peer_id, {
                         self.reconnecting_peers
                             .get(&peer_id)
                             .map(|s| s.attempts + 1)
@@ -169,7 +169,7 @@ impl ConnectionRecovery {
                     attempts_made += 1;
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to dial peer {}: {}", peer_id, e);
+                    gigi_logging::warn!("Failed to dial peer {}: {}", peer_id, e);
                 }
             }
 

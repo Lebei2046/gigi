@@ -76,9 +76,9 @@
 //! ```
 
 use anyhow::{Context, Result};
+use gigi_logging::{debug, info, warn, instrument};
 use sea_orm::{DatabaseConnection, DbErr};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, warn};
 
 use crate::encryption::EncryptedAccountData;
 use crate::key_derivation;

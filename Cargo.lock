@@ -3423,6 +3423,7 @@ dependencies = [
  "chacha20poly1305",
  "chrono",
  "ed25519-compact",
+ "gigi-logging",
  "hex",
  "hkdf",
  "keccak-hash",
@@ -3436,7 +3437,6 @@ dependencies = [
  "sha2",
  "thiserror 2.0.17",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -3453,9 +3453,11 @@ dependencies = [
  "getrandom 0.2.16",
  "gigi-auth",
  "gigi-dns",
+ "gigi-logging",
  "gigi-p2p",
  "gigi-store",
  "hex",
+ "log",
  "once_cell",
  "qrcode",
  "sea-orm",
@@ -3463,7 +3465,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
- "tracing",
  "uuid",
 ]
 
@@ -3473,6 +3474,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "futures",
+ "gigi-logging",
  "if-watch",
  "libp2p",
  "libp2p-identity",
@@ -3481,7 +3483,6 @@ dependencies = [
  "serde",
  "socket2 0.6.2",
  "tokio",
- "tracing",
  "tracing-subscriber",
 ]
 
@@ -3491,6 +3492,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "blake3",
+ "gigi-logging",
  "gigi-store",
  "serde",
  "serde_json",
@@ -3498,9 +3500,20 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
- "tracing",
  "tracing-subscriber",
  "url",
+]
+
+[[package]]
+name = "gigi-logging"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -3557,6 +3570,7 @@ dependencies = [
  "futures",
  "gigi-dns",
  "gigi-file-sharing",
+ "gigi-logging",
  "gigi-store",
  "indicatif",
  "libp2p",
@@ -3583,6 +3597,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "gigi-auth",
+ "gigi-logging",
  "hex",
  "image",
  "libp2p",
@@ -3593,7 +3608,6 @@ dependencies = [
  "sha2",
  "tempfile",
  "tokio",
- "tracing",
  "uuid",
 ]
 
@@ -10059,6 +10073,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-serde"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
+dependencies = [
+ "serde",
+ "tracing-core",
+]
+
+[[package]]
 name = "tracing-subscriber"
 version = "0.3.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10068,12 +10092,16 @@ dependencies = [
  "nu-ansi-term",
  "once_cell",
  "regex-automata",
+ "serde",
+ "serde_json",
  "sharded-slab",
  "smallvec",
  "thread_local",
+ "time",
  "tracing",
  "tracing-core",
  "tracing-log",
+ "tracing-serde",
 ]
 
 [[package]]

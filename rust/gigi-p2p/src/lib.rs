@@ -1,5 +1,5 @@
 //! Gigi P2P - A comprehensive peer-to-peer networking library
-//!
+//! 
 //! This library provides unified P2P functionality for the Gigi ecosystem including:
 //! - **Auto Discovery**: Automatic peer discovery via gigi-dns (local network) and Kademlia DHT (WAN)
 //! - **NAT Traversal**: Circuit relay for connecting peers behind routers
@@ -150,26 +150,22 @@ pub mod error;
 pub mod events;
 pub mod validation;
 
-/// Initialize tracing subscriber for library
+/// Initialize logging for library
 ///
 /// This is a convenience function for consumers who want to use default
-/// logging configuration. Advanced users should set up their own tracing subscriber
-/// with custom filters and formatters.
+/// logging configuration. Advanced users should set up their own logging
+/// with custom filters and formatters using gigi-logging.
 ///
 /// # Example
 ///
 /// ```no_run
-/// gigi_p2p::init_tracing();
+/// gigi_p2p::init_logging();
 /// ```
-pub fn init_tracing() {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .with_target(false)
-        .compact()
-        .init();
+pub fn init_logging() {
+    gigi_logging::init_logging();
 }
 
-/// Initialize tracing with custom level
+/// Initialize logging with custom level
 ///
 /// Allows consumers to set their preferred log level for debugging.
 ///
@@ -183,14 +179,17 @@ pub fn init_tracing() {
 /// use tracing::Level;
 ///
 /// // Enable debug logging
-/// gigi_p2p::init_tracing_with_level(Level::DEBUG);
+/// gigi_p2p::init_logging_with_level(Level::DEBUG);
 /// ```
-pub fn init_tracing_with_level(level: tracing::Level) {
-    tracing_subscriber::fmt()
-        .with_max_level(level)
-        .with_target(false)
-        .compact()
-        .init();
+pub fn init_logging_with_level(level: tracing::Level) {
+    use gigi_logging::{init_logging_with_config, LogConfig, LogOutput};
+    
+    let config = LogConfig {
+        level,
+        ..Default::default()
+    };
+    
+    init_logging_with_config(config);
 }
 
 // Re-export public API

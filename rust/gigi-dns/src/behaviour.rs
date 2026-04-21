@@ -16,6 +16,7 @@
 use crate::interface::{handle_if_event, InterfaceEvent, InterfaceTask};
 use crate::types::*;
 use futures::stream::StreamExt;
+use gigi_logging::{warn, instrument};
 use if_watch::tokio::IfWatcher;
 use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
@@ -166,7 +167,7 @@ impl GigiDnsBehaviour {
         let addrs = match self.listen_addresses.read() {
             Ok(guard) => guard,
             Err(e) => {
-                tracing::warn!(
+                warn!(
                     "Failed to acquire lock on listen_addresses: {}, using inner state",
                     e
                 );
@@ -280,7 +281,7 @@ impl NetworkBehaviour for GigiDnsBehaviour {
         let addrs = match self.listen_addresses.read() {
             Ok(guard) => guard,
             Err(e) => {
-                tracing::warn!(
+                warn!(
                     "Failed to acquire lock on listen_addresses: {}, using inner state",
                     e
                 );

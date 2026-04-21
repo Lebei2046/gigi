@@ -7,7 +7,7 @@ use sea_orm::*;
 use sea_orm_migration::MigratorTrait;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tracing::info;
+use gigi_logging::info;
 
 /// Conversation store
 pub struct ConversationStore {

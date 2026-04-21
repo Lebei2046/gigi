@@ -98,9 +98,9 @@ impl PeerManager {
 
                 // Attempt to dial the discovered peer
                 if let Err(e) = swarm.dial(addr.clone()) {
-                    tracing::warn!("Failed to dial discovered peer {}: {}", peer_id, e);
+                    gigi_logging::warn!("Failed to dial discovered peer {}: {}", peer_id, e);
                 } else {
-                    tracing::info!("Dialing discovered peer: {}", peer_id);
+                    gigi_logging::info!("Dialing discovered peer: {}", peer_id);
                 }
             }
         }
@@ -157,20 +157,45 @@ impl PeerManager {
 
     /// Get peer nickname
     pub fn get_peer_nickname(&self, peer_id: &PeerId) -> Result<String> {
-        self.peers
-            .get(peer_id)
-            .map(|p| p.nickname.clone())
-            .ok_or_else(|| P2pError::PeerNotFound(*peer_id).into())
+        // First check connected peers
+        if let Some(peer) = self.peers.get(peer_id) {
+            return Ok(peer.nickname.clone());
+        }
+        
+        // Then check unconnected peers
+        if let Some(peer) = self.unconnected_peers.peek(peer_id) {
+            return Ok(peer.nickname.clone());
+        }
+        
+        Err(P2pError::PeerNotFound(*peer_id).into())
     }
 
     /// Get peer info
     pub fn get_peer(&self, peer_id: &PeerId) -> Option<&PeerInfo> {
-        self.peers.get(peer_id)
+        // First check connected peers
+        if let Some(peer) = self.peers.get(peer_id) {
+            return Some(peer);
+        }
+        
+        // Then check unconnected peers
+        self.unconnected_peers.peek(peer_id)
     }
 
     /// Get peer info by nickname
     pub fn get_peer_id_by_nickname(&self, nickname: &str) -> Option<PeerId> {
-        self.nickname_to_peer.get(nickname).copied()
+        // First check connected peers
+        if let Some(peer_id) = self.nickname_to_peer.get(nickname) {
+            return Some(*peer_id);
+        }
+        
+        // Then check unconnected peers
+        for (peer_id, peer) in &self.unconnected_peers {
+            if peer.nickname == nickname {
+                return Some(*peer_id);
+            }
+        }
+        
+        None
     }
 
     /// Remove a peer from the peer list
@@ -277,7 +302,7 @@ impl PeerManager {
         // Remove old peers
         for peer_id in peers_to_remove {
             if let Some(peer) = self.unconnected_peers.pop(&peer_id) {
-                tracing::debug!("Removing old unconnected peer: {}", peer.nickname);
+                gigi_logging::debug!("Removing old unconnected peer: {}", peer.nickname);
             }
         }
 
