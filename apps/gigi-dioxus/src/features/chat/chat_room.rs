@@ -1,17 +1,23 @@
 use dioxus::prelude::*;
 use dioxus_router::use_navigator;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
-use crate::features::chat::hooks::{use_chat_room_initialization, use_message_actions};
 use crate::features::chat::components::{ChatRoomHeader, ChatRoomInput, MessageList};
+use crate::features::chat::hooks::{use_chat_room_initialization, use_message_actions};
 
 // Chat Room Component
 #[component]
 pub fn ChatRoom(id: String) -> Element {
     let navigator = use_navigator();
     let mut chat_room_state = use_chat_room_initialization(id);
-    let (mut handle_send_message, handle_image_select, handle_file_select, handle_file_download_request, _handle_share_file) = use_message_actions();
+    let (
+        mut handle_send_message,
+        handle_image_select,
+        handle_file_select,
+        handle_file_download_request,
+        _handle_share_file,
+    ) = use_message_actions();
 
     // Create a shared reference to the send message closure
     let send_message = Rc::new(RefCell::new(handle_send_message));

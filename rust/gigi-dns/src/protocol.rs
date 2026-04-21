@@ -397,7 +397,6 @@ impl GigiDnsProtocol {
 
         // Skip if discovered self
         if peer_id == self.local_peer_id {
-            tracing::debug!("Ignoring self-discovery");
             return Err("Self-discovery".to_string());
         }
 

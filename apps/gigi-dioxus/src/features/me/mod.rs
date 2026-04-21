@@ -1,6 +1,6 @@
-use dioxus::prelude::*;
-use crate::services::auth_context::AuthContext;
 use crate::services::auth_context::AccountInfo;
+use crate::services::auth_context::AuthContext;
+use dioxus::prelude::*;
 
 pub mod contact_list;
 pub mod qr_code;
@@ -56,7 +56,7 @@ pub fn Me() -> Element {
                                 stroke_linecap: "round",
                                 stroke_linejoin: "round",
                                 stroke_width: "2",
-                                d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
                             }
                         }
                     }
@@ -98,9 +98,7 @@ pub fn Me() -> Element {
                     div { class: "w-12 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-4" }
 
                     if active_tab() == "contacts" {
-                        div { class: "h-full",
-                            contact_list::ContactList {}
-                        }
+                        div { class: "h-full", contact_list::ContactList {} }
                     } else if active_tab() == "qr-code" {
                         div { class: "h-full",
                             qr_code::QRCodeTab {
@@ -121,17 +119,19 @@ pub fn Me() -> Element {
                                             stroke_linecap: "round",
                                             stroke_linejoin: "round",
                                             stroke_width: "2",
-                                            d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                                            d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
                                         }
                                         path {
                                             stroke_linecap: "round",
                                             stroke_linejoin: "round",
                                             stroke_width: "2",
-                                            d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                            d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z",
                                         }
                                     }
                                 }
-                                h3 { class: "text-lg font-semibold text-gray-900 mb-2", "Settings Coming Soon" }
+                                h3 { class: "text-lg font-semibold text-gray-900 mb-2",
+                                    "Settings Coming Soon"
+                                }
                                 p { class: "text-gray-600 text-sm",
                                     "Settings and preferences will be available in the next update."
                                 }

@@ -31,6 +31,7 @@ use std::{
     net::IpAddr,
     sync::{Arc, RwLock},
     task::{Context, Poll},
+    time::{Duration, Instant},
 };
 use tokio::task::JoinHandle;
 
@@ -67,6 +68,10 @@ pub struct GigiDnsBehaviour {
     address_update_txs: HashMap<IpAddr, tokio::sync::mpsc::UnboundedSender<Vec<Multiaddr>>>,
     /// Track discovered peers by peer_id for outbound connections (single source of truth)
     discovered_peers: HashMap<PeerId, GigiPeerInfo>,
+    /// Rate limiting for Updated events - track last emission time per peer
+    last_updated: HashMap<PeerId, Instant>,
+    /// Minimum interval between Updated events for the same peer
+    update_interval: Duration,
 }
 
 /// Commands that can be sent to the GigiDnsBehaviour
@@ -107,8 +112,6 @@ impl GigiDnsBehaviour {
         // Note: IfWatcher will emit events for existing interfaces during first poll
         // We'll handle them in the poll() method to ensure proper async context
 
-        tracing::debug!("Gigi DNS behaviour initialized with if-watch support");
-
         Ok(Self {
             config,
             local_peer_id,
@@ -120,6 +123,8 @@ impl GigiDnsBehaviour {
             interface_tx,
             address_update_txs: HashMap::new(),
             discovered_peers: HashMap::new(),
+            last_updated: HashMap::new(),
+            update_interval: Duration::from_secs(1),
         })
     }
 
@@ -135,11 +140,8 @@ impl GigiDnsBehaviour {
     /// - `Ok(())` - Task spawned successfully
     /// - `Err(std::io::Error)` - Failed to create sockets
     fn spawn_interface_task(&mut self, interface_ip: IpAddr) -> std::io::Result<()> {
-        tracing::debug!("Spawning task for interface {}", interface_ip);
-
         // If task already exists, stop it first to avoid stale tasks
         if self.if_tasks.contains_key(&interface_ip) {
-            tracing::debug!("Restarting task for interface {}", interface_ip);
             self.stop_interface_task(interface_ip);
         }
 
@@ -180,7 +182,6 @@ impl GigiDnsBehaviour {
                 .send(libp2p_addrs);
         }
 
-        tracing::debug!("Task spawned for interface {}", interface_ip);
         Ok(())
     }
 
@@ -192,7 +193,6 @@ impl GigiDnsBehaviour {
     /// * `interface_ip` - IP address of the network interface
     fn stop_interface_task(&mut self, interface_ip: IpAddr) {
         if let Some(handle) = self.if_tasks.remove(&interface_ip) {
-            tracing::debug!("Stopping task for interface {}", interface_ip);
             handle.abort();
         }
         self.address_update_txs.remove(&interface_ip);
@@ -201,13 +201,8 @@ impl GigiDnsBehaviour {
 
 impl Drop for GigiDnsBehaviour {
     fn drop(&mut self) {
-        tracing::debug!(
-            "GigiDnsBehaviour dropping, cleaning up {} tasks",
-            self.if_tasks.len()
-        );
         // Abort all interface tasks to prevent orphaned background tasks
-        for (ip, handle) in self.if_tasks.drain() {
-            tracing::debug!("Aborting task for interface {}", ip);
+        for (_, handle) in self.if_tasks.drain() {
             handle.abort();
         }
     }
@@ -295,12 +290,7 @@ impl NetworkBehaviour for GigiDnsBehaviour {
         let libp2p_addrs: Vec<Multiaddr> = addrs.iter().cloned().collect();
 
         if !libp2p_addrs.is_empty() {
-            for (interface_ip, tx) in &self.address_update_txs {
-                tracing::debug!(
-                    "Sending address update to interface {} ({} addresses)",
-                    interface_ip,
-                    libp2p_addrs.len()
-                );
+            for (_, tx) in &self.address_update_txs {
                 let _ = tx.send(libp2p_addrs.clone());
             }
         }
@@ -333,21 +323,46 @@ impl NetworkBehaviour for GigiDnsBehaviour {
                         let peer_id = peer_info.peer_id.clone();
                         // Check if this is a new peer or an update
                         if let Some(old_info) = self.discovered_peers.get(&peer_id) {
-                            if old_info.nickname != peer_info.nickname
-                                || old_info.multiaddr != peer_info.multiaddr
-                            {
-                                // Generate Updated event
-                                self.pending_events.push_back(GigiDnsEvent::Updated {
-                                    peer_id,
-                                    old_info: old_info.clone(),
-                                    new_info: peer_info.clone(),
-                                });
-                                self.discovered_peers.insert(peer_id, peer_info.clone());
-                                false // Don't emit the original Discovered event
+                            // Only compare meaningful fields - ignore timestamps and metadata changes
+                            let nickname_changed = old_info.nickname != peer_info.nickname;
+                            // Compare multiaddrs by their string representation to catch subtle differences
+                            let addr_changed =
+                                old_info.multiaddr.to_string() != peer_info.multiaddr.to_string();
+
+                            if nickname_changed || addr_changed {
+                                // Rate limit Updated events - only emit if enough time has passed
+                                let now = Instant::now();
+                                if let Some(last_time) = self.last_updated.get(&peer_id) {
+                                    if now.duration_since(*last_time) < self.update_interval {
+                                        // Too soon, just update state silently
+                                        self.discovered_peers.insert(peer_id, peer_info.clone());
+                                        false
+                                    } else {
+                                        // Enough time has passed, emit Updated event
+                                        self.last_updated.insert(peer_id, now);
+                                        self.pending_events.push_back(GigiDnsEvent::Updated {
+                                            peer_id,
+                                            old_info: old_info.clone(),
+                                            new_info: peer_info.clone(),
+                                        });
+                                        self.discovered_peers.insert(peer_id, peer_info.clone());
+                                        false
+                                    }
+                                } else {
+                                    // First update for this peer
+                                    self.last_updated.insert(peer_id, now);
+                                    self.pending_events.push_back(GigiDnsEvent::Updated {
+                                        peer_id,
+                                        old_info: old_info.clone(),
+                                        new_info: peer_info.clone(),
+                                    });
+                                    self.discovered_peers.insert(peer_id, peer_info.clone());
+                                    false
+                                }
                             } else {
-                                // Update TTL
+                                // Update TTL silently - no need to emit any event
                                 self.discovered_peers.insert(peer_id, peer_info.clone());
-                                true
+                                false
                             }
                         } else {
                             // New peer
@@ -357,6 +372,7 @@ impl NetworkBehaviour for GigiDnsBehaviour {
                     }
                     InterfaceEvent::PeerExpired(GigiDnsEvent::Expired { peer_id, info: _ }) => {
                         self.discovered_peers.remove(peer_id);
+                        self.last_updated.remove(&peer_id);
                         true
                     }
                     _ => true,

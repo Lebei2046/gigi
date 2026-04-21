@@ -1,9 +1,9 @@
-use dioxus::prelude::*;
-use crate::services::p2p_service::P2pService;
 use crate::services::auth_service::AuthService;
-use gigi_store::StoredMessage;
-use gigi_p2p::PeerId;
+use crate::services::p2p_service::P2pService;
 use chrono::Local;
+use dioxus::prelude::*;
+use gigi_p2p::PeerId;
+use gigi_store::StoredMessage;
 
 // Types for chat data
 #[derive(Debug, Clone, PartialEq)]
@@ -29,7 +29,11 @@ impl From<&gigi_auth::GroupInfo> for Group {
         Self {
             id: info.group_id.clone(),
             name: info.name.clone(),
-            role: if info.joined { "Member".to_string() } else { "Not joined".to_string() },
+            role: if info.joined {
+                "Member".to_string()
+            } else {
+                "Not joined".to_string()
+            },
             member_count: 0,
             joined: info.joined,
         }
@@ -153,22 +157,29 @@ impl From<&StoredMessage> for Message {
             gigi_store::MessageContent::Text { text } => text.clone(),
             gigi_store::MessageContent::FileShare { filename, .. } => filename.clone(),
             gigi_store::MessageContent::FileShareWithThumbnail { filename, .. } => filename.clone(),
-            gigi_store::MessageContent::ShareGroup { group_name, .. } => format!("Join group: {}", group_name),
+            gigi_store::MessageContent::ShareGroup { group_name, .. } => {
+                format!("Join group: {}", group_name)
+            }
         };
-        
+
         let message_type = match &msg.content {
             gigi_store::MessageContent::Text { .. } => MessageType::Text,
-            gigi_store::MessageContent::FileShareWithThumbnail { .. } | gigi_store::MessageContent::FileShare { .. } => MessageType::File,
+            gigi_store::MessageContent::FileShareWithThumbnail { .. }
+            | gigi_store::MessageContent::FileShare { .. } => MessageType::File,
             gigi_store::MessageContent::ShareGroup { .. } => MessageType::Text,
         };
-        
+
         let is_own = matches!(msg.direction, gigi_store::MessageDirection::Sent);
-        
+
         Self {
             id: msg.id.clone(),
             content,
             sender: msg.sender_nickname.clone(),
-            timestamp: msg.timestamp.with_timezone(&Local).format("%H:%M %p").to_string(),
+            timestamp: msg
+                .timestamp
+                .with_timezone(&Local)
+                .format("%H:%M %p")
+                .to_string(),
             is_own,
             message_type,
         }
@@ -209,9 +220,18 @@ pub async fn leave_group(group_name: &str) {
     }
 }
 
-pub fn list_peers() -> Vec<String> {
-    match P2pService::list_peers() {
-        Ok(peers) => peers,
+pub async fn list_peers() -> Vec<Peer> {
+    match P2pService::list_peers().await {
+        Ok(peers) => peers
+            .into_iter()
+            .map(|p| Peer {
+                id: p.peer_id.to_string(),
+                peer_id: p.peer_id,
+                nickname: p.nickname,
+                is_online: p.connected,
+                capabilities: vec!["chat".to_string(), "file_sharing".to_string()],
+            })
+            .collect(),
         Err(err) => {
             println!("Failed to list peers: {:?}", err);
             vec![]

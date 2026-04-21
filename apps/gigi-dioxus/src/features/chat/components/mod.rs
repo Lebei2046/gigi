@@ -4,7 +4,7 @@ pub mod chat_room_input;
 pub mod message_bubble;
 pub mod message_list;
 
-pub use chat_card::{PeerChatCard, GroupChatCard};
+pub use chat_card::{GroupChatCard, PeerChatCard};
 pub use chat_room_header::ChatRoomHeader;
 pub use chat_room_input::ChatRoomInput;
 pub use message_bubble::MessageBubble;

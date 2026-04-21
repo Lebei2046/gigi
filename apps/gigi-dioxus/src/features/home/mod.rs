@@ -29,7 +29,7 @@ pub fn Home() -> Element {
                     crate::features::me::Me {}
                 }
             }
-            
+
             div { class: "h-16 bg-white border-t border-gray-200 shadow-lg",
                 div { class: "flex h-full",
                     button {
@@ -44,12 +44,12 @@ pub fn Home() -> Element {
                                 stroke_linecap: "round",
                                 stroke_linejoin: "round",
                                 stroke_width: "2",
-                                d: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                d: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
                             }
                         }
                         span { class: "text-xs font-medium", "Chat" }
                     }
-                    
+
                     button {
                         class: "{me_class}",
                         onclick: move |_| active_tab.set("me".to_string()),
@@ -62,7 +62,7 @@ pub fn Home() -> Element {
                                 stroke_linecap: "round",
                                 stroke_linejoin: "round",
                                 stroke_width: "2",
-                                d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
                             }
                         }
                         span { class: "text-xs font-medium", "Me" }

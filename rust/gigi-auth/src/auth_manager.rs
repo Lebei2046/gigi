@@ -706,23 +706,36 @@ impl AuthManager {
     }
 
     /// Get joined groups
-    pub async fn get_joined_groups(&self) -> Result<Vec<crate::settings_manager::GroupInfo>, DbErr> {
+    pub async fn get_joined_groups(
+        &self,
+    ) -> Result<Vec<crate::settings_manager::GroupInfo>, DbErr> {
         self.settings_manager.get_joined_groups().await
     }
 
     /// Get a group by group_id
-    pub async fn get_group(&self, group_id: &str) -> Result<Option<crate::settings_manager::GroupInfo>, DbErr> {
+    pub async fn get_group(
+        &self,
+        group_id: &str,
+    ) -> Result<Option<crate::settings_manager::GroupInfo>, DbErr> {
         self.settings_manager.get_group(group_id).await
     }
 
     /// Update group join status
-    pub async fn update_group_join_status(&self, group_id: &str, joined: bool) -> Result<bool, DbErr> {
-        self.settings_manager.update_group_join_status(group_id, joined).await
+    pub async fn update_group_join_status(
+        &self,
+        group_id: &str,
+        joined: bool,
+    ) -> Result<bool, DbErr> {
+        self.settings_manager
+            .update_group_join_status(group_id, joined)
+            .await
     }
 
     /// Update group name
     pub async fn update_group_name(&self, group_id: &str, name: &str) -> Result<bool, DbErr> {
-        self.settings_manager.update_group_name(group_id, name).await
+        self.settings_manager
+            .update_group_name(group_id, name)
+            .await
     }
 
     /// Delete a group

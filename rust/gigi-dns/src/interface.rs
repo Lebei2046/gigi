@@ -67,6 +67,7 @@ pub struct InterfaceTask {
     /// Configuration for this interface
     config: GigiDnsConfig,
     /// IP address of the interface
+    #[allow(dead_code)]
     interface_ip: IpAddr,
     /// DNS protocol handler
     protocol: GigiDnsProtocol,
@@ -127,21 +128,11 @@ impl InterfaceTask {
     ) -> std::io::Result<tokio::task::JoinHandle<()>> {
         // Create receive socket bound to this interface
         let recv_socket = Self::create_recv_socket(&interface_ip, &config)?;
-        let recv_local = recv_socket.local_addr()?;
-        tracing::debug!(
-            "Interface {} recv socket bound to {}",
-            interface_ip,
-            recv_local
-        );
+        let _recv_local = recv_socket.local_addr()?;
 
         // Create send socket
         let send_socket = Self::create_send_socket(&interface_ip, &config)?;
-        let send_local = send_socket.local_addr()?;
-        tracing::debug!(
-            "Interface {} send socket bound to {}",
-            interface_ip,
-            send_local
-        );
+        let _send_local = send_socket.local_addr()?;
 
         // Create channels
         let (packet_tx, packet_rx) = unbounded_channel();
@@ -153,11 +144,6 @@ impl InterfaceTask {
             const INITIAL_BUFFER_SIZE: usize = 4096; // 4KB to accommodate typical DNS packets
             const MAX_BUFFER_SIZE: usize = 65536; // 64KB max (UDP packet limit)
             let mut buffer = vec![0u8; INITIAL_BUFFER_SIZE];
-            tracing::debug!(
-                "Interface {} I/O task started with buffer size {}",
-                interface_ip,
-                buffer.len()
-            );
 
             loop {
                 tokio::select! {
@@ -166,12 +152,6 @@ impl InterfaceTask {
                             Ok((len, src)) => {
                                 // Check if buffer was too small (packet truncated)
                                 if len == buffer.len() && buffer.len() < MAX_BUFFER_SIZE {
-                                    tracing::warn!(
-                                        "Interface {} buffer too small ({}), packet may be truncated. Growing to {}",
-                                        interface_ip,
-                                        buffer.len(),
-                                        buffer.len() * 2
-                                    );
                                     let new_size = (buffer.len() * 2).min(MAX_BUFFER_SIZE);
                                     buffer.resize(new_size, 0);
                                     // Drop this truncated packet and continue
@@ -187,8 +167,8 @@ impl InterfaceTask {
                     }
                     Some((data, addr)) = send_rx.recv() => {
                         match send_socket.send_to(&data, addr).await {
-                            Ok(n) => {
-                                tracing::debug!("Interface {} sent {} bytes to {}", interface_ip, n, addr);
+                            Ok(_n) => {
+
                             }
                             Err(e) => {
                                 tracing::error!("Interface {} send error: {}", interface_ip, e);
@@ -333,15 +313,8 @@ impl InterfaceTask {
 
             if next_interval >= self.config.query_interval {
                 self.probe_state = ProbeState::Finished;
-                tracing::debug!("Interface {} adaptive probing finished", self.interface_ip);
             } else {
                 self.probe_state = ProbeState::Probing(next_interval);
-                tracing::debug!(
-                    "Interface {} adaptive probing: {:?} -> {:?}",
-                    self.interface_ip,
-                    interval,
-                    next_interval
-                );
             }
         }
     }
@@ -353,10 +326,6 @@ impl InterfaceTask {
         if !self.has_discovered_peers {
             self.has_discovered_peers = true;
             self.probe_state = ProbeState::Finished;
-            tracing::debug!(
-                "Interface {} discovered peer, stopping adaptive probing",
-                self.interface_ip
-            );
         }
     }
 
@@ -389,7 +358,7 @@ impl InterfaceTask {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
         self.query_deadline = Instant::now() + query_interval;
-        tracing::debug!("Interface {} sent query to {}", self.interface_ip, addr);
+
         Ok(())
     }
 
@@ -425,7 +394,7 @@ impl InterfaceTask {
         }
 
         self.announce_deadline = Instant::now() + self.config.announce_interval;
-        tracing::debug!("Interface {} sent announcement", self.interface_ip);
+
         Ok(())
     }
 
@@ -437,28 +406,10 @@ impl InterfaceTask {
     /// * `packet` - Raw DNS packet bytes
     /// * `src` - Source address of the packet
     fn process_packet(&mut self, packet: &[u8], src: SocketAddr) {
-        tracing::debug!(
-            "Interface {} received {} bytes from {}",
-            self.interface_ip,
-            packet.len(),
-            src
-        );
-
         // Check if it's a query and respond
         if self.protocol.is_query(packet) {
-            tracing::debug!(
-                "Interface {} detected query from {}",
-                self.interface_ip,
-                src
-            );
-
             // Rate limiting: check if we're responding too frequently
             if self.is_query_response_rate_limited() {
-                tracing::debug!(
-                    "Interface {} rate limited query response to {}",
-                    self.interface_ip,
-                    src
-                );
                 return;
             }
 
@@ -467,49 +418,20 @@ impl InterfaceTask {
                     for response in packets {
                         let _ = self.send_tx.send((response, src));
                     }
-                    tracing::debug!(
-                        "Interface {} responded to query from {}",
-                        self.interface_ip,
-                        src
-                    );
                 }
-                Err(e) => {
-                    tracing::debug!(
-                        "Interface {} failed to build response: {}",
-                        self.interface_ip,
-                        e
-                    );
-                }
+                Err(_) => {}
             }
             return;
         }
 
         // Handle response packet
-        tracing::debug!(
-            "Interface {} processing response from {}",
-            self.interface_ip,
-            src
-        );
         match self.protocol.handle_packet(packet) {
             Ok(Some(event)) => {
                 self.on_peer_discovered();
                 let _ = self.event_tx.send(InterfaceEvent::PeerDiscovered(event));
-                tracing::debug!(
-                    "Interface {} discovered peer from {}",
-                    self.interface_ip,
-                    src
-                );
             }
             Ok(None) => {}
-            Err(e) => {
-                if e != "Self-discovery" {
-                    tracing::debug!(
-                        "Interface {} failed to process packet: {}",
-                        self.interface_ip,
-                        e
-                    );
-                }
-            }
+            Err(e) => if e != "Self-discovery" {},
         }
     }
 
@@ -553,14 +475,8 @@ impl InterfaceTask {
     ///
     /// The loop runs until the channel is closed or an error occurs.
     pub async fn run(mut self) {
-        tracing::debug!("Interface {} task starting", self.interface_ip);
-
         // Send initial query and announcement immediately on startup
         if self.first_run {
-            tracing::debug!(
-                "Interface {} sending initial query and announcement",
-                self.interface_ip
-            );
             let _ = self.send_query();
             let _ = self.send_announcement();
             self.first_run = false;
@@ -589,7 +505,6 @@ impl InterfaceTask {
             tokio::select! {
                 // Process address updates - highest priority
                 Some(addresses) = self.address_update_rx.recv() => {
-                    tracing::debug!("Interface {} received address update with {} addresses", self.interface_ip, addresses.len());
                     self.protocol.update_listen_addresses(addresses);
                 }
                 // Process packets from I/O task - highest priority
@@ -599,7 +514,6 @@ impl InterfaceTask {
                             self.process_packet(&packet, src);
                         }
                         None => {
-                            tracing::debug!("Interface {} channel closed, stopping", self.interface_ip);
                             break;
                         }
                     }
@@ -631,8 +545,6 @@ impl InterfaceTask {
                 self.cleanup_deadline = now + self.config.cleanup_interval;
             }
         }
-
-        tracing::debug!("Interface {} task stopped", self.interface_ip);
     }
 }
 
@@ -664,12 +576,10 @@ pub fn handle_if_event(
                 return None;
             }
 
-            tracing::debug!("Interface {} came up", addr);
             Some((addr, true)) // true = up
         }
         Ok(IfEvent::Down(inet)) => {
             let addr = inet.addr();
-            tracing::debug!("Interface {} went down", addr);
             Some((addr, false)) // false = down
         }
         Err(e) => {

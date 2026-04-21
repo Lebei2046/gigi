@@ -96,7 +96,7 @@ pub mod thumbnail;
 pub mod thumbnail_store;
 
 // Re-export from gigi-auth
-pub use gigi_auth::{AccountInfo, AuthManager, GroupManager, GroupInfo, LoginResult};
+pub use gigi_auth::{AccountInfo, AuthManager, GroupInfo, GroupManager, LoginResult};
 
 pub use contact_manager::{ContactInfo, ContactManager};
 pub use conversation_store::{Conversation, ConversationStore};

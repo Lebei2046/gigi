@@ -11,7 +11,12 @@ impl GroupManager {
         Self { db }
     }
 
-    pub async fn add_or_update(&self, group_id: &str, name: &str, joined: bool) -> Result<(), sea_orm::DbErr> {
+    pub async fn add_or_update(
+        &self,
+        group_id: &str,
+        name: &str,
+        joined: bool,
+    ) -> Result<(), sea_orm::DbErr> {
         crate::settings_manager::SettingsManager::new(self.db.clone())
             .upsert_group(group_id, name, joined)
             .await
@@ -41,7 +46,11 @@ impl GroupManager {
             .await
     }
 
-    pub async fn update_join_status(&self, group_id: &str, joined: bool) -> Result<bool, sea_orm::DbErr> {
+    pub async fn update_join_status(
+        &self,
+        group_id: &str,
+        joined: bool,
+    ) -> Result<bool, sea_orm::DbErr> {
         crate::settings_manager::SettingsManager::new(self.db.clone())
             .update_group_join_status(group_id, joined)
             .await

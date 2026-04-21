@@ -25,14 +25,15 @@ const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 fn main() {
     // Initialize event bus
     crate::services::event_bus::EventBus::init();
-    
+
     // Initialize persistence service
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        if let Err(e) = crate::services::persistence_service::PersistenceService::initialize().await {
+        if let Err(e) = crate::services::persistence_service::PersistenceService::initialize().await
+        {
             eprintln!("Failed to initialize persistence service: {:?}", e);
         }
     });
-    
+
     dioxus::launch(App);
 }
 
@@ -52,13 +53,46 @@ pub fn Home() -> Element {
     let auth_state = crate::services::auth_context::AuthContext::get_state();
     let navigator = use_navigator();
 
-    if !matches!(auth_state, crate::services::auth_context::AuthState::Authenticated(_)) {
+    if !matches!(
+        auth_state,
+        crate::services::auth_context::AuthState::Authenticated(_)
+    ) {
         spawn(async move {
             match crate::services::auth_service::AuthService::new().await {
-                Ok(auth_service) => match auth_service.has_account().await {
+                Ok(mut auth_service) => match auth_service.has_account().await {
                     Ok(exists) => {
                         if exists {
-                            navigator.push("/unlock");
+                            // Auto login for testing
+                            match auth_service.login("password").await {
+                                Ok(login_result) => {
+                                    match auth_service.get_account_info().await {
+                                        Ok(Some(info)) => {
+                                            let name = info.name.clone();
+                                            let account_info =
+                                                crate::services::auth_context::AccountInfo {
+                                                    name: info.name,
+                                                    peer_id: info.peer_id,
+                                                    address: info.address,
+                                                };
+                                            crate::services::auth_context::AuthContext::set_authenticated(account_info);
+
+                                            // Initialize P2P network
+                                            if let Err(err) = crate::services::p2p_service::P2pService::initialize(&login_result.private_key, &name).await {
+                                                println!("Failed to initialize P2P network: {:?}", err);
+                                            } else {
+                                                println!("P2P network initialized successfully");
+                                            }
+                                        }
+                                        _ => {
+                                            println!("Failed to get account info");
+                                        }
+                                    }
+                                }
+                                Err(err) => {
+                                    println!("Login error: {:?}", err);
+                                    navigator.push("/unlock");
+                                }
+                            }
                         } else {
                             navigator.push("/signup");
                         }
@@ -97,7 +131,7 @@ pub fn Chat() -> Element {
 #[component]
 pub fn ChatRoom(id: String) -> Element {
     rsx! {
-        features::chat::chat_room::ChatRoom { id: id }
+        features::chat::chat_room::ChatRoom { id }
     }
 }
 

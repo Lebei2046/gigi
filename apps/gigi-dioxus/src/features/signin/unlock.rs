@@ -30,12 +30,20 @@ pub fn Unlock() -> Element {
                                     address: info.address,
                                 };
                                 AuthContext::set_authenticated(account_info);
-                                
+
                                 // Initialize P2P network
-                                if let Err(err) = P2pService::initialize(&login_result.private_key, &name).await {
+                                println!(
+                                    "Attempting to initialize P2P network with name: {}",
+                                    name
+                                );
+                                if let Err(err) =
+                                    P2pService::initialize(&login_result.private_key, &name).await
+                                {
                                     println!("Failed to initialize P2P network: {:?}", err);
+                                } else {
+                                    println!("P2P network initialized successfully");
                                 }
-                                
+
                                 navigator.push("/");
                             }
                             _ => {

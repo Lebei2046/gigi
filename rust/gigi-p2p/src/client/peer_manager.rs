@@ -202,7 +202,9 @@ impl PeerManager {
 
     /// List all discovered peers
     pub fn list_peers(&self) -> Vec<&PeerInfo> {
-        self.peers.values().collect()
+        let mut all_peers: Vec<&PeerInfo> = self.peers.values().collect();
+        all_peers.extend(self.unconnected_peers.iter().map(|(_, peer)| peer));
+        all_peers
     }
 
     /// Handle peer connection established
@@ -250,7 +252,7 @@ impl PeerManager {
 
     /// Get peers count
     pub fn peers_count(&self) -> usize {
-        self.peers.len()
+        self.peers.len() + self.unconnected_peers.len()
     }
 
     /// Get connected peers count

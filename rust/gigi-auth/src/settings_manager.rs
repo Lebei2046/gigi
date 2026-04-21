@@ -389,7 +389,8 @@ impl SettingsManager {
             group_id
         );
 
-        let result = self.db
+        let result = self
+            .db
             .query_one(Statement::from_string(
                 self.db.get_database_backend(),
                 query_sql,
@@ -408,23 +409,28 @@ impl SettingsManager {
     pub async fn get_all_groups(&self) -> Result<Vec<GroupInfo>, DbErr> {
         debug!("Getting all groups");
 
-        let query_sql = "SELECT group_id, name, joined, created_at FROM groups ORDER BY created_at DESC";
+        let query_sql =
+            "SELECT group_id, name, joined, created_at FROM groups ORDER BY created_at DESC";
 
-        let result = self.db
+        let result = self
+            .db
             .query_all(Statement::from_string(
                 self.db.get_database_backend(),
                 query_sql.to_string(),
             ))
             .await?;
 
-        let groups = result.into_iter().filter_map(|row| {
-            Some(GroupInfo {
-                group_id: row.try_get("", "group_id").ok()?,
-                name: row.try_get("", "name").ok()?,
-                joined: row.try_get::<i64>("", "joined").ok()? == 1,
-                created_at: row.try_get("", "created_at").ok()?,
+        let groups = result
+            .into_iter()
+            .filter_map(|row| {
+                Some(GroupInfo {
+                    group_id: row.try_get("", "group_id").ok()?,
+                    name: row.try_get("", "name").ok()?,
+                    joined: row.try_get::<i64>("", "joined").ok()? == 1,
+                    created_at: row.try_get("", "created_at").ok()?,
+                })
             })
-        }).collect();
+            .collect();
 
         Ok(groups)
     }
@@ -435,27 +441,35 @@ impl SettingsManager {
 
         let query_sql = "SELECT group_id, name, joined, created_at FROM groups WHERE joined = 1 ORDER BY created_at DESC";
 
-        let result = self.db
+        let result = self
+            .db
             .query_all(Statement::from_string(
                 self.db.get_database_backend(),
                 query_sql.to_string(),
             ))
             .await?;
 
-        let groups = result.into_iter().filter_map(|row| {
-            Some(GroupInfo {
-                group_id: row.try_get("", "group_id").ok()?,
-                name: row.try_get("", "name").ok()?,
-                joined: true,
-                created_at: row.try_get("", "created_at").ok()?,
+        let groups = result
+            .into_iter()
+            .filter_map(|row| {
+                Some(GroupInfo {
+                    group_id: row.try_get("", "group_id").ok()?,
+                    name: row.try_get("", "name").ok()?,
+                    joined: true,
+                    created_at: row.try_get("", "created_at").ok()?,
+                })
             })
-        }).collect();
+            .collect();
 
         Ok(groups)
     }
 
     /// Update group join status
-    pub async fn update_group_join_status(&self, group_id: &str, joined: bool) -> Result<bool, DbErr> {
+    pub async fn update_group_join_status(
+        &self,
+        group_id: &str,
+        joined: bool,
+    ) -> Result<bool, DbErr> {
         debug!("Updating join status for group: {} -> {}", group_id, joined);
 
         let joined_int = if joined { 1 } else { 0 };
@@ -464,7 +478,8 @@ impl SettingsManager {
             joined_int, group_id
         );
 
-        let result = self.db
+        let result = self
+            .db
             .execute(Statement::from_string(
                 self.db.get_database_backend(),
                 update_sql,
@@ -483,7 +498,8 @@ impl SettingsManager {
             name, group_id
         );
 
-        let result = self.db
+        let result = self
+            .db
             .execute(Statement::from_string(
                 self.db.get_database_backend(),
                 update_sql,
@@ -499,7 +515,8 @@ impl SettingsManager {
 
         let delete_sql = format!("DELETE FROM groups WHERE group_id = '{}'", group_id);
 
-        let result = self.db
+        let result = self
+            .db
             .execute(Statement::from_string(
                 self.db.get_database_backend(),
                 delete_sql,
