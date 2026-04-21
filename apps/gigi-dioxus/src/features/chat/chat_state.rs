@@ -1,10 +1,15 @@
 use dioxus::prelude::*;
 use crate::services::p2p_service::P2pService;
+use crate::services::auth_service::AuthService;
+use gigi_store::StoredMessage;
+use gigi_p2p::PeerId;
+use chrono::Local;
 
 // Types for chat data
 #[derive(Debug, Clone, PartialEq)]
 pub struct Peer {
     pub id: String,
+    pub peer_id: PeerId,
     pub nickname: String,
     pub is_online: bool,
     pub capabilities: Vec<String>,
@@ -16,6 +21,19 @@ pub struct Group {
     pub name: String,
     pub role: String,
     pub member_count: u32,
+    pub joined: bool,
+}
+
+impl From<&gigi_auth::GroupInfo> for Group {
+    fn from(info: &gigi_auth::GroupInfo) -> Self {
+        Self {
+            id: info.group_id.clone(),
+            name: info.name.clone(),
+            role: if info.joined { "Member".to_string() } else { "Not joined".to_string() },
+            member_count: 0,
+            joined: info.joined,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,6 +55,21 @@ pub struct GroupShareNotification {
     pub sender_nickname: String,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ActiveDownload {
+    pub download_id: String,
+    pub filename: String,
+    pub share_code: String,
+    pub from_peer_id: PeerId,
+    pub from_nickname: String,
+    pub downloaded_chunks: usize,
+    pub total_chunks: usize,
+    pub completed: bool,
+    pub failed: bool,
+    pub error_message: Option<String>,
+    pub final_path: Option<std::path::PathBuf>,
+}
+
 // Chat state
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChatState {
@@ -44,6 +77,7 @@ pub struct ChatState {
     pub groups: Vec<Group>,
     pub conversations: Vec<Conversation>,
     pub group_share_notifications: Vec<GroupShareNotification>,
+    pub active_downloads: Vec<ActiveDownload>,
     pub loading: bool,
     pub error: Option<String>,
 }
@@ -85,69 +119,11 @@ pub enum MessageType {
 impl Default for ChatState {
     fn default() -> Self {
         Self {
-            peers: vec![
-                Peer {
-                    id: "peer123".to_string(),
-                    nickname: "Alice".to_string(),
-                    is_online: true,
-                    capabilities: vec!["chat".to_string(), "file_sharing".to_string()],
-                },
-                Peer {
-                    id: "peer456".to_string(),
-                    nickname: "Bob".to_string(),
-                    is_online: true,
-                    capabilities: vec!["chat".to_string()],
-                },
-            ],
-            groups: vec![
-                Group {
-                    id: "group1".to_string(),
-                    name: "Development Team".to_string(),
-                    role: "Member".to_string(),
-                    member_count: 5,
-                },
-                Group {
-                    id: "group2".to_string(),
-                    name: "Friends".to_string(),
-                    role: "Owner".to_string(),
-                    member_count: 3,
-                },
-            ],
-            conversations: vec![
-                Conversation {
-                    id: "conv1".to_string(),
-                    peer_id: Some("peer123".to_string()),
-                    group_id: None,
-                    last_message: Some("Hello, how are you?".to_string()),
-                    last_message_time: Some("2024-01-01 12:00:00".to_string()),
-                    unread_count: 2,
-                },
-                Conversation {
-                    id: "conv2".to_string(),
-                    peer_id: Some("peer456".to_string()),
-                    group_id: None,
-                    last_message: None,
-                    last_message_time: None,
-                    unread_count: 0,
-                },
-                Conversation {
-                    id: "conv3".to_string(),
-                    peer_id: None,
-                    group_id: Some("group1".to_string()),
-                    last_message: Some("💬 Meeting at 3 PM".to_string()),
-                    last_message_time: Some("2024-01-01 11:30:00".to_string()),
-                    unread_count: 1,
-                },
-                Conversation {
-                    id: "conv4".to_string(),
-                    peer_id: None,
-                    group_id: Some("group2".to_string()),
-                    last_message: None,
-                    last_message_time: None,
-                    unread_count: 0,
-                },
-            ],
-            group_share_notifications: vec![] as Vec<GroupShareNotification>,
+            peers: vec![],
+            groups: vec![],
+            conversations: vec![],
+            group_share_notifications: vec![],
+            active_downloads: vec![],
             loading: false,
             error: None,
         }
@@ -162,36 +138,39 @@ impl Default for ChatRoomState {
             is_group_chat: false,
             peer: None,
             group: None,
-            messages: vec![
-                Message {
-                    id: "1".to_string(),
-                    content: "Hello, how are you?".to_string(),
-                    sender: "Alice".to_string(),
-                    timestamp: "12:00 PM".to_string(),
-                    is_own: false,
-                    message_type: MessageType::Text,
-                },
-                Message {
-                    id: "2".to_string(),
-                    content: "I'm doing well, thanks! How about you?".to_string(),
-                    sender: "You".to_string(),
-                    timestamp: "12:01 PM".to_string(),
-                    is_own: true,
-                    message_type: MessageType::Text,
-                },
-                Message {
-                    id: "3".to_string(),
-                    content: "I'm good too! Let's meet up later.".to_string(),
-                    sender: "Alice".to_string(),
-                    timestamp: "12:02 PM".to_string(),
-                    is_own: false,
-                    message_type: MessageType::Text,
-                },
-            ],
+            messages: vec![],
             new_message: "".to_string(),
             sending: false,
             is_loading: false,
             unread_reset_done: false,
+        }
+    }
+}
+
+impl From<&StoredMessage> for Message {
+    fn from(msg: &StoredMessage) -> Self {
+        let content = match &msg.content {
+            gigi_store::MessageContent::Text { text } => text.clone(),
+            gigi_store::MessageContent::FileShare { filename, .. } => filename.clone(),
+            gigi_store::MessageContent::FileShareWithThumbnail { filename, .. } => filename.clone(),
+            gigi_store::MessageContent::ShareGroup { group_name, .. } => format!("Join group: {}", group_name),
+        };
+        
+        let message_type = match &msg.content {
+            gigi_store::MessageContent::Text { .. } => MessageType::Text,
+            gigi_store::MessageContent::FileShareWithThumbnail { .. } | gigi_store::MessageContent::FileShare { .. } => MessageType::File,
+            gigi_store::MessageContent::ShareGroup { .. } => MessageType::Text,
+        };
+        
+        let is_own = matches!(msg.direction, gigi_store::MessageDirection::Sent);
+        
+        Self {
+            id: msg.id.clone(),
+            content,
+            sender: msg.sender_nickname.clone(),
+            timestamp: msg.timestamp.with_timezone(&Local).format("%H:%M %p").to_string(),
+            is_own,
+            message_type,
         }
     }
 }

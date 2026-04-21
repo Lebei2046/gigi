@@ -1,17 +1,44 @@
 use dioxus::prelude::*;
 use std::sync::Arc;
+use futures_util::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
+use std::path::PathBuf;
+use gigi_p2p::PeerId;
 
-use crate::features::chat::chat_state::{use_chat_state, use_chat_room_state, ChatState, ChatRoomState};
+use crate::features::chat::chat_state::{use_chat_state, use_chat_room_state, ChatState, ChatRoomState, Message, Peer};
+use crate::services::auth_service::AuthService;
+use crate::services::event_bus::{EventBus, AppEvent};
+use crate::services::persistence_service::PersistenceService;
+use crate::services::p2p_service::P2pService;
 
 // Hook for chat initialization
 pub fn use_chat_initialization() -> Signal<ChatState> {
     let chat_state = use_chat_state();
 
-    // Initialize chat data on mount
-    use_effect(|| {
-        // In a real app, this would load data from the backend
-        // For now, we'll use the default data from the ChatState
-        println!("Chat initialized");
+    use_effect(move || {
+        println!("Chat initialized - loading groups from auth service");
+
+        let mut chat_state_clone = chat_state.clone();
+        spawn(async move {
+            match AuthService::new().await {
+                Ok(auth_service) => {
+                    match auth_service.get_all_groups().await {
+                        Ok(groups) => {
+                            let converted: Vec<crate::features::chat::chat_state::Group> =
+                                groups.iter().map(|g| g.into()).collect();
+                            chat_state_clone.write().groups = converted;
+                            println!("Loaded {} groups from auth service", groups.len());
+                        }
+                        Err(e) => {
+                            println!("Failed to load groups: {:?}", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("Failed to create auth service: {:?}", e);
+                }
+            }
+        });
     });
 
     chat_state
@@ -44,12 +71,16 @@ pub fn use_chat_room_initialization(chat_id: String) -> Signal<ChatRoomState> {
 
         // Load message history
         let chat_id_clone = chat_id.clone();
+        let mut chat_room_state_clone = chat_room_state.clone();
+        let chat_name = chat_room_state.read().chat_name.clone();
         spawn(async move {
-            let message_service = crate::services::message_service::MessageService::new();
-            let messages = message_service.load_message_history(&chat_id_clone, 50, 0).await;
-            
-            chat_room_state.write().messages = messages;
-            chat_room_state.write().is_loading = false;
+            if let Some(peer_nickname) = chat_name {
+                if let Ok(stored_messages) = PersistenceService::load_messages(&peer_nickname, 50, 0).await {
+                    let messages: Vec<Message> = stored_messages.iter().map(|m| m.into()).collect();
+                    chat_room_state_clone.write().messages = messages;
+                }
+            }
+            chat_room_state_clone.write().is_loading = false;
         });
     });
 
@@ -58,12 +89,124 @@ pub fn use_chat_room_initialization(chat_id: String) -> Signal<ChatRoomState> {
 
 // Hook for chat event listeners
 pub fn use_chat_event_listeners() {
-    // In a real app, this would set up event listeners for incoming messages, peer status changes, etc.
-    use_effect(|| {
+    let mut chat_state = use_chat_state();
+    let mut chat_room_state = use_chat_room_state();
+    
+    use_effect(move || {
         println!("Chat event listeners initialized");
-
-        // Cleanup function
-        println!("Chat event listeners cleaned up");
+        
+        // Subscribe to event bus
+        if let Some(rx) = EventBus::subscribe() {
+            let mut stream = BroadcastStream::new(rx);
+            let mut chat_state_clone = chat_state.clone();
+            let mut chat_room_state_clone = chat_room_state.clone();
+            
+            spawn(async move {
+                while let Some(Ok(event)) = stream.next().await {
+                    match event {
+                        AppEvent::P2P(p2p_event) => {
+                            match p2p_event {
+                                gigi_p2p::P2pEvent::PeerDiscovered { peer_id, nickname, .. } => {
+                                    let mut state = chat_state_clone.write();
+                                    if !state.peers.iter().any(|p| p.id == peer_id.to_string()) {
+                                        state.peers.push(Peer {
+                                            id: peer_id.to_string(),
+                                            peer_id,
+                                            nickname,
+                                            is_online: true,
+                                            capabilities: vec!["chat".to_string(), "file_sharing".to_string()],
+                                        });
+                                    }
+                                }
+                                gigi_p2p::P2pEvent::Connected { peer_id, .. } => {
+                                    let mut state = chat_state_clone.write();
+                                    if let Some(peer) = state.peers.iter_mut().find(|p| p.peer_id == peer_id) {
+                                        peer.is_online = true;
+                                    }
+                                }
+                                gigi_p2p::P2pEvent::Disconnected { peer_id, .. } => {
+                                    let mut state = chat_state_clone.write();
+                                    if let Some(peer) = state.peers.iter_mut().find(|p| p.peer_id == peer_id) {
+                                        peer.is_online = false;
+                                    }
+                                }
+                                gigi_p2p::P2pEvent::DirectMessage { from_nickname, message, .. } => {
+                                    let state = chat_room_state_clone.read();
+                                    if state.chat_name == Some(from_nickname.clone()) {
+                                        drop(state);
+                                        let mut state = chat_room_state_clone.write();
+                                        state.messages.push(Message {
+                                            id: uuid::Uuid::new_v4().to_string(),
+                                            content: message,
+                                            sender: from_nickname,
+                                            timestamp: chrono::Local::now().format("%H:%M %p").to_string(),
+                                            is_own: false,
+                                            message_type: crate::features::chat::chat_state::MessageType::Text,
+                                        });
+                                    }
+                                }
+                                gigi_p2p::P2pEvent::FileDownloadStarted { download_id, filename, share_code, from, from_nickname, .. } => {
+                                    let mut state = chat_state_clone.write();
+                                    state.active_downloads.push(crate::features::chat::chat_state::ActiveDownload {
+                                        download_id,
+                                        filename,
+                                        share_code,
+                                        from_peer_id: from,
+                                        from_nickname,
+                                        downloaded_chunks: 0,
+                                        total_chunks: 0,
+                                        completed: false,
+                                        failed: false,
+                                        error_message: None,
+                                        final_path: None,
+                                    });
+                                }
+                                gigi_p2p::P2pEvent::FileDownloadProgress { download_id, downloaded_chunks, total_chunks, .. } => {
+                                    let mut state = chat_state_clone.write();
+                                    if let Some(dl) = state.active_downloads.iter_mut().find(|d| d.download_id == download_id) {
+                                        dl.downloaded_chunks = downloaded_chunks;
+                                        dl.total_chunks = total_chunks;
+                                    }
+                                }
+                                gigi_p2p::P2pEvent::FileDownloadCompleted { download_id, path, .. } => {
+                                    let mut state = chat_state_clone.write();
+                                    if let Some(dl) = state.active_downloads.iter_mut().find(|d| d.download_id == download_id) {
+                                        dl.completed = true;
+                                        dl.final_path = Some(path);
+                                    }
+                                }
+                                gigi_p2p::P2pEvent::FileDownloadFailed { download_id, error, .. } => {
+                                    let mut state = chat_state_clone.write();
+                                    if let Some(dl) = state.active_downloads.iter_mut().find(|d| d.download_id == download_id) {
+                                        dl.failed = true;
+                                        dl.error_message = Some(error);
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        AppEvent::MessageSaved(chat_id) => {
+                            println!("Message saved for chat: {}", chat_id);
+                            if chat_room_state_clone.read().chat_id == Some(chat_id.clone()) {
+                                let chat_id_clone = chat_id;
+                                let chat_name = chat_room_state_clone.read().chat_name.clone();
+                                let mut chat_room_state_refresh = chat_room_state_clone.clone();
+                                spawn(async move {
+                                    if let Some(peer_nickname) = chat_name {
+                                        if let Ok(stored_messages) = PersistenceService::load_messages(&peer_nickname, 50, 0).await {
+                                            let messages: Vec<Message> = stored_messages.iter().map(|m| m.into()).collect();
+                                            chat_room_state_refresh.write().messages = messages;
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                        AppEvent::ContactUpdated => {}
+                        AppEvent::GroupUpdated => {}
+                    }
+                }
+            });
+        }
     });
 }
 
@@ -135,17 +278,18 @@ pub fn use_message_actions() -> (
     impl FnMut(),
     impl FnMut(),
     impl FnMut(),
-    impl Fn(&str)
+    impl Fn(String),
+    impl Fn(&str, PathBuf),
 ) {
     let mut chat_room_state = use_chat_room_state();
 
     let handle_send_message = move || {
         if !chat_room_state.read().new_message.is_empty() {
             let new_msg = crate::features::chat::chat_state::Message {
-                id: (chat_room_state.read().messages.len() + 1).to_string(),
+                id: uuid::Uuid::new_v4().to_string(),
                 content: chat_room_state.read().new_message.clone(),
                 sender: "You".to_string(),
-                timestamp: "12:03 PM".to_string(), // In a real app, this would be the current time
+                timestamp: chrono::Local::now().format("%H:%M %p").to_string(),
                 is_own: true,
                 message_type: crate::features::chat::chat_state::MessageType::Text,
             };
@@ -165,69 +309,43 @@ pub fn use_message_actions() -> (
                 });
             }
             
-            // Save message to persistence
+            // Save message to persistence and send event
             if let Some(chat_id) = chat_room_state.read().chat_id.clone() {
                 let new_msg_clone = new_msg.clone();
+                let chat_name = chat_room_state.read().chat_name.clone();
                 spawn(async move {
-                    let message_service = crate::services::message_service::MessageService::new();
-                    let _ = message_service.save_message(&new_msg_clone, &chat_id).await;
+                    let _ = PersistenceService::store_direct_message(
+                        "You".to_string(),
+                        chat_name.unwrap_or_default(),
+                        new_msg_clone.content,
+                        true,
+                    ).await;
+                    let _ = EventBus::send(AppEvent::MessageSaved(chat_id));
                 });
             }
         }
     };
 
     let handle_image_select = move || {
-        // In a real app, this would open a file picker for images
         println!("Select image");
-        // For demo purposes, we'll add a sample image message
-        let new_msg = crate::features::chat::chat_state::Message {
-            id: (chat_room_state.read().messages.len() + 1).to_string(),
-            content: "image.jpg".to_string(),
-            sender: "You".to_string(),
-            timestamp: "12:03 PM".to_string(), // In a real app, this would be the current time
-            is_own: true,
-            message_type: crate::features::chat::chat_state::MessageType::Image,
-        };
-        chat_room_state.write().messages.push(new_msg.clone());
-        
-        // Save message to persistence
-        if let Some(chat_id) = chat_room_state.read().chat_id.clone() {
-            let new_msg_clone = new_msg.clone();
-            spawn(async move {
-                let message_service = crate::services::message_service::MessageService::new();
-                let _ = message_service.save_message(&new_msg_clone, &chat_id).await;
-            });
-        }
     };
 
     let handle_file_select = move || {
-        // In a real app, this would open a file picker for files
         println!("Select file");
-        // For demo purposes, we'll add a sample file message
-        let new_msg = crate::features::chat::chat_state::Message {
-            id: (chat_room_state.read().messages.len() + 1).to_string(),
-            content: "document.pdf".to_string(),
-            sender: "You".to_string(),
-            timestamp: "12:03 PM".to_string(), // In a real app, this would be the current time
-            is_own: true,
-            message_type: crate::features::chat::chat_state::MessageType::File,
-        };
-        chat_room_state.write().messages.push(new_msg.clone());
-        
-        // Save message to persistence
-        if let Some(chat_id) = chat_room_state.read().chat_id.clone() {
-            let new_msg_clone = new_msg.clone();
-            spawn(async move {
-                let message_service = crate::services::message_service::MessageService::new();
-                let _ = message_service.save_message(&new_msg_clone, &chat_id).await;
-            });
-        }
     };
 
-    let handle_file_download_request = move |file_id: &str| {
-        // In a real app, this would initiate a file download
-        println!("Download file: {}", file_id);
+    let handle_file_download_request = move |_share_code: String| {
+        // For now, we don't have the nickname from MessageList, so just log
+        println!("Download requested for: {}", _share_code);
+        // TODO: We need both nickname and share_code to download
+    };
+    
+    let handle_share_file = move |to_nickname: &str, file_path: PathBuf| {
+        let to_nickname = to_nickname.to_string();
+        spawn(async move {
+            let _ = P2pService::share_file(&to_nickname, &file_path).await;
+        });
     };
 
-    (handle_send_message, handle_image_select, handle_file_select, handle_file_download_request)
+    (handle_send_message, handle_image_select, handle_file_select, handle_file_download_request, handle_share_file)
 }

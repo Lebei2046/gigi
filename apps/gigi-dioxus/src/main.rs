@@ -23,6 +23,16 @@ const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
+    // Initialize event bus
+    crate::services::event_bus::EventBus::init();
+    
+    // Initialize persistence service
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        if let Err(e) = crate::services::persistence_service::PersistenceService::initialize().await {
+            eprintln!("Failed to initialize persistence service: {:?}", e);
+        }
+    });
+    
     dioxus::launch(App);
 }
 

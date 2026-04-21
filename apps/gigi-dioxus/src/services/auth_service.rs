@@ -1,5 +1,5 @@
 use dirs;
-use gigi_auth::{generate_mnemonic, AccountInfo, AuthManager, LoginResult};
+use gigi_auth::{generate_mnemonic, AccountInfo, AuthManager, GroupInfo, LoginResult};
 use sea_orm::{ConnectionTrait, Database, Statement};
 use std::env;
 use std::path::PathBuf;
@@ -96,5 +96,26 @@ impl AuthService {
             .verify_password(password)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to verify password: {:?}", e))
+    }
+
+    pub async fn get_all_groups(&self) -> anyhow::Result<Vec<GroupInfo>> {
+        self.auth_manager
+            .get_all_groups()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get groups: {:?}", e))
+    }
+
+    pub async fn get_joined_groups(&self) -> anyhow::Result<Vec<GroupInfo>> {
+        self.auth_manager
+            .get_joined_groups()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get joined groups: {:?}", e))
+    }
+
+    pub async fn update_group_join_status(&self, group_id: &str, joined: bool) -> anyhow::Result<bool> {
+        self.auth_manager
+            .update_group_join_status(group_id, joined)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to update group join status: {:?}", e))
     }
 }

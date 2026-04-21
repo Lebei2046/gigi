@@ -10,10 +10,9 @@
 //! - **MessageStore**: Core message persistence, offline queuing, and sync status
 //! - **ConversationStore**: Chat/conversation metadata and last message tracking
 //! - **ContactManager**: Contact book management (add, update, remove contacts)
-//! - **GroupManager**: Group creation and membership tracking
 //! - **FileSharingStore**: Shared file metadata and transfer tracking
 //! - **ThumbnailStore**: Mapping between original files and generated thumbnails
-//! - **SettingsManager**: Application-wide settings (mnemonic, peer_id, etc.)
+//! - **SettingsManager**: Application-wide settings
 //! - **SyncManager**: Message synchronization and acknowledgment tracking
 //!
 //! # Database Schema
@@ -24,11 +23,15 @@
 //! - `offline_queue`: Queued messages for offline peers with retry logic
 //! - `conversations`: Chat/conversation metadata and unread counts
 //! - `contacts`: Contact book entries
-//! - `groups`: Group definitions and member lists
 //! - `shared_files`: File share metadata (hash, chunks, transfer status)
 //! - `thumbnails`: File-to-thumbnail path mappings
 //! - `settings`: Key-value settings storage
 //! - `message_acknowledgments`: Read receipts and delivery confirmations
+//!
+//! # Note
+//!
+//! Group data is stored in `gigi-auth` crate's database (`gigi.db`), not here.
+//! Gigi-store is focused on dynamic data (messages, conversations) that changes frequently.
 //!
 //! # Key Features
 //!
@@ -85,7 +88,6 @@ pub mod contact_manager;
 pub mod conversation_store;
 pub mod entities;
 pub mod file_sharing_store;
-pub mod group_manager;
 pub mod message_store;
 pub mod migration;
 pub mod settings_manager;
@@ -94,12 +96,11 @@ pub mod thumbnail;
 pub mod thumbnail_store;
 
 // Re-export from gigi-auth
-pub use gigi_auth::{AccountInfo, AuthManager, LoginResult};
+pub use gigi_auth::{AccountInfo, AuthManager, GroupManager, GroupInfo, LoginResult};
 
 pub use contact_manager::{ContactInfo, ContactManager};
 pub use conversation_store::{Conversation, ConversationStore};
 pub use file_sharing_store::{FileSharingStore, SharedFileInfo};
-pub use group_manager::{GroupInfo, GroupManager};
 pub use message_store::MessageStore;
 pub use settings_manager::SettingsManager;
 pub use sync_manager::{AckType, SyncAction, SyncManager, SyncMessage, SyncMessageHandler};

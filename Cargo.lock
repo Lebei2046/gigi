@@ -3444,6 +3444,7 @@ name = "gigi-dioxus"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "dioxus",
  "dioxus-tw-components",
  "dirs 5.0.1",
@@ -3461,6 +3462,7 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-stream",
  "tracing",
  "uuid",
 ]
@@ -9853,6 +9855,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

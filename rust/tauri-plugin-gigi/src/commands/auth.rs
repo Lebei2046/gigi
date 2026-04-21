@@ -72,29 +72,14 @@ pub(crate) async fn auth_signup(
             }
         }
     } else {
-        // Create new account
+        // Create new account (create_account handles group creation internally)
         manager
-            .create_account(&mnemonic, &password, Some(name))
+            .create_account(&mnemonic, &password, Some(name), group_name)
             .await
             .map_err(|e| Error::Io(format!("Failed to create account: {}", e)))?
     };
 
     drop(auth_manager);
-
-    // If group_name is provided, create a group
-    if let Some(group_name) = group_name {
-        let group_manager = state.group_manager.lock().await;
-        let manager = group_manager
-            .as_ref()
-            .ok_or_else(|| Error::CommandFailed("Group manager not initialized".to_string()))?;
-
-        manager
-            .add_or_update(&account_info.group_id, &group_name, false)
-            .await
-            .map_err(|e| Error::Io(format!("Failed to create group: {}", e)))?;
-
-        drop(group_manager);
-    }
 
     Ok(account_info)
 }

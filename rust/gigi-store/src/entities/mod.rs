@@ -2,7 +2,6 @@
 
 pub mod contacts;
 pub mod conversations;
-pub mod groups;
 pub mod message_acknowledgments;
 pub mod messages;
 pub mod offline_queue;
@@ -12,7 +11,6 @@ pub mod thumbnails;
 
 pub use contacts::Entity as Contacts;
 pub use conversations::Entity as Conversation;
-pub use groups::Entity as Groups;
 pub use message_acknowledgments::Entity as MessageAcknowledgment;
 pub use messages::Entity as Message;
 pub use offline_queue::Entity as OfflineQueue;

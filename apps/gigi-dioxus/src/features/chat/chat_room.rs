@@ -11,7 +11,7 @@ use crate::features::chat::components::{ChatRoomHeader, ChatRoomInput, MessageLi
 pub fn ChatRoom(id: String) -> Element {
     let navigator = use_navigator();
     let mut chat_room_state = use_chat_room_initialization(id);
-    let (mut handle_send_message, handle_image_select, handle_file_select, handle_file_download_request) = use_message_actions();
+    let (mut handle_send_message, handle_image_select, handle_file_select, handle_file_download_request, _handle_share_file) = use_message_actions();
 
     // Create a shared reference to the send message closure
     let send_message = Rc::new(RefCell::new(handle_send_message));
@@ -47,7 +47,7 @@ pub fn ChatRoom(id: String) -> Element {
             MessageList {
                 messages: chat_room_state.read().messages.clone(),
                 is_group_chat: chat_room_state.read().is_group_chat,
-                on_download_request: move |file_id| println!("Download file: {}", file_id),
+                on_download_request: handle_file_download_request,
             }
 
             // Message Input

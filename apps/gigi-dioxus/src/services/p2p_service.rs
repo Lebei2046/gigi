@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use dirs;
 use hex;
+use crate::services::event_bus::{EventBus, AppEvent};
 
 static P2P_CLIENT: Lazy<Arc<Mutex<Option<P2pClient>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
@@ -14,6 +15,7 @@ pub struct P2pService;
 
 impl P2pService {
     pub async fn initialize(private_key: &str, nickname: &str) -> Result<()> {
+        EventBus::init();
         // Create keypair from private key
         let keypair = Keypair::from_protobuf_encoding(
             &hex::decode(private_key)?
@@ -72,22 +74,26 @@ impl P2pService {
     }
 
     async fn handle_event(event: P2pEvent) {
-        // Handle P2P events here
+        let _ = EventBus::send(AppEvent::P2P(event.clone()));
+        
         match event {
             P2pEvent::PeerDiscovered { peer_id, nickname, .. } => {
                 println!("Discovered peer: {} ({})", nickname, peer_id);
             }
             P2pEvent::DirectMessage { from_nickname, message, .. } => {
                 println!("Message from {}: {}", from_nickname, message);
-                // TODO: Update chat state with new message
+                let _ = crate::services::persistence_service::PersistenceService::store_direct_message(
+                    from_nickname,
+                    "".to_string(),
+                    message,
+                    false,
+                ).await;
             }
             P2pEvent::FileDownloadProgress { downloaded_chunks, total_chunks, filename, .. } => {
                 let progress = (downloaded_chunks * 100) / total_chunks;
                 println!("Downloading {}: {}%", filename, progress);
             }
-            _ => {
-                // Handle other events
-            }
+            _ => {}
         }
     }
 
@@ -138,6 +144,27 @@ impl P2pService {
         } else {
             Ok(vec![])
         }
+    }
+
+    pub async fn share_file(to_nickname: &str, file_path: &PathBuf) -> Result<String> {
+        if let Some(mut client_guard) = Self::get_client()? {
+            if let Some(client) = client_guard.as_mut() {
+                let share_code = client.share_file(file_path).await?;
+                client.send_direct_message(to_nickname, format!("File share: {}", share_code))?;
+                return Ok(share_code);
+            }
+        }
+        Err(anyhow::anyhow!("P2P client not initialized"))
+    }
+
+    pub async fn download_file(nickname: &str, share_code: &str) -> Result<String> {
+        if let Some(mut client_guard) = Self::get_client()? {
+            if let Some(client) = client_guard.as_mut() {
+                let download_id = client.download_file(nickname, share_code)?;
+                return Ok(download_id);
+            }
+        }
+        Err(anyhow::anyhow!("P2P client not initialized"))
     }
 
     pub fn shutdown() -> Result<()> {

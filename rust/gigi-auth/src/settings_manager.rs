@@ -379,4 +379,142 @@ impl SettingsManager {
         info!("Groups table cleared");
         Ok(())
     }
+
+    /// Get a group by group_id
+    pub async fn get_group(&self, group_id: &str) -> Result<Option<GroupInfo>, DbErr> {
+        debug!("Getting group: {}", group_id);
+
+        let query_sql = format!(
+            "SELECT group_id, name, joined, created_at FROM groups WHERE group_id = '{}'",
+            group_id
+        );
+
+        let result = self.db
+            .query_one(Statement::from_string(
+                self.db.get_database_backend(),
+                query_sql,
+            ))
+            .await?;
+
+        Ok(result.map(|row| GroupInfo {
+            group_id: row.try_get("", "group_id").unwrap_or_default(),
+            name: row.try_get("", "name").unwrap_or_default(),
+            joined: row.try_get::<i64>("", "joined").unwrap_or(0) == 1,
+            created_at: row.try_get("", "created_at").unwrap_or(0),
+        }))
+    }
+
+    /// Get all groups
+    pub async fn get_all_groups(&self) -> Result<Vec<GroupInfo>, DbErr> {
+        debug!("Getting all groups");
+
+        let query_sql = "SELECT group_id, name, joined, created_at FROM groups ORDER BY created_at DESC";
+
+        let result = self.db
+            .query_all(Statement::from_string(
+                self.db.get_database_backend(),
+                query_sql.to_string(),
+            ))
+            .await?;
+
+        let groups = result.into_iter().filter_map(|row| {
+            Some(GroupInfo {
+                group_id: row.try_get("", "group_id").ok()?,
+                name: row.try_get("", "name").ok()?,
+                joined: row.try_get::<i64>("", "joined").ok()? == 1,
+                created_at: row.try_get("", "created_at").ok()?,
+            })
+        }).collect();
+
+        Ok(groups)
+    }
+
+    /// Get all joined groups
+    pub async fn get_joined_groups(&self) -> Result<Vec<GroupInfo>, DbErr> {
+        debug!("Getting joined groups");
+
+        let query_sql = "SELECT group_id, name, joined, created_at FROM groups WHERE joined = 1 ORDER BY created_at DESC";
+
+        let result = self.db
+            .query_all(Statement::from_string(
+                self.db.get_database_backend(),
+                query_sql.to_string(),
+            ))
+            .await?;
+
+        let groups = result.into_iter().filter_map(|row| {
+            Some(GroupInfo {
+                group_id: row.try_get("", "group_id").ok()?,
+                name: row.try_get("", "name").ok()?,
+                joined: true,
+                created_at: row.try_get("", "created_at").ok()?,
+            })
+        }).collect();
+
+        Ok(groups)
+    }
+
+    /// Update group join status
+    pub async fn update_group_join_status(&self, group_id: &str, joined: bool) -> Result<bool, DbErr> {
+        debug!("Updating join status for group: {} -> {}", group_id, joined);
+
+        let joined_int = if joined { 1 } else { 0 };
+        let update_sql = format!(
+            "UPDATE groups SET joined = {} WHERE group_id = '{}'",
+            joined_int, group_id
+        );
+
+        let result = self.db
+            .execute(Statement::from_string(
+                self.db.get_database_backend(),
+                update_sql,
+            ))
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Update group name
+    pub async fn update_group_name(&self, group_id: &str, name: &str) -> Result<bool, DbErr> {
+        debug!("Updating name for group: {}", group_id);
+
+        let update_sql = format!(
+            "UPDATE groups SET name = '{}' WHERE group_id = '{}'",
+            name, group_id
+        );
+
+        let result = self.db
+            .execute(Statement::from_string(
+                self.db.get_database_backend(),
+                update_sql,
+            ))
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Delete a group
+    pub async fn delete_group(&self, group_id: &str) -> Result<bool, DbErr> {
+        debug!("Deleting group: {}", group_id);
+
+        let delete_sql = format!("DELETE FROM groups WHERE group_id = '{}'", group_id);
+
+        let result = self.db
+            .execute(Statement::from_string(
+                self.db.get_database_backend(),
+                delete_sql,
+            ))
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+}
+
+/// Group information stored in the database
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GroupInfo {
+    pub group_id: String,
+    pub name: String,
+    pub joined: bool,
+    pub created_at: i64,
 }
