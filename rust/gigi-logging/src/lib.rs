@@ -80,7 +80,7 @@ pub fn init_logging() {
 pub fn init_logging_with_config(config: LogConfig) {
     INIT_ONCE.call_once(|| {
         let env_filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new(config.level.to_string()));
+            .unwrap_or_else(|_| EnvFilter::new(format!("{} ,sqlx=warn", config.level)));
 
         // Create the subscriber based on config
         let subscriber: Box<dyn tracing::Subscriber + Send + Sync> = if config.json {

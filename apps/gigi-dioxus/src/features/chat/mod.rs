@@ -5,8 +5,10 @@ pub mod hooks;
 
 use dioxus::prelude::*;
 use dioxus_router::use_navigator;
+use std::str::FromStr;
 
-use crate::features::chat::components::{GroupChatCard, PeerChatCard};
+use crate::features::chat::components::{ConfirmationDialog, GroupChatCard, PeerChatCard};
+use crate::features::chat::chat_state::use_chat_room_state;
 use crate::features::chat::hooks::{
     use_chat_data_refresh, use_chat_event_listeners, use_chat_initialization, use_group_actions,
     use_peer_actions,
@@ -18,8 +20,11 @@ pub fn Chat() -> Element {
     let navigator = use_navigator();
     let chat_state = use_chat_initialization();
 
-    // Set up event listeners and data refresh
-    use_chat_event_listeners(chat_state);
+    // Set up event listeners
+    let chat_room_state = use_chat_room_state();
+    use_chat_event_listeners(chat_state.clone(), chat_room_state);
+
+    // Set up data refresh
     use_chat_data_refresh();
 
     // Get action handlers
@@ -30,6 +35,10 @@ pub fn Chat() -> Element {
         handle_clear_messages,
     ) = use_group_actions();
 
+    // State for confirmation dialog
+    let mut show_confirm_dialog = use_signal(|| false);
+    let mut selected_peer_nickname = use_signal(|| String::new());
+
     let handle_group_click = move |group_id: String| {
         navigator.push(format!("/chat/{}", group_id));
     };
@@ -38,61 +47,139 @@ pub fn Chat() -> Element {
         navigator.push(format!("/chat/{}", peer_id));
     };
 
-    // Create group chat cards
-    let group_cards = chat_state
-        .read()
-        .groups
-        .clone()
-        .into_iter()
-        .map(|group| {
+    // Handle clear messages with confirmation
+    let handle_clear_messages_with_confirm = move |peer_nickname: String| {
+        selected_peer_nickname.set(peer_nickname);
+        show_confirm_dialog.set(true);
+    };
+
+    // Handle confirm action
+    let handle_confirm = move || {
+        let peer_nickname = selected_peer_nickname.read().clone();
+        handle_clear_messages(peer_nickname);
+        show_confirm_dialog.set(false);
+    };
+
+    // Handle cancel action
+    let handle_cancel = move || {
+        show_confirm_dialog.set(false);
+    };
+
+    // Combine conversations, groups, and peers into a single list
+    let mut combined_list: Vec<Element> = vec![];
+    
+    // Add conversations first (from the conversation table)
+    let conversations = chat_state.read().conversations.clone();
+    for conversation in &conversations {
+        if let Some(group_id) = &conversation.group_id {
+            // Group conversation
+            if let Some(group) = chat_state.read().groups.iter().find(|g| g.id == *group_id) {
+                let share_group = handle_share_group.clone();
+                let mut clear_messages = handle_clear_messages_with_confirm.clone();
+                let group_id = group.id.clone();
+                let group_click = handle_group_click.clone();
+                let group_name = group.name.clone();
+                combined_list.push(rsx! {
+                    GroupChatCard {
+                        key: "group-{group.id}",
+                        group: group.clone(),
+                        conversation: Some(conversation.clone()),
+                        on_click: move |_| group_click(group_id.clone()),
+                        on_share: move |id| share_group(id),
+                        on_clear: move |id| clear_messages(group_name.clone()),
+                    }
+                });
+            }
+        } else if let Some(peer_id) = &conversation.peer_id {
+            // Direct conversation - try to find peer in chat_state.peers
+            let peer = chat_state.read().peers.iter().find(|p| p.id == *peer_id).cloned();
+
+            // If peer not found in peers list (offline), create a virtual peer from conversation data
+            let peer = peer.unwrap_or_else(|| {
+                // Extract nickname from conversation name
+                let nickname = conversation.name.clone();
+                // Parse PeerId from the peer_id string
+                let peer_id_obj = peer_id.parse::<gigi_p2p::PeerId>()
+                    .unwrap_or_else(|_| {
+                        // If parsing fails, create a dummy PeerId (shouldn't happen with valid data)
+                        gigi_p2p::PeerId::from_bytes(&[0u8; 32])
+                            .expect("Failed to create dummy PeerId")
+                    });
+
+                chat_state::Peer {
+                    id: peer_id.clone(),
+                    peer_id: peer_id_obj,
+                    nickname,
+                    is_online: false, // Mark as offline since not in peers list
+                    capabilities: vec![],
+                }
+            });
+
+            let peer_id_str = peer.id.clone();
+            let mut clear_messages = handle_clear_messages_with_confirm.clone();
+            let peer_nickname = peer.nickname.clone();
+            let peer_click = handle_peer_click.clone();
+            combined_list.push(rsx! {
+                PeerChatCard {
+                    key: "peer-{peer.id}",
+                    peer: peer.clone(),
+                    conversation: Some(conversation.clone()),
+                    on_click: move |_| peer_click(peer_id_str.clone()),
+                    on_clear: move |_| clear_messages(peer_nickname.clone()),
+                }
+            });
+        }
+    }
+    
+    // Add groups not in conversations
+    let existing_group_ids: std::collections::HashSet<String> = conversations
+        .iter()
+        .filter_map(|c| c.group_id.clone())
+        .collect();
+    
+    for group in &chat_state.read().groups {
+        if !existing_group_ids.contains(&group.id) {
             let share_group = handle_share_group.clone();
-            let clear_messages = handle_clear_messages.clone();
+            let mut clear_messages = handle_clear_messages_with_confirm.clone();
             let group_id = group.id.clone();
             let group_click = handle_group_click.clone();
-            rsx! {
+            let group_name = group.name.clone();
+            combined_list.push(rsx! {
                 GroupChatCard {
-                    key: "{group.id}",
+                    key: "group-{group.id}",
                     group: group.clone(),
-                    conversation: chat_state
-                        .read()
-                        .conversations
-                        .clone()
-                        .into_iter()
-                        .find(|c| c.group_id == Some(group.id.clone())),
+                    conversation: None,
                     on_click: move |_| group_click(group_id.clone()),
                     on_share: move |id| share_group(id),
-                    on_clear: move |id| clear_messages(id),
+                    on_clear: move |id| clear_messages(group_name.clone()),
                 }
-            }
-        })
-        .collect::<Vec<_>>();
-
-    // Create peer chat cards
-    let peer_cards = chat_state
-        .read()
-        .peers
-        .clone()
-        .into_iter()
-        .map(|peer| {
+            });
+        }
+    }
+    
+    // Add peers not in conversations
+    let existing_peer_ids: std::collections::HashSet<String> = conversations
+        .iter()
+        .filter_map(|c| c.peer_id.clone())
+        .collect();
+    
+    for peer in &chat_state.read().peers {
+        if !existing_peer_ids.contains(&peer.id) {
             let peer_id = peer.id.clone();
-            let clear_messages = handle_clear_messages.clone();
+            let mut clear_messages = handle_clear_messages_with_confirm.clone();
+            let peer_nickname = peer.nickname.clone();
             let peer_click = handle_peer_click.clone();
-            rsx! {
+            combined_list.push(rsx! {
                 PeerChatCard {
-                    key: "{peer.id}",
+                    key: "peer-{peer.id}",
                     peer: peer.clone(),
-                    conversation: chat_state
-                        .read()
-                        .conversations
-                        .clone()
-                        .into_iter()
-                        .find(|c| c.peer_id == Some(peer.id.clone())),
+                    conversation: None,
                     on_click: move |_| peer_click(peer_id.clone()),
-                    on_clear: move |id| clear_messages(id),
+                    on_clear: move |_| clear_messages(peer_nickname.clone()),
                 }
-            }
-        })
-        .collect::<Vec<_>>();
+            });
+        }
+    }
 
     rsx! {
         div { class: "flex flex-col h-full bg-gray-50",
@@ -102,40 +189,22 @@ pub fn Chat() -> Element {
             }
 
             div { class: "flex-1 overflow-y-auto px-4 py-4",
-                // Groups Section
-                div { class: "mb-6",
-                    div { class: "flex items-center gap-2 mb-3",
-                        span { class: "text-lg", "👥" }
-                        h3 { class: "text-lg font-semibold text-gray-900", "Groups" }
-                        span { class: "bg-blue-100 text-blue-600 text-xs font-medium px-2 py-1 rounded-full",
-                            "{chat_state.read().groups.len()}"
-                        }
-                        span { class: "bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full",
-                            "{chat_state.read().conversations.clone().into_iter().filter(|c| c.group_id.is_some() && c.unread_count > 0).count()}"
-                        }
-                    }
-                    div { class: "space-y-3",
-                        for card in group_cards {
-                            {card}
-                        }
+                // Combined Conversation List
+                div { class: "space-y-3",
+                    for card in combined_list {
+                        {card}
                     }
                 }
+            }
 
-                // Direct Chats Section
-                div {
-                    div { class: "flex items-center gap-2 mb-3",
-                        span { class: "text-lg", "💬" }
-                        h3 { class: "text-lg font-semibold text-gray-900", "Direct Chats" }
-                        span { class: "bg-green-100 text-green-600 text-xs font-medium px-2 py-1 rounded-full",
-                            "{chat_state.read().peers.len()}"
-                        }
-                    }
-                    div { class: "space-y-3",
-                        for card in peer_cards {
-                            {card}
-                        }
-                    }
-                }
+            // Confirmation Dialog
+            ConfirmationDialog {
+                is_open: show_confirm_dialog(),
+                title: "Clear Messages".to_string(),
+                message: "Are you sure you want to clear all messages for this conversation? This action cannot be undone."
+                    .to_string(),
+                on_confirm: handle_confirm,
+                on_cancel: handle_cancel,
             }
         }
     }

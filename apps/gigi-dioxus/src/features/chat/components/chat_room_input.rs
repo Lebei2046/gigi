@@ -14,10 +14,10 @@ pub fn ChatRoomInput(
     on_key_down: EventHandler<KeyboardEvent>,
 ) -> Element {
     rsx! {
-        div { class: "bg-white border-t border-gray-200 p-4",
-            div { class: "flex items-center gap-2",
+        div { class: "p-4",
+            div { class: "flex items-center gap-3",
                 button {
-                    class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
+                    class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors",
                     title: "Attach file",
                     onclick: move |_| on_file_select.call(()),
                     svg {
@@ -34,7 +34,7 @@ pub fn ChatRoomInput(
                     }
                 }
                 button {
-                    class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
+                    class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors",
                     title: "Attach image",
                     onclick: move |_| on_image_select.call(()),
                     svg {
@@ -50,15 +50,17 @@ pub fn ChatRoomInput(
                         }
                     }
                 }
-                input {
-                    class: "flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900",
-                    placeholder: "Type a message...",
-                    value: new_message.clone(),
-                    oninput: move |e| on_message_change.call(e.value()),
-                    onkeydown: move |e| on_key_down.call(e),
+                div { class: "flex-1",
+                    input {
+                        class: "w-full border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 transition-all",
+                        placeholder: "Type a message...",
+                        value: new_message.clone(),
+                        oninput: move |e| on_message_change.call(e.value()),
+                        onkeydown: move |e| on_key_down.call(e),
+                    }
                 }
                 button {
-                    class: if new_message.is_empty() { "p-2 text-gray-400 cursor-not-allowed" } else if sending { "p-2 text-gray-400 cursor-not-allowed" } else { "p-2 text-blue-600 hover:bg-blue-100 rounded-full" },
+                    class: if new_message.is_empty() || sending { "p-2 text-gray-400 cursor-not-allowed" } else { "p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors" },
                     onclick: move |_| on_send_message.call(()),
                     disabled: new_message.is_empty() || sending,
                     svg {

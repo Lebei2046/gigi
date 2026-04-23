@@ -14,6 +14,14 @@ pub struct PersistenceService;
 
 impl PersistenceService {
     pub async fn initialize() -> Result<()> {
+        let mut message_store_guard = MESSAGE_STORE.lock().await;
+        let mut conversation_store_guard = CONVERSATION_STORE.lock().await;
+        
+        // Check if stores are already initialized
+        if message_store_guard.is_some() && conversation_store_guard.is_some() {
+            return Ok(());
+        }
+
         // Get data directory
         let data_dir = env::var("GIGI_DATA_DIR").unwrap_or_else(|_| {
             dirs::data_local_dir()
@@ -40,8 +48,8 @@ impl PersistenceService {
         let conversation_store = ConversationStore::new(db_path.clone()).await?;
 
         // Store singletons
-        *MESSAGE_STORE.lock().await = Some(message_store);
-        *CONVERSATION_STORE.lock().await = Some(conversation_store);
+        *message_store_guard = Some(message_store);
+        *conversation_store_guard = Some(conversation_store);
 
         Ok(())
     }
@@ -63,10 +71,10 @@ impl PersistenceService {
                 gigi_store::MessageDirection::Received
             },
             content: gigi_store::MessageContent::Text { text: message },
-            sender_nickname: from_nickname,
+            sender_nickname: from_nickname.clone(),
             recipient_nickname: Some(to_nickname),
             group_name: None,
-            peer_id: "".to_string(),
+            peer_id: from_nickname.to_string(),
             timestamp: chrono::Utc::now(),
             created_at: chrono::Utc::now(),
             delivered: false,
@@ -108,6 +116,50 @@ impl PersistenceService {
         if let Some(store) = store_guard.as_ref() {
             store
                 .get_conversation(peer_nickname, limit, offset)
+                .await
+                .map_err(|e| anyhow::anyhow!(e))
+        } else {
+            Err(anyhow::anyhow!("Persistence service not initialized"))
+        }
+    }
+
+    // Clear messages for a conversation
+    pub async fn clear_conversation(peer_nickname: &str) -> Result<usize> {
+        let store_guard = MESSAGE_STORE.lock().await;
+        if let Some(store) = store_guard.as_ref() {
+            store
+                .clear_conversation(peer_nickname)
+                .await
+                .map_err(|e| anyhow::anyhow!(e))
+        } else {
+            Err(anyhow::anyhow!("Persistence service not initialized"))
+        }
+    }
+
+    pub async fn upsert_conversation(
+        id: String,
+        name: String,
+        is_group: bool,
+        peer_id: String,
+        last_message: Option<String>,
+        last_message_timestamp: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<()> {
+        let store_guard = CONVERSATION_STORE.lock().await;
+        if let Some(store) = store_guard.as_ref() {
+            store
+                .upsert_conversation(id, name, is_group, peer_id, last_message, last_message_timestamp)
+                .await
+                .map_err(|e| anyhow::anyhow!(e))
+        } else {
+            Err(anyhow::anyhow!("Persistence service not initialized"))
+        }
+    }
+
+    pub async fn increment_unread(id: &str) -> Result<()> {
+        let store_guard = CONVERSATION_STORE.lock().await;
+        if let Some(store) = store_guard.as_ref() {
+            store
+                .increment_unread(id)
                 .await
                 .map_err(|e| anyhow::anyhow!(e))
         } else {

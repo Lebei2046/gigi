@@ -6,6 +6,7 @@ pub fn ChatRoomHeader(
     chat_title: String,
     chat_id: Option<String>,
     is_group_chat: bool,
+    is_online: bool,
     on_go_back: EventHandler<()>,
 ) -> Element {
     rsx! {
@@ -54,8 +55,8 @@ pub fn ChatRoomHeader(
                     }
                 } else {
                     div { class: "ml-auto flex items-center gap-3",
-                        div { class: "w-2 h-2 bg-green-500 rounded-full" }
-                        div { class: "text-sm text-gray-500", "Online" }
+                        div { class: if is_online { "w-2 h-2 bg-green-500 rounded-full" } else { "w-2 h-2 bg-gray-400 rounded-full" } }
+                        div { class: "text-sm text-gray-500", if is_online { "Online" } else { "Offline" } }
                         button { class: "text-gray-600",
                             svg {
                                 class: "w-6 h-6",

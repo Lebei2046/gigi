@@ -1,9 +1,10 @@
 use crate::services::auth_service::AuthService;
 use crate::services::p2p_service::P2pService;
+use crate::services::persistence_service::PersistenceService;
 use chrono::Local;
 use dioxus::prelude::*;
 use gigi_p2p::PeerId;
-use gigi_store::StoredMessage;
+use gigi_store::{StoredMessage, Conversation as StoreConversation};
 
 // Types for chat data
 #[derive(Debug, Clone, PartialEq)]
@@ -43,6 +44,7 @@ impl From<&gigi_auth::GroupInfo> for Group {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conversation {
     pub id: String,
+    pub name: String,
     pub peer_id: Option<String>,
     pub group_id: Option<String>,
     pub last_message: Option<String>,
@@ -186,7 +188,20 @@ impl From<&StoredMessage> for Message {
     }
 }
 
-// State providers
+use once_cell::sync::Lazy;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+pub static GLOBAL_CHAT_STATE: Lazy<Arc<Mutex<ChatState>>> = Lazy::new(|| Arc::new(Mutex::new(ChatState::default())));
+static CHAT_INITIALIZED: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
+
+pub async fn is_chat_initialized() -> bool {
+    let state = GLOBAL_CHAT_STATE.lock().await;
+    state.peers.len() > 0
+        || state.groups.len() > 0
+        || state.conversations.len() > 0
+}
+
 pub fn use_chat_state() -> Signal<ChatState> {
     use_signal(ChatState::default)
 }
@@ -234,6 +249,35 @@ pub async fn list_peers() -> Vec<Peer> {
             .collect(),
         Err(err) => {
             println!("Failed to list peers: {:?}", err);
+            vec![]
+        }
+    }
+}
+
+// Delete a message by ID
+pub fn delete_message(messages: &mut Vec<Message>, message_id: &str) {
+    if let Some(index) = messages.iter().position(|msg| msg.id == message_id) {
+        messages.remove(index);
+    }
+}
+
+// Load conversations from persistence
+pub async fn load_conversations() -> Vec<Conversation> {
+    match PersistenceService::load_conversations().await {
+        Ok(stored_conversations) => stored_conversations
+            .into_iter()
+            .map(|sc| Conversation {
+                id: sc.id,
+                name: sc.name,
+                peer_id: if sc.is_group { None } else { Some(sc.peer_id.clone()) },
+                group_id: if sc.is_group { Some(sc.peer_id.clone()) } else { None },
+                last_message: sc.last_message,
+                last_message_time: sc.last_message_timestamp.map(|t| t.with_timezone(&Local).format("%H:%M %p").to_string()),
+                unread_count: sc.unread_count as u32,
+            })
+            .collect(),
+        Err(err) => {
+            println!("Failed to load conversations: {:?}", err);
             vec![]
         }
     }

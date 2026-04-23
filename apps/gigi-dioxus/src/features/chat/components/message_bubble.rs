@@ -4,26 +4,53 @@ use crate::features::chat::chat_state::{Message, MessageType};
 
 // Message Bubble Component
 #[component]
-pub fn MessageBubble(message: Message) -> Element {
+pub fn MessageBubble(
+    message: Message,
+    on_delete: EventHandler<String>,
+) -> Element {
     match message.message_type {
         MessageType::Text => rsx! {
-            TextMessageBubble { message }
+            TextMessageBubble { message, on_delete }
         },
         MessageType::Image => rsx! {
-            ImageMessageBubble { message }
+            ImageMessageBubble { message, on_delete }
         },
         MessageType::File => rsx! {
-            FileMessageBubble { message }
+            FileMessageBubble { message, on_delete }
         },
     }
 }
 
 // Text Message Bubble
 #[component]
-fn TextMessageBubble(message: Message) -> Element {
+fn TextMessageBubble(
+    message: Message,
+    on_delete: EventHandler<String>,
+) -> Element {
     rsx! {
         div { class: if message.is_own { "flex justify-end" } else { "flex" },
-            div { class: if message.is_own { "bg-blue-100 rounded-lg rounded-tr-none p-3 max-w-[80%]" } else { "bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] border border-gray-200" },
+            div { class: if message.is_own { "bg-blue-100 rounded-lg rounded-tr-none p-3 max-w-[80%] relative" } else { "bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] border border-gray-200 relative" },
+                if message.is_own {
+                    div { class: "absolute top-1 right-1",
+                        button {
+                            class: "text-xs text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity",
+                            onclick: move |_| on_delete.call(message.id.clone()),
+                            title: "Delete message",
+                            svg {
+                                class: "w-4 h-4",
+                                fill: "none",
+                                stroke: "currentColor",
+                                view_box: "0 0 24 24",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
+                                }
+                            }
+                        }
+                    }
+                }
                 if !message.is_own {
                     div { class: "text-xs font-medium text-gray-500 mb-1", "{message.sender}" }
                 }
@@ -38,10 +65,34 @@ fn TextMessageBubble(message: Message) -> Element {
 
 // Image Message Bubble
 #[component]
-fn ImageMessageBubble(message: Message) -> Element {
+fn ImageMessageBubble(
+    message: Message,
+    on_delete: EventHandler<String>,
+) -> Element {
     rsx! {
         div { class: if message.is_own { "flex justify-end" } else { "flex" },
-            div { class: if message.is_own { "bg-blue-100 rounded-lg rounded-tr-none p-3 max-w-[80%]" } else { "bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] border border-gray-200" },
+            div { class: if message.is_own { "bg-blue-100 rounded-lg rounded-tr-none p-3 max-w-[80%] relative" } else { "bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] border border-gray-200 relative" },
+                if message.is_own {
+                    div { class: "absolute top-1 right-1",
+                        button {
+                            class: "text-xs text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity",
+                            onclick: move |_| on_delete.call(message.id.clone()),
+                            title: "Delete message",
+                            svg {
+                                class: "w-4 h-4",
+                                fill: "none",
+                                stroke: "currentColor",
+                                view_box: "0 0 24 24",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
+                                }
+                            }
+                        }
+                    }
+                }
                 if !message.is_own {
                     div { class: "text-sm text-gray-900 mb-2", "{message.sender}:" }
                 }
@@ -61,10 +112,34 @@ fn ImageMessageBubble(message: Message) -> Element {
 
 // File Message Bubble
 #[component]
-fn FileMessageBubble(message: Message) -> Element {
+fn FileMessageBubble(
+    message: Message,
+    on_delete: EventHandler<String>,
+) -> Element {
     rsx! {
         div { class: if message.is_own { "flex justify-end" } else { "flex" },
-            div { class: if message.is_own { "bg-blue-100 rounded-lg rounded-tr-none p-3 max-w-[80%]" } else { "bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] border border-gray-200" },
+            div { class: if message.is_own { "bg-blue-100 rounded-lg rounded-tr-none p-3 max-w-[80%] relative" } else { "bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] border border-gray-200 relative" },
+                if message.is_own {
+                    div { class: "absolute top-1 right-1",
+                        button {
+                            class: "text-xs text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity",
+                            onclick: move |_| on_delete.call(message.id.clone()),
+                            title: "Delete message",
+                            svg {
+                                class: "w-4 h-4",
+                                fill: "none",
+                                stroke: "currentColor",
+                                view_box: "0 0 24 24",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
+                                }
+                            }
+                        }
+                    }
+                }
                 if !message.is_own {
                     div { class: "text-sm text-gray-900 mb-2", "{message.sender}:" }
                 }

@@ -23,7 +23,14 @@ pub fn PeerChatCard(
         .to_uppercase()
         .to_string();
     let peer_id_click = peer.id.clone();
-    let peer_id_clear = peer.id.clone();
+    let peer_nickname_clear = peer.nickname.clone();
+
+    // Determine avatar color based on online status
+    let avatar_class = if peer.is_online {
+        "w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center flex-shrink-0"
+    } else {
+        "w-12 h-12 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center flex-shrink-0"
+    };
 
     rsx! {
         div {
@@ -32,12 +39,17 @@ pub fn PeerChatCard(
             div { class: "p-4",
                 div { class: "flex justify-between items-start",
                     div { class: "flex items-start gap-3 flex-1 cursor-pointer",
-                        div { class: "w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center flex-shrink-0",
+                        div { class: "{avatar_class}",
                             span { class: "text-white font-bold text-lg", "{first_letter}" }
                         }
                         div { class: "flex-1 min-w-0",
                             div { class: "flex items-center gap-2 mb-1",
                                 span { class: "font-semibold text-gray-900", "{peer.nickname}" }
+                                if !peer.is_online {
+                                    span { class: "bg-gray-300 text-gray-600 text-xs px-2 py-0.5 rounded",
+                                        "Offline"
+                                    }
+                                }
                                 if unread_count > 0 {
                                     span { class: "bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center",
                                         "{unread_count}"
@@ -70,7 +82,7 @@ pub fn PeerChatCard(
                             title: "Clear messages",
                             onclick: move |e| {
                                 e.stop_propagation();
-                                on_clear.call(peer_id_clear.clone());
+                                on_clear.call(peer_nickname_clear.clone());
                             },
                             svg {
                                 class: "w-4 h-4",

@@ -72,6 +72,13 @@ The frontend is designed to work with the Gigi P2P backend, which provides secur
 
 ### Testing with Multiple Instances
 
+Before testing, ensure the project compiles successfully:
+
+```bash
+# Check compilation
+dx build --desktop
+```
+
 To test P2P communication between different accounts, you can run multiple instances of the app with distinct data directories:
 
 ```bash

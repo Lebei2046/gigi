@@ -18,7 +18,6 @@ pub struct P2pService;
 
 impl P2pService {
     pub async fn initialize(private_key: &str, nickname: &str) -> Result<()> {
-        EventBus::init();
         // Create keypair from private key
         let keypair = Keypair::ed25519_from_bytes(hex::decode(private_key)?)?;
 
@@ -106,13 +105,25 @@ impl P2pService {
                 let msg_id = crate::services::persistence_service::PersistenceService::store_direct_message(
                     from_nickname.clone(),
                     local_nickname,
-                    message,
+                    message.clone(),
                     false,
                 )
                 .await;
                 if msg_id.is_ok() {
+                    // Create or update conversation
+                    let conv_id = from.to_string();
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id.clone(),
+                        from_nickname.clone(),
+                        false, // not a group
+                        conv_id.clone(),
+                        Some(message),
+                        Some(chrono::Utc::now()),
+                    ).await;
+                    // Increment unread count
+                    let _ = crate::services::persistence_service::PersistenceService::increment_unread(&conv_id).await;
                     // Send event to update UI with peer ID as chat ID
-                    let _ = EventBus::send(AppEvent::MessageSaved(from.to_string()));
+                    let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
                 }
             }
             P2pEvent::FileDownloadProgress {
@@ -216,6 +227,11 @@ impl P2pService {
         } else {
             Ok(vec![])
         }
+    }
+
+    pub async fn get_local_nickname() -> Option<String> {
+        let nickname_guard = LOCAL_NICKNAME.lock().await;
+        nickname_guard.clone()
     }
 
     pub async fn share_file(to_nickname: &str, file_path: &PathBuf) -> Result<String> {

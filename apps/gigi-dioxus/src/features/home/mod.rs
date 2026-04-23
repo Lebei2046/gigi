@@ -19,14 +19,15 @@ pub fn Home() -> Element {
 
     rsx! {
         div { class: "flex flex-col w-full h-screen bg-gray-50",
-            div { class: "flex-grow w-full overflow-hidden",
-                // Check if we're in a chat room route
-                if let crate::Route::ChatRoom { id } = route {
-                    crate::features::chat::chat_room::ChatRoom { id: id.clone() }
-                } else if active_tab() == "chat" {
-                    crate::features::chat::Chat {}
-                } else {
-                    crate::features::me::Me {}
+            // Main content area
+            div { class: "flex-1 w-full",
+                // Only render tab content if not in a chat room route
+                if !matches!(route, crate::Route::ChatRoom { .. }) {
+                    if active_tab() == "chat" {
+                        crate::features::chat::Chat {}
+                    } else {
+                        crate::features::me::Me {}
+                    }
                 }
             }
 

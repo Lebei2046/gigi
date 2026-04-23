@@ -3466,6 +3466,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "uuid",
+ "web-sys",
 ]
 
 [[package]]
