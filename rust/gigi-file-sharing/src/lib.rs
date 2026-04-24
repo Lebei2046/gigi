@@ -132,7 +132,7 @@ pub use types::{FileInfo, FilePath, SharedFile};
 
 use anyhow::Result;
 use blake3::Hasher;
-use gigi_logging::{info, error, instrument};
+use gigi_logging::{error, info, instrument};
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};

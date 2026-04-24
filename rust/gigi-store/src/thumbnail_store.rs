@@ -1,10 +1,10 @@
 //! Thumbnail store - Map file paths to thumbnail paths
 
 use anyhow::{Context, Result};
+use gigi_logging::info;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, NotSet, QueryFilter, Set,
 };
-use gigi_logging::info;
 
 /// Thumbnail store - handles mapping of file paths to thumbnail paths
 pub struct ThumbnailStore {

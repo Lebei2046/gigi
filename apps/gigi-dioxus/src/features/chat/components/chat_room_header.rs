@@ -56,7 +56,13 @@ pub fn ChatRoomHeader(
                 } else {
                     div { class: "ml-auto flex items-center gap-3",
                         div { class: if is_online { "w-2 h-2 bg-green-500 rounded-full" } else { "w-2 h-2 bg-gray-400 rounded-full" } }
-                        div { class: "text-sm text-gray-500", if is_online { "Online" } else { "Offline" } }
+                        div { class: "text-sm text-gray-500",
+                            if is_online {
+                                "Online"
+                            } else {
+                                "Offline"
+                            }
+                        }
                         button { class: "text-gray-600",
                             svg {
                                 class: "w-6 h-6",

@@ -1,5 +1,5 @@
 //! Gigi P2P - A comprehensive peer-to-peer networking library
-//! 
+//!
 //! This library provides unified P2P functionality for the Gigi ecosystem including:
 //! - **Auto Discovery**: Automatic peer discovery via gigi-dns (local network) and Kademlia DHT (WAN)
 //! - **NAT Traversal**: Circuit relay for connecting peers behind routers
@@ -183,12 +183,12 @@ pub fn init_logging() {
 /// ```
 pub fn init_logging_with_level(level: tracing::Level) {
     use gigi_logging::{init_logging_with_config, LogConfig, LogOutput};
-    
+
     let config = LogConfig {
         level,
         ..Default::default()
     };
-    
+
     init_logging_with_config(config);
 }
 

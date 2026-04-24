@@ -4,12 +4,12 @@ use crate::events::StoredMessage;
 use crate::{MessageStore, PersistenceConfig};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use gigi_logging::{debug, error, info};
 use libp2p::PeerId;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use gigi_logging::{debug, error, info};
 
 /// Sync state for a peer
 #[derive(Debug, Clone)]

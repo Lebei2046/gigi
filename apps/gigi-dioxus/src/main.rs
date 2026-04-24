@@ -33,7 +33,10 @@ fn main() {
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         if let Err(e) = crate::services::persistence_service::PersistenceService::initialize().await
         {
-            crate::services::logging::error(format!("Failed to initialize persistence service: {:?}", e));
+            crate::services::logging::error(format!(
+                "Failed to initialize persistence service: {:?}",
+                e
+            ));
         }
     });
 

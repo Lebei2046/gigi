@@ -161,12 +161,12 @@ impl PeerManager {
         if let Some(peer) = self.peers.get(peer_id) {
             return Ok(peer.nickname.clone());
         }
-        
+
         // Then check unconnected peers
         if let Some(peer) = self.unconnected_peers.peek(peer_id) {
             return Ok(peer.nickname.clone());
         }
-        
+
         Err(P2pError::PeerNotFound(*peer_id).into())
     }
 
@@ -176,7 +176,7 @@ impl PeerManager {
         if let Some(peer) = self.peers.get(peer_id) {
             return Some(peer);
         }
-        
+
         // Then check unconnected peers
         self.unconnected_peers.peek(peer_id)
     }
@@ -187,14 +187,14 @@ impl PeerManager {
         if let Some(peer_id) = self.nickname_to_peer.get(nickname) {
             return Some(*peer_id);
         }
-        
+
         // Then check unconnected peers
         for (peer_id, peer) in &self.unconnected_peers {
             if peer.nickname == nickname {
                 return Some(*peer_id);
             }
         }
-        
+
         None
     }
 

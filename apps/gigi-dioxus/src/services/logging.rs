@@ -1,7 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use gigi_logging::{init_logging_with_config, LogConfig, LogOutput, tracing::Level};
+use gigi_logging::{init_logging_with_config, tracing::Level, LogConfig, LogOutput};
 
 pub fn initialize() {
     // Get data directory
@@ -13,7 +13,18 @@ pub fn initialize() {
             .to_string()
     });
 
-    let log_path = PathBuf::from(data_dir).join("gigi-dioxus.log");
+    // Expand ~ to home directory
+    let data_dir_expanded = if data_dir.starts_with('~') {
+        if let Some(home) = dirs::home_dir() {
+            home.join(data_dir.strip_prefix('~').unwrap_or(""))
+        } else {
+            PathBuf::from(data_dir)
+        }
+    } else {
+        PathBuf::from(data_dir)
+    };
+
+    let log_path = data_dir_expanded.join("gigi-dioxus.log");
 
     // Create parent directories if needed
     if let Some(parent) = log_path.parent() {
@@ -22,7 +33,7 @@ pub fn initialize() {
 
     let config = LogConfig {
         output: LogOutput::Both(log_path.to_string_lossy().to_string()),
-        level: Level::INFO,
+        level: Level::DEBUG,
         json: false,
         include_spans: false,
     };

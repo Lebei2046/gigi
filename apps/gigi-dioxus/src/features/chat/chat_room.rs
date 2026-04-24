@@ -9,7 +9,10 @@ use tokio::time::sleep;
 extern crate web_sys;
 
 use crate::features::chat::components::ChatRoomHeader;
-use crate::features::chat::hooks::{use_chat_initialization, use_chat_room_initialization, use_chat_event_listeners, use_message_actions};
+use crate::features::chat::hooks::{
+    use_chat_event_listeners, use_chat_initialization, use_chat_room_initialization,
+    use_message_actions,
+};
 
 // Chat Room Component
 #[component]
@@ -17,24 +20,29 @@ pub fn ChatRoom(id: String) -> Element {
     let navigator = use_navigator();
     let chat_state = use_chat_initialization();
     let mut chat_room_state = use_chat_room_initialization(id, chat_state);
-    
+
     // Set up event listeners for messages
     use_chat_event_listeners(chat_state, chat_room_state);
     let (
         mut handle_send_message,
-        handle_image_select,
-        handle_file_select,
+        mut handle_image_select,
+        mut handle_file_select,
         handle_file_download_request,
         _handle_share_file,
         mut handle_delete_message,
     ) = use_message_actions(chat_room_state.clone());
 
+    // Convert to EventHandler for Dioxus component
+    let on_download_request = move |args: (String, String, String)| {
+        handle_file_download_request(args.0, args.1, args.2);
+    };
+
     // Create shared references to the closures
     let send_message = Rc::new(RefCell::new(handle_send_message));
     let send_message_clone = send_message.clone();
-    
+
+    // Move handle_delete_message into Rc<RefCell> once
     let delete_message = Rc::new(RefCell::new(handle_delete_message));
-    let delete_message_clone = delete_message.clone();
 
     let handle_key_down = move |e: KeyboardEvent| {
         if e.key() == Key::Enter {
@@ -60,7 +68,7 @@ pub fn ChatRoom(id: String) -> Element {
             }
         }
     }
-    
+
     // For native desktop/mobile, the CSS structure ensures proper scrolling behavior
 
     rsx! {
@@ -75,45 +83,15 @@ pub fn ChatRoom(id: String) -> Element {
             }
 
             // Messages - takes up remaining space with overflow scroll
-            div { 
-                id: "message-container",
-                class: "flex-1 overflow-y-auto",
-                div { class: "p-4 space-y-4 pb-16", // Add extra padding at bottom to prevent messages from being hidden by input
-                    for message in chat_room_state.read().messages.clone() {
-                        div { 
-                            class: if message.is_own {
-                                "flex justify-end"
-                            } else {
-                                "flex"
-                            },
-                            div { 
-                                class: if message.is_own {
-                                    "bg-blue-500 text-white rounded-lg rounded-tr-none p-3 max-w-[80%] shadow-sm"
-                                } else {
-                                    "bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] border border-gray-200 shadow-sm"
-                                },
-                                if !message.is_own {
-                                    div { class: "text-xs font-medium text-gray-500 mb-1", "{message.sender}" }
-                                }
-                                div { 
-                                    class: if message.is_own {
-                                        "text-sm"
-                                    } else {
-                                        "text-sm text-gray-900"
-                                    },
-                                    "{message.content}"
-                                }
-                                div { 
-                                    class: if message.is_own {
-                                        "text-xs text-blue-200 mt-1 text-right"
-                                    } else {
-                                        "text-xs text-gray-500 mt-1"
-                                    },
-                                    "{message.timestamp}"
-                                }
-                            }
-                        }
-                    }
+            div { id: "message-container", class: "flex-1 overflow-y-auto",
+                crate::features::chat::components::message_list::MessageList {
+                    messages: chat_room_state.read().messages.clone(),
+                    is_group_chat: chat_room_state.read().is_group_chat,
+                    on_download_request,
+                    on_delete: move |msg_id: String| {
+                        let mut delete_msg = delete_message.borrow_mut();
+                        delete_msg(msg_id);
+                    },
                 }
             }
 
@@ -121,17 +99,39 @@ pub fn ChatRoom(id: String) -> Element {
             div { class: "bg-white border-t border-gray-200",
                 div { class: "p-4",
                     div { class: "flex items-center gap-3",
-                        button { class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
-                            svg { class: "w-5 h-5", fill: "none", stroke: "currentColor", view_box: "0 0 24 24",
-                                path { stroke_linecap: "round", stroke_linejoin: "round", stroke_width: "2", d: "M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" }
+                        button {
+                            class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
+                            onclick: move |_| handle_image_select(),
+                            svg {
+                                class: "w-5 h-5",
+                                fill: "none",
+                                stroke: "currentColor",
+                                view_box: "0 0 24 24",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12",
+                                }
                             }
                         }
-                        button { class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
-                            svg { class: "w-5 h-5", fill: "none", stroke: "currentColor", view_box: "0 0 24 24",
-                                path { stroke_linecap: "round", stroke_linejoin: "round", stroke_width: "2", d: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" }
+                        button {
+                            class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
+                            onclick: move |_| handle_file_select(),
+                            svg {
+                                class: "w-5 h-5",
+                                fill: "none",
+                                stroke: "currentColor",
+                                view_box: "0 0 24 24",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z",
+                                }
                             }
                         }
-                        input { 
+                        input {
                             class: "flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900",
                             placeholder: "Type a message...",
                             value: chat_room_state.read().new_message.clone(),
@@ -140,15 +140,24 @@ pub fn ChatRoom(id: String) -> Element {
                             },
                             onkeydown: move |e| handle_key_down(e),
                         }
-                        button { 
+                        button {
                             class: if chat_room_state.read().new_message.is_empty() || chat_room_state.read().sending { "p-2 text-gray-400 cursor-not-allowed" } else { "p-2 text-blue-600 hover:bg-blue-100 rounded-full" },
                             onclick: move |_| {
                                 let mut send_msg = send_message.borrow_mut();
                                 send_msg();
                             },
                             disabled: chat_room_state.read().new_message.is_empty() || chat_room_state.read().sending,
-                            svg { class: "w-5 h-5", fill: "none", stroke: "currentColor", view_box: "0 0 24 24",
-                                path { stroke_linecap: "round", stroke_linejoin: "round", stroke_width: "2", d: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8" }
+                            svg {
+                                class: "w-5 h-5",
+                                fill: "none",
+                                stroke: "currentColor",
+                                view_box: "0 0 24 24",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8",
+                                }
                             }
                         }
                     }

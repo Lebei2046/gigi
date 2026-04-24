@@ -3,11 +3,11 @@
 use crate::entities::conversations;
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeZone, Utc};
+use gigi_logging::info;
 use sea_orm::*;
 use sea_orm_migration::MigratorTrait;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use gigi_logging::info;
 
 /// Conversation store
 pub struct ConversationStore {

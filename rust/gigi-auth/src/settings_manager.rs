@@ -46,11 +46,11 @@
 //! # }
 //! ```
 
+use gigi_logging::{debug, info};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, NotSet,
     QueryFilter, Set, Statement,
 };
-use gigi_logging::{debug, info};
 
 use crate::entities::settings;
 

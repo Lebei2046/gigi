@@ -76,7 +76,7 @@
 //! ```
 
 use anyhow::{Context, Result};
-use gigi_logging::{debug, info, warn, instrument};
+use gigi_logging::{debug, info, instrument, warn};
 use sea_orm::{DatabaseConnection, DbErr};
 use serde::{Deserialize, Serialize};
 

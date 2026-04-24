@@ -2,14 +2,26 @@ use crate::services::event_bus::{AppEvent, EventBus};
 use anyhow::Result;
 use dirs;
 use futures_util::stream::StreamExt;
+use gigi_logging::tracing;
 use gigi_p2p::{Keypair, P2pClient, P2pConfig, P2pEvent, PeerInfo};
 use hex;
+use image::{imageops, ImageReader};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::env;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use gigi_logging::tracing;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileShareInfo {
+    pub share_code: String,
+    pub filename: String,
+    pub file_size: u64,
+    pub file_type: String,
+}
 
 static P2P_CLIENT: Lazy<Arc<Mutex<Option<P2pClient>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 static LOCAL_NICKNAME: Lazy<Arc<Mutex<Option<String>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
@@ -30,11 +42,25 @@ impl P2pService {
                 .to_string()
         });
 
-        let output_dir = PathBuf::from(data_dir).join("downloads");
+        // Expand ~ to home directory
+        let data_dir_expanded = if data_dir.starts_with('~') {
+            if let Some(home) = dirs::home_dir() {
+                home.join(data_dir.strip_prefix('~').unwrap_or(""))
+            } else {
+                PathBuf::from(data_dir)
+            }
+        } else {
+            PathBuf::from(data_dir)
+        };
 
-        if let Some(parent) = output_dir.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
+        let output_dir = data_dir_expanded.join("downloads");
+        let uploads_dir = data_dir_expanded.join("uploads");
+
+        // Create downloads directory
+        std::fs::create_dir_all(&output_dir)?;
+
+        // Create uploads directory
+        std::fs::create_dir_all(&uploads_dir)?;
 
         // Create P2P config without bootstrap nodes (use mDNS for local discovery)
         let p2p_config = P2pConfig {
@@ -102,13 +128,14 @@ impl P2pService {
             } => {
                 println!("Message from {}: {}", from_nickname, message);
                 let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
-                let msg_id = crate::services::persistence_service::PersistenceService::store_direct_message(
-                    from_nickname.clone(),
-                    local_nickname,
-                    message.clone(),
-                    false,
-                )
-                .await;
+                let msg_id =
+                    crate::services::persistence_service::PersistenceService::store_direct_message(
+                        from_nickname.clone(),
+                        local_nickname,
+                        message.clone(),
+                        false,
+                    )
+                    .await;
                 if msg_id.is_ok() {
                     // Create or update conversation
                     let conv_id = from.to_string();
@@ -121,12 +148,67 @@ impl P2pService {
                         Some(chrono::Utc::now()),
                     ).await;
                     // Increment unread count
-                    let _ = crate::services::persistence_service::PersistenceService::increment_unread(&conv_id).await;
+                    let _ =
+                        crate::services::persistence_service::PersistenceService::increment_unread(
+                            &conv_id,
+                        )
+                        .await;
                     // Send event to update UI with peer ID as chat ID
                     let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
                 }
             }
+            P2pEvent::DirectFileShareMessage {
+                from_nickname,
+                share_code,
+                filename,
+                file_size,
+                file_type,
+                from,
+                ..
+            } => {
+                println!(
+                    "File share from {}: {} (code: {})",
+                    from_nickname, filename, share_code
+                );
+                let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
+                let msg_id = crate::services::persistence_service::PersistenceService::store_file_share_message(
+                    from_nickname.clone(),
+                    local_nickname,
+                    filename.clone(),
+                    share_code.clone(),
+                    file_size,
+                    file_type.clone(),
+                    false,
+                )
+                .await;
+                if msg_id.is_ok() {
+                    let conv_id = from.to_string();
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id.clone(),
+                        from_nickname.clone(),
+                        false,
+                        conv_id.clone(),
+                        Some(filename.clone()),
+                        Some(chrono::Utc::now()),
+                    ).await;
+                    let _ =
+                        crate::services::persistence_service::PersistenceService::increment_unread(
+                            &conv_id,
+                        )
+                        .await;
+                    let _ = EventBus::send(AppEvent::FileShareReceived {
+                        from_peer_id: from.to_string(),
+                        from_nickname,
+                        share_code,
+                        filename,
+                        file_size,
+                        file_type,
+                        conv_id,
+                    });
+                }
+            }
             P2pEvent::FileDownloadProgress {
+                download_id,
                 downloaded_chunks,
                 total_chunks,
                 filename,
@@ -134,6 +216,62 @@ impl P2pService {
             } => {
                 let progress = (downloaded_chunks * 100) / total_chunks;
                 println!("Downloading {}: {}%", filename, progress);
+                // Send event to update UI with download progress
+                let _ = EventBus::send(AppEvent::FileDownloadProgress {
+                    download_id,
+                    progress: progress as u8,
+                });
+            }
+            P2pEvent::FileDownloadCompleted {
+                download_id,
+                path,
+                filename,
+                ..
+            } => {
+                println!("File download completed: {} at {:?}", filename, path);
+
+                // Check if it's an image file and generate thumbnail
+                let file_ext = filename.split('.').last().unwrap_or("").to_lowercase();
+
+                if matches!(
+                    file_ext.as_str(),
+                    "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp"
+                ) {
+                    // Generate thumbnail
+                    let thumbnail_path = path
+                        .parent()
+                        .unwrap_or(&path)
+                        .join(format!("{}.thumbnail.jpg", filename));
+                    println!(
+                        "Generating thumbnail for downloaded file {} at {:?}",
+                        filename, thumbnail_path
+                    );
+                    if let Err(e) = Self::generate_thumbnail(&path, &thumbnail_path) {
+                        println!("Failed to generate thumbnail for downloaded image: {:?}", e);
+                    } else {
+                        println!(
+                            "Thumbnail generated successfully for downloaded file at {:?}",
+                            thumbnail_path
+                        );
+                        // Check if the file was actually created and has content
+                        if let Ok(metadata) = std::fs::metadata(&thumbnail_path) {
+                            println!("Thumbnail file size: {} bytes", metadata.len());
+                        }
+                    }
+                }
+
+                // Send event to update UI with download completion
+                let _ = EventBus::send(AppEvent::FileDownloadCompleted { download_id, path });
+            }
+            P2pEvent::FileDownloadFailed {
+                download_id,
+                error,
+                filename,
+                ..
+            } => {
+                println!("File download failed: {} - {}", filename, error);
+                // Send event to update UI with download failure
+                let _ = EventBus::send(AppEvent::FileDownloadFailed { download_id, error });
             }
             _ => {
                 println!("Other P2P event: {:?}", event);
@@ -174,7 +312,10 @@ impl P2pService {
                         }
                     }
                     Err(e) => {
-                        println!("Failed to deliver pending messages to {}: {:?}", nickname, e);
+                        println!(
+                            "Failed to deliver pending messages to {}: {:?}",
+                            nickname, e
+                        );
                         return Err(e);
                     }
                 }
@@ -234,12 +375,78 @@ impl P2pService {
         nickname_guard.clone()
     }
 
-    pub async fn share_file(to_nickname: &str, file_path: &PathBuf) -> Result<String> {
+    pub async fn share_file(to_nickname: &str, file_path: &PathBuf) -> Result<FileShareInfo> {
         if let Ok(Some(mut client_guard)) = Self::get_client().await {
             if let Some(client) = client_guard.as_mut() {
+                let filename = file_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                let file_size = std::fs::metadata(file_path).map(|m| m.len()).unwrap_or(0);
+                let file_type = file_path
+                    .extension()
+                    .map(|e| e.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "bin".to_string());
+
+                // Check if it's an image file
+                let lower_file_type = file_type.to_lowercase();
+                let is_image = lower_file_type.starts_with("image/")
+                    || ["png", "jpg", "jpeg", "gif", "bmp", "webp"]
+                        .contains(&lower_file_type.as_str());
+
+                // Generate thumbnail if it's an image
+                if is_image {
+                    // Get data directory
+                    let data_dir = env::var("GIGI_DATA_DIR").unwrap_or_else(|_| {
+                        dirs::data_local_dir()
+                            .unwrap_or_else(|| PathBuf::from("."))
+                            .join("gigi-dioxus")
+                            .to_string_lossy()
+                            .to_string()
+                    });
+
+                    // Expand ~ to home directory
+                    let data_dir_expanded = if data_dir.starts_with('~') {
+                        if let Some(home) = dirs::home_dir() {
+                            home.join(data_dir.strip_prefix('~').unwrap_or(""))
+                        } else {
+                            PathBuf::from(data_dir)
+                        }
+                    } else {
+                        PathBuf::from(data_dir)
+                    };
+
+                    let uploads_dir = data_dir_expanded.join("uploads");
+                    let thumbnail_path = uploads_dir.join(format!("{}.thumbnail.jpg", filename));
+
+                    // Generate thumbnail
+                    println!(
+                        "Generating thumbnail for {} at {:?}",
+                        filename, thumbnail_path
+                    );
+                    if let Err(e) = Self::generate_thumbnail(file_path, &thumbnail_path) {
+                        println!("Failed to generate thumbnail: {:?}", e);
+                    } else {
+                        println!("Thumbnail generated successfully at {:?}", thumbnail_path);
+                        // Check if the file was actually created and has content
+                        if let Ok(metadata) = std::fs::metadata(&thumbnail_path) {
+                            println!("Thumbnail file size: {} bytes", metadata.len());
+                        }
+                    }
+                }
+
+                // Share the file and send it directly to the peer
+                client.send_direct_file(to_nickname, file_path).await?;
+
+                // Generate a share code for reference
                 let share_code = client.share_file(file_path).await?;
-                client.send_direct_message(to_nickname, format!("File share: {}", share_code))?;
-                return Ok(share_code);
+
+                return Ok(FileShareInfo {
+                    share_code,
+                    filename,
+                    file_size,
+                    file_type,
+                });
             }
         }
         Err(anyhow::anyhow!("P2P client not initialized"))
@@ -262,6 +469,31 @@ impl P2pService {
             }
             *client_guard = None;
         }
+        Ok(())
+    }
+
+    /// Generate a thumbnail for an image file
+    pub fn generate_thumbnail(input_path: &PathBuf, output_path: &PathBuf) -> Result<()> {
+        // Open the image file
+        let img = ImageReader::open(input_path)?.decode()?;
+
+        // Resize the image to create a thumbnail (max 200x200)
+        let thumbnail = imageops::resize(&img, 200, 200, imageops::FilterType::Lanczos3);
+
+        // Create the output directory if it doesn't exist
+        if let Some(parent) = output_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Convert to RGB if needed (JPEG doesn't support alpha channel)
+        let mut rgb_thumbnail = image::ImageBuffer::new(thumbnail.width(), thumbnail.height());
+        for (x, y, pixel) in thumbnail.enumerate_pixels() {
+            rgb_thumbnail.put_pixel(x, y, image::Rgb([pixel.0[0], pixel.0[1], pixel.0[2]]));
+        }
+
+        // Save the thumbnail as JPEG
+        rgb_thumbnail.save(output_path)?;
+
         Ok(())
     }
 }

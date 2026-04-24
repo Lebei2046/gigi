@@ -4,7 +4,15 @@ use anyhow::Result;
 use futures::channel::mpsc;
 use gigi_dns::GigiDnsConfig;
 use gigi_logging::{error, info, instrument, warn};
-use libp2p::{identity::Keypair, kad, multiaddr::Multiaddr, relay, request_response::{self, ProtocolSupport}, swarm::SwarmEvent, PeerId, StreamProtocol};
+use libp2p::{
+    identity::Keypair,
+    kad,
+    multiaddr::Multiaddr,
+    relay,
+    request_response::{self, ProtocolSupport},
+    swarm::SwarmEvent,
+    PeerId, StreamProtocol,
+};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -696,7 +704,8 @@ impl P2pClient {
                     if peer.connected {
                         // Peer is online, send immediately
                         info!("Sending direct message to {} ({})", nickname, peer_id);
-                        let request_id = self.swarm
+                        let request_id = self
+                            .swarm
                             .behaviour_mut()
                             .direct_msg
                             .send_request(&peer_id, DirectMessage::Text { message });

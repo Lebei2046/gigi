@@ -3,8 +3,9 @@ use crate::services::p2p_service::P2pService;
 use crate::services::persistence_service::PersistenceService;
 use chrono::Local;
 use dioxus::prelude::*;
+use dirs;
 use gigi_p2p::PeerId;
-use gigi_store::{StoredMessage, Conversation as StoreConversation};
+use gigi_store::{Conversation as StoreConversation, StoredMessage};
 
 // Types for chat data
 #[derive(Debug, Clone, PartialEq)]
@@ -112,6 +113,14 @@ pub struct Message {
     pub timestamp: String,
     pub is_own: bool,
     pub message_type: MessageType,
+    pub filename: Option<String>,
+    pub file_size: Option<u64>,
+    pub file_type: Option<String>,
+    pub share_code: Option<String>,
+    pub is_downloading: bool,
+    pub download_progress: Option<u8>,
+    pub download_id: Option<String>,
+    pub file_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -166,12 +175,109 @@ impl From<&StoredMessage> for Message {
 
         let message_type = match &msg.content {
             gigi_store::MessageContent::Text { .. } => MessageType::Text,
-            gigi_store::MessageContent::FileShareWithThumbnail { .. }
-            | gigi_store::MessageContent::FileShare { .. } => MessageType::File,
+            gigi_store::MessageContent::FileShareWithThumbnail { file_type, .. }
+            | gigi_store::MessageContent::FileShare { file_type, .. } => {
+                // Check if it's an image file (handle both MIME types and extensions)
+                let lower_file_type = file_type.to_lowercase();
+                let is_image = lower_file_type.starts_with("image/")
+                    || ["png", "jpg", "jpeg", "gif", "bmp", "webp"]
+                        .contains(&lower_file_type.as_str());
+                if is_image {
+                    MessageType::Image
+                } else {
+                    MessageType::File
+                }
+            }
             gigi_store::MessageContent::ShareGroup { .. } => MessageType::Text,
         };
 
         let is_own = matches!(msg.direction, gigi_store::MessageDirection::Sent);
+
+        let (filename, file_size, file_type, share_code) = match &msg.content {
+            gigi_store::MessageContent::FileShare {
+                filename,
+                file_size,
+                file_type,
+                share_code,
+                ..
+            } => (
+                Some(filename.clone()),
+                Some(*file_size),
+                Some(file_type.clone()),
+                Some(share_code.clone()),
+            ),
+            gigi_store::MessageContent::FileShareWithThumbnail {
+                filename,
+                file_size,
+                file_type,
+                share_code,
+                ..
+            } => (
+                Some(filename.clone()),
+                Some(*file_size),
+                Some(file_type.clone()),
+                Some(share_code.clone()),
+            ),
+            _ => (None, None, None, None),
+        };
+
+        // Calculate file path for the message
+        let file_path = match &msg.content {
+            gigi_store::MessageContent::FileShareWithThumbnail {
+                filename,
+                file_type,
+                ..
+            }
+            | gigi_store::MessageContent::FileShare {
+                filename,
+                file_type,
+                ..
+            } => {
+                // Get data directory
+                let data_dir = std::env::var("GIGI_DATA_DIR").unwrap_or_else(|_| {
+                    dirs::data_local_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join("gigi-dioxus")
+                        .to_string_lossy()
+                        .to_string()
+                });
+
+                // Expand ~ to home directory
+                let data_dir_expanded = if data_dir.starts_with('~') {
+                    if let Some(home) = dirs::home_dir() {
+                        home.join(data_dir.strip_prefix('~').unwrap_or(""))
+                    } else {
+                        std::path::PathBuf::from(data_dir)
+                    }
+                } else {
+                    std::path::PathBuf::from(data_dir)
+                };
+
+                let base_dir = if is_own {
+                    data_dir_expanded.join("uploads")
+                } else {
+                    data_dir_expanded.join("downloads")
+                };
+
+                // Check if it's an image and use thumbnail path
+                let lower_file_type = file_type.to_lowercase();
+                let is_image = lower_file_type.starts_with("image/")
+                    || ["png", "jpg", "jpeg", "gif", "bmp", "webp"]
+                        .contains(&lower_file_type.as_str());
+
+                if is_image {
+                    Some(
+                        base_dir
+                            .join(format!("{}.thumbnail.jpg", filename))
+                            .to_string_lossy()
+                            .to_string(),
+                    )
+                } else {
+                    Some(base_dir.join(filename).to_string_lossy().to_string())
+                }
+            }
+            _ => None,
+        };
 
         Self {
             id: msg.id.clone(),
@@ -184,6 +290,14 @@ impl From<&StoredMessage> for Message {
                 .to_string(),
             is_own,
             message_type,
+            filename,
+            file_size,
+            file_type,
+            share_code,
+            is_downloading: false,
+            download_progress: None,
+            download_id: None,
+            file_path,
         }
     }
 }
@@ -192,14 +306,13 @@ use once_cell::sync::Lazy;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub static GLOBAL_CHAT_STATE: Lazy<Arc<Mutex<ChatState>>> = Lazy::new(|| Arc::new(Mutex::new(ChatState::default())));
+pub static GLOBAL_CHAT_STATE: Lazy<Arc<Mutex<ChatState>>> =
+    Lazy::new(|| Arc::new(Mutex::new(ChatState::default())));
 static CHAT_INITIALIZED: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
 
 pub async fn is_chat_initialized() -> bool {
     let state = GLOBAL_CHAT_STATE.lock().await;
-    state.peers.len() > 0
-        || state.groups.len() > 0
-        || state.conversations.len() > 0
+    state.peers.len() > 0 || state.groups.len() > 0 || state.conversations.len() > 0
 }
 
 pub fn use_chat_state() -> Signal<ChatState> {
@@ -269,10 +382,20 @@ pub async fn load_conversations() -> Vec<Conversation> {
             .map(|sc| Conversation {
                 id: sc.id,
                 name: sc.name,
-                peer_id: if sc.is_group { None } else { Some(sc.peer_id.clone()) },
-                group_id: if sc.is_group { Some(sc.peer_id.clone()) } else { None },
+                peer_id: if sc.is_group {
+                    None
+                } else {
+                    Some(sc.peer_id.clone())
+                },
+                group_id: if sc.is_group {
+                    Some(sc.peer_id.clone())
+                } else {
+                    None
+                },
                 last_message: sc.last_message,
-                last_message_time: sc.last_message_timestamp.map(|t| t.with_timezone(&Local).format("%H:%M %p").to_string()),
+                last_message_time: sc
+                    .last_message_timestamp
+                    .map(|t| t.with_timezone(&Local).format("%H:%M %p").to_string()),
                 unread_count: sc.unread_count as u32,
             })
             .collect(),

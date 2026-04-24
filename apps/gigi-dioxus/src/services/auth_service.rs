@@ -18,7 +18,18 @@ impl AuthService {
                 .to_string()
         });
 
-        let db_path = PathBuf::from(data_dir).join("gigi.db");
+        // Expand ~ to home directory
+        let data_dir_expanded = if data_dir.starts_with('~') {
+            if let Some(home) = dirs::home_dir() {
+                home.join(data_dir.strip_prefix('~').unwrap_or(""))
+            } else {
+                PathBuf::from(data_dir)
+            }
+        } else {
+            PathBuf::from(data_dir)
+        };
+
+        let db_path = data_dir_expanded.join("gigi.db");
 
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)?;

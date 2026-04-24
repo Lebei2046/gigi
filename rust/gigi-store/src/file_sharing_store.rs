@@ -1,9 +1,9 @@
 //! File sharing store - Store and retrieve shared file information
 
 use anyhow::{Context, Result};
+use gigi_logging::info;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
-use gigi_logging::info;
 
 /// Shared file information stored in gigi-store
 #[derive(Debug, Clone, Serialize, Deserialize)]

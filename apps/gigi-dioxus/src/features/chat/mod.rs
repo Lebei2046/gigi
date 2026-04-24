@@ -7,8 +7,8 @@ use dioxus::prelude::*;
 use dioxus_router::use_navigator;
 use std::str::FromStr;
 
-use crate::features::chat::components::{ConfirmationDialog, GroupChatCard, PeerChatCard};
 use crate::features::chat::chat_state::use_chat_room_state;
+use crate::features::chat::components::{ConfirmationDialog, GroupChatCard, PeerChatCard};
 use crate::features::chat::hooks::{
     use_chat_data_refresh, use_chat_event_listeners, use_chat_initialization, use_group_actions,
     use_peer_actions,
@@ -67,7 +67,7 @@ pub fn Chat() -> Element {
 
     // Combine conversations, groups, and peers into a single list
     let mut combined_list: Vec<Element> = vec![];
-    
+
     // Add conversations first (from the conversation table)
     let conversations = chat_state.read().conversations.clone();
     for conversation in &conversations {
@@ -92,19 +92,22 @@ pub fn Chat() -> Element {
             }
         } else if let Some(peer_id) = &conversation.peer_id {
             // Direct conversation - try to find peer in chat_state.peers
-            let peer = chat_state.read().peers.iter().find(|p| p.id == *peer_id).cloned();
+            let peer = chat_state
+                .read()
+                .peers
+                .iter()
+                .find(|p| p.id == *peer_id)
+                .cloned();
 
             // If peer not found in peers list (offline), create a virtual peer from conversation data
             let peer = peer.unwrap_or_else(|| {
                 // Extract nickname from conversation name
                 let nickname = conversation.name.clone();
                 // Parse PeerId from the peer_id string
-                let peer_id_obj = peer_id.parse::<gigi_p2p::PeerId>()
-                    .unwrap_or_else(|_| {
-                        // If parsing fails, create a dummy PeerId (shouldn't happen with valid data)
-                        gigi_p2p::PeerId::from_bytes(&[0u8; 32])
-                            .expect("Failed to create dummy PeerId")
-                    });
+                let peer_id_obj = peer_id.parse::<gigi_p2p::PeerId>().unwrap_or_else(|_| {
+                    // If parsing fails, create a dummy PeerId (shouldn't happen with valid data)
+                    gigi_p2p::PeerId::from_bytes(&[0u8; 32]).expect("Failed to create dummy PeerId")
+                });
 
                 chat_state::Peer {
                     id: peer_id.clone(),
@@ -130,13 +133,13 @@ pub fn Chat() -> Element {
             });
         }
     }
-    
+
     // Add groups not in conversations
     let existing_group_ids: std::collections::HashSet<String> = conversations
         .iter()
         .filter_map(|c| c.group_id.clone())
         .collect();
-    
+
     for group in &chat_state.read().groups {
         if !existing_group_ids.contains(&group.id) {
             let share_group = handle_share_group.clone();
@@ -156,13 +159,13 @@ pub fn Chat() -> Element {
             });
         }
     }
-    
+
     // Add peers not in conversations
     let existing_peer_ids: std::collections::HashSet<String> = conversations
         .iter()
         .filter_map(|c| c.peer_id.clone())
         .collect();
-    
+
     for peer in &chat_state.read().peers {
         if !existing_peer_ids.contains(&peer.id) {
             let peer_id = peer.id.clone();

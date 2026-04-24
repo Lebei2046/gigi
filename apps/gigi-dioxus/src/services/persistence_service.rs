@@ -16,7 +16,7 @@ impl PersistenceService {
     pub async fn initialize() -> Result<()> {
         let mut message_store_guard = MESSAGE_STORE.lock().await;
         let mut conversation_store_guard = CONVERSATION_STORE.lock().await;
-        
+
         // Check if stores are already initialized
         if message_store_guard.is_some() && conversation_store_guard.is_some() {
             return Ok(());
@@ -31,7 +31,18 @@ impl PersistenceService {
                 .to_string()
         });
 
-        let db_path = PathBuf::from(data_dir).join("gigi-store.db");
+        // Expand ~ to home directory
+        let data_dir_expanded = if data_dir.starts_with('~') {
+            if let Some(home) = dirs::home_dir() {
+                home.join(data_dir.strip_prefix('~').unwrap_or(""))
+            } else {
+                PathBuf::from(data_dir)
+            }
+        } else {
+            PathBuf::from(data_dir)
+        };
+
+        let db_path = data_dir_expanded.join("gigi-store.db");
 
         // Create parent directories if needed
         if let Some(parent) = db_path.parent() {
@@ -71,6 +82,54 @@ impl PersistenceService {
                 gigi_store::MessageDirection::Received
             },
             content: gigi_store::MessageContent::Text { text: message },
+            sender_nickname: from_nickname.clone(),
+            recipient_nickname: Some(to_nickname),
+            group_name: None,
+            peer_id: from_nickname.to_string(),
+            timestamp: chrono::Utc::now(),
+            created_at: chrono::Utc::now(),
+            delivered: false,
+            delivered_at: None,
+            read: false,
+            read_at: None,
+            sync_status: gigi_store::SyncStatus::Pending,
+            sync_attempts: 0,
+            last_sync_attempt: None,
+            expires_at: chrono::Utc::now() + chrono::Duration::days(7),
+        };
+
+        let mut store_guard = MESSAGE_STORE.lock().await;
+        if let Some(store) = store_guard.as_mut() {
+            store.store_message(stored_msg).await?;
+        }
+
+        Ok(msg_id)
+    }
+
+    pub async fn store_file_share_message(
+        from_nickname: String,
+        to_nickname: String,
+        filename: String,
+        share_code: String,
+        file_size: u64,
+        file_type: String,
+        is_own: bool,
+    ) -> Result<String> {
+        let msg_id = uuid::Uuid::new_v4().to_string();
+        let stored_msg = StoredMessage {
+            id: msg_id.clone(),
+            msg_type: gigi_store::MessageType::Direct,
+            direction: if is_own {
+                gigi_store::MessageDirection::Sent
+            } else {
+                gigi_store::MessageDirection::Received
+            },
+            content: gigi_store::MessageContent::FileShare {
+                filename,
+                share_code,
+                file_size,
+                file_type,
+            },
             sender_nickname: from_nickname.clone(),
             recipient_nickname: Some(to_nickname),
             group_name: None,
@@ -147,7 +206,14 @@ impl PersistenceService {
         let store_guard = CONVERSATION_STORE.lock().await;
         if let Some(store) = store_guard.as_ref() {
             store
-                .upsert_conversation(id, name, is_group, peer_id, last_message, last_message_timestamp)
+                .upsert_conversation(
+                    id,
+                    name,
+                    is_group,
+                    peer_id,
+                    last_message,
+                    last_message_timestamp,
+                )
                 .await
                 .map_err(|e| anyhow::anyhow!(e))
         } else {

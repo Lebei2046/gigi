@@ -18,9 +18,9 @@
 
 use anyhow::Result;
 use futures::channel::mpsc;
+use gigi_logging::{debug, info, instrument, warn};
 use libp2p::{gossipsub::IdentTopic, PeerId, Swarm};
 use std::collections::HashMap;
-use gigi_logging::{debug, info, instrument, warn};
 
 use crate::behaviour::UnifiedBehaviour;
 use crate::error::P2pError;

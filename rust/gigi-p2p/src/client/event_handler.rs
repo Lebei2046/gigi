@@ -24,8 +24,8 @@
 //! ```
 
 use anyhow::Result;
-use libp2p::{swarm::SwarmEvent, PeerId};
 use gigi_logging::info;
+use libp2p::{swarm::SwarmEvent, PeerId};
 
 use super::P2pClient;
 use crate::behaviour::UnifiedEvent;

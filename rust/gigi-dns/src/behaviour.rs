@@ -16,7 +16,7 @@
 use crate::interface::{handle_if_event, InterfaceEvent, InterfaceTask};
 use crate::types::*;
 use futures::stream::StreamExt;
-use gigi_logging::{warn, instrument};
+use gigi_logging::{instrument, warn};
 use if_watch::tokio::IfWatcher;
 use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;

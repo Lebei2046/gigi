@@ -1,11 +1,11 @@
 //! Contact manager for storing and managing contact information
 
+use gigi_logging::{debug, info};
 use sea_orm::{
     prelude::Expr, ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait,
     PaginatorTrait, QueryFilter, Set,
 };
 use serde::{Deserialize, Serialize};
-use gigi_logging::{debug, info};
 
 use crate::entities::contacts;
 

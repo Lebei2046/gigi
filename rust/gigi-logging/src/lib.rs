@@ -1,5 +1,5 @@
 //! Gigi Logging - Shared logging library for Gigi P2P ecosystem
-//! 
+//!
 //! This library provides a consistent logging solution across all Gigi P2P components,
 //! supporting flexible output options, log levels, and environment variable configuration.
 
@@ -49,13 +49,13 @@ impl Default for LogConfig {
 static INIT_ONCE: Once = Once::new();
 
 /// Initialize logging with default configuration
-/// 
+///
 /// Defaults to console output, INFO level, and text format.
-/// 
+///
 /// # Examples
 /// ```rust
 /// use gigi_logging::init_logging;
-/// 
+///
 /// init_logging();
 /// ```
 pub fn init_logging() {
@@ -63,18 +63,18 @@ pub fn init_logging() {
 }
 
 /// Initialize logging with custom configuration
-/// 
+///
 /// # Examples
 /// ```rust
 /// use gigi_logging::{init_logging_with_config, LogConfig, LogOutput, Level};
-/// 
+///
 /// let config = LogConfig {
 ///     output: LogOutput::File("gigi.log".to_string()),
 ///     level: Level::DEBUG,
 ///     json: true,
 ///     include_spans: true,
 /// };
-/// 
+///
 /// init_logging_with_config(config);
 /// ```
 pub fn init_logging_with_config(config: LogConfig) {
@@ -101,7 +101,7 @@ pub fn init_logging_with_config(config: LogConfig) {
                                         } else {
                                             FmtSpan::NONE
                                         })
-                                        .json()
+                                        .json(),
                                 )
                                 .with(
                                     tracing_subscriber::fmt::layer()
@@ -115,34 +115,12 @@ pub fn init_logging_with_config(config: LogConfig) {
                                         } else {
                                             FmtSpan::NONE
                                         })
-                                        .json()
-                                )
+                                        .json(),
+                                ),
                         )
                     } else {
                         Box::new(
-                            tracing_subscriber::registry()
-                                .with(env_filter)
-                                .with(
-                                    tracing_subscriber::fmt::layer()
-                                        .with_level(true)
-                                        .with_target(true)
-                                        .with_thread_ids(true)
-                                        .with_thread_names(true)
-                                        .with_span_events(if config.include_spans {
-                                            FmtSpan::ACTIVE | FmtSpan::CLOSE
-                                        } else {
-                                            FmtSpan::NONE
-                                        })
-                                        .json()
-                                )
-                        )
-                    }
-                }
-                LogOutput::Console => {
-                    Box::new(
-                        tracing_subscriber::registry()
-                            .with(env_filter)
-                            .with(
+                            tracing_subscriber::registry().with(env_filter).with(
                                 tracing_subscriber::fmt::layer()
                                     .with_level(true)
                                     .with_target(true)
@@ -153,10 +131,26 @@ pub fn init_logging_with_config(config: LogConfig) {
                                     } else {
                                         FmtSpan::NONE
                                     })
-                                    .json()
-                            )
-                    )
+                                    .json(),
+                            ),
+                        )
+                    }
                 }
+                LogOutput::Console => Box::new(
+                    tracing_subscriber::registry().with(env_filter).with(
+                        tracing_subscriber::fmt::layer()
+                            .with_level(true)
+                            .with_target(true)
+                            .with_thread_ids(true)
+                            .with_thread_names(true)
+                            .with_span_events(if config.include_spans {
+                                FmtSpan::ACTIVE | FmtSpan::CLOSE
+                            } else {
+                                FmtSpan::NONE
+                            })
+                            .json(),
+                    ),
+                ),
             }
         } else {
             match &config.output {
@@ -175,7 +169,7 @@ pub fn init_logging_with_config(config: LogConfig) {
                                             FmtSpan::ACTIVE | FmtSpan::CLOSE
                                         } else {
                                             FmtSpan::NONE
-                                        })
+                                        }),
                                 )
                                 .with(
                                     tracing_subscriber::fmt::layer()
@@ -188,33 +182,12 @@ pub fn init_logging_with_config(config: LogConfig) {
                                             FmtSpan::ACTIVE | FmtSpan::CLOSE
                                         } else {
                                             FmtSpan::NONE
-                                        })
-                                )
+                                        }),
+                                ),
                         )
                     } else {
                         Box::new(
-                            tracing_subscriber::registry()
-                                .with(env_filter)
-                                .with(
-                                    tracing_subscriber::fmt::layer()
-                                        .with_level(true)
-                                        .with_target(true)
-                                        .with_thread_ids(true)
-                                        .with_thread_names(true)
-                                        .with_span_events(if config.include_spans {
-                                            FmtSpan::ACTIVE | FmtSpan::CLOSE
-                                        } else {
-                                            FmtSpan::NONE
-                                        })
-                                )
-                        )
-                    }
-                }
-                LogOutput::Console => {
-                    Box::new(
-                        tracing_subscriber::registry()
-                            .with(env_filter)
-                            .with(
+                            tracing_subscriber::registry().with(env_filter).with(
                                 tracing_subscriber::fmt::layer()
                                     .with_level(true)
                                     .with_target(true)
@@ -224,10 +197,25 @@ pub fn init_logging_with_config(config: LogConfig) {
                                         FmtSpan::ACTIVE | FmtSpan::CLOSE
                                     } else {
                                         FmtSpan::NONE
-                                    })
-                            )
-                    )
+                                    }),
+                            ),
+                        )
+                    }
                 }
+                LogOutput::Console => Box::new(
+                    tracing_subscriber::registry().with(env_filter).with(
+                        tracing_subscriber::fmt::layer()
+                            .with_level(true)
+                            .with_target(true)
+                            .with_thread_ids(true)
+                            .with_thread_names(true)
+                            .with_span_events(if config.include_spans {
+                                FmtSpan::ACTIVE | FmtSpan::CLOSE
+                            } else {
+                                FmtSpan::NONE
+                            }),
+                    ),
+                ),
             }
         };
 
@@ -243,11 +231,11 @@ pub fn init_logging_with_config(config: LogConfig) {
 }
 
 /// Get logger for a specific module
-/// 
+///
 /// # Examples
 /// ```rust
 /// use gigi_logging::get_logger;
-/// 
+///
 /// let logger = get_logger!("gigi-dns");
 /// logger.info("DNS service started");
 /// ```
@@ -259,11 +247,11 @@ macro_rules! get_logger {
 }
 
 /// Log a debug message
-/// 
+///
 /// # Examples
 /// ```rust
 /// use gigi_logging::debug;
-/// 
+///
 /// debug!("Processing request: {:?}", request);
 /// ```
 #[macro_export]
@@ -274,11 +262,11 @@ macro_rules! debug {
 }
 
 /// Log an info message
-/// 
+///
 /// # Examples
 /// ```rust
 /// use gigi_logging::info;
-/// 
+///
 /// info!("Service started on port: {}", port);
 /// ```
 #[macro_export]
@@ -289,11 +277,11 @@ macro_rules! info {
 }
 
 /// Log a warning message
-/// 
+///
 /// # Examples
 /// ```rust
 /// use gigi_logging::warn;
-/// 
+///
 /// warn!("Connection timeout for peer: {}", peer_id);
 /// ```
 #[macro_export]
@@ -304,11 +292,11 @@ macro_rules! warn {
 }
 
 /// Log an error message
-/// 
+///
 /// # Examples
 /// ```rust
 /// use gigi_logging::error;
-/// 
+///
 /// error!("Failed to connect: {}", error);
 /// ```
 #[macro_export]
@@ -319,11 +307,11 @@ macro_rules! error {
 }
 
 /// Log a trace message
-/// 
+///
 /// # Examples
 /// ```rust
 /// use gigi_logging::trace;
-/// 
+///
 /// trace!("Entering function: {}", function_name);
 /// ```
 #[macro_export]

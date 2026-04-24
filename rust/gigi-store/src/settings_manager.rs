@@ -1,10 +1,10 @@
 //! Settings manager for storing and retrieving application settings
 
+use gigi_logging::{debug, info};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
     TransactionTrait,
 };
-use gigi_logging::{debug, info};
 
 use crate::entities::settings;
 

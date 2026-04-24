@@ -10,6 +10,27 @@ pub enum AppEvent {
     MessageSaved(String),
     ContactUpdated,
     GroupUpdated,
+    FileDownloadProgress {
+        download_id: String,
+        progress: u8,
+    },
+    FileDownloadCompleted {
+        download_id: String,
+        path: std::path::PathBuf,
+    },
+    FileDownloadFailed {
+        download_id: String,
+        error: String,
+    },
+    FileShareReceived {
+        from_peer_id: String,
+        from_nickname: String,
+        share_code: String,
+        filename: String,
+        file_size: u64,
+        file_type: String,
+        conv_id: String,
+    },
 }
 
 static BROADCAST_TX: Lazy<Mutex<Option<broadcast::Sender<AppEvent>>>> =
