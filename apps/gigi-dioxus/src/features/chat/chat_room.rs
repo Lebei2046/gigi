@@ -41,6 +41,10 @@ pub fn ChatRoom(id: String) -> Element {
     let send_message = Rc::new(RefCell::new(handle_send_message));
     let send_message_clone = send_message.clone();
 
+    let file_select = Rc::new(RefCell::new(handle_file_select));
+    let file_select_clone = file_select.clone();
+    let file_select_clone2 = file_select.clone();
+
     // Move handle_delete_message into Rc<RefCell> once
     let delete_message = Rc::new(RefCell::new(handle_delete_message));
 
@@ -101,7 +105,10 @@ pub fn ChatRoom(id: String) -> Element {
                     div { class: "flex items-center gap-3",
                         button {
                             class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
-                            onclick: move |_| handle_image_select(),
+                            onclick: move |_| {
+                                let mut file_sel = file_select_clone2.borrow_mut();
+                                file_sel();
+                            },
                             svg {
                                 class: "w-5 h-5",
                                 fill: "none",
@@ -117,7 +124,10 @@ pub fn ChatRoom(id: String) -> Element {
                         }
                         button {
                             class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
-                            onclick: move |_| handle_file_select(),
+                            onclick: move |_| {
+                                let mut file_sel = file_select_clone.borrow_mut();
+                                file_sel();
+                            },
                             svg {
                                 class: "w-5 h-5",
                                 fill: "none",

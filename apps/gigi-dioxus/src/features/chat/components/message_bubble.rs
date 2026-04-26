@@ -354,6 +354,59 @@ fn FileMessageBubble(
         .map(|p| std::path::Path::new(p).exists())
         .unwrap_or(false);
 
+    let effective_file_path = if is_own && !file_exists && message.message_type == MessageType::File
+    {
+        if let Some(path) = &file_path {
+            let path_exists = std::path::Path::new(path).exists();
+            if path_exists {
+                file_path.clone()
+            } else {
+                let filename = message.content.clone();
+                let home_dir = dirs::home_dir();
+                let common_dirs = ["图片", "Pictures", "Downloads", "桌面", "Desktop"];
+
+                let mut found_path = None;
+                if let Some(home) = home_dir {
+                    for dir in common_dirs {
+                        let test_path = home.join(dir).join(filename.clone());
+                        if test_path.exists() {
+                            found_path = Some(test_path.to_string_lossy().to_string());
+                            break;
+                        }
+                    }
+                }
+
+                found_path.or_else(|| file_path.clone())
+            }
+        } else {
+            let filename = message.content.clone();
+            let home_dir = dirs::home_dir();
+            let common_dirs = ["图片", "Pictures", "Downloads", "桌面", "Desktop"];
+
+            let mut found_path = None;
+            if let Some(home) = home_dir {
+                for dir in common_dirs {
+                    let test_path = home.join(dir).join(filename.clone());
+                    if test_path.exists() {
+                        found_path = Some(test_path.to_string_lossy().to_string());
+                        break;
+                    }
+                }
+            }
+
+            found_path
+        }
+    } else {
+        file_path.clone()
+    };
+
+    let effective_file_exists = effective_file_path
+        .as_ref()
+        .map(|p| std::path::Path::new(p).exists())
+        .unwrap_or(false);
+
+    let has_local_file = effective_file_exists || (is_own && effective_file_path.is_some());
+
     let handle_download_click = move |_| {
         if let (Some(on_download), Some(code), Some(name)) = (
             on_download_request,
@@ -633,20 +686,7 @@ fn FileMessageBubble(
                             div { class: "text-xs text-gray-500",
                                 "{format_file_size(message_file_size)}"
                             }
-                            if is_downloading {
-                                div { class: "mt-2",
-                                    div { class: "w-full bg-gray-200 rounded-full h-2",
-                                        div {
-                                            class: "bg-blue-500 h-2 rounded-full transition-all duration-300",
-                                            style: format!("width: {}%", download_progress.unwrap_or(0)),
-                                        }
-                                    }
-                                    div { class: "text-xs text-blue-600 mt-1",
-                                        "Downloading... {download_progress.unwrap_or(0)}%"
-                                    }
-                                }
-                            }
-                            if is_downloaded {
+                            if is_own && effective_file_exists {
                                 div { class: "mt-2",
                                     div { class: "flex items-center gap-1 text-green-600",
                                         svg {
@@ -661,7 +701,41 @@ fn FileMessageBubble(
                                                 d: "M5 13l4 4L19 7",
                                             }
                                         }
-                                        span { class: "text-xs", "Downloaded" }
+                                        span { class: "text-xs", "Uploaded" }
+                                    }
+                                }
+                            }
+                            if !is_own {
+                                if is_downloading {
+                                    div { class: "mt-2",
+                                        div { class: "w-full bg-gray-200 rounded-full h-2",
+                                            div {
+                                                class: "bg-blue-500 h-2 rounded-full transition-all duration-300",
+                                                style: format!("width: {}%", download_progress.unwrap_or(0)),
+                                            }
+                                        }
+                                        div { class: "text-xs text-blue-600 mt-1",
+                                            "Downloading... {download_progress.unwrap_or(0)}%"
+                                        }
+                                    }
+                                }
+                                if is_downloaded {
+                                    div { class: "mt-2",
+                                        div { class: "flex items-center gap-1 text-green-600",
+                                            svg {
+                                                class: "w-4 h-4",
+                                                fill: "none",
+                                                stroke: "currentColor",
+                                                view_box: "0 0 24 24",
+                                                path {
+                                                    stroke_linecap: "round",
+                                                    stroke_linejoin: "round",
+                                                    stroke_width: "2",
+                                                    d: "M5 13l4 4L19 7",
+                                                }
+                                            }
+                                            span { class: "text-xs", "Downloaded" }
+                                        }
                                     }
                                 }
                             }
