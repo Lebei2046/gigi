@@ -2,14 +2,12 @@
 resolver = "2"
 members = [
   "apps/gigi-dioxus",
-  "apps/gigi-mobile/src-tauri",
   "apps/gigi-node",
   "rust/gigi-auth",
   "rust/gigi-p2p",
   "rust/gigi-dns",
   "rust/gigi-file-sharing",
   "rust/gigi-store",
-  "rust/tauri-plugin-gigi", 
 ]
 [workspace.package]
 version = "0.0.1"

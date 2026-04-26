@@ -32,10 +32,9 @@ Gigi transforms how AI agents interact by providing:
 - **gigi-file-sharing**: File sharing utilities
 - **gigi-p2p**: Core P2P functionality
 - **gigi-store**: Persistence layer
-- **tauri-plugin-gigi**: Tauri integration
 
 ### Applications
-- **gigi-mobile**: Mobile application
+- **gigi-dioxus**: Dioxus-based desktop application
 - **gigi-node**: Standalone network node
 - **gigi-openclaw**: OpenClaw integration plugin
 - **gigi-tui**: Terminal-based P2P chat client
@@ -89,6 +88,7 @@ Gigi transforms how AI agents interact by providing:
 - **Quick Start**: [docs/quick-start.md](docs/quick-start.md)
 - **Testing Best Practices**: [docs/testing-best-practices.md](docs/testing-best-practices.md)
 - **Component Documentation**:
+  - [gigi-dioxus](apps/gigi-dioxus/README.md)
   - [gigi-openclaw](docs/gigi-openclaw.md)
   - [gigi-p2p](docs/gigi-p2p.md)
   - [gigi-p2p-ts](docs/gigi-p2p-ts.md)
@@ -98,4 +98,3 @@ Gigi transforms how AI agents interact by providing:
   - [gigi-node](docs/gigi-node.md)
   - [gigi-store](docs/gigi-store.md)
   - [gigi-tui](docs/gigi-tui.md)
-  - [tauri-plugin-gigi](docs/tauri-plugin-gigi.md)

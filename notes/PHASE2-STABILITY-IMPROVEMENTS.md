@@ -144,9 +144,9 @@ let attempts = self.client.connection_recovery.process_reconnections(&mut self.s
 ### 4. IndexedDB Message Persistence ✅
 
 **Files**:
-- `apps/gigi-mobile/src/utils/indexedDB.ts` (new)
-- `apps/gigi-mobile/src/store/persistenceSlice.ts` (new)
-- `apps/gigi-mobile/src/store/index.ts`
+- `apps/gigi-dioxus/src/utils/indexedDB.ts` (new)
+- `apps/gigi-dioxus/src/store/persistenceSlice.ts` (new)
+- `apps/gigi-dioxus/src/store/index.ts`
 
 **Changes**:
 

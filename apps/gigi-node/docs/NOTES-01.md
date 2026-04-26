@@ -1,4 +1,4 @@
-**Assuming we have two wifi network which can access to the internet, we should build a node software and rent several hosts which run the node software on cloud. Give a solution how to build the node software and run it on the hosts and how to make the mobiles running gigi-mobile in the two wifi network connected, and also support a single mobile running gigi-mobile can join the p2p network?**
+**Assuming we have two wifi network which can access to the internet, we should build a node software and rent several hosts which run the node software on cloud. Give a solution how to build the node software and run it on the hosts and how to make the clients running gigi-dioxus in the two wifi network connected, and also support a single client running gigi-dioxus can join the p2p network?**
 
 Based on the Gigi architecture and your requirements, here's a complete solution for building node software and connecting mobile devices across two WiFi networks:
 
@@ -464,12 +464,12 @@ services:
     restart: unless-stopped
 ```
 
-### 3. Gigi-Mobile Configuration
+### 3. Gigi-Dioxus Configuration
 
-Update your mobile app to connect to the cloud infrastructure:
+Update your client app to connect to the cloud infrastructure:
 
 ```rust
-// gigi-mobile/src/p2p/bootstrap.rs
+// gigi-dioxus/src/p2p/bootstrap.rs
 
 /// Production bootstrap nodes (cloud-hosted)
 pub const BOOTSTRAP_NODES: &[&str] = &[

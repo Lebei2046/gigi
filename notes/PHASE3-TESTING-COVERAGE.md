@@ -80,7 +80,7 @@ This document describes the comprehensive testing infrastructure implemented for
 
 ### 2. Frontend Tests (TypeScript)
 
-**2.1 Validation Tests (`apps/gigi-mobile/src/utils/__tests__/validation.test.ts`)**
+**2.1 Validation Tests (`apps/gigi-dioxus/src/utils/__tests__/validation.test.ts`)**
 - Nickname validation (valid and invalid cases)
 - Message validation (XSS patterns, length limits)
 - Group name validation
@@ -93,7 +93,7 @@ This document describes the comprehensive testing infrastructure implemented for
 
 **Total: 50+ test cases**
 
-**2.2 IndexedDB Tests (`apps/gigi-mobile/src/utils/__tests__/indexedDB.test.ts`)**
+**2.2 IndexedDB Tests (`apps/gigi-dioxus/src/utils/__tests__/indexedDB.test.ts`)**
 - Database opening and initialization
 - Object store creation and validation
 - Message CRUD operations (Create, Read, Update, Delete)
@@ -121,7 +121,7 @@ This document describes the comprehensive testing infrastructure implemented for
 
 3. **Unit Tests**
    - Runs on Ubuntu, Windows, and macOS
-   - Tests all packages: gigi-p2p, gigi-auth, gigi-dns, gigi-file-sharing, gigi-store, tauri-plugin-gigi
+   - Tests all packages: gigi-p2p, gigi-auth, gigi-dns, gigi-file-sharing, gigi-store, gigi-dioxus
    - Uses cargo caching for faster builds
 
 4. **Integration Tests**
@@ -188,7 +188,7 @@ This significantly reduces build times on subsequent runs.
 | gigi-dns | Existing | Existing | ~50% |
 | gigi-file-sharing | Existing | Existing | ~50% |
 | gigi-store | Existing | Existing | ~45% |
-| tauri-plugin-gigi | Existing | Existing | ~50% |
+| gigi-dioxus | Existing | Existing | ~50% |
 
 ### Frontend (TypeScript)
 

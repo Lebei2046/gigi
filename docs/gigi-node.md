@@ -28,7 +28,7 @@ The Gigi Network Node is designed to provide network infrastructure for the Gigi
 
 1. **Clone the Gigi repository**:
    ```bash
-   git clone https://github.com/gigi-project/gigi.git
+   git clone https://github.com/Lebei2046/gigi.git
    cd gigi
    ```
 
@@ -434,7 +434,7 @@ ssh user@cloud-server
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Clone repository
-git clone https://github.com/gigi-project/gigi.git
+git clone https://github.com/Lebei2046/gigi.git
 cd gigi/apps/gigi-node
 
 # Build node

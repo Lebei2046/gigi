@@ -16,7 +16,7 @@ Before you begin, make sure you have the following installed:
 First, clone the Gigi P2P repository:
 
 ```bash
-git clone https://github.com/gigi-project/gigi.git
+git clone https://github.com/Lebei2046/gigi.git
 cd gigi
 ```
 

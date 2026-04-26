@@ -78,7 +78,7 @@ The gigi-dioxus project already has the basic structure set up:
    - Show progress for file uploads
 
 2. **File Receiving and Persistence**
-   - Auto-download files or prompt user (follow patterns from tauri-plugin-gigi)
+   - Auto-download files or prompt user (follow patterns from current implementation)
    - Store files using gigi-store's FileSharingStore
    - Generate and store thumbnails for images
 
@@ -89,7 +89,7 @@ The gigi-dioxus project already has the basic structure set up:
 ## Phase 4: Complete UI Features
 
 ### Goals
-- Add all missing chat features present in gigi-mobile/tauri-plugin-gigi
+- Add all missing chat features present in the current implementation
 - Polish UI/UX
 
 ### Tasks
@@ -110,20 +110,19 @@ The gigi-dioxus project already has the basic structure set up:
 
 ## Architecture Reference (from existing projects)
 
-### Event Flow (from tauri-plugin-gigi)
+### Event Flow (from gigi-dioxus)
 ```
 P2pClient → P2pEvent → Event Bus → Chat State → UI Updates
            ↓
         Save to gigi-store
 ```
 
-### State Management (from gigi-mobile, adapted to Dioxus)
+### State Management (from gigi-dioxus, adapted to Dioxus)
 - Use Dioxus `use_signal` for chat state
 - Use event bus for P2P events to update signals
 - Persist state changes to gigi-store
 
 ### Key Files to Reference
 - `/home/lebei/dev/gigi-dioxus/rust/gigi-p2p/examples/chat.rs`: Full CLI chat example
-- `/home/lebei/dev/gigi-dioxus/rust/tauri-plugin-gigi/src/events.rs`: Event handling patterns
-- `/home/lebei/dev/gigi-dioxus/rust/tauri-plugin-gigi/src/commands/messaging.rs`: Messaging commands
+- `/home/lebei/dev/gigi-dioxus/apps/gigi-dioxus/src/services/`: Event handling and services
 - `/home/lebei/dev/gigi-dioxus/rust/gigi-store/src/lib.rs`: Persistence layer

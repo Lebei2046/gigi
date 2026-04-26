@@ -30,7 +30,7 @@ Gigi Store is designed to provide persistent storage for the Gigi P2P network, e
 
 1. **Clone the Gigi repository**:
    ```bash
-   git clone https://github.com/gigi-project/gigi.git
+   git clone https://github.com/Lebei2046/gigi.git
    cd gigi
    ```
 

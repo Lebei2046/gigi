@@ -14,11 +14,11 @@ Welcome to the Gigi P2P documentation! This directory contains comprehensive gui
 - [Gigi P2P TypeScript Client](gigi-p2p-ts.md) - TypeScript implementation for web/browser
 - [Gigi P2P Rust Client](gigi-p2p.md) - High-performance Rust implementation
 - [Gigi Network Node](gigi-node.md) - Standalone network infrastructure
+- [Gigi Dioxus Desktop App](../apps/gigi-dioxus) - Desktop application for Gigi P2P
 - [Gigi Auth](gigi-auth.md) - Authentication and key management
 - [Gigi DNS](gigi-dns.md) - Decentralized name resolution
 - [Gigi File Sharing](gigi-file-sharing.md) - File transfer utilities
 - [Gigi Store](gigi-store.md) - Data persistence layer
-- [Tauri Plugin Gigi](tauri-plugin-gigi.md) - Desktop/mobile integration
 
 ### Architecture
 - [System Architecture](architecture/system-architecture.md) - High-level system design

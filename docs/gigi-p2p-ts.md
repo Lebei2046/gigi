@@ -27,7 +27,7 @@ The Gigi P2P TypeScript Client is designed for use in web browsers, Node.js, and
 
 1. **Clone the Gigi repository**:
    ```bash
-   git clone https://github.com/gigi-project/gigi.git
+   git clone https://github.com/Lebei2046/gigi.git
    cd gigi
    ```
 

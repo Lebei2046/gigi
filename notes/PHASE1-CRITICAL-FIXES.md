@@ -53,7 +53,7 @@ This document summarizes all critical fixes implemented in Phase 1 to address th
 
 ### 2. ✅ File System Access Restriction
 
-#### apps/gigi-mobile/src-tauri/tauri.conf.json
+#### apps/gigi-dioxus/src-tauri/tauri.conf.json
 - **Before**: Unrestricted access `"**"`
 - **After**: Restricted to:
   ```json
@@ -72,7 +72,7 @@ This document summarizes all critical fixes implemented in Phase 1 to address th
 
 ### 3. ✅ Content Security Policy (CSP)
 
-#### apps/gigi-mobile/src-tauri/tauri.conf.json
+#### apps/gigi-dioxus/src-tauri/tauri.conf.json
 - **Before**: `"csp": null` (DISABLED)
 - **After**: Full CSP enabled:
   ```json
@@ -148,7 +148,7 @@ InvalidInput(String),
 - `apps/gigi-node/src/main.rs` - Added proper error handling for identity loading
 
 ### Mobile App
-- `apps/gigi-mobile/src-tauri/tauri.conf.json` - Restricted file access, enabled CSP
+- `apps/gigi-dioxus/tauri.conf.json` - Restricted file access, enabled CSP
 
 ---
 

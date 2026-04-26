@@ -1,12 +1,12 @@
-# Port file sharing from gigi-mobile to gigi-dioxus
+# File Sharing Implementation in gigi-dioxus
 
-## Analyze gigi-mobile
+## Analyze Original Implementation
 
 - the flow of file sharing
 - the component for rendering of file message or image message(sender side)
 - the component for  rendering of file message or image message(receiver side)
 
-## Port to gigi-dioxus
+## Implementation in gigi-dioxus
 
 ### the sender side
 

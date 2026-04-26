@@ -26,7 +26,7 @@ Gigi DNS is designed to simplify peer addressing in the Gigi P2P network by allo
 
 1. **Clone the Gigi repository**:
    ```bash
-   git clone https://github.com/gigi-project/gigi.git
+   git clone https://github.com/Lebei2046/gigi.git
    cd gigi
    ```
 

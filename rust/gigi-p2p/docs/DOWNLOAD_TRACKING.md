@@ -1,10 +1,10 @@
-# Mobile App Download Tracking Integration
+# Desktop App Download Tracking Integration
 
-This document explains how to integrate the enhanced download tracking system in `gigi-mobile` for displaying file downloads with proper UI feedback.
+This document explains how to integrate the enhanced download tracking system in `gigi-dioxus` for displaying file downloads with proper UI feedback.
 
 ## 🎯 Problem Solved
 
-For mobile apps like `gigi-mobile`, when a user downloads a file, the UI needs to:
+For desktop apps like `gigi-dioxus`, when a user downloads a file, the UI needs to:
 1. Track download progress with filenames and share codes
 2. Display real-time progress indicators
 3. Show completion/error states
@@ -90,7 +90,7 @@ pub struct ActiveDownload {
 ### 1. Track Downloads in State
 
 ```dart
-// In gigi-mobile state management
+// In gigi-dioxus state management
 class DownloadState {
   final Map<String, ActiveDownload> activeDownloads = {};
   
@@ -233,7 +233,7 @@ Widget DownloadedImage(String filename, String filePath) {
 
 ## 📋 Implementation Checklist
 
-For `gigi-mobile`:
+For `gigi-dioxus`:
 
 - [ ] Update P2P event handlers to use new event fields
 - [ ] Add `ActiveDownload` tracking to app state

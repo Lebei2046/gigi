@@ -1,7 +1,7 @@
 # Gigi P2P Project - Comprehensive Shortages & Issues Analysis
 
 ## Overview
-This document provides a comprehensive analysis of shortages, issues, and improvement areas across the entire Gigi P2P project, including gigi-mobile, gigi-p2p, gigi-node, and gigi-core subprojects.
+This document provides a comprehensive analysis of shortages, issues, and improvement areas across the entire Gigi P2P project, including gigi-dioxus, gigi-p2p, gigi-node, and gigi-core subprojects.
 
 ## Summary of Findings
 - **Total Critical Issues**: 36+ instances of unsafe `.unwrap()` and `.expect()` calls
@@ -66,7 +66,7 @@ let swarm = Swarm::new(transport, behaviour, peer_id).unwrap();
 ### 2.1 Unrestricted File System Access
 **Severity**: 🔴 CRITICAL - Security risk
 
-#### File: `apps/gigi-mobile/src-tauri/tauri.conf.json`
+#### File: `apps/gigi-dioxus/src-tauri/tauri.conf.json`
 ```json
 "fs": {
   "scope": ["**"]  // ALLOWS ACCESS TO ENTIRE FILESYSTEM
@@ -87,7 +87,7 @@ let swarm = Swarm::new(transport, behaviour, peer_id).unwrap();
 ```
 
 ### 2.2 Disabled Content Security Policy
-#### File: `apps/gigi-mobile/src-tauri/tauri.conf.json`
+#### File: `apps/gigi-dioxus/src-tauri/tauri.conf.json`
 ```json
 "csp": null  // CSP DISABLED
 ```
@@ -100,7 +100,7 @@ let swarm = Swarm::new(transport, behaviour, peer_id).unwrap();
 ```
 
 ### 2.3 Missing Input Validation
-**Files**: `apps/gigi-mobile/src/pages/*`, `pkgs/gigi-p2p/src/behaviour.rs`
+**Files**: `apps/gigi-dioxus/src/pages/*`, `pkgs/gigi-p2p/src/behaviour.rs`
 
 **Issues**:
 - No validation of peer IDs in connection requests
@@ -212,7 +212,7 @@ async fn send_file_parallel(&mut self, file_id: &str, chunks: Vec<Chunk>) -> Res
 ```
 
 ### 3.3 Inefficient State Updates
-#### File: `apps/gigi-mobile/src/store/slices/*`
+#### File: `apps/gigi-dioxus/src/store/slices/*`
 
 **Issues**:
 - Redux state updates cause unnecessary re-renders
@@ -251,7 +251,7 @@ import { FixedSizeList } from 'react-window';
 
 **Issue**: When network connection drops, there's no automatic reconnection.
 
-**Files**: `pkgs/gigi-p2p/src/lib.rs`, `apps/gigi-mobile/src/hooks/useP2P.ts`
+**Files**: `pkgs/gigi-p2p/src/lib.rs`, `apps/gigi-dioxus/src/hooks/useP2P.ts`
 
 **Recommendation**:
 ```rust
@@ -277,7 +277,7 @@ pub async fn auto_reconnect(&self) -> ! {
 
 **Issue**: Messages are stored only in memory and lost on app restart.
 
-**Files**: `apps/gigi-mobile/src/store/slices/messageSlice.ts`
+**Files**: `apps/gigi-dioxus/src/store/slices/messageSlice.ts`
 
 **Recommendation**:
 ```typescript
@@ -327,14 +327,14 @@ await db.put('messages', message);
 pkgs/gigi-p2p/src/utils/    # No tests
 pkgs/gigi-core/src/lib.rs   # No tests
 apps/gigi-node/src/main.rs  # No tests
-apps/gigi-mobile/src/utils/ # Only peerUtils.test.ts exists
+apps/gigi-dioxus/src/utils/ # No tests
 ```
 
 #### Integration Tests (0% coverage)
 ```bash
 # Create integration tests
 pkgs/gigi-p2p/tests/        # No integration tests
-apps/gigi-mobile/tests/     # No integration tests
+apps/gigi-dioxus/tests/     # No integration tests
 ```
 
 #### E2E Tests (0% coverage)
@@ -624,7 +624,7 @@ const useAdaptivePolling = () => {
 ## 10. CONFIGURATION ISSUES
 
 ### 10.1 Hardcoded Bootstrap Addresses
-**File**: `apps/gigi-mobile/src/config/p2p.ts`
+**File**: `apps/gigi-dioxus/src/config/p2p.ts`
 
 ```typescript
 export const P2P_CONFIG = {

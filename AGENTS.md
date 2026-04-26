@@ -25,10 +25,9 @@ The Gigi P2P ecosystem is a decentralized network of components designed to enab
 - **gigi-file-sharing**: File sharing utilities - efficient file transfer
 - **gigi-p2p**: Core P2P functionality with high performance - low-level networking
 - **gigi-store**: Persistence layer for data storage - local data management
-- **tauri-plugin-gigi**: Integration with Tauri desktop/mobile apps - cross-platform support
 
 #### Applications
-- **gigi-mobile**: Mobile application for Gigi P2P network - mobile client
+- **gigi-dioxus**: Dioxus-based desktop application - modern UI for Gigi P2P
 - **gigi-node**: Standalone network node for bootstrap/relay - network infrastructure
 - **gigi-openclaw**: Integration plugin for OpenClaw chat application - P2P channel for OpenClaw
 - **gigi-tui**: Terminal-based P2P chat client - command-line interface for agent communication
@@ -229,4 +228,4 @@ For practical examples of how to use the Gigi P2P ecosystem, see [docs/examples.
 - [gigi-p2p-ts](docs/gigi-p2p-ts.md)
 - [gigi-store](docs/gigi-store.md)
 - [gigi-tui](docs/gigi-tui.md)
-- [tauri-plugin-gigi](docs/tauri-plugin-gigi.md)
+- [gigi-dioxus](apps/gigi-dioxus/README.md)

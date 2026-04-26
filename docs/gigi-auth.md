@@ -27,7 +27,7 @@ Gigi Auth is designed to secure the Gigi P2P network by providing robust authent
 
 1. **Clone the Gigi repository**:
    ```bash
-   git clone https://github.com/gigi-project/gigi.git
+   git clone https://github.com/Lebei2046/gigi.git
    cd gigi
    ```
 

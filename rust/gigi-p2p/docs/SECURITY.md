@@ -99,10 +99,9 @@ The `gigi-p2p` implementation contains multiple critical issues affecting securi
 
 ## Analysis Scope
 
-- **Core Library**: `/home/lebei/dev/gigi/pkgs/gigi-p2p/src/`
-- **Desktop App**: `/home/lebei/dev/gigi/apps/gigi-app/src-tauri/`
-- **Mobile App**: `/home/lebei/dev/gigi/apps/gigi-mobile/src-tauri/`
-- **Frontend Integration**: `/home/lebei/dev/gigi/apps/gigi-mobile/src/`
+- **Core Library**: `/home/lebei/dev/gigi-dioxus/rust/gigi-p2p/src/`
+- **Desktop App**: `/home/lebei/dev/gigi-dioxus/apps/gigi-dioxus/src-tauri/`
+- **Frontend Integration**: `/home/lebei/dev/gigi-dioxus/apps/gigi-dioxus/src/`
 
 ## Critical Issues
 

@@ -57,7 +57,7 @@ I've updated your key derivation system to use **different key types for differe
 2. **`pkgs/gigi-auth/src/auth_manager.rs`**:
    - Updated `login()` to use `derive_peer_private_key()` instead of `derive_private_key()`
 
-3. **`pkgs/tauri-plugin-gigi-p2p/src/commands/messaging.rs`**:
+3. **`apps/gigi-dioxus/src/services/messaging.rs`** (or similar in current implementation):
    - Kept `ed25519_from_bytes()` (correct for peer identity)
 
 ### Benefits

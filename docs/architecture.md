@@ -98,15 +98,15 @@ Persistence layer for the Gigi P2P network, storing messages, contacts, and othe
 - **File Metadata**: Tracks shared files
 - **Settings Persistence**: Saves user settings
 
-### 9. Tauri Plugin Gigi (`rust/tauri-plugin-gigi`)
+### 9. Gigi Dioxus Desktop App (`apps/gigi-dioxus`)
 
-Tauri plugin for integrating Gigi P2P functionality into desktop and mobile applications.
+Dioxus-based desktop application for Gigi P2P network, providing a modern UI for chat and file sharing.
 
 #### Key Responsibilities
-- **Cross-Platform Integration**: Enables Gigi P2P on desktop and mobile
-- **Native Performance**: Uses Rust backend for performance
-- **API Abstraction**: Provides simple API for Tauri apps
-- **Event System**: Manages events between Rust and JavaScript
+- **User Interface**: Provides a modern desktop UI for P2P communication
+- **Chat**: Real-time messaging with peers
+- **File Sharing**: Send and receive files with thumbnail preview
+- **Desktop Integration**: Native desktop experience using Dioxus
 
 ## Data Flow
 
@@ -234,7 +234,7 @@ The Gigi P2P ecosystem is designed to be easily integrated into various applicat
 ### 1. Plugin System
 
 - **OpenClaw Integration**: Gigi OpenClaw Plugin for chat applications
-- **Tauri Integration**: Tauri Plugin Gigi for desktop and mobile apps
+- **Dioxus Integration**: Gigi Dioxus Desktop App for desktop applications
 - **Custom Integrations**: API for custom application integration
 
 ### 2. API Design
@@ -264,8 +264,7 @@ The Gigi P2P ecosystem supports various deployment scenarios:
 
 ### 2. Application Deployment
 
-- **Desktop Applications**: Tauri apps with Gigi P2P integration
-- **Mobile Applications**: Mobile apps with Gigi P2P integration
+- **Desktop Applications**: Dioxus desktop apps with Gigi P2P integration
 - **Web Applications**: Web apps with Gigi P2P integration (via WebRTC)
 - **Server Applications**: Server-side applications using Gigi P2P
 

@@ -9,7 +9,7 @@ This document provides practical examples of how to use the Gigi P2P ecosystem i
 3. [File Sharing](#file-sharing)
 4. [Authentication](#authentication)
 5. [Name Resolution](#name-resolution)
-6. [Tauri Application Integration](#tauri-application-integration)
+6. [Gigi Dioxus Desktop App](#gigi-dioxus-desktop-app)
 7. [OpenClaw Integration](#openclaw-integration)
 8. [Network Node Deployment](#network-node-deployment)
 9. [Advanced Use Cases](#advanced-use-cases)
@@ -443,107 +443,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Tauri Application Integration
+## Gigi Dioxus Desktop App
 
-### Tauri App Example
+The Gigi Dioxus Desktop App (`apps/gigi-dioxus`) is a Dioxus-based desktop application that provides a modern UI for the Gigi P2P network.
 
-```typescript
-// src/App.tsx
-import { useState, useEffect } from 'react';
-import { Gigi } from 'tauri-plugin-gigi';
+### Features
+- Real-time peer-to-peer messaging
+- File sharing with thumbnail preview for images
+- Contact management
+- Group chat support
+- Desktop native experience
 
-function App() {
-  const [peerId, setPeerId] = useState('');
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<string[]>([]);
-  const [recipientId, setRecipientId] = useState('');
+### Running the App
 
-  useEffect(() => {
-    async function initGigi() {
-      try {
-        // Initialize Gigi
-        await Gigi.init({
-          nickname: 'Tauri App User',
-          bootstrap_nodes: ['/ip4/127.0.0.1/tcp/4001/p2p/QmBootstrapPeer'],
-          enable_kademlia: true,
-          enable_relay: true,
-          enable_mdns: true
-        });
+```bash
+# Build the application
+cd apps/gigi-dioxus
+dx build --desktop
 
-        // Start Gigi
-        await Gigi.start();
-
-        // Get peer ID
-        const id = await Gigi.getPeerId();
-        setPeerId(id);
-
-        // Listen for messages
-        Gigi.on('message:direct', (msg) => {
-          setMessages(prev => [...prev, `From ${msg.from}: ${msg.content}`]);
-        });
-
-        // Listen for peer connections
-        Gigi.on('peer:connected', (peer) => {
-          setMessages(prev => [...prev, `Peer connected: ${peer.id} (${peer.nickname})`]);
-        });
-      } catch (error) {
-        console.error('Error initializing Gigi:', error);
-      }
-    }
-
-    initGigi();
-
-    return () => {
-      // Cleanup
-      Gigi.stop().catch(console.error);
-    };
-  }, []);
-
-  const sendMessage = async () => {
-    if (!recipientId || !message) return;
-
-    try {
-      await Gigi.sendDirectMessage(recipientId, message);
-      setMessages(prev => [...prev, `To ${recipientId}: ${message}`]);
-      setMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
-
-  return (
-    <div className="app">
-      <h1>Gigi P2P Chat</h1>
-      <div className="peer-id">
-        <p>Your peer ID: {peerId}</p>
-      </div>
-      <div className="messages">
-        {messages.map((msg, index) => (
-          <div key={index} className="message">{msg}</div>
-        ))}
-      </div>
-      <div className="input-area">
-        <input
-          type="text"
-          placeholder="Recipient peer ID"
-          value={recipientId}
-          onChange={(e) => setRecipientId(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-        />
-        <button onClick={sendMessage}>Send</button>
-      </div>
-    </div>
-  );
-}
-
-export default App;
+# Run with custom data directory
+GIGI_DATA_DIR=~/.gigi-dioxus dx serve --desktop
 ```
+
+### Architecture
+
+The Gigi Dioxus app is built with:
+- **Dioxus 0.7**: Modern Rust-based UI framework
+- **gigi-p2p**: Core P2P networking
+- **gigi-store**: SQLite-based persistence
+- **gigi-auth**: Authentication and key management
+
+### Project Structure
+
+```
+apps/gigi-dioxus/
+├── src/
+│   ├── features/
+│   │   ├── chat/          # Chat UI and state management
+│   │   ├── signup/        # Signup flow
+│   │   ├── signin/        # Signin flow
+│   │   └── me/            # User profile
+│   ├── services/          # P2P, persistence, auth services
+│   └── main.rs            # App entry point
+├── assets/                # Static assets
+├── notes/                 # Development notes
+└── Cargo.toml            # Rust dependencies
+```
+
+For more details, see the [Gigi Dioxus README](../apps/gigi-dioxus/README.md).
 
 ## OpenClaw Integration
 
