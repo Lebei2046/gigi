@@ -8,7 +8,9 @@ use dioxus_router::use_navigator;
 use std::str::FromStr;
 
 use crate::features::chat::chat_state::use_chat_room_state;
-use crate::features::chat::components::{ConfirmationDialog, GroupChatCard, PeerChatCard};
+use crate::features::chat::components::{
+    ConfirmationDialog, GroupChatCard, GroupShareModal, PeerChatCard,
+};
 use crate::features::chat::hooks::{
     use_chat_data_refresh, use_chat_event_listeners, use_chat_initialization, use_group_actions,
     use_peer_actions,
@@ -39,8 +41,25 @@ pub fn Chat() -> Element {
     let mut show_confirm_dialog = use_signal(|| false);
     let mut selected_peer_nickname = use_signal(|| String::new());
 
+    // State for group share modal
+    let mut show_group_share_modal = use_signal(|| false);
+    let mut selected_group_id = use_signal(|| String::new());
+    let mut selected_group_name = use_signal(|| String::new());
+    let mut selected_peers = use_signal(|| vec![]);
+
     let handle_group_click = move |group_id: String| {
         navigator.push(format!("/chat/{}", group_id));
+    };
+
+    // Handle share group
+    let handle_share_group = move |group_id: String| {
+        // Find the group by ID
+        if let Some(group) = chat_state.read().groups.iter().find(|g| g.id == group_id) {
+            selected_group_id.set(group.id.clone());
+            selected_group_name.set(group.name.clone());
+            selected_peers.set(vec![]); // Reset selected peers
+            show_group_share_modal.set(true);
+        }
     };
 
     let handle_peer_click = move |peer_id: String| {
@@ -65,6 +84,50 @@ pub fn Chat() -> Element {
         show_confirm_dialog.set(false);
     };
 
+    // Handle group share submit
+    let handle_group_share_submit = move || {
+        let group_id = selected_group_id();
+        let group_name = selected_group_name();
+        let peers = selected_peers();
+
+        // Send group share messages
+        if !peers.is_empty() {
+            // Convert peer IDs to nicknames
+            let peer_nicknames: Vec<String> = peers
+                .iter()
+                .filter_map(|peer_id| {
+                    chat_state
+                        .read()
+                        .peers
+                        .iter()
+                        .find(|p| p.id == *peer_id)
+                        .map(|p| p.nickname.clone())
+                })
+                .collect();
+
+            if !peer_nicknames.is_empty() {
+                tokio::spawn(async move {
+                    // Convert to &str for the function call
+                    let peer_nickname_refs: Vec<&str> =
+                        peer_nicknames.iter().map(|s| s.as_str()).collect();
+
+                    if let Err(err) =
+                        crate::services::p2p_service::P2pService::send_group_share_message(
+                            &peer_nickname_refs,
+                            &group_id,
+                            &group_name,
+                        )
+                        .await
+                    {
+                        println!("Failed to send group share messages: {:?}", err);
+                    }
+                });
+            }
+        }
+
+        show_group_share_modal.set(false);
+    };
+
     // Combine conversations, groups, and peers into a single list
     let mut combined_list: Vec<Element> = vec![];
 
@@ -73,23 +136,38 @@ pub fn Chat() -> Element {
     for conversation in &conversations {
         if let Some(group_id) = &conversation.group_id {
             // Group conversation
-            if let Some(group) = chat_state.read().groups.iter().find(|g| g.id == *group_id) {
-                let share_group = handle_share_group.clone();
-                let mut clear_messages = handle_clear_messages_with_confirm.clone();
-                let group_id = group.id.clone();
-                let group_click = handle_group_click.clone();
-                let group_name = group.name.clone();
-                combined_list.push(rsx! {
-                    GroupChatCard {
-                        key: "group-{group.id}",
-                        group: group.clone(),
-                        conversation: Some(conversation.clone()),
-                        on_click: move |_| group_click(group_id.clone()),
-                        on_share: move |id| share_group(id),
-                        on_clear: move |id| clear_messages(group_name.clone()),
-                    }
-                });
-            }
+            // Try to find the group in chat_state.groups
+            let group = chat_state
+                .read()
+                .groups
+                .iter()
+                .find(|g| g.id == *group_id)
+                .cloned();
+
+            // If group not found, create a virtual group from conversation data
+            let group = group.unwrap_or_else(|| chat_state::Group {
+                id: group_id.clone(),
+                name: conversation.name.clone(),
+                role: "Member".to_string(),
+                member_count: 0,
+                joined: true,
+            });
+
+            let mut share_group = handle_share_group.clone();
+            let mut clear_messages = handle_clear_messages_with_confirm.clone();
+            let group_id = group.id.clone();
+            let group_click = handle_group_click.clone();
+            let group_name = group.name.clone();
+            combined_list.push(rsx! {
+                GroupChatCard {
+                    key: "group-{group.id}",
+                    group: group.clone(),
+                    conversation: Some(conversation.clone()),
+                    on_click: move |_| group_click(group_id.clone()),
+                    on_share: move |id| share_group(id),
+                    on_clear: move |id| clear_messages(group_name.clone()),
+                }
+            });
         } else if let Some(peer_id) = &conversation.peer_id {
             // Direct conversation - try to find peer in chat_state.peers
             let peer = chat_state
@@ -142,7 +220,7 @@ pub fn Chat() -> Element {
 
     for group in &chat_state.read().groups {
         if !existing_group_ids.contains(&group.id) {
-            let share_group = handle_share_group.clone();
+            let mut share_group = handle_share_group.clone();
             let mut clear_messages = handle_clear_messages_with_confirm.clone();
             let group_id = group.id.clone();
             let group_click = handle_group_click.clone();
@@ -208,6 +286,17 @@ pub fn Chat() -> Element {
                     .to_string(),
                 on_confirm: handle_confirm,
                 on_cancel: handle_cancel,
+            }
+
+            // Group Share Modal
+            GroupShareModal {
+                is_open: show_group_share_modal,
+                group_id: selected_group_id,
+                group_name: selected_group_name,
+                peers: chat_state.read().peers.clone(),
+                selected_peers,
+                on_close: move |_| show_group_share_modal.set(false),
+                on_share: handle_group_share_submit,
             }
         }
     }

@@ -8,10 +8,11 @@ pub fn MessageBubble(
     message: Message,
     on_delete: EventHandler<String>,
     on_download_request: Option<EventHandler<(String, String, String)>>,
+    on_group_share: EventHandler<(String, String, String)>,
 ) -> Element {
     match message.message_type {
         MessageType::Text => rsx! {
-            TextMessageBubble { message, on_delete }
+            TextMessageBubble { message, on_delete, on_group_share }
         },
         MessageType::Image => rsx! {
             ImageMessageBubble { message, on_delete, on_download_request }
@@ -24,7 +25,30 @@ pub fn MessageBubble(
 
 // Text Message Bubble
 #[component]
-fn TextMessageBubble(message: Message, on_delete: EventHandler<String>) -> Element {
+fn TextMessageBubble(
+    message: Message,
+    on_delete: EventHandler<String>,
+    on_group_share: EventHandler<(String, String, String)>,
+) -> Element {
+    // Check if this is a group share message
+    let is_group_share = message.content.starts_with("Join group:");
+
+    // Extract group name from message content
+    let group_name = if is_group_share {
+        message
+            .content
+            .trim_start_matches("Join group: ")
+            .to_string()
+    } else {
+        String::new()
+    };
+
+    let sender_name = message.sender.clone();
+
+    let handle_group_share = move |_| {
+        on_group_share.call((String::new(), group_name.clone(), sender_name.clone()));
+    };
+
     rsx! {
         div { class: if message.is_own { "flex justify-end" } else { "flex" },
             div { class: if message.is_own { "bg-blue-100 rounded-lg rounded-tr-none p-3 max-w-[80%] relative" } else { "bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] border border-gray-200 relative" },
@@ -53,6 +77,13 @@ fn TextMessageBubble(message: Message, on_delete: EventHandler<String>) -> Eleme
                     div { class: "text-xs font-medium text-gray-500 mb-1", "{message.sender}" }
                 }
                 div { class: "text-sm text-gray-900", "{message.content}" }
+                if is_group_share && !message.is_own {
+                    button {
+                        class: "mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors",
+                        onclick: handle_group_share,
+                        "View Invitation"
+                    }
+                }
                 div { class: if message.is_own { "text-xs text-blue-600 mt-1 text-right" } else { "text-xs text-gray-500 mt-1" },
                     "{message.timestamp}"
                 }

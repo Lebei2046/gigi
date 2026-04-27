@@ -273,6 +273,44 @@ impl P2pService {
                 // Send event to update UI with download failure
                 let _ = EventBus::send(AppEvent::FileDownloadFailed { download_id, error });
             }
+            P2pEvent::DirectGroupShareMessage {
+                from,
+                from_nickname,
+                group_id,
+                group_name,
+                ..
+            } => {
+                println!(
+                    "Group share from {}: {} (ID: {})",
+                    from_nickname, group_name, group_id
+                );
+                let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
+                let msg_id = crate::services::persistence_service::PersistenceService::store_group_share_message(
+                    from_nickname.clone(),
+                    local_nickname,
+                    group_id.clone(),
+                    group_name.clone(),
+                    false,
+                )
+                .await;
+                if msg_id.is_ok() {
+                    let conv_id = from.to_string();
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id.clone(),
+                        from_nickname.clone(),
+                        false,
+                        conv_id.clone(),
+                        Some(format!("Join group: {}", group_name)),
+                        Some(chrono::Utc::now()),
+                    ).await;
+                    let _ =
+                        crate::services::persistence_service::PersistenceService::increment_unread(
+                            &conv_id,
+                        )
+                        .await;
+                    let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
+                }
+            }
             _ => {
                 println!("Other P2P event: {:?}", event);
             }
@@ -352,6 +390,25 @@ impl P2pService {
         if let Ok(Some(mut client_guard)) = Self::get_client().await {
             if let Some(client) = client_guard.as_mut() {
                 client.leave_group(group_name)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn send_group_share_message(
+        to_nicknames: &[&str],
+        group_id: &str,
+        group_name: &str,
+    ) -> Result<()> {
+        for nickname in to_nicknames {
+            if let Ok(Some(mut client_guard)) = Self::get_client().await {
+                if let Some(client) = client_guard.as_mut() {
+                    client.send_direct_share_group_message(
+                        nickname,
+                        group_id.to_string(),
+                        group_name.to_string(),
+                    )?;
+                }
             }
         }
         Ok(())

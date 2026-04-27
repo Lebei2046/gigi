@@ -4,15 +4,20 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use tokio::time::sleep;
 
+use crate::services::auth_service::AuthService;
+use crate::services::event_bus::{AppEvent, EventBus};
+use crate::services::persistence_service::PersistenceService;
+
 // Only import web-sys when the web feature is enabled
 #[cfg(feature = "web")]
 extern crate web_sys;
 
-use crate::features::chat::components::ChatRoomHeader;
+use crate::features::chat::components::{ChatRoomHeader, GroupShareNotificationModal};
 use crate::features::chat::hooks::{
     use_chat_event_listeners, use_chat_initialization, use_chat_room_initialization,
     use_message_actions,
 };
+use crate::services::p2p_service::P2pService;
 
 // Chat Room Component
 #[component]
@@ -20,6 +25,12 @@ pub fn ChatRoom(id: String) -> Element {
     let navigator = use_navigator();
     let chat_state = use_chat_initialization();
     let mut chat_room_state = use_chat_room_initialization(id, chat_state);
+
+    // State for group share notification modal
+    let mut show_group_share_modal = use_signal(|| false);
+    let mut group_id = use_signal(|| String::new());
+    let mut group_name = use_signal(|| String::new());
+    let mut sender_name = use_signal(|| String::new());
 
     // Set up event listeners for messages
     use_chat_event_listeners(chat_state, chat_room_state);
@@ -35,6 +46,48 @@ pub fn ChatRoom(id: String) -> Element {
     // Convert to EventHandler for Dioxus component
     let on_download_request = move |args: (String, String, String)| {
         handle_file_download_request(args.0, args.1, args.2);
+    };
+
+    // Handle group share messages
+    let handle_group_share = move |args: (String, String, String)| {
+        let (g_id, g_name, s_name) = args;
+        group_id.set(g_id);
+        group_name.set(g_name);
+        sender_name.set(s_name);
+        show_group_share_modal.set(true);
+    };
+
+    // Handle join group
+    let handle_join_group = move |_| {
+        let g_name = group_name();
+        let g_id = group_id();
+        tokio::spawn(async move {
+            // Join the group in the P2P service
+            if let Err(err) = P2pService::join_group(&g_name).await {
+                println!("Failed to join group: {:?}", err);
+                return;
+            }
+
+            // Add the group to the conversations list
+            let _ = PersistenceService::upsert_conversation(
+                format!("group-{}", g_name),
+                g_name.clone(),
+                true,           // is_group
+                g_name.clone(), // peer_id (using group name as ID for now)
+                Some("Joined group".to_string()),
+                Some(chrono::Utc::now()),
+            )
+            .await;
+
+            // Send event to refresh the UI
+            let _ = EventBus::send(AppEvent::GroupUpdated);
+        });
+        show_group_share_modal.set(false);
+    };
+
+    // Handle ignore group
+    let handle_ignore_group = move |_| {
+        show_group_share_modal.set(false);
     };
 
     // Create shared references to the closures
@@ -96,7 +149,18 @@ pub fn ChatRoom(id: String) -> Element {
                         let mut delete_msg = delete_message.borrow_mut();
                         delete_msg(msg_id);
                     },
+                    on_group_share: handle_group_share,
                 }
+            }
+
+            // Group Share Notification Modal
+            GroupShareNotificationModal {
+                is_open: show_group_share_modal,
+                group_name,
+                sender_name,
+                on_close: move |_| show_group_share_modal.set(false),
+                on_join: handle_join_group,
+                on_ignore: handle_ignore_group,
             }
 
             // Message Input - fixed at bottom

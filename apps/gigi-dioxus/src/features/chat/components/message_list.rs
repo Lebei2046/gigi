@@ -9,6 +9,7 @@ pub fn MessageList(
     is_group_chat: bool,
     on_download_request: EventHandler<(String, String, String)>,
     on_delete: EventHandler<String>,
+    on_group_share: EventHandler<(String, String, String)>,
 ) -> Element {
     let mut last_msg_count = use_signal(|| 0);
     let messages_clone = messages.clone();
@@ -27,6 +28,7 @@ pub fn MessageList(
                     message: message.clone(),
                     on_delete: on_delete.clone(),
                     on_download_request: Some(on_download_request.clone()),
+                    on_group_share: on_group_share.clone(),
                 }
             }
         }
