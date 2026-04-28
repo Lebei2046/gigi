@@ -199,6 +199,70 @@ impl PersistenceService {
         Ok(msg_id)
     }
 
+    pub async fn store_group_message(
+        from_nickname: String,
+        group_name: String,
+        message: String,
+        is_own: bool,
+    ) -> Result<String> {
+        let msg_id = uuid::Uuid::new_v4().to_string();
+        Self::store_group_message_with_id(
+            msg_id.clone(),
+            from_nickname,
+            group_name,
+            message,
+            is_own,
+        )
+        .await?;
+        Ok(msg_id)
+    }
+
+    pub async fn store_group_message_with_id(
+        msg_id: String,
+        from_nickname: String,
+        group_name: String,
+        message: String,
+        is_own: bool,
+    ) -> Result<String> {
+        println!("store_group_message_with_id called - msg_id: {}, from_nickname: {}, group_name: {}, message: {}", msg_id, from_nickname, group_name, message);
+
+        let stored_msg = StoredMessage {
+            id: msg_id.clone(),
+            msg_type: gigi_store::MessageType::Group,
+            direction: if is_own {
+                gigi_store::MessageDirection::Sent
+            } else {
+                gigi_store::MessageDirection::Received
+            },
+            content: gigi_store::MessageContent::Text { text: message },
+            sender_nickname: from_nickname.clone(),
+            recipient_nickname: None,
+            group_name: Some(group_name.clone()),
+            peer_id: group_name.clone(),
+            timestamp: chrono::Utc::now(),
+            created_at: chrono::Utc::now(),
+            delivered: false,
+            delivered_at: None,
+            read: false,
+            read_at: None,
+            sync_status: gigi_store::SyncStatus::Pending,
+            sync_attempts: 0,
+            last_sync_attempt: None,
+            expires_at: chrono::Utc::now() + chrono::Duration::days(7),
+        };
+
+        let mut store_guard = MESSAGE_STORE.lock().await;
+        if let Some(store) = store_guard.as_mut() {
+            println!("Storing group message to database...");
+            store.store_message(stored_msg).await?;
+            println!("Group message stored successfully");
+        } else {
+            println!("WARNING: MESSAGE_STORE is None, message not stored!");
+        }
+
+        Ok(msg_id)
+    }
+
     pub async fn load_conversations() -> Result<Vec<gigi_store::Conversation>> {
         let store_guard = CONVERSATION_STORE.lock().await;
         if let Some(store) = store_guard.as_ref() {
@@ -216,13 +280,85 @@ impl PersistenceService {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<StoredMessage>> {
+        println!(
+            "load_messages called - peer_nickname: {}, limit: {}, offset: {}",
+            peer_nickname, limit, offset
+        );
+
         let store_guard = MESSAGE_STORE.lock().await;
         if let Some(store) = store_guard.as_ref() {
-            store
+            let result = store
                 .get_conversation(peer_nickname, limit, offset)
                 .await
-                .map_err(|e| anyhow::anyhow!(e))
+                .map_err(|e| anyhow::anyhow!(e));
+
+            if let Ok(messages) = &result {
+                println!(
+                    "Loaded {} direct messages for '{}'",
+                    messages.len(),
+                    peer_nickname
+                );
+                for (i, msg) in messages.iter().enumerate() {
+                    println!(
+                        "  Message {}: id={}, sender={}, content={}",
+                        i,
+                        msg.id,
+                        msg.sender_nickname,
+                        match &msg.content {
+                            gigi_store::MessageContent::Text { text } => text.clone(),
+                            _ => "non-text".to_string(),
+                        }
+                    );
+                }
+            }
+
+            result
         } else {
+            println!("WARNING: MESSAGE_STORE is None, returning empty");
+            Err(anyhow::anyhow!("Persistence service not initialized"))
+        }
+    }
+
+    pub async fn load_group_messages(
+        group_name: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<StoredMessage>> {
+        println!(
+            "load_group_messages called - group_name: {}, limit: {}, offset: {}",
+            group_name, limit, offset
+        );
+
+        let store_guard = MESSAGE_STORE.lock().await;
+        if let Some(store) = store_guard.as_ref() {
+            let result = store
+                .get_group_messages(group_name, limit, offset)
+                .await
+                .map_err(|e| anyhow::anyhow!(e));
+
+            if let Ok(messages) = &result {
+                println!(
+                    "Loaded {} group messages for '{}'",
+                    messages.len(),
+                    group_name
+                );
+                for (i, msg) in messages.iter().enumerate() {
+                    println!(
+                        "  Message {}: id={}, sender={}, content={}",
+                        i,
+                        msg.id,
+                        msg.sender_nickname,
+                        match &msg.content {
+                            gigi_store::MessageContent::Text { text } => text.clone(),
+                            _ => "non-text".to_string(),
+                        }
+                    );
+                }
+            }
+
+            result
+        } else {
+            println!("WARNING: MESSAGE_STORE is None, returning empty");
             Err(anyhow::anyhow!("Persistence service not initialized"))
         }
     }

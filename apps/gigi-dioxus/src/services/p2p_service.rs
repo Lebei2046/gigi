@@ -311,6 +311,44 @@ impl P2pService {
                     let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
                 }
             }
+            P2pEvent::GroupMessage {
+                from,
+                from_nickname,
+                group,
+                message,
+                ..
+            } => {
+                println!(
+                    "Group message from {} in {}: {}",
+                    from_nickname, group, message
+                );
+                let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
+                let msg_id =
+                    crate::services::persistence_service::PersistenceService::store_group_message(
+                        from_nickname.clone(),
+                        group.clone(),
+                        message.clone(),
+                        false,
+                    )
+                    .await;
+                if msg_id.is_ok() {
+                    let conv_id = format!("group-{}", group);
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id.clone(),
+                        group.clone(),
+                        true, // is group
+                        group.clone(),
+                        Some(message),
+                        Some(chrono::Utc::now()),
+                    ).await;
+                    let _ =
+                        crate::services::persistence_service::PersistenceService::increment_unread(
+                            &conv_id,
+                        )
+                        .await;
+                    let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
+                }
+            }
             _ => {
                 println!("Other P2P event: {:?}", event);
             }
@@ -384,6 +422,15 @@ impl P2pService {
             }
         }
         Ok(())
+    }
+
+    pub async fn get_group_member_count(group_name: &str) -> Result<usize> {
+        if let Ok(Some(client_guard)) = Self::get_client().await {
+            if let Some(client) = client_guard.as_ref() {
+                return Ok(client.get_group_member_count(group_name)?);
+            }
+        }
+        Ok(0)
     }
 
     pub async fn leave_group(group_name: &str) -> Result<()> {

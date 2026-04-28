@@ -180,6 +180,7 @@ pub struct GroupInfo {
     pub name: String,
     pub topic: IdentTopic,
     pub joined_at: DateTime<Utc>,
+    pub members: std::collections::HashSet<PeerId>,
 }
 
 /// Group message format

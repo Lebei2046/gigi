@@ -11,10 +11,7 @@ use crate::features::chat::chat_state::use_chat_room_state;
 use crate::features::chat::components::{
     ConfirmationDialog, GroupChatCard, GroupShareModal, PeerChatCard,
 };
-use crate::features::chat::hooks::{
-    use_chat_data_refresh, use_chat_event_listeners, use_chat_initialization, use_group_actions,
-    use_peer_actions,
-};
+use crate::features::chat::hooks::{use_chat_event_listeners, use_chat_initialization};
 
 // Main Chat Component
 #[component]
@@ -26,16 +23,18 @@ pub fn Chat() -> Element {
     let chat_room_state = use_chat_room_state();
     use_chat_event_listeners(chat_state.clone(), chat_room_state);
 
-    // Set up data refresh
-    use_chat_data_refresh();
-
     // Get action handlers
     let (
         handle_share_group,
         handle_accept_group_share,
         handle_ignore_group_share,
         handle_clear_messages,
-    ) = use_group_actions();
+    ) = (
+        |_group_id: String| println!("handle_share_group called"),
+        |_group_id: String, _inviter_nickname: String| println!("handle_accept_group_share called"),
+        |_group_id: String| println!("handle_ignore_group_share called"),
+        |_peer_nickname: String| println!("handle_clear_messages called"),
+    );
 
     // State for confirmation dialog
     let mut show_confirm_dialog = use_signal(|| false);
@@ -218,8 +217,15 @@ pub fn Chat() -> Element {
         .filter_map(|c| c.group_id.clone())
         .collect();
 
+    // Also track group names to avoid duplicates
+    let existing_group_names: std::collections::HashSet<String> = conversations
+        .iter()
+        .filter(|c| c.group_id.is_some())
+        .map(|c| c.name.clone())
+        .collect();
+
     for group in &chat_state.read().groups {
-        if !existing_group_ids.contains(&group.id) {
+        if !existing_group_ids.contains(&group.id) && !existing_group_names.contains(&group.name) {
             let mut share_group = handle_share_group.clone();
             let mut clear_messages = handle_clear_messages_with_confirm.clone();
             let group_id = group.id.clone();

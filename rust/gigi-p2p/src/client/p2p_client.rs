@@ -985,6 +985,13 @@ impl P2pClient {
             .join_group(&mut self.swarm, group_name, &mut self.event_sender)
     }
 
+    /// Get the number of known members in a group
+    ///
+    /// Returns the count of peers we've seen participate in the group.
+    pub fn get_group_member_count(&self, group_name: &str) -> Result<usize> {
+        self.group_manager.get_group_member_count(group_name)
+    }
+
     /// Leave a group
     ///
     /// Unsubscribes from a GossipSub group and stops receiving group messages.

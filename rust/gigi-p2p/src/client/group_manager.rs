@@ -78,12 +78,34 @@ impl GroupManager {
             name: group_name.to_string(),
             topic,
             joined_at: chrono::Utc::now(),
+            members: std::collections::HashSet::new(),
         };
 
         self.groups.insert(group_name.to_string(), group_info);
         info!("Successfully joined group: {}", group_name);
 
         Ok(())
+    }
+
+    /// Get the number of known members in a group
+    ///
+    /// Returns the count of peers we've seen participate in the group.
+    /// Note: This is not the complete member count, but rather the count
+    /// of peers we've directly interacted with in the group.
+    ///
+    /// # Arguments
+    ///
+    /// - `group_name`: Name of the group to get member count for
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(usize)` with the member count on success, or `Err` if the group is not found.
+    pub fn get_group_member_count(&self, group_name: &str) -> Result<usize> {
+        if let Some(group) = self.groups.get(group_name) {
+            Ok(group.members.len())
+        } else {
+            Err(P2pError::GroupNotFound(group_name.to_string()).into())
+        }
     }
 
     /// Leave a GossipSub group by unsubscribing from its topic
@@ -255,8 +277,13 @@ impl GroupManager {
                 debug!("Topic: {}", message.topic);
                 debug!("Data length: {} bytes", message.data.len());
 
+                // Track member in group
+                let group_name = message.topic.to_string();
+                if let Some(group) = self.groups.get_mut(&group_name) {
+                    group.members.insert(peer_id);
+                }
+
                 if let Ok(group_message) = serde_json::from_slice::<GroupMessage>(&message.data) {
-                    let group_name = message.topic.to_string();
                     let nickname = peers
                         .get(&peer_id)
                         .map(|p| p.nickname.clone())
