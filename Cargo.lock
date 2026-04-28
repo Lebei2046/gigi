@@ -3383,6 +3383,7 @@ dependencies = [
  "hex",
  "image",
  "log",
+ "mime_guess",
  "once_cell",
  "qrcode",
  "rfd 0.14.1",

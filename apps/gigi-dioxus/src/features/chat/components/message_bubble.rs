@@ -108,6 +108,7 @@ fn ImageMessageBubble(
     let file_path = message.file_path.clone();
     let filename = message.filename.clone();
     let file_size = message.file_size;
+    let file_type = message.file_type.clone();
     let message_content = message.content.clone();
     let message_sender = message.sender.clone();
     let message_timestamp = message.timestamp.clone();
@@ -115,17 +116,18 @@ fn ImageMessageBubble(
     let message_id = message.id.clone();
     let share_code = message.share_code.clone();
 
-    let message_id_for_click = message_id.clone();
     let share_code_for_click = share_code.clone();
     let filename_for_click = filename.clone();
+    let file_type_for_click = file_type.clone();
 
     let handle_download_click = move |_| {
-        if let (Some(on_download), Some(code), Some(name)) = (
+        if let (Some(on_download), Some(code), Some(name), Some(ft)) = (
             on_download_request,
             share_code_for_click.clone(),
             filename_for_click.clone(),
+            file_type_for_click.clone(),
         ) {
-            on_download.call((message_id_for_click.clone(), code, name));
+            on_download.call((code, name, ft));
         }
     };
 
@@ -364,6 +366,7 @@ fn FileMessageBubble(
     let filename_for_icon = filename.clone();
     let filename_for_click = filename.clone();
     let share_code_for_click = share_code.clone();
+    let file_type_for_click = file_type.clone();
     let message_id_for_click = message_id.clone();
     let message_id_for_delete = message_id.clone();
     let file_path_for_display = file_path.clone();
@@ -439,12 +442,13 @@ fn FileMessageBubble(
     let has_local_file = effective_file_exists || (is_own && effective_file_path.is_some());
 
     let handle_download_click = move |_| {
-        if let (Some(on_download), Some(code), Some(name)) = (
+        if let (Some(on_download), Some(code), Some(name), Some(ft)) = (
             on_download_request,
             share_code_for_click.clone(),
             filename_for_click.clone(),
+            file_type_for_click.clone(),
         ) {
-            on_download.call((message_id_for_click.clone(), code, name));
+            on_download.call((code, name, ft));
         }
     };
 

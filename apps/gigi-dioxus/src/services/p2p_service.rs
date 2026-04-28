@@ -349,6 +349,57 @@ impl P2pService {
                     let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
                 }
             }
+            P2pEvent::GroupFileShareMessage {
+                from,
+                from_nickname,
+                group,
+                share_code,
+                filename,
+                file_size,
+                file_type,
+                ..
+            } => {
+                println!(
+                    "Group file share from {} in {}: {} (code: {})",
+                    from_nickname, group, filename, share_code
+                );
+                let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
+                let msg_id = crate::services::persistence_service::PersistenceService::store_group_file_share_message(
+                    from_nickname.clone(),
+                    group.clone(),
+                    filename.clone(),
+                    share_code.clone(),
+                    file_size,
+                    file_type.clone(),
+                    false,
+                )
+                .await;
+                if msg_id.is_ok() {
+                    let conv_id = format!("group-{}", group);
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id.clone(),
+                        group.clone(),
+                        true, // is group
+                        group.clone(),
+                        Some(filename.clone()),
+                        Some(chrono::Utc::now()),
+                    ).await;
+                    let _ =
+                        crate::services::persistence_service::PersistenceService::increment_unread(
+                            &conv_id,
+                        )
+                        .await;
+                    let _ = EventBus::send(AppEvent::GroupFileShareReceived {
+                        from_peer_id: from.to_string(),
+                        from_nickname,
+                        share_code,
+                        filename,
+                        file_size,
+                        file_type,
+                        group_name: group,
+                    });
+                }
+            }
             _ => {
                 println!("Other P2P event: {:?}", event);
             }
@@ -413,6 +464,72 @@ impl P2pService {
             }
         }
         Ok(())
+    }
+
+    pub async fn send_group_file(group_name: &str, file_path: &PathBuf) -> Result<FileShareInfo> {
+        if let Ok(Some(mut client_guard)) = Self::get_client().await {
+            if let Some(client) = client_guard.as_mut() {
+                let filename = file_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                let file_size = std::fs::metadata(file_path).map(|m| m.len()).unwrap_or(0);
+                let file_type = file_path
+                    .extension()
+                    .map(|e| e.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "bin".to_string());
+
+                let lower_file_type = file_type.to_lowercase();
+                let is_image = lower_file_type.starts_with("image/")
+                    || ["png", "jpg", "jpeg", "gif", "bmp", "webp"]
+                        .contains(&lower_file_type.as_str());
+
+                if is_image {
+                    let data_dir = env::var("GIGI_DATA_DIR").unwrap_or_else(|_| {
+                        dirs::data_local_dir()
+                            .unwrap_or_else(|| PathBuf::from("."))
+                            .join("gigi-dioxus")
+                            .to_string_lossy()
+                            .to_string()
+                    });
+
+                    let data_dir_expanded = if data_dir.starts_with('~') {
+                        if let Some(home) = dirs::home_dir() {
+                            home.join(data_dir.strip_prefix('~').unwrap_or(""))
+                        } else {
+                            PathBuf::from(data_dir)
+                        }
+                    } else {
+                        PathBuf::from(data_dir)
+                    };
+
+                    let uploads_dir = data_dir_expanded.join("uploads");
+                    let thumbnail_path = uploads_dir.join(format!("{}.thumbnail.jpg", filename));
+
+                    println!(
+                        "Generating thumbnail for {} at {:?}",
+                        filename, thumbnail_path
+                    );
+                    if let Err(e) = Self::generate_thumbnail(file_path, &thumbnail_path) {
+                        println!("Failed to generate thumbnail: {:?}", e);
+                    } else {
+                        println!("Thumbnail generated successfully at {:?}", thumbnail_path);
+                    }
+                }
+
+                client.send_group_file(group_name, file_path).await?;
+
+                let share_code = client.share_file(file_path).await?;
+
+                return Ok(FileShareInfo {
+                    share_code,
+                    filename,
+                    file_size,
+                    file_type,
+                });
+            }
+        }
+        Err(anyhow::anyhow!("P2P client not initialized"))
     }
 
     pub async fn join_group(group_name: &str) -> Result<()> {

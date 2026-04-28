@@ -31,6 +31,15 @@ pub enum AppEvent {
         file_type: String,
         conv_id: String,
     },
+    GroupFileShareReceived {
+        from_peer_id: String,
+        from_nickname: String,
+        share_code: String,
+        filename: String,
+        file_size: u64,
+        file_type: String,
+        group_name: String,
+    },
 }
 
 static BROADCAST_TX: Lazy<Mutex<Option<broadcast::Sender<AppEvent>>>> =

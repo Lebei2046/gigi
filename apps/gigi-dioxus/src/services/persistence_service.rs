@@ -154,6 +154,54 @@ impl PersistenceService {
         Ok(msg_id)
     }
 
+    pub async fn store_group_file_share_message(
+        from_nickname: String,
+        group_name: String,
+        filename: String,
+        share_code: String,
+        file_size: u64,
+        file_type: String,
+        is_own: bool,
+    ) -> Result<String> {
+        let msg_id = uuid::Uuid::new_v4().to_string();
+        let stored_msg = StoredMessage {
+            id: msg_id.clone(),
+            msg_type: gigi_store::MessageType::Group,
+            direction: if is_own {
+                gigi_store::MessageDirection::Sent
+            } else {
+                gigi_store::MessageDirection::Received
+            },
+            content: gigi_store::MessageContent::FileShare {
+                filename,
+                share_code,
+                file_size,
+                file_type,
+            },
+            sender_nickname: from_nickname.clone(),
+            recipient_nickname: None,
+            group_name: Some(group_name),
+            peer_id: from_nickname.to_string(),
+            timestamp: chrono::Utc::now(),
+            created_at: chrono::Utc::now(),
+            delivered: false,
+            delivered_at: None,
+            read: false,
+            read_at: None,
+            sync_status: gigi_store::SyncStatus::Pending,
+            sync_attempts: 0,
+            last_sync_attempt: None,
+            expires_at: chrono::Utc::now() + chrono::Duration::days(7),
+        };
+
+        let mut store_guard = MESSAGE_STORE.lock().await;
+        if let Some(store) = store_guard.as_mut() {
+            store.store_message(stored_msg).await?;
+        }
+
+        Ok(msg_id)
+    }
+
     pub async fn store_group_share_message(
         from_nickname: String,
         to_nickname: String,

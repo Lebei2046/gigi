@@ -982,7 +982,7 @@ pub fn use_chat_event_listeners(
                             println!("Group updated event");
                         }
                         AppEvent::FileShareReceived {
-                            from_peer_id,
+                            from_peer_id: _,
                             from_nickname,
                             share_code,
                             filename,
@@ -995,25 +995,15 @@ pub fn use_chat_event_listeners(
                                 from_nickname, filename, share_code
                             );
                             let state = chat_room_state_clone.read();
-                            // Check if this message is for the current chat by comparing from_nickname with chat_name
-                            // chat_id is set to the peer's nickname when opening a conversation
-                            // from_nickname is the sender's nickname
                             if state.chat_name == Some(from_nickname.clone()) {
                                 drop(state);
                                 let mut chat_room = chat_room_state_clone.write();
 
-                                // Check if it's an image file (handle both MIME types and extensions)
-                                println!(
-                                    "Checking file type: {}, lowercase: {}",
-                                    file_type,
-                                    file_type.to_lowercase()
-                                );
                                 let lower_file_type = file_type.to_lowercase();
                                 let is_image = lower_file_type.starts_with("image/")
                                     || ["png", "jpg", "jpeg", "gif", "bmp", "webp"]
                                         .contains(&lower_file_type.as_str());
 
-                                // Create a new message for the file share
                                 let new_message = Message {
                                     id: uuid::Uuid::new_v4().to_string(),
                                     content: format!("Shared file: {}", filename),
@@ -1037,6 +1027,54 @@ pub fn use_chat_event_listeners(
 
                                 chat_room.messages.push(new_message);
                                 println!("Added file share message to chat room");
+                            }
+                        }
+                        AppEvent::GroupFileShareReceived {
+                            from_peer_id: _,
+                            from_nickname,
+                            share_code,
+                            filename,
+                            file_size,
+                            file_type,
+                            group_name,
+                        } => {
+                            println!(
+                                "Group file share received from {} in {}: {} (code: {})",
+                                from_nickname, group_name, filename, share_code
+                            );
+                            let state = chat_room_state_clone.read();
+                            if state.chat_name == Some(group_name.clone()) && state.is_group_chat {
+                                drop(state);
+                                let mut chat_room = chat_room_state_clone.write();
+
+                                let lower_file_type = file_type.to_lowercase();
+                                let is_image = lower_file_type.starts_with("image/")
+                                    || ["png", "jpg", "jpeg", "gif", "bmp", "webp"]
+                                        .contains(&lower_file_type.as_str());
+
+                                let new_message = Message {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    content: format!("Shared file: {}", filename),
+                                    sender: from_nickname.clone(),
+                                    timestamp: chrono::Local::now().format("%H:%M %p").to_string(),
+                                    is_own: false,
+                                    message_type: if is_image {
+                                        crate::features::chat::chat_state::MessageType::Image
+                                    } else {
+                                        crate::features::chat::chat_state::MessageType::File
+                                    },
+                                    filename: Some(filename),
+                                    file_size: Some(file_size),
+                                    file_type: Some(file_type),
+                                    share_code: Some(share_code),
+                                    is_downloading: false,
+                                    download_progress: None,
+                                    download_id: None,
+                                    file_path: None,
+                                };
+
+                                chat_room.messages.push(new_message);
+                                println!("Added group file share message to chat room");
                             }
                         }
                     }
@@ -1245,12 +1283,179 @@ pub fn use_message_actions(
 
     let handle_image_select = move || {
         println!("handle_image_select called");
-        // Implementation for image selection
+        let chat_room_state = chat_room_state_clone.clone();
+        let chat_name = chat_room_state.read().chat_name.clone();
+        let is_group_chat = chat_room_state.read().is_group_chat;
+
+        #[cfg(feature = "web")]
+        {
+            if let Some(window) = web_sys::window() {
+                if let Some(document) = window.document() {
+                    let input = document.create_element("input").unwrap();
+                    input.set_attribute("type", "file").unwrap();
+                    input.set_attribute("accept", "image/*").unwrap();
+
+                    let callback = Closure::wrap(Box::new(move |e: web_sys::Event| {
+                        let input = e
+                            .target()
+                            .unwrap()
+                            .dyn_into::<web_sys::HtmlInputElement>()
+                            .unwrap();
+                        if let Some(file_list) = input.files() {
+                            if file_list.length() > 0 {
+                                let file = file_list.get(0).unwrap();
+                                let filename = file.name();
+                                let file_size = file.size();
+                                let file_type = file.type_();
+
+                                let chat_room_state_clone = chat_room_state.clone();
+                                let chat_name_clone = chat_name.clone();
+                                let is_group_chat_clone = is_group_chat;
+
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    let result =
+                                        gigi_file_sharing::browser::file_to_path_buf(&file).await;
+                                    if let Ok(file_path) = result {
+                                        handle_shared_file(
+                                            chat_room_state_clone,
+                                            chat_name_clone,
+                                            is_group_chat_clone,
+                                            &file_path,
+                                            &filename,
+                                            file_size,
+                                            &file_type,
+                                        )
+                                        .await;
+                                    }
+                                });
+                            }
+                        }
+                    }) as Box<dyn FnMut(_)>);
+
+                    input.set_onchange(Some(callback.as_ref().unchecked_ref()));
+                    callback.forget();
+
+                    input.click().unwrap();
+                }
+            }
+        }
+
+        #[cfg(not(feature = "web"))]
+        {
+            if let Some(chat_name_val) = chat_name {
+                let paths = rfd::FileDialog::new()
+                    .add_filter("Images", &["png", "jpg", "jpeg", "gif", "bmp", "webp"])
+                    .pick_file();
+
+                if let Some(file_path) = paths {
+                    let filename = file_path.file_name().unwrap().to_string_lossy().to_string();
+                    let file_size = std::fs::metadata(&file_path).map(|m| m.len()).unwrap_or(0);
+                    let file_type = mime_guess::from_path(&file_path)
+                        .first_or_octet_stream()
+                        .to_string();
+
+                    spawn(async move {
+                        handle_shared_file(
+                            chat_room_state,
+                            Some(chat_name_val),
+                            is_group_chat,
+                            &file_path,
+                            &filename,
+                            file_size,
+                            &file_type,
+                        )
+                        .await;
+                    });
+                }
+            }
+        }
     };
 
     let handle_file_select = move || {
         println!("handle_file_select called");
-        // Implementation for file selection
+        let chat_room_state = chat_room_state_clone.clone();
+        let chat_name = chat_room_state.read().chat_name.clone();
+        let is_group_chat = chat_room_state.read().is_group_chat;
+
+        #[cfg(feature = "web")]
+        {
+            if let Some(window) = web_sys::window() {
+                if let Some(document) = window.document() {
+                    let input = document.create_element("input").unwrap();
+                    input.set_attribute("type", "file").unwrap();
+
+                    let callback = Closure::wrap(Box::new(move |e: web_sys::Event| {
+                        let input = e
+                            .target()
+                            .unwrap()
+                            .dyn_into::<web_sys::HtmlInputElement>()
+                            .unwrap();
+                        if let Some(file_list) = input.files() {
+                            if file_list.length() > 0 {
+                                let file = file_list.get(0).unwrap();
+                                let filename = file.name();
+                                let file_size = file.size();
+                                let file_type = file.type_();
+
+                                let chat_room_state_clone = chat_room_state.clone();
+                                let chat_name_clone = chat_name.clone();
+                                let is_group_chat_clone = is_group_chat;
+
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    let result =
+                                        gigi_file_sharing::browser::file_to_path_buf(&file).await;
+                                    if let Ok(file_path) = result {
+                                        handle_shared_file(
+                                            chat_room_state_clone,
+                                            chat_name_clone,
+                                            is_group_chat_clone,
+                                            &file_path,
+                                            &filename,
+                                            file_size,
+                                            &file_type,
+                                        )
+                                        .await;
+                                    }
+                                });
+                            }
+                        }
+                    }) as Box<dyn FnMut(_)>);
+
+                    input.set_onchange(Some(callback.as_ref().unchecked_ref()));
+                    callback.forget();
+
+                    input.click().unwrap();
+                }
+            }
+        }
+
+        #[cfg(not(feature = "web"))]
+        {
+            if let Some(chat_name_val) = chat_name {
+                let paths = rfd::FileDialog::new().pick_file();
+
+                if let Some(file_path) = paths {
+                    let filename = file_path.file_name().unwrap().to_string_lossy().to_string();
+                    let file_size = std::fs::metadata(&file_path).map(|m| m.len()).unwrap_or(0);
+                    let file_type = mime_guess::from_path(&file_path)
+                        .first_or_octet_stream()
+                        .to_string();
+
+                    spawn(async move {
+                        handle_shared_file(
+                            chat_room_state,
+                            Some(chat_name_val),
+                            is_group_chat,
+                            &file_path,
+                            &filename,
+                            file_size,
+                            &file_type,
+                        )
+                        .await;
+                    });
+                }
+            }
+        }
     };
 
     let handle_file_download_request =
@@ -1259,17 +1464,60 @@ pub fn use_message_actions(
                 "handle_file_download_request called with share code: {}",
                 share_code
             );
-            // Implementation for file download request
+            let mut chat_room_state_clone = chat_room_state_clone.clone();
+            let chat_name = chat_room_state_clone.read().chat_name.clone();
+            let is_group_chat = chat_room_state_clone.read().is_group_chat;
+
+            spawn(async move {
+                if let Some(chat_name) = chat_name {
+                    let download_peer = if is_group_chat {
+                        let messages = chat_room_state_clone.read().messages.clone();
+                        messages
+                            .iter()
+                            .find(|m| m.share_code == Some(share_code.clone()))
+                            .map(|m| m.sender.clone())
+                            .unwrap_or_else(|| chat_name.clone())
+                    } else {
+                        chat_name.clone()
+                    };
+
+                    println!("Starting download from peer: {}", download_peer);
+                    if let Ok(download_id) =
+                        crate::services::p2p_service::P2pService::download_file(
+                            &download_peer,
+                            &share_code,
+                        )
+                        .await
+                    {
+                        println!("Download started with ID: {}", download_id);
+
+                        let mut chat_room = chat_room_state_clone.write();
+                        if let Some(message) = chat_room
+                            .messages
+                            .iter_mut()
+                            .find(|m| m.share_code == Some(share_code.clone()))
+                        {
+                            message.is_downloading = true;
+                            message.download_id = Some(download_id);
+                        }
+                    } else {
+                        println!("Failed to start download");
+                    }
+                }
+            });
         };
 
     let handle_share_file = move |peer_id: String, filename: String, file_path: Option<String>| {
         println!("handle_share_file called for peer: {}", peer_id);
-        // Implementation for file sharing
     };
 
     let handle_delete_message = move |message_id: String| {
         println!("handle_delete_message called for message: {}", message_id);
-        // Implementation for message deletion
+        let mut chat_room_state = chat_room_state_clone.clone();
+        chat_room_state
+            .write()
+            .messages
+            .retain(|m| m.id != message_id);
     };
 
     (
@@ -1280,4 +1528,91 @@ pub fn use_message_actions(
         handle_share_file,
         handle_delete_message,
     )
+}
+
+async fn handle_shared_file(
+    mut chat_room_state: Signal<ChatRoomState>,
+    chat_name: Option<String>,
+    is_group_chat: bool,
+    file_path: &std::path::PathBuf,
+    filename: &str,
+    file_size: u64,
+    file_type: &str,
+) {
+    if let Some(chat_name) = chat_name {
+        let lower_file_type = file_type.to_lowercase();
+        let is_image = lower_file_type.starts_with("image/")
+            || ["png", "jpg", "jpeg", "gif", "bmp", "webp"].contains(&lower_file_type.as_str());
+
+        let new_msg = Message {
+            id: uuid::Uuid::new_v4().to_string(),
+            content: format!("Shared file: {}", filename),
+            sender: "You".to_string(),
+            timestamp: chrono::Local::now().format("%H:%M %p").to_string(),
+            is_own: true,
+            message_type: if is_image {
+                crate::features::chat::chat_state::MessageType::Image
+            } else {
+                crate::features::chat::chat_state::MessageType::File
+            },
+            filename: Some(filename.to_string()),
+            file_size: Some(file_size),
+            file_type: Some(file_type.to_string()),
+            share_code: None,
+            is_downloading: false,
+            download_progress: None,
+            download_id: None,
+            file_path: Some(file_path.to_string_lossy().to_string()),
+        };
+
+        chat_room_state.write().messages.push(new_msg.clone());
+
+        let result = if is_group_chat {
+            crate::services::p2p_service::P2pService::send_group_file(&chat_name, file_path).await
+        } else {
+            crate::services::p2p_service::P2pService::share_file(&chat_name, file_path).await
+        };
+
+        match result {
+            Ok(file_share_info) => {
+                println!("File shared successfully: {:?}", file_share_info);
+                let local_nickname = crate::services::p2p_service::P2pService::get_local_nickname()
+                    .await
+                    .unwrap_or("You".to_string());
+
+                if is_group_chat {
+                    let _ = crate::services::persistence_service::PersistenceService::store_group_file_share_message(
+                        local_nickname,
+                        chat_name.clone(),
+                        filename.to_string(),
+                        file_share_info.share_code,
+                        file_size,
+                        file_type.to_string(),
+                        true,
+                    ).await;
+                } else {
+                    let _ = crate::services::persistence_service::PersistenceService::store_file_share_message(
+                        local_nickname,
+                        chat_name.clone(),
+                        filename.to_string(),
+                        file_share_info.share_code,
+                        file_size,
+                        file_type.to_string(),
+                        true,
+                    ).await;
+                }
+
+                let _ = crate::services::event_bus::EventBus::send(
+                    crate::services::event_bus::AppEvent::MessageSaved(if is_group_chat {
+                        format!("group-{}", chat_name)
+                    } else {
+                        chat_name
+                    }),
+                );
+            }
+            Err(e) => {
+                println!("Failed to share file: {:?}", e);
+            }
+        }
+    }
 }
