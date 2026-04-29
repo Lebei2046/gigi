@@ -312,13 +312,24 @@ impl PersistenceService {
     }
 
     pub async fn load_conversations() -> Result<Vec<gigi_store::Conversation>> {
+        println!("load_conversations called");
         let store_guard = CONVERSATION_STORE.lock().await;
         if let Some(store) = store_guard.as_ref() {
-            store
-                .get_conversations()
-                .await
-                .map_err(|e| anyhow::anyhow!(e))
+            match store.get_conversations().await {
+                Ok(conversations) => {
+                    println!(
+                        "Successfully loaded {} conversations from store",
+                        conversations.len()
+                    );
+                    Ok(conversations)
+                }
+                Err(e) => {
+                    println!("Failed to load conversations: {:?}", e);
+                    Err(anyhow::anyhow!(e))
+                }
+            }
         } else {
+            println!("Failed to load conversations: Persistence service not initialized");
             Err(anyhow::anyhow!("Persistence service not initialized"))
         }
     }

@@ -44,9 +44,14 @@ fn TextMessageBubble(
     };
 
     let sender_name = message.sender.clone();
+    let group_id = message.group_id.clone();
 
     let handle_group_share = move |_| {
-        on_group_share.call((String::new(), group_name.clone(), sender_name.clone()));
+        on_group_share.call((
+            group_id.clone().unwrap_or_default(),
+            group_name.clone(),
+            sender_name.clone(),
+        ));
     };
 
     rsx! {

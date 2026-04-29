@@ -299,7 +299,8 @@ impl SettingsManager {
     /// The groups table stores group information with the following schema:
     /// - group_id: Primary key (String)
     /// - name: Group display name (String)
-    /// - joined: Whether the user has joined this group (bool)
+    /// - created: Whether the user created this group (bool)
+    ///            true = created by user, false = joined via invitation
     /// - created_at: Timestamp in milliseconds (i64)
     ///
     /// This should be called during account creation to ensure the table exists.
@@ -310,7 +311,7 @@ impl SettingsManager {
             CREATE TABLE IF NOT EXISTS groups (
                 group_id TEXT PRIMARY KEY NOT NULL,
                 name TEXT NOT NULL,
-                joined INTEGER NOT NULL DEFAULT 0,
+                created INTEGER NOT NULL DEFAULT 0,
                 created_at INTEGER NOT NULL
             )
         "#;
@@ -322,7 +323,82 @@ impl SettingsManager {
             ))
             .await?;
 
+        // Migration: Add 'created' column if it doesn't exist (for backward compatibility)
+        self.migrate_joined_to_created().await?;
+
         info!("Groups table ready");
+        Ok(())
+    }
+
+    /// Migration: Handle transition from 'joined' column to 'created' column
+    ///
+    /// Old schema had 'joined' (true=joined, false=not joined)
+    /// New schema has 'created' (true=created by user, false=joined via invitation)
+    ///
+    /// Mapping:
+    /// - old joined=true -> new created=false (joined via invitation)
+    /// - old joined=false -> new created=true (created by user, since they wouldn't be in the table otherwise)
+    async fn migrate_joined_to_created(&self) -> Result<(), DbErr> {
+        debug!("Checking for migration from 'joined' to 'created' column");
+
+        // Check if 'joined' column exists and 'created' column doesn't exist
+        let check_columns_sql = "PRAGMA table_info(groups)";
+        let result = self
+            .db
+            .query_all(Statement::from_string(
+                self.db.get_database_backend(),
+                check_columns_sql.to_string(),
+            ))
+            .await?;
+
+        let mut has_joined = false;
+        let mut has_created = false;
+
+        for row in result {
+            if let Ok(name) = row.try_get::<String>("", "name") {
+                if name == "joined" {
+                    has_joined = true;
+                } else if name == "created" {
+                    has_created = true;
+                }
+            }
+        }
+
+        // If 'created' column doesn't exist, add it
+        if !has_created {
+            debug!("Adding 'created' column to groups table");
+
+            // Add the new 'created' column
+            let add_column_sql = "ALTER TABLE groups ADD COLUMN created INTEGER NOT NULL DEFAULT 0";
+            self.db
+                .execute(Statement::from_string(
+                    self.db.get_database_backend(),
+                    add_column_sql.to_string(),
+                ))
+                .await?;
+
+            // If we have 'joined' column, migrate data:
+            // old 'joined' = true means user joined, so new 'created' = false
+            // old 'joined' = false means user created (since they're in the table but not marked as joined)
+            if has_joined {
+                debug!("Migrating data from 'joined' to 'created' column");
+                let migrate_sql =
+                    "UPDATE groups SET created = CASE WHEN joined = 1 THEN 0 ELSE 1 END";
+                self.db
+                    .execute(Statement::from_string(
+                        self.db.get_database_backend(),
+                        migrate_sql.to_string(),
+                    ))
+                    .await?;
+
+                // Drop the old 'joined' column (optional, kept for safety)
+                // Note: SQLite doesn't support DROP COLUMN before version 3.35.0
+                // For maximum compatibility, we'll leave the 'joined' column but ignore it
+            }
+
+            info!("Migration to 'created' column completed successfully");
+        }
+
         Ok(())
     }
 
@@ -332,21 +408,25 @@ impl SettingsManager {
     ///
     /// * `group_id` - The unique group identifier
     /// * `name` - The group display name
-    /// * `joined` - Whether the user has joined this group
+    /// * `created` - Whether the user created this group
+    ///               true = created by user, false = joined via invitation
     pub async fn upsert_group(
         &self,
         group_id: &str,
         name: &str,
-        joined: bool,
+        created: bool,
     ) -> Result<(), DbErr> {
         debug!("Upserting group: {}", group_id);
 
+        // Ensure migration is run before upserting
+        self.migrate_joined_to_created().await?;
+
         let now = chrono::Utc::now().timestamp_millis();
-        let joined_int = if joined { 1 } else { 0 };
+        let created_int = if created { 1 } else { 0 };
 
         let insert_sql = format!(
-            r#"INSERT INTO groups (group_id, name, joined, created_at) VALUES ('{}', '{}', {}, {})"#,
-            group_id, name, joined_int, now
+            r#"INSERT INTO groups (group_id, name, created, created_at) VALUES ('{}', '{}', {}, {}) ON CONFLICT(group_id) DO UPDATE SET name = excluded.name, created = excluded.created"#,
+            group_id, name, created_int, now
         );
 
         self.db
@@ -384,8 +464,11 @@ impl SettingsManager {
     pub async fn get_group(&self, group_id: &str) -> Result<Option<GroupInfo>, DbErr> {
         debug!("Getting group: {}", group_id);
 
+        // Ensure migration is run before querying
+        self.migrate_joined_to_created().await?;
+
         let query_sql = format!(
-            "SELECT group_id, name, joined, created_at FROM groups WHERE group_id = '{}'",
+            "SELECT group_id, name, created, created_at FROM groups WHERE group_id = '{}'",
             group_id
         );
 
@@ -400,7 +483,7 @@ impl SettingsManager {
         Ok(result.map(|row| GroupInfo {
             group_id: row.try_get("", "group_id").unwrap_or_default(),
             name: row.try_get("", "name").unwrap_or_default(),
-            joined: row.try_get::<i64>("", "joined").unwrap_or(0) == 1,
+            created: row.try_get::<i64>("", "created").unwrap_or(0) == 1,
             created_at: row.try_get("", "created_at").unwrap_or(0),
         }))
     }
@@ -409,8 +492,11 @@ impl SettingsManager {
     pub async fn get_all_groups(&self) -> Result<Vec<GroupInfo>, DbErr> {
         debug!("Getting all groups");
 
+        // Ensure migration is run before querying
+        self.migrate_joined_to_created().await?;
+
         let query_sql =
-            "SELECT group_id, name, joined, created_at FROM groups ORDER BY created_at DESC";
+            "SELECT group_id, name, created, created_at FROM groups ORDER BY created_at DESC";
 
         let result = self
             .db
@@ -426,7 +512,7 @@ impl SettingsManager {
                 Some(GroupInfo {
                     group_id: row.try_get("", "group_id").ok()?,
                     name: row.try_get("", "name").ok()?,
-                    joined: row.try_get::<i64>("", "joined").ok()? == 1,
+                    created: row.try_get::<i64>("", "created").ok()? == 1,
                     created_at: row.try_get("", "created_at").ok()?,
                 })
             })
@@ -435,11 +521,14 @@ impl SettingsManager {
         Ok(groups)
     }
 
-    /// Get all joined groups
+    /// Get all joined groups (groups not created by the user)
     pub async fn get_joined_groups(&self) -> Result<Vec<GroupInfo>, DbErr> {
         debug!("Getting joined groups");
 
-        let query_sql = "SELECT group_id, name, joined, created_at FROM groups WHERE joined = 1 ORDER BY created_at DESC";
+        // Ensure migration is run before querying
+        self.migrate_joined_to_created().await?;
+
+        let query_sql = "SELECT group_id, name, created, created_at FROM groups WHERE created = 0 ORDER BY created_at DESC";
 
         let result = self
             .db
@@ -455,7 +544,7 @@ impl SettingsManager {
                 Some(GroupInfo {
                     group_id: row.try_get("", "group_id").ok()?,
                     name: row.try_get("", "name").ok()?,
-                    joined: true,
+                    created: false,
                     created_at: row.try_get("", "created_at").ok()?,
                 })
             })
@@ -464,18 +553,21 @@ impl SettingsManager {
         Ok(groups)
     }
 
-    /// Update group join status
-    pub async fn update_group_join_status(
+    /// Update group created status
+    pub async fn update_group_created_status(
         &self,
         group_id: &str,
-        joined: bool,
+        created: bool,
     ) -> Result<bool, DbErr> {
-        debug!("Updating join status for group: {} -> {}", group_id, joined);
+        debug!(
+            "Updating created status for group: {} -> {}",
+            group_id, created
+        );
 
-        let joined_int = if joined { 1 } else { 0 };
+        let created_int = if created { 1 } else { 0 };
         let update_sql = format!(
-            "UPDATE groups SET joined = {} WHERE group_id = '{}'",
-            joined_int, group_id
+            "UPDATE groups SET created = {} WHERE group_id = '{}'",
+            created_int, group_id
         );
 
         let result = self
@@ -532,6 +624,6 @@ impl SettingsManager {
 pub struct GroupInfo {
     pub group_id: String,
     pub name: String,
-    pub joined: bool,
+    pub created: bool,
     pub created_at: i64,
 }

@@ -42,6 +42,8 @@ pub enum AppEvent {
     },
 }
 
+const CHANNEL_CAPACITY: usize = 1000;
+
 static BROADCAST_TX: Lazy<Mutex<Option<broadcast::Sender<AppEvent>>>> =
     Lazy::new(|| Mutex::new(None));
 
@@ -49,33 +51,23 @@ pub struct EventBus;
 
 impl EventBus {
     pub fn init() {
-        println!("Initializing EventBus");
-        let (tx, _rx) = broadcast::channel(100);
+        let (tx, _rx) = broadcast::channel(CHANNEL_CAPACITY);
         *BROADCAST_TX.lock().unwrap() = Some(tx);
-        println!("EventBus initialized successfully");
     }
 
     pub fn send(event: AppEvent) -> Result<usize> {
-        println!("EventBus::send called with event: {:?}", event);
         if let Some(tx) = BROADCAST_TX.lock().unwrap().as_ref() {
-            println!("EventBus has sender, sending event");
-            let result = tx.send(event);
-            println!("Event send result: {:?}", result);
-            result.map_err(|e| anyhow::anyhow!(e))
+            tx.send(event).map_err(|e| anyhow::anyhow!(e))
         } else {
-            println!("EventBus sender not initialized");
             Ok(0)
         }
     }
 
     pub fn subscribe() -> Option<broadcast::Receiver<AppEvent>> {
-        println!("EventBus::subscribe called");
-        let result = BROADCAST_TX
+        BROADCAST_TX
             .lock()
             .unwrap()
             .as_ref()
-            .map(|tx| tx.subscribe());
-        println!("EventBus subscribe result: {:?}", result);
-        result
+            .map(|tx| tx.subscribe())
     }
 }

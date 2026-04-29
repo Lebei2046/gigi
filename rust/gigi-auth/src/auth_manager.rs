@@ -312,7 +312,7 @@ impl AuthManager {
 
         self.settings_manager.create_groups_table().await?;
         self.settings_manager
-            .upsert_group(&group_id, &group_name, false)
+            .upsert_group(&group_id, &group_name, true)
             .await?;
 
         info!("Account created successfully for peer_id: {}", peer_id);
@@ -416,6 +416,9 @@ impl AuthManager {
         let private_key = key_derivation::derive_peer_private_key(&mnemonic)?;
 
         info!("Login successful for peer_id: {}", derived_peer_id);
+
+        // Ensure groups table exists (creates if not exists, runs migrations)
+        let _ = self.settings_manager.create_groups_table().await;
 
         Ok(LoginResult {
             account_info: AccountInfo {
@@ -720,14 +723,26 @@ impl AuthManager {
         self.settings_manager.get_group(group_id).await
     }
 
-    /// Update group join status
-    pub async fn update_group_join_status(
+    /// Update group created status
+    pub async fn update_group_created_status(
         &self,
         group_id: &str,
-        joined: bool,
+        created: bool,
     ) -> Result<bool, DbErr> {
         self.settings_manager
-            .update_group_join_status(group_id, joined)
+            .update_group_created_status(group_id, created)
+            .await
+    }
+
+    /// Upsert a group
+    pub async fn upsert_group(
+        &self,
+        group_id: &str,
+        name: &str,
+        created: bool,
+    ) -> Result<(), DbErr> {
+        self.settings_manager
+            .upsert_group(group_id, name, created)
             .await
     }
 

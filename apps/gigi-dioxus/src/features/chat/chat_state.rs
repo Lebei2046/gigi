@@ -23,7 +23,7 @@ pub struct Group {
     pub name: String,
     pub role: String,
     pub member_count: u32,
-    pub joined: bool,
+    pub created: bool,
 }
 
 impl From<&gigi_auth::GroupInfo> for Group {
@@ -31,13 +31,13 @@ impl From<&gigi_auth::GroupInfo> for Group {
         Self {
             id: info.group_id.clone(),
             name: info.name.clone(),
-            role: if info.joined {
-                "Member".to_string()
+            role: if info.created {
+                "Created".to_string()
             } else {
-                "Not joined".to_string()
+                "Joined".to_string()
             },
             member_count: 0,
-            joined: info.joined,
+            created: info.created,
         }
     }
 }
@@ -121,6 +121,7 @@ pub struct Message {
     pub download_progress: Option<u8>,
     pub download_id: Option<String>,
     pub file_path: Option<String>,
+    pub group_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -164,13 +165,20 @@ impl Default for ChatRoomState {
 
 impl From<&StoredMessage> for Message {
     fn from(msg: &StoredMessage) -> Self {
-        let content = match &msg.content {
-            gigi_store::MessageContent::Text { text } => text.clone(),
-            gigi_store::MessageContent::FileShare { filename, .. } => filename.clone(),
-            gigi_store::MessageContent::FileShareWithThumbnail { filename, .. } => filename.clone(),
-            gigi_store::MessageContent::ShareGroup { group_name, .. } => {
-                format!("Join group: {}", group_name)
+        let (content, group_id) = match &msg.content {
+            gigi_store::MessageContent::Text { text } => (text.clone(), None),
+            gigi_store::MessageContent::FileShare { filename, .. } => (filename.clone(), None),
+            gigi_store::MessageContent::FileShareWithThumbnail { filename, .. } => {
+                (filename.clone(), None)
             }
+            gigi_store::MessageContent::ShareGroup {
+                group_id,
+                group_name,
+                ..
+            } => (
+                format!("Join group: {}", group_name),
+                Some(group_id.clone()),
+            ),
         };
 
         let message_type = match &msg.content {
@@ -298,6 +306,7 @@ impl From<&StoredMessage> for Message {
             download_progress: None,
             download_id: None,
             file_path,
+            group_id,
         }
     }
 }
@@ -350,16 +359,19 @@ pub async fn leave_group(group_name: &str) {
 
 pub async fn list_peers() -> Vec<Peer> {
     match P2pService::list_peers().await {
-        Ok(peers) => peers
-            .into_iter()
-            .map(|p| Peer {
-                id: p.peer_id.to_string(),
-                peer_id: p.peer_id,
-                nickname: p.nickname,
-                is_online: p.connected,
-                capabilities: vec!["chat".to_string(), "file_sharing".to_string()],
-            })
-            .collect(),
+        Ok(peers) => {
+            let peers: Vec<gigi_p2p::PeerInfo> = peers;
+            peers
+                .into_iter()
+                .map(|p| Peer {
+                    id: p.peer_id.to_string(),
+                    peer_id: p.peer_id,
+                    nickname: p.nickname,
+                    is_online: p.connected,
+                    capabilities: vec!["chat".to_string(), "file_sharing".to_string()],
+                })
+                .collect()
+        }
         Err(err) => {
             println!("Failed to list peers: {:?}", err);
             vec![]

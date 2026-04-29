@@ -147,9 +147,9 @@ pub fn Chat() -> Element {
             let group = group.unwrap_or_else(|| chat_state::Group {
                 id: group_id.clone(),
                 name: conversation.name.clone(),
-                role: "Member".to_string(),
+                role: "Joined".to_string(),
                 member_count: 0,
-                joined: true,
+                created: false,
             });
 
             let mut share_group = handle_share_group.clone();

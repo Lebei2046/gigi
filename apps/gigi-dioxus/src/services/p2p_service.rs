@@ -1,5 +1,6 @@
 use crate::services::event_bus::{AppEvent, EventBus};
 use anyhow::Result;
+use chrono;
 use dirs;
 use futures_util::stream::StreamExt;
 use gigi_logging::tracing;
@@ -13,7 +14,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc, Mutex};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileShareInfo {
@@ -25,6 +26,314 @@ pub struct FileShareInfo {
 
 static P2P_CLIENT: Lazy<Arc<Mutex<Option<P2pClient>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 static LOCAL_NICKNAME: Lazy<Arc<Mutex<Option<String>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
+
+#[derive(Debug)]
+enum DbOperation {
+    StoreDirectMessage {
+        from_nickname: String,
+        to_nickname: String,
+        message: String,
+        is_own: bool,
+        from_peer_id: String,
+    },
+    StoreFileShareMessage {
+        from_nickname: String,
+        to_nickname: String,
+        filename: String,
+        share_code: String,
+        file_size: u64,
+        file_type: String,
+        is_own: bool,
+        from_peer_id: String,
+    },
+    StoreGroupShareMessage {
+        from_nickname: String,
+        to_nickname: String,
+        group_id: String,
+        group_name: String,
+        is_own: bool,
+        from_peer_id: String,
+    },
+    StoreGroupMessage {
+        from_nickname: String,
+        group_name: String,
+        message: String,
+        is_own: bool,
+    },
+    StoreGroupFileShareMessage {
+        from_nickname: String,
+        group_name: String,
+        filename: String,
+        share_code: String,
+        file_size: u64,
+        file_type: String,
+        is_own: bool,
+    },
+    UpsertConversation {
+        conv_id: String,
+        name: String,
+        is_group: bool,
+        peer_id: String,
+        last_message: Option<String>,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+    IncrementUnread {
+        conv_id: String,
+    },
+}
+
+type DbSender = mpsc::Sender<DbOperation>;
+static DB_WORKER_TX: Lazy<Arc<Mutex<Option<DbSender>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(None::<DbSender>)));
+
+async fn db_worker(mut rx: mpsc::Receiver<DbOperation>) {
+    while let Some(op) = rx.recv().await {
+        match op {
+            DbOperation::StoreDirectMessage {
+                from_nickname,
+                to_nickname,
+                message,
+                is_own,
+                from_peer_id,
+            } => {
+                if crate::services::persistence_service::PersistenceService::store_direct_message(
+                    from_nickname.clone(),
+                    to_nickname,
+                    message.clone(),
+                    is_own,
+                )
+                .await
+                .is_ok()
+                {
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        from_peer_id.clone(),
+                        from_nickname,
+                        false,
+                        from_peer_id.clone(),
+                        Some(message),
+                        Some(chrono::Utc::now()),
+                    )
+                    .await;
+                    let _ =
+                        crate::services::persistence_service::PersistenceService::increment_unread(
+                            &from_peer_id,
+                        )
+                        .await;
+                    let _ = EventBus::send(AppEvent::MessageSaved(from_peer_id));
+                }
+            }
+            DbOperation::StoreFileShareMessage {
+                from_nickname,
+                to_nickname,
+                filename,
+                share_code,
+                file_size,
+                file_type,
+                is_own,
+                from_peer_id,
+            } => {
+                let from_nickname_clone = from_nickname.clone();
+                let from_peer_id_clone = from_peer_id.clone();
+                if crate::services::persistence_service::PersistenceService::store_file_share_message(
+                    from_nickname.clone(),
+                    to_nickname,
+                    filename.clone(),
+                    share_code.clone(),
+                    file_size,
+                    file_type.clone(),
+                    is_own,
+                )
+                .await
+                .is_ok()
+                {
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        from_peer_id.clone(),
+                        from_nickname.clone(),
+                        false,
+                        from_peer_id.clone(),
+                        Some(filename.clone()),
+                        Some(chrono::Utc::now()),
+                    )
+                    .await;
+                    let _ = crate::services::persistence_service::PersistenceService::increment_unread(&from_peer_id)
+                        .await;
+                    let _ = EventBus::send(AppEvent::FileShareReceived {
+                        from_peer_id: from_peer_id_clone,
+                        from_nickname: from_nickname_clone,
+                        share_code,
+                        filename,
+                        file_size,
+                        file_type,
+                        conv_id: from_peer_id,
+                    });
+                }
+            }
+            DbOperation::StoreGroupShareMessage {
+                from_nickname,
+                to_nickname,
+                group_id,
+                group_name,
+                is_own,
+                from_peer_id,
+            } => {
+                if crate::services::persistence_service::PersistenceService::store_group_share_message(
+                    from_nickname.clone(),
+                    to_nickname,
+                    group_id.clone(),
+                    group_name.clone(),
+                    is_own,
+                )
+                .await
+                .is_ok()
+                {
+                    // Create conversation with the inviter (for the share message)
+                    let conv_id = from_peer_id.clone();
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id.clone(),
+                        from_nickname,
+                        false,
+                        conv_id.clone(),
+                        Some(format!("Join group: {}", group_name)),
+                        Some(chrono::Utc::now()),
+                    )
+                    .await;
+                    let _ = crate::services::persistence_service::PersistenceService::increment_unread(&conv_id)
+                        .await;
+
+                    // Also create a group conversation entry so the group appears in the chat list
+                    let group_conv_id = format!("group-{}", group_name);
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        group_conv_id.clone(),
+                        group_name.clone(),
+                        true,
+                        group_id.clone(),
+                        Some(format!("Join group: {}", group_name)),
+                        Some(chrono::Utc::now()),
+                    )
+                    .await;
+
+                    // Add the group to auth service so it persists across restarts
+                    let _ = tokio::spawn(async move {
+                        if let Ok(mut auth_service) = crate::services::auth_service::AuthService::new().await {
+                            let _ = auth_service.upsert_group(&group_id, &group_name, false).await;
+                        }
+                    });
+
+                    let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
+                }
+            }
+            DbOperation::StoreGroupMessage {
+                from_nickname,
+                group_name,
+                message,
+                is_own,
+            } => {
+                if crate::services::persistence_service::PersistenceService::store_group_message(
+                    from_nickname.clone(),
+                    group_name.clone(),
+                    message.clone(),
+                    is_own,
+                )
+                .await
+                .is_ok()
+                {
+                    let conv_id = format!("group-{}", group_name);
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id.clone(),
+                        group_name.clone(),
+                        true,
+                        group_name,
+                        Some(message),
+                        Some(chrono::Utc::now()),
+                    )
+                    .await;
+                    let _ =
+                        crate::services::persistence_service::PersistenceService::increment_unread(
+                            &conv_id,
+                        )
+                        .await;
+                    let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
+                }
+            }
+            DbOperation::StoreGroupFileShareMessage {
+                from_nickname,
+                group_name,
+                filename,
+                share_code,
+                file_size,
+                file_type,
+                is_own,
+            } => {
+                let group_name_clone = group_name.clone();
+                if crate::services::persistence_service::PersistenceService::store_group_file_share_message(
+                    from_nickname.clone(),
+                    group_name.clone(),
+                    filename.clone(),
+                    share_code.clone(),
+                    file_size,
+                    file_type.clone(),
+                    is_own,
+                )
+                .await
+                .is_ok()
+                {
+                    let conv_id = format!("group-{}", group_name);
+                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id.clone(),
+                        group_name.clone(),
+                        true,
+                        group_name.clone(),
+                        Some(filename.clone()),
+                        Some(chrono::Utc::now()),
+                    )
+                    .await;
+                    let _ = crate::services::persistence_service::PersistenceService::increment_unread(&conv_id)
+                        .await;
+                    let _ = EventBus::send(AppEvent::GroupFileShareReceived {
+                        from_peer_id: String::new(),
+                        from_nickname,
+                        share_code,
+                        filename,
+                        file_size,
+                        file_type,
+                        group_name: group_name_clone,
+                    });
+                }
+            }
+            DbOperation::UpsertConversation {
+                conv_id,
+                name,
+                is_group,
+                peer_id,
+                last_message,
+                timestamp,
+            } => {
+                let _ =
+                    crate::services::persistence_service::PersistenceService::upsert_conversation(
+                        conv_id,
+                        name,
+                        is_group,
+                        peer_id,
+                        last_message,
+                        Some(timestamp),
+                    )
+                    .await;
+            }
+            DbOperation::IncrementUnread { conv_id } => {
+                let _ = crate::services::persistence_service::PersistenceService::increment_unread(
+                    &conv_id,
+                )
+                .await;
+            }
+        }
+    }
+}
+
+async fn send_db_operation(op: DbOperation) {
+    if let Some(tx) = DB_WORKER_TX.lock().await.as_ref() {
+        let _ = tx.send(op).await;
+    }
+}
 
 pub struct P2pService;
 
@@ -79,6 +388,13 @@ impl P2pService {
         *P2P_CLIENT.lock().await = Some(client);
         *LOCAL_NICKNAME.lock().await = Some(nickname.to_string());
 
+        // Start background database worker
+        let (db_tx, db_rx) = mpsc::channel(100);
+        *DB_WORKER_TX.lock().await = Some(db_tx);
+        tokio::spawn(async move {
+            db_worker(db_rx).await;
+        });
+
         // Spawn task to handle swarm events
         // This is essential for GigiDnsBehaviour to poll interfaces for peer discovery
         tokio::spawn(async move {
@@ -91,7 +407,6 @@ impl P2pService {
                         }
                     }
                 }
-                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
             }
         });
 
@@ -128,34 +443,14 @@ impl P2pService {
             } => {
                 println!("Message from {}: {}", from_nickname, message);
                 let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
-                let msg_id =
-                    crate::services::persistence_service::PersistenceService::store_direct_message(
-                        from_nickname.clone(),
-                        local_nickname,
-                        message.clone(),
-                        false,
-                    )
-                    .await;
-                if msg_id.is_ok() {
-                    // Create or update conversation
-                    let conv_id = from.to_string();
-                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
-                        conv_id.clone(),
-                        from_nickname.clone(),
-                        false, // not a group
-                        conv_id.clone(),
-                        Some(message),
-                        Some(chrono::Utc::now()),
-                    ).await;
-                    // Increment unread count
-                    let _ =
-                        crate::services::persistence_service::PersistenceService::increment_unread(
-                            &conv_id,
-                        )
-                        .await;
-                    // Send event to update UI with peer ID as chat ID
-                    let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
-                }
+                send_db_operation(DbOperation::StoreDirectMessage {
+                    from_nickname,
+                    to_nickname: local_nickname,
+                    message,
+                    is_own: false,
+                    from_peer_id: from.to_string(),
+                })
+                .await;
             }
             P2pEvent::DirectFileShareMessage {
                 from_nickname,
@@ -171,41 +466,17 @@ impl P2pService {
                     from_nickname, filename, share_code
                 );
                 let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
-                let msg_id = crate::services::persistence_service::PersistenceService::store_file_share_message(
-                    from_nickname.clone(),
-                    local_nickname,
-                    filename.clone(),
-                    share_code.clone(),
+                send_db_operation(DbOperation::StoreFileShareMessage {
+                    from_nickname,
+                    to_nickname: local_nickname,
+                    filename,
+                    share_code,
                     file_size,
-                    file_type.clone(),
-                    false,
-                )
+                    file_type,
+                    is_own: false,
+                    from_peer_id: from.to_string(),
+                })
                 .await;
-                if msg_id.is_ok() {
-                    let conv_id = from.to_string();
-                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
-                        conv_id.clone(),
-                        from_nickname.clone(),
-                        false,
-                        conv_id.clone(),
-                        Some(filename.clone()),
-                        Some(chrono::Utc::now()),
-                    ).await;
-                    let _ =
-                        crate::services::persistence_service::PersistenceService::increment_unread(
-                            &conv_id,
-                        )
-                        .await;
-                    let _ = EventBus::send(AppEvent::FileShareReceived {
-                        from_peer_id: from.to_string(),
-                        from_nickname,
-                        share_code,
-                        filename,
-                        file_size,
-                        file_type,
-                        conv_id,
-                    });
-                }
             }
             P2pEvent::FileDownloadProgress {
                 download_id,
@@ -285,34 +556,18 @@ impl P2pService {
                     from_nickname, group_name, group_id
                 );
                 let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
-                let msg_id = crate::services::persistence_service::PersistenceService::store_group_share_message(
-                    from_nickname.clone(),
-                    local_nickname,
-                    group_id.clone(),
-                    group_name.clone(),
-                    false,
-                )
+                send_db_operation(DbOperation::StoreGroupShareMessage {
+                    from_nickname,
+                    to_nickname: local_nickname,
+                    group_id,
+                    group_name,
+                    is_own: false,
+                    from_peer_id: from.to_string(),
+                })
                 .await;
-                if msg_id.is_ok() {
-                    let conv_id = from.to_string();
-                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
-                        conv_id.clone(),
-                        from_nickname.clone(),
-                        false,
-                        conv_id.clone(),
-                        Some(format!("Join group: {}", group_name)),
-                        Some(chrono::Utc::now()),
-                    ).await;
-                    let _ =
-                        crate::services::persistence_service::PersistenceService::increment_unread(
-                            &conv_id,
-                        )
-                        .await;
-                    let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
-                }
             }
             P2pEvent::GroupMessage {
-                from,
+                from: _,
                 from_nickname,
                 group,
                 message,
@@ -322,35 +577,16 @@ impl P2pService {
                     "Group message from {} in {}: {}",
                     from_nickname, group, message
                 );
-                let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
-                let msg_id =
-                    crate::services::persistence_service::PersistenceService::store_group_message(
-                        from_nickname.clone(),
-                        group.clone(),
-                        message.clone(),
-                        false,
-                    )
-                    .await;
-                if msg_id.is_ok() {
-                    let conv_id = format!("group-{}", group);
-                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
-                        conv_id.clone(),
-                        group.clone(),
-                        true, // is group
-                        group.clone(),
-                        Some(message),
-                        Some(chrono::Utc::now()),
-                    ).await;
-                    let _ =
-                        crate::services::persistence_service::PersistenceService::increment_unread(
-                            &conv_id,
-                        )
-                        .await;
-                    let _ = EventBus::send(AppEvent::MessageSaved(conv_id));
-                }
+                send_db_operation(DbOperation::StoreGroupMessage {
+                    from_nickname,
+                    group_name: group,
+                    message,
+                    is_own: false,
+                })
+                .await;
             }
             P2pEvent::GroupFileShareMessage {
-                from,
+                from: _,
                 from_nickname,
                 group,
                 share_code,
@@ -363,42 +599,16 @@ impl P2pService {
                     "Group file share from {} in {}: {} (code: {})",
                     from_nickname, group, filename, share_code
                 );
-                let local_nickname = LOCAL_NICKNAME.lock().await.clone().unwrap_or_default();
-                let msg_id = crate::services::persistence_service::PersistenceService::store_group_file_share_message(
-                    from_nickname.clone(),
-                    group.clone(),
-                    filename.clone(),
-                    share_code.clone(),
+                send_db_operation(DbOperation::StoreGroupFileShareMessage {
+                    from_nickname,
+                    group_name: group,
+                    filename,
+                    share_code,
                     file_size,
-                    file_type.clone(),
-                    false,
-                )
+                    file_type,
+                    is_own: false,
+                })
                 .await;
-                if msg_id.is_ok() {
-                    let conv_id = format!("group-{}", group);
-                    let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
-                        conv_id.clone(),
-                        group.clone(),
-                        true, // is group
-                        group.clone(),
-                        Some(filename.clone()),
-                        Some(chrono::Utc::now()),
-                    ).await;
-                    let _ =
-                        crate::services::persistence_service::PersistenceService::increment_unread(
-                            &conv_id,
-                        )
-                        .await;
-                    let _ = EventBus::send(AppEvent::GroupFileShareReceived {
-                        from_peer_id: from.to_string(),
-                        from_nickname,
-                        share_code,
-                        filename,
-                        file_size,
-                        file_type,
-                        group_name: group,
-                    });
-                }
             }
             _ => {
                 println!("Other P2P event: {:?}", event);

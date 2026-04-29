@@ -122,14 +122,26 @@ impl AuthService {
             .map_err(|e| anyhow::anyhow!("Failed to get joined groups: {:?}", e))
     }
 
-    pub async fn update_group_join_status(
+    pub async fn update_group_created_status(
         &self,
         group_id: &str,
-        joined: bool,
+        created: bool,
     ) -> anyhow::Result<bool> {
         self.auth_manager
-            .update_group_join_status(group_id, joined)
+            .update_group_created_status(group_id, created)
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to update group join status: {:?}", e))
+            .map_err(|e| anyhow::anyhow!("Failed to update group created status: {:?}", e))
+    }
+
+    pub async fn upsert_group(
+        &self,
+        group_id: &str,
+        name: &str,
+        created: bool,
+    ) -> anyhow::Result<()> {
+        self.auth_manager
+            .upsert_group(group_id, name, created)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to upsert group: {:?}", e))
     }
 }

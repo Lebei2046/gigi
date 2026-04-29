@@ -2,15 +2,10 @@ use dioxus::prelude::*;
 use dioxus_router::use_navigator;
 use std::cell::RefCell;
 use std::rc::Rc;
-use tokio::time::sleep;
 
 use crate::services::auth_service::AuthService;
 use crate::services::event_bus::{AppEvent, EventBus};
 use crate::services::persistence_service::PersistenceService;
-
-// Only import web-sys when the web feature is enabled
-#[cfg(feature = "web")]
-extern crate web_sys;
 
 use crate::features::chat::components::{ChatRoomHeader, GroupShareNotificationModal};
 use crate::features::chat::hooks::{
@@ -70,14 +65,24 @@ pub fn ChatRoom(id: String) -> Element {
 
             // Add the group to the conversations list
             let _ = PersistenceService::upsert_conversation(
-                format!("group-{}", g_name),
+                format!("group-{}", g_id),
                 g_name.clone(),
-                true,           // is_group
-                g_name.clone(), // peer_id (using group name as ID for now)
+                true,         // is_group
+                g_id.clone(), // peer_id (use group id for proper matching)
                 Some("Joined group".to_string()),
                 Some(chrono::Utc::now()),
             )
             .await;
+
+            // Save the group to auth service for persistence across restarts
+            // created=false because this is a joined group (via invitation), not created by the user
+            if let Ok(mut auth_service) = AuthService::new().await {
+                if let Err(err) = auth_service.upsert_group(&g_id, &g_name, false).await {
+                    println!("Failed to upsert group: {:?}", err);
+                }
+            } else {
+                println!("Failed to create auth service");
+            }
 
             // Send event to refresh the UI
             let _ = EventBus::send(AppEvent::GroupUpdated);
@@ -113,20 +118,41 @@ pub fn ChatRoom(id: String) -> Element {
         navigator.push("/");
     };
 
-    // Scroll to bottom when messages change or component loads
-    // This runs every time the component re-renders, which happens when messages change
+    let mut prev_message_count = use_signal(|| 0);
+    let mut prev_loading_state = use_signal(|| true);
+
+    let current_message_count = chat_room_state.read().messages.len();
+    let current_loading_state = chat_room_state.read().is_loading;
+
     #[cfg(feature = "web")]
     {
-        if let Some(window) = web_sys::window() {
-            if let Some(document) = window.document() {
-                if let Some(container) = document.get_element_by_id("message-container") {
-                    container.set_scroll_top(container.scroll_height() as i32);
+        let scroll_to_bottom = || {
+            if let Some(window) = web_sys::window() {
+                if let Some(document) = window.document() {
+                    if let Some(container) = document.get_element_by_id("message-container") {
+                        let scroll_height = container.scroll_height();
+                        container
+                            .set_attribute("scrollTop", &scroll_height.to_string())
+                            .ok();
+                    }
                 }
             }
-        }
-    }
+        };
 
-    // For native desktop/mobile, the CSS structure ensures proper scrolling behavior
+        use_effect(move || {
+            if current_message_count != prev_message_count()
+                || current_loading_state != prev_loading_state()
+            {
+                prev_message_count.set(current_message_count);
+                prev_loading_state.set(current_loading_state);
+                scroll_to_bottom();
+            }
+        });
+
+        use_effect(move || {
+            scroll_to_bottom();
+        });
+    }
 
     rsx! {
         div { class: "flex flex-col h-screen",
