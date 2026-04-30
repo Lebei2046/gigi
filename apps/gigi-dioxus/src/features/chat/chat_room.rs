@@ -14,6 +14,40 @@ use crate::features::chat::hooks::{
 };
 use crate::services::p2p_service::P2pService;
 
+fn scroll_to_bottom(element_id: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                if let Some(container) = document.get_element_by_id(element_id) {
+                    let scroll_height = container.scroll_height();
+                    container
+                        .set_attribute("scrollTop", &scroll_height.to_string())
+                        .ok();
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let js = format!(
+            r#"
+            setTimeout(function() {{
+                var el = document.getElementById('{}');
+                if (el) {{
+                    el.scrollTop = el.scrollHeight;
+                }}
+            }}, 10);
+            "#,
+            element_id
+        );
+        spawn(async move {
+            let _ = dioxus::document::eval(&js).await;
+        });
+    }
+}
+
 // Chat Room Component
 #[component]
 pub fn ChatRoom(id: String) -> Element {
@@ -118,41 +152,12 @@ pub fn ChatRoom(id: String) -> Element {
         navigator.push("/");
     };
 
-    let mut prev_message_count = use_signal(|| 0);
-    let mut prev_loading_state = use_signal(|| true);
+    let chat_room_state_clone = chat_room_state.clone();
 
-    let current_message_count = chat_room_state.read().messages.len();
-    let current_loading_state = chat_room_state.read().is_loading;
-
-    #[cfg(feature = "web")]
-    {
-        let scroll_to_bottom = || {
-            if let Some(window) = web_sys::window() {
-                if let Some(document) = window.document() {
-                    if let Some(container) = document.get_element_by_id("message-container") {
-                        let scroll_height = container.scroll_height();
-                        container
-                            .set_attribute("scrollTop", &scroll_height.to_string())
-                            .ok();
-                    }
-                }
-            }
-        };
-
-        use_effect(move || {
-            if current_message_count != prev_message_count()
-                || current_loading_state != prev_loading_state()
-            {
-                prev_message_count.set(current_message_count);
-                prev_loading_state.set(current_loading_state);
-                scroll_to_bottom();
-            }
-        });
-
-        use_effect(move || {
-            scroll_to_bottom();
-        });
-    }
+    use_effect(move || {
+        let _ = chat_room_state_clone.read().messages.len();
+        scroll_to_bottom("message-container");
+    });
 
     rsx! {
         div { class: "flex flex-col h-screen",
