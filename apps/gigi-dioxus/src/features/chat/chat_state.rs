@@ -122,6 +122,9 @@ pub struct Message {
     pub download_id: Option<String>,
     pub file_path: Option<String>,
     pub group_id: Option<String>,
+    pub download_attempts: u32,
+    pub last_download_attempt: Option<chrono::DateTime<chrono::Local>>,
+    pub download_failed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -307,6 +310,9 @@ impl From<&StoredMessage> for Message {
             download_id: None,
             file_path,
             group_id,
+            download_attempts: 0,
+            last_download_attempt: None,
+            download_failed: false,
         }
     }
 }

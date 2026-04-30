@@ -98,27 +98,34 @@ async fn db_worker(mut rx: mpsc::Receiver<DbOperation>) {
             } => {
                 if crate::services::persistence_service::PersistenceService::store_direct_message(
                     from_nickname.clone(),
-                    to_nickname,
+                    to_nickname.clone(),
                     message.clone(),
                     is_own,
                 )
                 .await
                 .is_ok()
                 {
+                    let (conv_id, conv_name, conv_peer_id) = if is_own {
+                        // For own messages, the conversation is with the recipient
+                        (from_peer_id.clone(), to_nickname, from_peer_id.clone())
+                    } else {
+                        // For received messages, the conversation is with the sender
+                        (from_peer_id.clone(), from_nickname, from_peer_id.clone())
+                    };
+
                     let _ = crate::services::persistence_service::PersistenceService::upsert_conversation(
-                        from_peer_id.clone(),
-                        from_nickname,
+                        conv_id,
+                        conv_name,
                         false,
-                        from_peer_id.clone(),
+                        conv_peer_id,
                         Some(message),
                         Some(chrono::Utc::now()),
                     )
                     .await;
-                    let _ =
-                        crate::services::persistence_service::PersistenceService::increment_unread(
-                            &from_peer_id,
-                        )
-                        .await;
+                    // Don't increment unread for own messages
+                    if !is_own {
+                        let _ = crate::services::persistence_service::PersistenceService::increment_unread(&from_peer_id).await;
+                    }
                     let _ = EventBus::send(AppEvent::MessageSaved(from_peer_id));
                 }
             }
@@ -338,6 +345,35 @@ async fn send_db_operation(op: DbOperation) {
 pub struct P2pService;
 
 impl P2pService {
+    pub async fn store_own_direct_message(
+        from_nickname: String,
+        to_nickname: String,
+        message: String,
+        from_peer_id: String,
+    ) {
+        send_db_operation(DbOperation::StoreDirectMessage {
+            from_nickname,
+            to_nickname,
+            message,
+            is_own: true,
+            from_peer_id,
+        })
+        .await;
+    }
+
+    pub async fn store_own_group_message(
+        from_nickname: String,
+        group_name: String,
+        message: String,
+    ) {
+        send_db_operation(DbOperation::StoreGroupMessage {
+            from_nickname,
+            group_name,
+            message,
+            is_own: true,
+        })
+        .await;
+    }
     pub async fn initialize(private_key: &str, nickname: &str) -> Result<()> {
         // Create keypair from private key
         let keypair = Keypair::ed25519_from_bytes(hex::decode(private_key)?)?;

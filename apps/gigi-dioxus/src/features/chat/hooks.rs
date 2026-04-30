@@ -1,3 +1,4 @@
+use chrono::Local;
 use dioxus::prelude::*;
 use futures_util::StreamExt;
 use gigi_p2p::PeerId;
@@ -379,6 +380,132 @@ pub fn use_chat_room_initialization(
     chat_room_state
 }
 
+const MAX_RETRY_ATTEMPTS: u32 = 5;
+const INITIAL_RETRY_DELAY_MS: u64 = 1000;
+
+async fn download_image_with_retry(
+    mut chat_room_state: Signal<ChatRoomState>,
+    sender: String,
+    share_code: String,
+    filename: String,
+    file_type: String,
+    message_id: String,
+) {
+    let mut attempts = 0;
+    let mut delay_ms = INITIAL_RETRY_DELAY_MS;
+
+    while attempts < MAX_RETRY_ATTEMPTS {
+        println!(
+            "Attempting to download image (attempt {}/{}): {} from {}",
+            attempts + 1,
+            MAX_RETRY_ATTEMPTS,
+            filename,
+            sender
+        );
+
+        let result =
+            crate::services::p2p_service::P2pService::download_file(&sender, &share_code).await;
+
+        match result {
+            Ok(download_id) => {
+                println!("Image download started with ID: {}", download_id);
+                {
+                    let mut chat_room = chat_room_state.write();
+                    if let Some(message) =
+                        chat_room.messages.iter_mut().find(|m| m.id == message_id)
+                    {
+                        message.download_id = Some(download_id);
+                        message.download_attempts = attempts + 1;
+                        message.last_download_attempt = Some(Local::now());
+                    }
+                }
+                return;
+            }
+            Err(e) => {
+                attempts += 1;
+                println!("Image download attempt {} failed: {:?}", attempts, e);
+
+                {
+                    let mut chat_room = chat_room_state.write();
+                    if let Some(message) =
+                        chat_room.messages.iter_mut().find(|m| m.id == message_id)
+                    {
+                        message.download_attempts = attempts;
+                        message.last_download_attempt = Some(Local::now());
+                    }
+                }
+
+                if attempts < MAX_RETRY_ATTEMPTS {
+                    let delay = std::time::Duration::from_millis(delay_ms);
+                    println!("Waiting {}ms before retry...", delay_ms);
+                    tokio::time::sleep(delay).await;
+                    delay_ms *= 2;
+                }
+            }
+        }
+    }
+
+    println!(
+        "Failed to download image after {} attempts: {}",
+        MAX_RETRY_ATTEMPTS, filename
+    );
+    {
+        let mut chat_room = chat_room_state.write();
+        if let Some(message) = chat_room.messages.iter_mut().find(|m| m.id == message_id) {
+            message.is_downloading = false;
+            message.download_failed = true;
+        }
+    }
+}
+
+pub async fn retry_failed_image_download(
+    mut chat_room_state: Signal<ChatRoomState>,
+    message_id: String,
+) {
+    let (sender, share_code, filename, file_type) = {
+        let chat_room = chat_room_state.read();
+        if let Some(message) = chat_room.messages.iter().find(|m| m.id == message_id) {
+            if message.download_failed && message.share_code.is_some() {
+                (
+                    Some(message.sender.clone()),
+                    message.share_code.clone(),
+                    message.filename.clone().unwrap_or_default(),
+                    message.file_type.clone().unwrap_or_default(),
+                )
+            } else {
+                (None, None, String::new(), String::new())
+            }
+        } else {
+            (None, None, String::new(), String::new())
+        }
+    };
+
+    if let (Some(sender), Some(share_code)) = (sender, share_code) {
+        {
+            let mut chat_room = chat_room_state.write();
+            if let Some(msg) = chat_room.messages.iter_mut().find(|m| m.id == message_id) {
+                msg.is_downloading = true;
+                msg.download_failed = false;
+                msg.download_attempts = 0;
+            }
+        }
+
+        let chat_room_state_clone = chat_room_state.clone();
+        let message_id_clone = message_id.clone();
+        spawn(async move {
+            download_image_with_retry(
+                chat_room_state_clone,
+                sender,
+                share_code,
+                filename,
+                file_type,
+                message_id_clone,
+            )
+            .await;
+        });
+    }
+}
+
 // Hook for chat event listeners
 pub fn use_chat_event_listeners(
     chat_state: Signal<ChatState>,
@@ -578,6 +705,9 @@ pub fn use_chat_event_listeners(
                                             download_id: None,
                                             file_path: None,
                                             group_id: None,
+                                            download_attempts: 0,
+                                            last_download_attempt: None,
+                                            download_failed: false,
                                         });
                                         println!("Added message to chat room");
                                     } else {
@@ -620,6 +750,9 @@ pub fn use_chat_event_listeners(
                                             download_id: None,
                                             file_path: None,
                                             group_id: None,
+                                            download_attempts: 0,
+                                            last_download_attempt: None,
+                                            download_failed: false,
                                         });
                                         println!("Added group message to chat room");
                                     } else {
@@ -925,16 +1058,54 @@ pub fn use_chat_event_listeners(
                         AppEvent::FileDownloadFailed { download_id, error } => {
                             println!("File download failed: {} - {}", download_id, error);
                             // Update the message with the download failure
-                            let mut chat_room = chat_room_state_clone.write();
-                            if let Some(message) = chat_room
-                                .messages
-                                .iter_mut()
-                                .find(|m| m.download_id == Some(download_id.clone()))
+                            let mut chat_room_state_ref = chat_room_state_clone.clone();
+                            let download_id_clone = download_id.clone();
+
                             {
-                                message.is_downloading = false;
-                                message.download_progress = None;
-                                println!("Updated message download status to failed");
+                                let mut chat_room = chat_room_state_ref.write();
+                                if let Some(message) = chat_room
+                                    .messages
+                                    .iter_mut()
+                                    .find(|m| m.download_id == Some(download_id.clone()))
+                                {
+                                    message.is_downloading = false;
+                                    message.download_progress = None;
+                                    message.download_attempts += 1;
+                                    message.last_download_attempt = Some(Local::now());
+                                    println!("Updated message download status to failed");
+                                }
                             }
+
+                            spawn(async move {
+                                let chat_room = chat_room_state_ref.read();
+                                if let Some(message) = chat_room
+                                    .messages
+                                    .iter()
+                                    .find(|m| m.download_id == Some(download_id_clone.clone()))
+                                {
+                                    if message.message_type
+                                        == crate::features::chat::chat_state::MessageType::Image
+                                        && message.download_attempts < MAX_RETRY_ATTEMPTS
+                                    {
+                                        let delay_ms = INITIAL_RETRY_DELAY_MS
+                                            * (2u64.pow(message.download_attempts - 1));
+                                        println!(
+                                            "Retrying image download after {}ms (attempt {})",
+                                            delay_ms, message.download_attempts
+                                        );
+                                        tokio::time::sleep(std::time::Duration::from_millis(
+                                            delay_ms,
+                                        ))
+                                        .await;
+
+                                        retry_failed_image_download(
+                                            chat_room_state_ref,
+                                            message.id.clone(),
+                                        )
+                                        .await;
+                                    }
+                                }
+                            });
                         }
                         AppEvent::ContactUpdated => {
                             println!("Contact updated event");
@@ -955,40 +1126,71 @@ pub fn use_chat_event_listeners(
                                 "File share received from {}: {} (code: {})",
                                 from_nickname, filename, share_code
                             );
-                            let state = chat_room_state_clone.read();
-                            if state.chat_name == Some(from_nickname.clone()) {
-                                drop(state);
-                                let mut chat_room = chat_room_state_clone.write();
+                            let is_for_current_chat = {
+                                let state = chat_room_state_clone.read();
+                                state.chat_name == Some(from_nickname.clone())
+                            };
+
+                            if is_for_current_chat {
+                                let sender = from_nickname.clone();
+                                let share_code_clone = share_code.clone();
+                                let filename_clone = filename.clone();
+                                let file_type_clone = file_type.clone();
 
                                 let lower_file_type = file_type.to_lowercase();
                                 let is_image = lower_file_type.starts_with("image/")
                                     || ["png", "jpg", "jpeg", "gif", "bmp", "webp"]
                                         .contains(&lower_file_type.as_str());
 
-                                let new_message = Message {
-                                    id: uuid::Uuid::new_v4().to_string(),
-                                    content: format!("Shared file: {}", filename),
-                                    sender: from_nickname.clone(),
-                                    timestamp: chrono::Local::now().format("%H:%M %p").to_string(),
-                                    is_own: false,
-                                    message_type: if is_image {
-                                        crate::features::chat::chat_state::MessageType::Image
-                                    } else {
-                                        crate::features::chat::chat_state::MessageType::File
-                                    },
-                                    filename: Some(filename),
-                                    file_size: Some(file_size),
-                                    file_type: Some(file_type),
-                                    share_code: Some(share_code),
-                                    is_downloading: false,
-                                    download_progress: None,
-                                    download_id: None,
-                                    file_path: None,
-                                    group_id: None,
-                                };
+                                let message_id = uuid::Uuid::new_v4().to_string();
 
-                                chat_room.messages.push(new_message);
-                                println!("Added file share message to chat room");
+                                {
+                                    let mut chat_room = chat_room_state_clone.write();
+                                    let new_message = Message {
+                                        id: message_id.clone(),
+                                        content: format!("Shared file: {}", filename),
+                                        sender: from_nickname.clone(),
+                                        timestamp: chrono::Local::now()
+                                            .format("%H:%M %p")
+                                            .to_string(),
+                                        is_own: false,
+                                        message_type: if is_image {
+                                            crate::features::chat::chat_state::MessageType::Image
+                                        } else {
+                                            crate::features::chat::chat_state::MessageType::File
+                                        },
+                                        filename: Some(filename),
+                                        file_size: Some(file_size),
+                                        file_type: Some(file_type),
+                                        share_code: Some(share_code),
+                                        is_downloading: is_image,
+                                        download_progress: None,
+                                        download_id: None,
+                                        file_path: None,
+                                        group_id: None,
+                                        download_attempts: 0,
+                                        last_download_attempt: None,
+                                        download_failed: false,
+                                    };
+
+                                    chat_room.messages.push(new_message);
+                                    println!("Added file share message to chat room");
+                                }
+
+                                if is_image {
+                                    let chat_room_state_ref = chat_room_state_clone.clone();
+                                    spawn(async move {
+                                        download_image_with_retry(
+                                            chat_room_state_ref,
+                                            sender,
+                                            share_code_clone,
+                                            filename_clone,
+                                            file_type_clone,
+                                            message_id,
+                                        )
+                                        .await;
+                                    });
+                                }
                             }
                         }
                         AppEvent::GroupFileShareReceived {
@@ -1004,40 +1206,71 @@ pub fn use_chat_event_listeners(
                                 "Group file share received from {} in {}: {} (code: {})",
                                 from_nickname, group_name, filename, share_code
                             );
-                            let state = chat_room_state_clone.read();
-                            if state.chat_name == Some(group_name.clone()) && state.is_group_chat {
-                                drop(state);
-                                let mut chat_room = chat_room_state_clone.write();
+                            let is_for_current_chat = {
+                                let state = chat_room_state_clone.read();
+                                state.chat_name == Some(group_name.clone()) && state.is_group_chat
+                            };
+
+                            if is_for_current_chat {
+                                let sender = from_nickname.clone();
+                                let share_code_clone = share_code.clone();
+                                let filename_clone = filename.clone();
+                                let file_type_clone = file_type.clone();
 
                                 let lower_file_type = file_type.to_lowercase();
                                 let is_image = lower_file_type.starts_with("image/")
                                     || ["png", "jpg", "jpeg", "gif", "bmp", "webp"]
                                         .contains(&lower_file_type.as_str());
 
-                                let new_message = Message {
-                                    id: uuid::Uuid::new_v4().to_string(),
-                                    content: format!("Shared file: {}", filename),
-                                    sender: from_nickname.clone(),
-                                    timestamp: chrono::Local::now().format("%H:%M %p").to_string(),
-                                    is_own: false,
-                                    message_type: if is_image {
-                                        crate::features::chat::chat_state::MessageType::Image
-                                    } else {
-                                        crate::features::chat::chat_state::MessageType::File
-                                    },
-                                    filename: Some(filename),
-                                    file_size: Some(file_size),
-                                    file_type: Some(file_type),
-                                    share_code: Some(share_code),
-                                    is_downloading: false,
-                                    download_progress: None,
-                                    download_id: None,
-                                    file_path: None,
-                                    group_id: None,
-                                };
+                                let message_id = uuid::Uuid::new_v4().to_string();
 
-                                chat_room.messages.push(new_message);
-                                println!("Added file share message to chat room");
+                                {
+                                    let mut chat_room = chat_room_state_clone.write();
+                                    let new_message = Message {
+                                        id: message_id.clone(),
+                                        content: format!("Shared file: {}", filename),
+                                        sender: from_nickname.clone(),
+                                        timestamp: chrono::Local::now()
+                                            .format("%H:%M %p")
+                                            .to_string(),
+                                        is_own: false,
+                                        message_type: if is_image {
+                                            crate::features::chat::chat_state::MessageType::Image
+                                        } else {
+                                            crate::features::chat::chat_state::MessageType::File
+                                        },
+                                        filename: Some(filename),
+                                        file_size: Some(file_size),
+                                        file_type: Some(file_type),
+                                        share_code: Some(share_code),
+                                        is_downloading: is_image,
+                                        download_progress: None,
+                                        download_id: None,
+                                        file_path: None,
+                                        group_id: None,
+                                        download_attempts: 0,
+                                        last_download_attempt: None,
+                                        download_failed: false,
+                                    };
+
+                                    chat_room.messages.push(new_message);
+                                    println!("Added file share message to chat room");
+                                }
+
+                                if is_image {
+                                    let chat_room_state_ref = chat_room_state_clone.clone();
+                                    spawn(async move {
+                                        download_image_with_retry(
+                                            chat_room_state_ref,
+                                            sender,
+                                            share_code_clone,
+                                            filename_clone,
+                                            file_type_clone,
+                                            message_id,
+                                        )
+                                        .await;
+                                    });
+                                }
                             }
                         }
                     }
@@ -1093,6 +1326,9 @@ pub fn use_message_actions(
                 download_id: None,
                 file_path: None,
                 group_id: None,
+                download_attempts: 0,
+                last_download_attempt: None,
+                download_failed: false,
             };
 
             println!("Created message: {:?}", new_msg);
@@ -1115,6 +1351,9 @@ pub fn use_message_actions(
             // Send the message via P2P service
             let is_group_chat = chat_room_state.read().is_group_chat;
             let chat_id = chat_room_state.read().chat_id.clone();
+
+            // Get necessary data before moving into async block
+            let peer = chat_room_state.read().peer.clone();
 
             spawn(async move {
                 if is_group_chat {
@@ -1157,86 +1396,28 @@ pub fn use_message_actions(
                 // Set sending to false
                 chat_room_state.write().sending = false;
 
-                // Save message to persistence and send event
-                if let Some(chat_id) = chat_id {
-                    println!("Saving message to persistence for chat: {}", chat_id);
-                    let new_msg_clone = new_msg.clone();
-                    let chat_name = chat_room_state.read().chat_name.clone();
-                    let is_group_chat = chat_room_state.read().is_group_chat;
-                    let message_id = new_msg.id.clone(); // Preserve the message ID
-                    spawn(async move {
-                        // Get local nickname from P2P service
-                        let local_nickname: Option<String> =
-                            crate::services::p2p_service::P2pService::get_local_nickname().await;
-                        let local_nickname = local_nickname.unwrap_or("You".to_string());
-
-                        if is_group_chat {
-                            // Save group message with the original message ID
-                            if let Err(err) = crate::services::persistence_service::PersistenceService::store_group_message_with_id(
-                                message_id,
-                                local_nickname.clone(),
-                                chat_name.clone().unwrap_or_default(),
-                                new_msg_clone.content.clone(),
-                                true,
+                // Save message to persistence using P2pService's db worker
+                if let Some(local_nickname) =
+                    crate::services::p2p_service::P2pService::get_local_nickname().await
+                {
+                    if is_group_chat {
+                        crate::services::p2p_service::P2pService::store_own_group_message(
+                            local_nickname,
+                            chat_name,
+                            message_content,
+                        )
+                        .await;
+                    } else {
+                        if let Some(peer) = peer {
+                            crate::services::p2p_service::P2pService::store_own_direct_message(
+                                local_nickname,
+                                chat_name,
+                                message_content,
+                                peer.id,
                             )
-                            .await
-                            {
-                                println!("Error saving group message: {:?}", err);
-                            }
-
-                            // Update conversation for group chat
-                            if let Some(ref group_name) = chat_name {
-                                if let Err(err) = crate::services::persistence_service::PersistenceService::upsert_conversation(
-                                    format!("group-{}", group_name),
-                                    group_name.clone(),
-                                    true, // is group
-                                    group_name.clone(),
-                                    Some(new_msg_clone.content),
-                                    Some(chrono::Utc::now()),
-                                )
-                                .await
-                                {
-                                    println!("Error upserting group conversation: {:?}", err);
-                                }
-                            }
-                        } else {
-                            // Save direct message
-                            if let Err(err) = crate::services::persistence_service::PersistenceService::store_direct_message(
-                                local_nickname.clone(),
-                                chat_name.clone().unwrap_or_default(),
-                                new_msg_clone.content.clone(),
-                                true,
-                            )
-                            .await
-                            {
-                                println!("Error saving message: {:?}", err);
-                            }
-
-                            // Create or update conversation for direct messages
-                            if let Some(ref peer_nickname) = chat_name {
-                                if let Err(err) = crate::services::persistence_service::PersistenceService::upsert_conversation(
-                                    chat_id.clone(),
-                                    peer_nickname.clone(),
-                                    false, // not a group
-                                    chat_id.clone(),
-                                    Some(new_msg_clone.content),
-                                    Some(chrono::Utc::now()),
-                                )
-                                .await
-                                {
-                                    println!("Error upserting conversation: {:?}", err);
-                                }
-                            }
+                            .await;
                         }
-
-                        if let Err(err) = crate::services::event_bus::EventBus::send(
-                            crate::services::event_bus::AppEvent::MessageSaved(chat_id),
-                        ) {
-                            println!("Error sending MessageSaved event: {:?}", err);
-                        }
-                    });
-                } else {
-                    println!("No chat ID available for saving message");
+                    }
                 }
             });
         } else {
@@ -1527,6 +1708,9 @@ async fn handle_shared_file(
             download_id: None,
             file_path: Some(file_path.to_string_lossy().to_string()),
             group_id: None,
+            download_attempts: 0,
+            last_download_attempt: None,
+            download_failed: false,
         };
 
         chat_room_state.write().messages.push(new_msg.clone());
