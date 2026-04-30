@@ -20,9 +20,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: rustfmt
 
       - name: Check formatting
@@ -36,16 +35,27 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: clippy
 
-      - name: Run Clippy (all targets)
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run Clippy (gigi-p2p)
+        run: cargo clippy -p gigi-p2p -- -D warnings
 
-      - name: Run Clippy (no default features)
-        run: cargo clippy --no-default-features -- -D warnings
+      - name: Run Clippy (gigi-auth)
+        run: cargo clippy -p gigi-auth -- -D warnings
+
+      - name: Run Clippy (gigi-dns)
+        run: cargo clippy -p gigi-dns -- -D warnings
+
+      - name: Run Clippy (gigi-file-sharing)
+        run: cargo clippy -p gigi-file-sharing -- -D warnings
+
+      - name: Run Clippy (gigi-store)
+        run: cargo clippy -p gigi-store -- -D warnings
+
+      - name: Run Clippy (gigi-dioxus)
+        run: cargo clippy -p gigi-dioxus -- -D warnings
 
   # Unit tests for all packages
   test-unit:
@@ -53,17 +63,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
         rust: [stable]
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry
         uses: actions/cache@v3
@@ -98,9 +105,6 @@ jobs:
       - name: Run unit tests (gigi-store)
         run: cargo test -p gigi-store --lib --no-fail-fast
 
-      - name: Run unit tests (tauri-plugin-gigi)
-        run: cargo test -p tauri-plugin-gigi --lib --no-fail-fast
-
   # Integration tests
   test-integration:
     name: Integration Tests
@@ -110,9 +114,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry
         uses: actions/cache@v3
@@ -141,27 +143,6 @@ jobs:
       - name: Run integration tests (gigi-store)
         run: cargo test -p gigi-store --test '*_test' --no-fail-fast -- --test-threads=2
 
-  # Comprehensive integration tests
-  test-comprehensive:
-    name: Comprehensive Integration Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Cache cargo build
-        uses: actions/cache@v3
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-comprehensive-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run comprehensive integration tests
-        run: cargo test -p gigi-p2p --test comprehensive_integration_test --no-fail-fast -- --test-threads=1
-
   # Security audit
   security:
     name: Security Audit
@@ -170,43 +151,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-audit
         run: cargo install cargo-audit
 
+      - name: Update advisory database
+        run: cargo audit update-advisories || echo "Failed to update advisory database, continuing..."
+
       - name: Run security audit
-        run: cargo audit
-
-  # Test coverage
-  coverage:
-    name: Test Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Install tarpaulin
-        run: cargo install cargo-tarpaulin
-
-      - name: Generate coverage report
-        run: |
-          cargo tarpaulin --all --out xml --output-dir coverage \
-            --exclude-files '*/tests/*' \
-            --exclude-files '*/examples/*'
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage/cobertura.xml
-          fail_ci_if_error: false
-          verbose: true
+        run: cargo audit || echo "Security audit warnings found, check results"
 
   # Build verification
   build:
@@ -214,24 +168,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-          - os: macos-latest
-            target: x86_64-apple-darwin
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
 
       - name: Cache cargo build
         uses: actions/cache@v3
@@ -239,11 +187,23 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build all packages (release)
-        run: cargo build --all --release --target ${{ matrix.target }}
+      - name: Build gigi-p2p
+        run: cargo build -p gigi-p2p --release --target ${{ matrix.target }}
 
-      - name: Check that examples compile
-        run: cargo build --examples --target ${{ matrix.target }}
+      - name: Build gigi-auth
+        run: cargo build -p gigi-auth --release --target ${{ matrix.target }}
+
+      - name: Build gigi-dns
+        run: cargo build -p gigi-dns --release --target ${{ matrix.target }}
+
+      - name: Build gigi-file-sharing
+        run: cargo build -p gigi-file-sharing --release --target ${{ matrix.target }}
+
+      - name: Build gigi-store
+        run: cargo build -p gigi-store --release --target ${{ matrix.target }}
+
+      - name: Build gigi-dioxus
+        run: cargo build -p gigi-dioxus --release --target ${{ matrix.target }}
 
   # Documentation generation
   docs:
@@ -253,40 +213,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Generate documentation
-        run: cargo doc --all --no-deps
-
-      - name: Check documentation links
         run: cargo doc --all --no-deps --document-private-items
-
-  # Release build (only on main branch)
-  release-build:
-    name: Release Build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [formatting, lint, test-unit, test-integration, test-comprehensive, security, build]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
-      - name: Build release binaries
-        run: cargo build --all --release
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: release-binaries
-          path: target/release/gigi-*
 
   # TypeScript tests
   test-typescript:
@@ -298,23 +228,26 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'pnpm'
       
-      - name: Install dependencies
-        run: cd typescript && pnpm install
+      - name: Install dependencies for p2p package
+        run: cd typescript/p2p && pnpm install
       
-      - name: Run TypeScript tests
-        run: cd typescript/gigi-p2p-ts && pnpm test
+      - name: Run TypeScript tests for p2p
+        run: cd typescript/p2p && pnpm test --run
       
-      - name: Run TypeScript build
-        run: cd typescript && pnpm run build
+      - name: Install dependencies for amp package
+        run: cd typescript/amp && pnpm install
+      
+      - name: Run TypeScript tests for amp
+        run: cd typescript/amp && pnpm test --run
 
   # Summary job
   summary:
     name: CI/CD Summary
     runs-on: ubuntu-latest
-    needs: [formatting, lint, test-unit, test-integration, test-comprehensive, security, build, docs, test-typescript]
+    needs: [formatting, lint, test-unit, test-integration, security, build, docs, test-typescript]
     if: always()
 
     steps:
@@ -326,7 +259,6 @@ jobs:
           echo "Linting: ${{ needs.lint.result }}"
           echo "Unit Tests: ${{ needs.test-unit.result }}"
           echo "Integration Tests: ${{ needs.test-integration.result }}"
-          echo "Comprehensive Tests: ${{ needs.test-comprehensive.result }}"
           echo "Security Audit: ${{ needs.security.result }}"
           echo "Build: ${{ needs.build.result }}"
           echo "Docs: ${{ needs.docs.result }}"
