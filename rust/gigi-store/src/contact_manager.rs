@@ -46,7 +46,6 @@ impl ContactManager {
             peer_id: Set(peer_id.to_string()),
             name: Set(name.to_string()),
             added_at: Set(now),
-            ..Default::default()
         };
 
         // Try to insert, ignoring RecordNotFound errors from the return value

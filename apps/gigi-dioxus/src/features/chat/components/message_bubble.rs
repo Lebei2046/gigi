@@ -265,46 +265,12 @@ fn ImageMessageBubble(
                             }
                         }
                     }
-                } else if let Some(path) = &effective_file_path {
-                    if effective_file_exists {
-                        div { class: "bg-gray-100 rounded p-2 mb-2",
-                            img {
-                                class: "max-w-64 max-h-64 rounded object-contain",
-                                src: format!("{}", effective_file_path.as_ref().unwrap()),
-                                alt: format!("{}", filename.as_ref().unwrap_or(&message_content)),
-                            }
-                        }
-                    } else if is_downloadable {
-                        div {
-                            class: "bg-gray-100 rounded p-3 mb-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors",
-                            onclick: handle_download_click,
-                            div { class: "w-16 h-16 bg-gray-200 rounded flex items-center justify-center",
-                                svg {
-                                    class: "w-8 h-8 text-gray-500",
-                                    fill: "none",
-                                    stroke: "currentColor",
-                                    view_box: "0 0 24 24",
-                                    path {
-                                        stroke_linecap: "round",
-                                        stroke_linejoin: "round",
-                                        stroke_width: "2",
-                                        d: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z",
-                                    }
-                                }
-                            }
-                            div { class: "flex-1 min-w-0",
-                                div { class: "text-sm font-medium text-gray-900 truncate",
-                                    "{filename.as_ref().unwrap_or(&message_content)}"
-                                }
-                                div { class: "text-xs text-gray-500", "{format_file_size(file_size)}" }
-                                div { class: "text-xs text-blue-600 mt-1", "Tap to download" }
-                            }
-                        }
-                    } else {
-                        div { class: "bg-gray-100 rounded p-2 mb-2",
-                            div { class: "w-48 h-48 bg-gray-200 rounded flex items-center justify-center",
-                                span { class: "text-gray-500", "Image" }
-                            }
+                } else if effective_file_exists {
+                    div { class: "bg-gray-100 rounded p-2 mb-2",
+                        img {
+                            class: "max-w-64 max-h-64 rounded object-contain",
+                            src: format!("{}", effective_file_path.as_ref().unwrap()),
+                            alt: format!("{}", filename.as_ref().unwrap_or(&message_content)),
                         }
                     }
                 } else if is_downloadable {
@@ -366,13 +332,13 @@ fn FileMessageBubble(
     let message_sender = message.sender.clone();
     let message_content = message.content.clone();
     let message_file_size = message.file_size;
-    let message_timestamp = message.timestamp.clone();
+    let _message_timestamp = message.timestamp.clone();
 
     let filename_for_icon = filename.clone();
     let filename_for_click = filename.clone();
     let share_code_for_click = share_code.clone();
     let file_type_for_click = file_type.clone();
-    let message_id_for_click = message_id.clone();
+    let _message_id_for_click = message_id.clone();
     let message_id_for_delete = message_id.clone();
     let file_path_for_display = file_path.clone();
 
@@ -460,7 +426,7 @@ fn FileMessageBubble(
     let get_file_icon = move || {
         let ext = filename_for_icon
             .as_ref()
-            .and_then(|f| f.split('.').last())
+            .and_then(|f| f.split('.').next_back())
             .map(|s| s.to_lowercase())
             .unwrap_or_default();
 
@@ -801,7 +767,7 @@ fn FileMessageBubble(
                         }
                     }
                 }
-                if message_content != filename.as_deref().unwrap_or("").to_string() {
+                if message_content != filename.as_deref().unwrap_or("") {
                     div { class: "text-sm text-gray-600 mt-1", "{message_content}" }
                 }
                 div { class: if message.is_own { "text-xs text-blue-600 mt-1 text-right" } else { "text-xs text-gray-500 mt-1" },

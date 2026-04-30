@@ -108,13 +108,13 @@ impl MessageContent {
             }
         }
     }
-    
+
     pub fn from_any(any: &Any) -> Result<Self> {
         let obj = any.as_object().ok_or(Error::InvalidMessageFormat)?;
         let msg_type = obj.get("type")
             .and_then(|v| v.as_string())
             .ok_or(Error::MissingMessageType)?;
-        
+
         match msg_type.as_str() {
             "text" => {
                 let text = obj.get("text")
@@ -235,10 +235,10 @@ impl CrdtMessageStore {
             &format!("sqlite:{}", db_path.display()),
             BlobStorageType::DB,
         ).await?;
-        
+
         // 创建或获取工作空间
         storage.create_workspace(&workspace_id).await?;
-        
+
         Ok(Self {
             storage,
             workspace_id,
@@ -247,7 +247,7 @@ impl CrdtMessageStore {
             spaces: Arc::new(RwLock::new(HashMap::new())),
         })
     }
-    
+
     /// 获取或创建单聊空间
     pub async fn get_or_create_direct_space(
         &self,
@@ -255,22 +255,22 @@ impl CrdtMessageStore {
     ) -> Result<(Space, Arc<Doc>)> {
         let space_id = format!("direct-{}", peer_nickname);
         let mut spaces = self.spaces.write().await;
-        
+
         if let Some((space, doc)) = spaces.get(&space_id) {
             return Ok((space.clone(), doc.clone()));
         }
-        
+
         // 从存储加载工作空间
         let workspace = self.storage.get_workspace(&self.workspace_id).await?;
         let mut space = workspace.get_space(&space_id)?;
-        
+
         // 创建或获取消息数组 Block
         if space.get("messages").is_none() {
             let messages_block = space.create("messages", "message-array")?;
             // 确保这个 Block 有 children 数组
             // OctoBase 的 Block 自动有 children 属性
         }
-        
+
         // 创建或获取元数据 Block
         if space.get("metadata").is_none() {
             let metadata_block = space.create("metadata", "queue-metadata")?;
@@ -282,18 +282,18 @@ impl CrdtMessageStore {
                 Any::String(peer_nickname.to_string()),
             ]))?;
         }
-        
+
         // 创建确认 Block
         if space.get("acknowledgments").is_none() {
             space.create("acknowledgments", "ack-array")?;
         }
-        
+
         let doc = space.doc();
         spaces.insert(space_id.clone(), (space.clone(), Arc::new(doc.clone())));
-        
+
         Ok((space, Arc::new(doc)))
     }
-    
+
     /// 获取或创建群组空间
     pub async fn get_or_create_group_space(
         &self,
@@ -302,7 +302,7 @@ impl CrdtMessageStore {
         let space_id = format!("group-{}", group_name);
         // ... 类似单聊空间
     }
-    
+
     /// 添加消息到 CRDT 队列
     pub async fn append_message(
         &self,
@@ -312,11 +312,11 @@ impl CrdtMessageStore {
         let (space, doc) = self.get_or_create_direct_space(peer_nickname).await?;
         let messages_block = space.get("messages").ok_or(Error::MessagesBlockNotFound)?;
         let mut children = messages_block.children();
-        
+
         // 创建消息 Block
         let message_id = Uuid::new_v4().to_string();
         let mut message_block = space.create(&message_id, "message")?;
-        
+
         // 设置消息属性
         message_block.set("sender_nickname", self.local_nickname.clone())?;
         message_block.set("sender_peer_id", self.local_peer_id.to_string())?;
@@ -328,20 +328,20 @@ impl CrdtMessageStore {
         message_block.set("status", "pending")?;
         message_block.set("delivered_at", Any::Null)?;
         message_block.set("read_at", Any::Null)?;
-        
+
         // 添加到消息数组
         children.push(message_id.clone())?;
-        
+
         // 持久化到存储
         self.storage.full_migrate(
             self.workspace_id.clone(),
             None,
             false,
         ).await?;
-        
+
         Ok(message_id)
     }
-    
+
     /// 获取消息历史 (支持分页)
     pub async fn get_messages(
         &self,
@@ -352,20 +352,20 @@ impl CrdtMessageStore {
         let (space, _doc) = self.get_or_create_direct_space(peer_nickname).await?;
         let messages_block = space.get("messages").ok_or(Error::MessagesBlockNotFound)?;
         let children = messages_block.children();
-        
+
         // 获取所有消息 Block ID
         let mut message_ids: Vec<String> = children.iter()
             .filter_map(|v| v.to_any().ok()?.as_string())
             .collect();
-        
+
         // 倒序 (最新的在前)
         message_ids.reverse();
-        
+
         // 分页
         let start = offset;
         let end = (offset + limit).min(message_ids.len());
         let page_ids = &message_ids[start..end];
-        
+
         // 加载消息 Blocks
         let mut messages = Vec::new();
         for block_id in page_ids {
@@ -375,10 +375,10 @@ impl CrdtMessageStore {
                 }
             }
         }
-        
+
         Ok(messages)
     }
-    
+
     /// 标记消息已投递
     pub async fn mark_delivered(
         &self,
@@ -388,7 +388,7 @@ impl CrdtMessageStore {
         let (space, doc) = self.get_or_create_direct_space(peer_nickname).await?;
         let messages_block = space.get("messages").ok_or(Error::MessagesBlockNotFound)?;
         let children = messages_block.children();
-        
+
         // 获取指定索引的消息
         if let Some(msg_id) = children.get(message_index as usize)
             .and_then(|v| v.to_any().ok()?.as_string()) {
@@ -397,20 +397,20 @@ impl CrdtMessageStore {
                 block.set("delivered_at", Utc::now().timestamp_millis())?;
             }
         }
-        
+
         // 更新元数据
         let metadata_block = space.get("metadata").ok_or(Error::MetadataBlockNotFound)?;
         metadata_block.set("delivered_index", message_index as i64)?;
-        
+
         self.storage.full_migrate(
             self.workspace_id.clone(),
             None,
             false,
         ).await?;
-        
+
         Ok(())
     }
-    
+
     /// 标记消息已读
     pub async fn mark_read(
         &self,
@@ -420,7 +420,7 @@ impl CrdtMessageStore {
         let (space, _doc) = self.get_or_create_direct_space(peer_nickname).await?;
         let messages_block = space.get("messages").ok_or(Error::MessagesBlockNotFound)?;
         let children = messages_block.children();
-        
+
         // 获取消息
         if let Some(msg_id) = children.get(message_index as usize)
             .and_then(|v| v.to_any().ok()?.as_string()) {
@@ -429,20 +429,20 @@ impl CrdtMessageStore {
                 block.set("read_at", Utc::now().timestamp_millis())?;
             }
         }
-        
+
         // 更新元数据
         let metadata_block = space.get("metadata").ok_or(Error::MetadataBlockNotFound)?;
         metadata_block.set("last_read_index", message_index as i64)?;
-        
+
         self.storage.full_migrate(
             self.workspace_id.clone(),
             None,
             false,
         ).await?;
-        
+
         Ok(())
     }
-    
+
     /// 订阅 CRDT 变更
     pub async fn subscribe<F>(
         &self,
@@ -456,17 +456,17 @@ impl CrdtMessageStore {
         doc.subscribe(callback);
         Ok(())
     }
-    
+
     /// 生成 State Vector (用于差分同步)
     pub fn get_state_vector(&self, peer_nickname: &str) -> Result<Vec<u8>> {
         let doc = self.spaces.read()
             .get(&format!("direct-{}", peer_nickname))
             .map(|(_, d)| d.clone())
             .ok_or(Error::SpaceNotFound)?;
-        
+
         Ok(doc.get_state_vector())
     }
-    
+
     /// 编码 State Vector 之后的更新
     pub fn encode_state_as_update(
         &self,
@@ -477,19 +477,19 @@ impl CrdtMessageStore {
             .get(&format!("direct-{}", peer_nickname))
             .map(|(_, d)| d.clone())
             .ok_or(Error::SpaceNotFound)?;
-        
+
         let sv = StateVector::decode_v1(state_vector)
             .map_err(|_| Error::InvalidStateVector)?;
         Ok(doc.encode_state_as_update_v1(&sv)?)
     }
-    
+
     /// 应用远程更新
     pub fn apply_update(&self, peer_nickname: &str, update: Vec<u8>) -> Result<()> {
         let doc = self.spaces.read()
             .get(&format!("direct-{}", peer_nickname))
             .map(|(_, d)| d.clone())
             .ok_or(Error::SpaceNotFound)?;
-        
+
         doc.apply_update_from_binary_v1(update)?;
         Ok(())
     }
@@ -519,12 +519,12 @@ impl CrdtSyncManager {
             awareness: Arc::new(Awareness::new(local_client_id)),
         }
     }
-    
+
     /// 检测到好友上线时触发同步
     pub async fn on_peer_online(&mut self, nickname: &str, peer_id: PeerId) -> Result<SyncAction> {
         // 1. 获取该好友的 State Vector
         let my_sv = self.message_store.get_state_vector(nickname)?;
-        
+
         // 2. 请求好友的 State Vector
         Ok(SyncAction::RequestStateVector {
             target: peer_id,
@@ -532,7 +532,7 @@ impl CrdtSyncManager {
             my_state_vector: my_sv,
         })
     }
-    
+
     /// 处理来自好友的 State Vector 请求
     pub async fn handle_state_vector_request(
         &self,
@@ -544,12 +544,12 @@ impl CrdtSyncManager {
         // 1. 生成我需要发送的更新 (基于对方的 State Vector)
         let updates_to_send = self.message_store
             .encode_state_as_update(peer_nickname, &peer_state_vector)?;
-        
+
         // 2. 保存对方的 State Vector 用于后续差分同步
         let mut last_sync = self.last_sync_with_peer.write().await;
         last_sync.insert(peer_nickname.to_string(), Utc::now().timestamp_millis() as u64);
         drop(last_sync);
-        
+
         // 3. 返回需要发送给对方的更新
         Ok(SyncAction::SendUpdates {
             target: peer_id,
@@ -557,7 +557,7 @@ impl CrdtSyncManager {
             updates: updates_to_send,
         })
     }
-    
+
     /// 应用来自好友的更新
     pub async fn apply_remote_updates(
         &self,
@@ -566,22 +566,22 @@ impl CrdtSyncManager {
     ) -> Result<Vec<MessageBlock>> {
         // 应用更新到 CRDT
         self.message_store.apply_update(peer_nickname, updates)?;
-        
+
         // 获取新增的消息 (通过订阅回调或比较 State Vector)
         // 这里简化实现:获取最近的 10 条消息
         self.message_store.get_messages(peer_nickname, 10, 0).await
     }
-    
+
     /// 定期同步任务
     pub async fn run_sync_task(&self) {
         let mut interval = tokio::time::interval(self.sync_interval);
-        
+
         loop {
             interval.tick().await;
-            
+
             // 遍历所有在线好友,触发同步
             let peers = self.get_online_peers().await;
-            
+
             for (nickname, peer_id) in peers {
                 if let Ok(action) = self.on_peer_online(&nickname, peer_id).await {
                     // 执行同步操作
@@ -591,11 +591,11 @@ impl CrdtSyncManager {
             }
         }
     }
-    
+
     /// Awareness: 跟踪节点在线状态
     pub fn update_peer_status(&self, peer_id: PeerId, nickname: &str, online: bool) {
         let mut states = self.awareness.get_states();
-        
+
         if online {
             // 设置在线状态
             let state = HashMap::from([
@@ -609,7 +609,7 @@ impl CrdtSyncManager {
             states.remove(&peer_id.to_string());
         }
     }
-    
+
     /// Awareness: 订阅状态变更
     pub fn subscribe_awareness<F>(&self, callback: F)
     where
@@ -617,7 +617,7 @@ impl CrdtSyncManager {
     {
         self.awareness.on_update(callback);
     }
-    
+
     async fn get_online_peers(&self) -> Vec<(String, PeerId)> {
         // 从 awareness 获取在线节点
         let states = self.awareness.get_states();
@@ -633,7 +633,7 @@ impl CrdtSyncManager {
             })
             .collect()
     }
-    
+
     async fn execute_sync_action(&self, action: SyncAction) {
         // 实现: 通过 P2P 层发送同步消息
         match action {
@@ -675,27 +675,27 @@ pub enum CrdtSyncMessage {
         space_id: String, // "direct-{nickname}" or "group-{name}"
         state_vector: Vec<u8>,
     },
-    
+
     /// Step 2: 基于 State Vector 发送需要的更新
     Step2 {
         peer_nickname: String,
         space_id: String,
         updates: Vec<u8>,
     },
-    
+
     /// Update: 持续的增量更新
     Update {
         peer_nickname: String,
         space_id: String,
         updates: Vec<u8>,
     },
-    
+
     /// Awareness: 节点在线状态
     Awareness {
         client_id: u64,
         state: HashMap<String, Any>, // nickname, status, last_seen
     },
-    
+
     /// Awareness Query: 请求所有节点的在线状态
     AwarenessQuery,
 }
@@ -715,7 +715,7 @@ impl CrdtSyncHandler {
             sync_manager,
         }
     }
-    
+
     pub async fn handle_message(
         &mut self,
         from_peer: PeerId,
@@ -728,19 +728,19 @@ impl CrdtSyncHandler {
                 let my_sv = self.message_store.get_state_vector(&peer_nickname)?;
                 let updates = self.message_store
                     .encode_state_as_update(&peer_nickname, &state_vector)?;
-                
+
                 Ok(Some(CrdtSyncMessage::Step2 {
                     peer_nickname: self.sync_manager.get_local_nickname().await,
                     space_id,
                     updates,
                 }))
             }
-            
+
             CrdtSyncMessage::Step2 { peer_nickname, space_id, updates } => {
                 // 对方发送了更新,应用并通知新消息
                 let new_messages = self.sync_manager
                     .apply_remote_updates(&peer_nickname, updates).await?;
-                
+
                 // 发送事件给应用层
                 for msg in new_messages {
                     event_sender.unbounded_send(P2pEvent::DirectMessage {
@@ -749,15 +749,15 @@ impl CrdtSyncHandler {
                         message: msg.content.to_text()?,
                     })?;
                 }
-                
+
                 Ok(None)
             }
-            
+
             CrdtSyncMessage::Update { peer_nickname, space_id, updates } => {
                 // 实时增量更新
                 let new_messages = self.sync_manager
                     .apply_remote_updates(&peer_nickname, updates).await?;
-                
+
                 for msg in new_messages {
                     event_sender.unbounded_send(P2pEvent::DirectMessage {
                         from: from_peer,
@@ -765,10 +765,10 @@ impl CrdtSyncHandler {
                         message: msg.content.to_text()?,
                     })?;
                 }
-                
+
                 Ok(None)
             }
-            
+
             CrdtSyncMessage::Awareness { client_id, state } => {
                 // 更新 awareness
                 if let Some(nickname) = state.get("nickname").and_then(|v| v.as_string()) {
@@ -776,12 +776,12 @@ impl CrdtSyncHandler {
                         .and_then(|v| v.as_string())
                         .map(|s| s == "online")
                         .unwrap_or(false);
-                    
+
                     self.sync_manager.update_peer_status(from_peer, nickname, online);
                 }
                 Ok(None)
             }
-            
+
             CrdtSyncMessage::AwarenessQuery => {
                 // 返回我的 awareness 状态
                 let local_nickname = self.sync_manager.get_local_nickname().await;
@@ -790,7 +790,7 @@ impl CrdtSyncHandler {
                     ("status".to_string(), Any::String("online".to_string())),
                     ("last_seen".to_string(), Any::BigInt64(Utc::now().timestamp())),
                 ]);
-                
+
                 Ok(Some(CrdtSyncMessage::Awareness {
                     client_id: self.sync_manager.get_local_client_id().await,
                     state,
@@ -815,7 +815,7 @@ pub struct UnifiedBehaviour {
     pub direct_msg: request_response::cbor::Behaviour<DirectMessage, DirectResponse>,
     pub gossipsub: gossipsub::Behaviour,
     pub file_sharing: request_response::cbor::Behaviour<FileSharingRequest, FileSharingResponse>,
-    
+
     // 新增: CRDT 同步协议
     pub crdt_sync: request_response::cbor::Behaviour<CrdtSyncMessage, CrdtSyncMessage>,
 }
@@ -826,7 +826,7 @@ pub enum UnifiedEvent {
     DirectMessage(request_response::Event<DirectMessage, DirectResponse>),
     Gossipsub(gossipsub::Event),
     FileSharing(request_response::Event<FileSharingRequest, FileSharingResponse>),
-    
+
     // 新增
     CrdtSync(request_response::Event<CrdtSyncMessage, CrdtSyncMessage>),
 }
@@ -837,21 +837,21 @@ pub enum UnifiedEvent {
 ```rust
 pub enum P2pEvent {
     // ... 现有事件 ...
-    
+
     // 新增: CRDT 消息事件
     OfflineMessagesReceived {
         from: PeerId,
         from_nickname: String,
         messages: Vec<MessageBlock>,
     },
-    
+
     // 新增: 好友上线/离线事件
     PeerStatusChanged {
         peer_id: PeerId,
         nickname: String,
         online: bool,
     },
-    
+
     // 新增: 消息同步进度
     SyncProgress {
         peer_nickname: String,
@@ -866,7 +866,7 @@ pub enum P2pEvent {
 ```rust
 pub struct P2pClient {
     // ... 现有字段 ...
-    
+
     // 新增: CRDT 消息存储
     message_store: Option<Arc<CrdtMessageStore>>,
     sync_manager: Option<Arc<CrdtSyncManager>>,
@@ -888,18 +888,18 @@ impl P2pClient {
             nickname.clone(),
             local_peer_id,
         ).await?);
-        
+
         let sync_manager = Arc::new(CrdtSyncManager::new(
             message_store.clone(),
             Duration::from_secs(30),
             local_client_id,
         ));
-        
+
         // ... 其余初始化 ...
-        
+
         Ok((client, event_receiver))
     }
-    
+
     /// 发送持久化消息
     pub async fn send_message_persistent(
         &mut self,
@@ -912,7 +912,7 @@ impl P2pClient {
                 nickname,
                 MessageContent::Text(message),
             ).await?;
-            
+
             // 如果目标在线,直接发送通知
             if let Some(peer_id) = self.peer_manager.get_peer_id_by_nickname(nickname).ok() {
                 // 发送通知: "有新消息"
@@ -922,14 +922,14 @@ impl P2pClient {
                 // 目标离线:消息已在 CRDT 中,上线后会自动同步
                 tracing::debug!("Peer {} offline, message stored in CRDT", nickname);
             }
-            
+
             Ok(message_id)
         } else {
             // 回退到非持久化模式
             self.send_direct_message(nickname, message)
         }
     }
-    
+
     /// 获取消息历史
     pub async fn get_history(
         &self,
@@ -942,17 +942,17 @@ impl P2pClient {
             Err(Error::PersistenceNotEnabled)
         }
     }
-    
+
     /// 标记消息已读
     pub async fn mark_as_read(&mut self, nickname: &str, message_index: u64) -> Result<()> {
         if let Some(store) = &self.message_store {
             store.mark_read(nickname, message_index).await?;
-            
+
             // 通过 CRDT 同步更新
             if let Some(peer_id) = self.peer_manager.get_peer_id_by_nickname(nickname).ok() {
                 self.send_read_receipt(peer_id, message_index).await?;
             }
-            
+
             Ok(())
         } else {
             Err(Error::PersistenceNotEnabled)

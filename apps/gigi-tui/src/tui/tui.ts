@@ -735,28 +735,28 @@ export async function runTui(opts: TuiOptions) {
 
   // Start reading user input
   console.log("\nType messages below (press Enter to send, / for commands):");
-  
+
   let inputBuffer = '';
   let isPasting = false;
   let pasteTimer: NodeJS.Timeout | null = null;
-  
+
   process.stdin.on('data', (data) => {
     const chunk = data.toString();
     inputBuffer += chunk;
-    
+
     // Detect if this is a paste operation (rapid input)
     if (!isPasting) {
       isPasting = true;
-      
+
       // Set a timeout to check if more input is coming
       pasteTimer = setTimeout(() => {
         isPasting = false;
         pasteTimer = null;
-        
+
         // Process the entire buffer as a single message
         const input = inputBuffer.trim();
         inputBuffer = '';
-        
+
         if (input) {
           if (input.startsWith("/")) {
             handleCommand(input);
@@ -772,11 +772,11 @@ export async function runTui(opts: TuiOptions) {
         pasteTimer = setTimeout(() => {
           isPasting = false;
           pasteTimer = null;
-          
+
           // Process the entire buffer as a single message
           const input = inputBuffer.trim();
           inputBuffer = '';
-          
+
           if (input) {
             if (input.startsWith("/")) {
               handleCommand(input);

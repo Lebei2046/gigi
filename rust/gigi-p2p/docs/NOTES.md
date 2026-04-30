@@ -40,7 +40,7 @@ Commands to implement
 - `share <file-path>`, record the file path for sharing
 - `list-files`, list all files shared by the peer
 - `download <nickname> <code>`, download a file by shared code from the peer with the given nickname
-  
+
 **Don't use `gigi-mdns`, `gigi-dm`, `gigi-gossip`, `gigi-downloading` directly, create a new interface in `lib.rs` instead.**
 
 **Don't use `tui` in `chat.rs`**

@@ -21,4 +21,3 @@ gigi-store = { path = "../gigi-store" }
 [dev-dependencies]
 tempfile = "3"
 tracing-subscriber = { workspace = true }
-

@@ -9,7 +9,7 @@ pub fn ResetAccount() -> Element {
     let mut is_loading = use_signal(|| false);
     let mut error = use_signal(|| Option::<String>::None);
 
-    let mut handle_reset = move |_| {
+    let handle_reset = move |_| {
         if !*checked.read() {
             return;
         }

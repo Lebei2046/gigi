@@ -221,18 +221,18 @@ pub enum P2pEvent {
     PeerDiscovered { peer_id, nickname, address },
     PeerExpired { peer_id, nickname },
     NicknameUpdated { peer_id, nickname },
-    
+
     // Direct messaging events
     DirectMessage { from, from_nickname, message },
     DirectFileShareMessage { from, from_nickname, share_code, filename, file_size, file_type },
     DirectGroupShareMessage { from, from_nickname, group_id, group_name },
-    
+
     // Group messaging events
     GroupMessage { from, from_nickname, group, message },
     GroupFileShareMessage { from, from_nickname, group, share_code, filename, file_size, file_type, message },
     GroupJoined { group },
     GroupLeft { group },
-    
+
     // File transfer events
     FileDownloadStarted { from, from_nickname, filename, download_id, share_code },
     FileDownloadProgress { download_id, filename, share_code, from_peer_id, from_nickname, downloaded_chunks, total_chunks },
@@ -243,7 +243,7 @@ pub enum P2pEvent {
     FileInfoReceived { from, info },
     ChunkReceived { from, file_id, chunk_index, chunk },
     FileListReceived { from, files },
-    
+
     // System events
     ListeningOn { address },
     Connected { peer_id, nickname },

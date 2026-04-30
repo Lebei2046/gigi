@@ -41,7 +41,12 @@ async fn test_create_account() {
 
     // Create an account
     let account_info = auth
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("TestUser".to_string()))
+        .create_account(
+            TEST_MNEMONIC,
+            TEST_PASSWORD,
+            Some("TestUser".to_string()),
+            None,
+        )
         .await
         .unwrap();
 
@@ -52,7 +57,6 @@ async fn test_create_account() {
     assert_eq!(account_info.name, "TestUser");
     assert!(account_info.address.starts_with("0x"));
     assert!(account_info.peer_id.len() > 20);
-    assert!(account_info.group_id.len() > 20);
 }
 
 #[tokio::test]
@@ -62,7 +66,7 @@ async fn test_create_account_with_default_name() {
 
     // Create account without providing a name
     let account_info = auth
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+        .create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
 
@@ -76,9 +80,14 @@ async fn test_create_duplicate_account() {
     let auth = AuthManager::new(db);
 
     // Create first account
-    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("User1".to_string()))
-        .await
-        .unwrap();
+    auth.create_account(
+        TEST_MNEMONIC,
+        TEST_PASSWORD,
+        Some("User1".to_string()),
+        None,
+    )
+    .await
+    .unwrap();
 
     // Attempt to create a second account should fail
     let result = auth
@@ -86,6 +95,7 @@ async fn test_create_duplicate_account() {
             TEST_MNEMONIC,
             "different_password",
             Some("User2".to_string()),
+            None,
         )
         .await;
 
@@ -100,7 +110,12 @@ async fn test_login_success() {
 
     // Create account
     let created_info = auth
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("Alice".to_string()))
+        .create_account(
+            TEST_MNEMONIC,
+            TEST_PASSWORD,
+            Some("Alice".to_string()),
+            None,
+        )
         .await
         .unwrap();
 
@@ -110,7 +125,6 @@ async fn test_login_success() {
     // Verify account info matches
     assert_eq!(login_result.account_info.address, created_info.address);
     assert_eq!(login_result.account_info.peer_id, created_info.peer_id);
-    assert_eq!(login_result.account_info.group_id, created_info.group_id);
     assert_eq!(login_result.account_info.name, "Alice");
 
     // Verify private key is returned
@@ -124,7 +138,7 @@ async fn test_login_wrong_password() {
     let auth = AuthManager::new(db);
 
     // Create account
-    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
 
@@ -152,7 +166,7 @@ async fn test_verify_password_correct() {
     let auth = AuthManager::new(db);
 
     // Create account
-    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
 
@@ -167,7 +181,7 @@ async fn test_verify_password_incorrect() {
     let auth = AuthManager::new(db);
 
     // Create account
-    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
 
@@ -192,7 +206,7 @@ async fn test_change_password() {
     let auth = AuthManager::new(db);
 
     // Create account
-    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("User".to_string()))
+    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("User".to_string()), None)
         .await
         .unwrap();
 
@@ -217,7 +231,7 @@ async fn test_change_password_wrong_old_password() {
     let auth = AuthManager::new(db);
 
     // Create account
-    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
 
@@ -241,7 +255,7 @@ async fn test_get_account_info() {
 
     // Create account
     let created_info = auth
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("Bob".to_string()))
+        .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("Bob".to_string()), None)
         .await
         .unwrap();
 
@@ -251,7 +265,6 @@ async fn test_get_account_info() {
     // Verify it matches created info
     assert_eq!(retrieved_info.address, created_info.address);
     assert_eq!(retrieved_info.peer_id, created_info.peer_id);
-    assert_eq!(retrieved_info.group_id, created_info.group_id);
     assert_eq!(retrieved_info.name, "Bob");
 }
 
@@ -261,7 +274,7 @@ async fn test_delete_account() {
     let auth = AuthManager::new(db);
 
     // Create account
-    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
 
@@ -299,7 +312,12 @@ async fn test_complete_workflow() {
 
     // 2. Create account
     let account = auth
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("Charlie".to_string()))
+        .create_account(
+            TEST_MNEMONIC,
+            TEST_PASSWORD,
+            Some("Charlie".to_string()),
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(account.name, "Charlie");
@@ -338,7 +356,12 @@ async fn test_account_persistence() {
 
     // Create account
     let original_info = auth
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("Diana".to_string()))
+        .create_account(
+            TEST_MNEMONIC,
+            TEST_PASSWORD,
+            Some("Diana".to_string()),
+            None,
+        )
         .await
         .unwrap();
 

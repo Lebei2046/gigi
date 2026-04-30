@@ -3,15 +3,12 @@ use anyhow::Result;
 use chrono;
 use dirs;
 use futures_util::stream::StreamExt;
-use gigi_logging::tracing;
 use gigi_p2p::{Keypair, P2pClient, P2pConfig, P2pEvent, PeerInfo};
 use hex;
 use image::{imageops, ImageReader};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
@@ -69,6 +66,7 @@ enum DbOperation {
         file_type: String,
         is_own: bool,
     },
+    #[allow(dead_code)]
     UpsertConversation {
         conv_id: String,
         name: String,
@@ -77,9 +75,8 @@ enum DbOperation {
         last_message: Option<String>,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
-    IncrementUnread {
-        conv_id: String,
-    },
+    #[allow(dead_code)]
+    IncrementUnread { conv_id: String },
 }
 
 type DbSender = mpsc::Sender<DbOperation>;
@@ -220,8 +217,8 @@ async fn db_worker(mut rx: mpsc::Receiver<DbOperation>) {
                     .await;
 
                     // Add the group to auth service so it persists across restarts
-                    let _ = tokio::spawn(async move {
-                        if let Ok(mut auth_service) = crate::services::auth_service::AuthService::new().await {
+                    let _handle = tokio::spawn(async move {
+                        if let Ok(auth_service) = crate::services::auth_service::AuthService::new().await {
                             let _ = auth_service.upsert_group(&group_id, &group_name, false).await;
                         }
                     });
@@ -538,7 +535,7 @@ impl P2pService {
                 println!("File download completed: {} at {:?}", filename, path);
 
                 // Check if it's an image file and generate thumbnail
-                let file_ext = filename.split('.').last().unwrap_or("").to_lowercase();
+                let file_ext = filename.split('.').next_back().unwrap_or("").to_lowercase();
 
                 if matches!(
                     file_ext.as_str(),
@@ -787,10 +784,11 @@ impl P2pService {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_group_member_count(group_name: &str) -> Result<usize> {
         if let Ok(Some(client_guard)) = Self::get_client().await {
             if let Some(client) = client_guard.as_ref() {
-                return Ok(client.get_group_member_count(group_name)?);
+                return client.get_group_member_count(group_name);
             }
         }
         Ok(0)
@@ -929,6 +927,7 @@ impl P2pService {
         Err(anyhow::anyhow!("P2P client not initialized"))
     }
 
+    #[allow(dead_code)]
     pub async fn shutdown() -> Result<()> {
         if let Ok(Some(mut client_guard)) = Self::get_client().await {
             if let Some(client) = client_guard.as_mut() {

@@ -2,14 +2,14 @@
 
 ---
 I'll analyze the `apps/gigi-node` project to understand its structure and then provide a Docker-based solution for testing group chat functionality. Let me explore the codebase first.
-          
+
 Now I have a good understanding of the project. Let me provide a comprehensive analysis and Docker-based solution for mimicking the network topology.
 
 ## Analysis Summary
 
 The `gigi-node` project uses **libp2p** with these key components:
 - **Kademlia (DHT)**: Peer discovery
-- **GossipSub**: Pub/sub for group messaging  
+- **GossipSub**: Pub/sub for group messaging
 - **Circuit Relay**: NAT traversal for clients behind NAT
 - **TCP/QUIC**: Transport layer
 
@@ -197,7 +197,7 @@ ENTRYPOINT ["/usr/local/bin/gigi-node"]
    ```bash
    # Start only bootstrap node
    docker compose up -d bootstrap
-   
+
    # Get the peer ID from logs
    docker logs Gigi-bootstrap
    # Look for "Local peer ID: ..."
@@ -209,7 +209,7 @@ ENTRYPOINT ["/usr/local/bin/gigi-node"]
    ```bash
    # Start cloud nodes
    docker compose up -d bootstrap relay
-   
+
    # Start clients (behind simulated NAT)
    docker compose --profile client up -d client-alice client-bob client-charlie
    ```
@@ -230,9 +230,9 @@ ENTRYPOINT ["/usr/local/bin/gigi-node"]
 | **Topic Subscription** | All clients subscribe to `gigi-general` topic for group chat |
 
 This setup accurately mimics the production topology where 3 clients behind NAT communicate through cloud-hosted relay infrastructure using the Gigi P2P protocol.
-        
 
----          
+
+---
 **Yes, the Docker solution can run on your local computer to test the group chat function! However, there are a few adjustments needed to make it work properly on a local machine.**
 
 ## Local Execution Requirements

@@ -423,6 +423,7 @@ impl PersistenceService {
     }
 
     // Clear messages for a conversation
+    #[allow(dead_code)]
     pub async fn clear_conversation(peer_nickname: &str) -> Result<usize> {
         let store_guard = MESSAGE_STORE.lock().await;
         if let Some(store) = store_guard.as_ref() {

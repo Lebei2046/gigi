@@ -47,20 +47,20 @@ CREATE TABLE messages (
     peer_id TEXT NOT NULL,                  -- 发送者 PeerId
     timestamp INTEGER NOT NULL,             -- Unix timestamp (ms)
     created_at INTEGER NOT NULL,
-    
+
     -- 投递状态
     delivered BOOLEAN DEFAULT FALSE,
     delivered_at INTEGER,
-    
+
     -- 已读状态
     read BOOLEAN DEFAULT FALSE,
     read_at INTEGER,
-    
+
     -- 同步状态
     sync_status TEXT DEFAULT 'Pending',    -- 'Pending' | 'Synced' | 'Delivered' | 'Acknowledged'
     sync_attempts INTEGER DEFAULT 0,
     last_sync_attempt INTEGER,
-    
+
     -- 过期时间 (7天后自动清理)
     expires_at INTEGER NOT NULL
 );
@@ -71,19 +71,19 @@ CREATE TABLE offline_queue (
     target_nickname TEXT NOT NULL,
     target_peer_id TEXT,                    -- NULL initially, set when peer comes online
     queued_at INTEGER NOT NULL,
-    
+
     -- 重试机制
     retry_count INTEGER DEFAULT 0,
     max_retries INTEGER DEFAULT 10,
     last_retry_at INTEGER,
     next_retry_at INTEGER,
-    
+
     -- 过期时间
     expires_at INTEGER NOT NULL,
-    
+
     -- 状态
     status TEXT DEFAULT 'Pending',          -- 'Pending' | 'InProgress' | 'Delivered' | 'Expired'
-    
+
     FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
 );
 
@@ -95,7 +95,7 @@ CREATE TABLE message_acknowledgments (
     acknowledged_by_peer_id TEXT NOT NULL,
     acknowledged_at INTEGER NOT NULL,
     ack_type TEXT NOT NULL,                 -- 'Delivered' | 'Read'
-    
+
     FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
 );
 
@@ -176,17 +176,17 @@ pub struct StoredMessage {
     pub peer_id: String,
     pub timestamp: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
-    
+
     pub delivered: bool,
     pub delivered_at: Option<DateTime<Utc>>,
-    
+
     pub read: bool,
     pub read_at: Option<DateTime<Utc>>,
-    
+
     pub sync_status: SyncStatus,
     pub sync_attempts: u32,
     pub last_sync_attempt: Option<DateTime<Utc>>,
-    
+
     pub expires_at: DateTime<Utc>,
 }
 
@@ -197,12 +197,12 @@ pub struct OfflineQueueItem {
     pub target_nickname: String,
     pub target_peer_id: Option<String>,
     pub queued_at: DateTime<Utc>,
-    
+
     pub retry_count: u32,
     pub max_retries: u32,
     pub last_retry_at: Option<DateTime<Utc>>,
     pub next_retry_at: DateTime<Utc>,
-    
+
     pub expires_at: DateTime<Utc>,
     pub status: QueueStatus,
 }
@@ -254,7 +254,7 @@ impl MessageStore {
     /// 初始化数据库
     pub async fn new(db_path: PathBuf, local_nickname: String) -> Result<Self> {
         let conn = Connection::open(&db_path)?;
-        
+
         // 创建表
         conn.execute(
             r#"
@@ -282,7 +282,7 @@ impl MessageStore {
             "#,
             [],
         )?;
-        
+
         conn.execute(
             r#"
             CREATE TABLE IF NOT EXISTS offline_queue (
@@ -301,7 +301,7 @@ impl MessageStore {
             "#,
             [],
         )?;
-        
+
         conn.execute(
             r#"
             CREATE TABLE IF NOT EXISTS message_acknowledgments (
@@ -316,7 +316,7 @@ impl MessageStore {
             "#,
             [],
         )?;
-        
+
         // 创建索引
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC)",
@@ -338,20 +338,20 @@ impl MessageStore {
             "CREATE INDEX IF NOT EXISTS idx_offline_queue_next_retry ON offline_queue(next_retry_at)",
             [],
         )?;
-        
+
         Ok(Self {
             db: Arc::new(RwLock::new(conn)),
             local_nickname,
         })
     }
-    
+
     /// 存储消息
     pub async fn store_message(
         &self,
         msg: StoredMessage,
     ) -> Result<()> {
         let db = self.db.write().await;
-        
+
         db.execute(
             r#"
             INSERT INTO messages (
@@ -385,10 +385,10 @@ impl MessageStore {
                 msg.expires_at.timestamp_millis(),
             ],
         )?;
-        
+
         Ok(())
     }
-    
+
     /// 添加到离线队列
     pub async fn enqueue_offline(
         &self,
@@ -396,11 +396,11 @@ impl MessageStore {
         target_nickname: String,
     ) -> Result<()> {
         let db = self.db.write().await;
-        
+
         let now = Utc::now();
         let expires_at = now + chrono::Duration::days(7);
         let next_retry_at = now + chrono::Duration::minutes(5);
-        
+
         db.execute(
             r#"
             INSERT INTO offline_queue (
@@ -421,10 +421,10 @@ impl MessageStore {
                 "Pending",
             ],
         )?;
-        
+
         Ok(())
     }
-    
+
     /// 获取待投递的消息
     pub async fn get_pending_messages(
         &self,
@@ -432,7 +432,7 @@ impl MessageStore {
         limit: usize,
     ) -> Result<Vec<StoredMessage>> {
         let db = self.db.read().await;
-        
+
         let mut stmt = db.prepare(
             r#"
             SELECT m.* FROM messages m
@@ -442,16 +442,16 @@ impl MessageStore {
             LIMIT ?2
             "#,
         )?;
-        
+
         let messages = stmt
             .query_map(params![target_nickname, limit], |row| {
                 self.row_to_stored_message(row)
             })?
             .collect::<Result<Vec<_>, rusqlite::Error>>()?;
-        
+
         Ok(messages)
     }
-    
+
     /// 获取对话历史
     pub async fn get_conversation(
         &self,
@@ -460,7 +460,7 @@ impl MessageStore {
         offset: usize,
     ) -> Result<Vec<StoredMessage>> {
         let db = self.db.read().await;
-        
+
         let mut stmt = db.prepare(
             r#"
             SELECT * FROM messages
@@ -469,55 +469,55 @@ impl MessageStore {
             LIMIT ?2 OFFSET ?3
             "#,
         )?;
-        
+
         let messages = stmt
             .query_map(params![peer_nickname, limit, offset], |row| {
                 self.row_to_stored_message(row)
             })?
             .collect::<Result<Vec<_>, rusqlite::Error>>()?;
-        
+
         Ok(messages)
     }
-    
+
     /// 标记消息已投递
     pub async fn mark_delivered(&self, message_id: &str) -> Result<()> {
         let db = self.db.write().await;
-        
+
         let now = Utc::now().timestamp_millis();
-        
+
         // 更新消息状态
         db.execute(
             "UPDATE messages SET delivered = TRUE, delivered_at = ?1, sync_status = 'Delivered' WHERE id = ?2",
             params![now, message_id],
         )?;
-        
+
         // 更新队列状态
         db.execute(
             "UPDATE offline_queue SET status = 'Delivered' WHERE message_id = ?1",
             params![message_id],
         )?;
-        
+
         Ok(())
     }
-    
+
     /// 标记消息已读
     pub async fn mark_read(&self, message_id: &str) -> Result<()> {
         let db = self.db.write().await;
-        
+
         let now = Utc::now().timestamp_millis();
-        
+
         db.execute(
             "UPDATE messages SET read = TRUE, read_at = ?1 WHERE id = ?2",
             params![now, message_id],
         )?;
-        
+
         Ok(())
     }
-    
+
     /// 获取需要重试的消息
     pub async fn get_retry_messages(&self, limit: usize) -> Result<Vec<(String, String)>> {
         let db = self.db.read().await;
-        
+
         let mut stmt = db.prepare(
             r#"
             SELECT message_id, target_nickname FROM offline_queue
@@ -527,7 +527,7 @@ impl MessageStore {
             LIMIT ?2
             "#,
         )?;
-        
+
         let items = stmt
             .query_map(params![Utc::now().timestamp_millis(), limit], |row| {
                 Ok((
@@ -536,10 +536,10 @@ impl MessageStore {
                 ))
             })?
             .collect::<Result<Vec<_>, rusqlite::Error>>()?;
-        
+
         Ok(items)
     }
-    
+
     /// 更新重试信息
     pub async fn update_retry(
         &self,
@@ -547,9 +547,9 @@ impl MessageStore {
         success: bool,
     ) -> Result<()> {
         let db = self.db.write().await;
-        
+
         let now = Utc::now();
-        
+
         if success {
             db.execute(
                 "UPDATE offline_queue SET status = 'Delivered' WHERE message_id = ?1",
@@ -559,7 +559,7 @@ impl MessageStore {
             // 增加重试次数,计算下次重试时间 (指数退避: 5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560 分钟)
             db.execute(
                 r#"
-                UPDATE offline_queue 
+                UPDATE offline_queue
                 SET retry_count = retry_count + 1,
                     last_retry_at = ?1,
                     next_retry_at = ?2
@@ -572,44 +572,44 @@ impl MessageStore {
                 ],
             )?;
         }
-        
+
         Ok(())
     }
-    
+
     /// 清理过期消息
     pub async fn cleanup_expired(&self) -> Result<u64> {
         let db = self.db.write().await;
-        
+
         let now = Utc::now().timestamp_millis();
-        
+
         // 清理过期的离线队列项
         let queue_count = db.execute(
             "DELETE FROM offline_queue WHERE expires_at < ?1 OR (retry_count >= max_retries AND next_retry_at < ?1)",
             params![now],
         )?;
-        
+
         // 清理过期的消息 (只清理已投递且超过7天的)
         let msg_count = db.execute(
             "DELETE FROM messages WHERE expires_at < ?1 AND delivered = TRUE",
             params![now],
         )?;
-        
+
         Ok((queue_count + msg_count) as u64)
     }
-    
+
     /// 获取未读消息数
     pub async fn get_unread_count(&self, peer_nickname: &str) -> Result<u64> {
         let db = self.db.read().await;
-        
+
         let count: u64 = db.query_row(
             "SELECT COUNT(*) FROM messages WHERE sender_nickname = ?1 AND read = FALSE",
             params![peer_nickname],
             |row| row.get(0),
         )?;
-        
+
         Ok(count)
     }
-    
+
     /// 辅助函数: 从 Row 构造 StoredMessage
     fn row_to_stored_message(&self, row: &Row) -> Result<StoredMessage> {
         Ok(StoredMessage {
@@ -674,7 +674,7 @@ impl SyncManager {
             cleanup_interval: Duration::from_secs(3600), // 1小时
         }
     }
-    
+
     /// 检测到好友上线
     pub async fn on_peer_online(
         &self,
@@ -682,27 +682,27 @@ impl SyncManager {
         peer_id: PeerId,
     ) -> Result<Vec<StoredMessage>> {
         tracing::info!("Peer {} ({}) came online", nickname, peer_id);
-        
+
         // 获取待投递的消息
         let messages = self.message_store.get_pending_messages(nickname, 50).await?;
-        
+
         if messages.is_empty() {
             tracing::debug!("No pending messages for {}", nickname);
             return Ok(vec![]);
         }
-        
+
         tracing::info!("Found {} pending messages for {}", messages.len(), nickname);
-        
+
         // 更新同步状态
         let mut syncs = self.pending_syncs.write().await;
         syncs.insert(nickname.to_string(), SyncState {
             last_sync: Utc::now(),
             in_progress: true,
         });
-        
+
         Ok(messages)
     }
-    
+
     /// 标记同步完成
     pub async fn on_sync_complete(
         &self,
@@ -710,16 +710,16 @@ impl SyncManager {
         delivered_count: usize,
     ) -> Result<()> {
         tracing::info!("Sync with {} completed, {} messages delivered", nickname, delivered_count);
-        
+
         let mut syncs = self.pending_syncs.write().await;
         if let Some(state) = syncs.get_mut(nickname) {
             state.last_sync = Utc::now();
             state.in_progress = false;
         }
-        
+
         Ok(())
     }
-    
+
     /// 定期同步任务
     pub async fn run_sync_task<F>(
         &self,
@@ -730,19 +730,19 @@ impl SyncManager {
         let mut sync_interval = tokio::time::interval(self.sync_interval);
         let mut retry_interval = tokio::time::interval(self.retry_interval);
         let mut cleanup_interval = tokio::time::interval(self.cleanup_interval);
-        
+
         loop {
             tokio::select! {
                 _ = sync_interval.tick() => {
                     // 定期同步所有在线好友
                     self.sync_all_online_peers(&mut sync_callback).await;
                 }
-                
+
                 _ = retry_interval.tick() => {
                     // 重试失败的消息
                     self.retry_failed_messages(&mut sync_callback).await;
                 }
-                
+
                 _ = cleanup_interval.tick() => {
                     // 清理过期消息
                     match self.message_store.cleanup_expired().await {
@@ -759,7 +759,7 @@ impl SyncManager {
             }
         }
     }
-    
+
     async fn sync_all_online_peers<F>(&self, sync_callback: &mut F)
     where
         F: Fn(String, Vec<StoredMessage>) -> std::pin::Pin<Box<dyn Future<Output = Result<usize>> + Send>> + Send + 'static,
@@ -769,7 +769,7 @@ impl SyncManager {
         let mut stmt = db.prepare(
             "SELECT DISTINCT target_nickname FROM offline_queue WHERE status = 'Pending'"
         ).ok();
-        
+
         if let Some(mut stmt) = stmt {
             let peers = stmt.query_map([], |row| row.get::<_, String>(0))
                 .ok()
@@ -777,9 +777,9 @@ impl SyncManager {
                 .flatten()
                 .filter_map(|r| r.ok())
                 .collect::<Vec<_>>();
-            
+
             drop(db);
-            
+
             for nickname in peers {
                 // 检查是否正在同步
                 let syncs = self.pending_syncs.read().await;
@@ -789,17 +789,17 @@ impl SyncManager {
                     }
                 }
                 drop(syncs);
-                
+
                 // 获取待同步消息
                 match self.message_store.get_pending_messages(&nickname, 50).await {
                     Ok(messages) => {
                         if !messages.is_empty() {
                             tracing::info!("Syncing {} messages to {}", messages.len(), nickname);
-                            
+
                             // 执行同步回调 (通过 P2P 发送)
                             let nickname_clone = nickname.clone();
                             let callback_result = sync_callback(nickname_clone, messages).await;
-                            
+
                             match callback_result {
                                 Ok(delivered) => {
                                     let _ = self.on_sync_complete(&nickname, delivered).await;
@@ -817,7 +817,7 @@ impl SyncManager {
             }
         }
     }
-    
+
     async fn retry_failed_messages<F>(&self, sync_callback: &mut F)
     where
         F: Fn(String, Vec<StoredMessage>) -> std::pin::Pin<Box<dyn Future<Output = Result<usize>> + Send>> + Send + 'static,
@@ -827,24 +827,24 @@ impl SyncManager {
             Ok(items) => {
                 if !items.is_empty() {
                     tracing::info!("Retrying {} messages", items.len());
-                    
+
                     // 按目标分组
                     let mut grouped: HashMap<String, Vec<String>> = HashMap::new();
                     for (message_id, nickname) in items {
                         grouped.entry(nickname).or_default().push(message_id);
                     }
-                    
+
                     for (nickname, message_ids) in grouped {
                         // 获取完整消息
                         let mut messages = Vec::new();
                         for message_id in message_ids {
                             // TODO: 实现根据 ID 获取消息的方法
                         }
-                        
+
                         if !messages.is_empty() {
                             let nickname_clone = nickname.clone();
                             let callback_result = sync_callback(nickname_clone, messages).await;
-                            
+
                             match callback_result {
                                 Ok(delivered) => {
                                     let _ = self.on_sync_complete(&nickname, delivered).await;

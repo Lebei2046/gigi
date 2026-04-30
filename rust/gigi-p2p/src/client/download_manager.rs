@@ -323,13 +323,14 @@ impl DownloadManager {
 
     /// Get share code for a download
     pub fn get_share_code_for_download(&self, download_id: &str) -> Option<String> {
-        if let Some(share_code) = self.download_share_codes.get(download_id) {
-            Some(share_code.clone())
-        } else if let Some(active_download) = self.active_downloads.get(download_id) {
-            Some(active_download.share_code.clone())
-        } else {
-            None
-        }
+        self.download_share_codes
+            .get(download_id)
+            .cloned()
+            .or_else(|| {
+                self.active_downloads
+                    .get(download_id)
+                    .map(|d| d.share_code.clone())
+            })
     }
 
     // ===== File System and Download Management Methods =====
@@ -571,6 +572,7 @@ impl DownloadManager {
             .ok_or_else(|| anyhow::anyhow!("Chunk index overflow: {}", chunk_index))?;
         let mut file = std::fs::OpenOptions::new()
             .create(true)
+            .truncate(false)
             .write(true)
             .open(temp_path)?;
 

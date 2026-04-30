@@ -132,7 +132,7 @@ pub use types::{FileInfo, FilePath, SharedFile};
 
 use anyhow::Result;
 use blake3::Hasher;
-use gigi_logging::{error, info, instrument};
+use gigi_logging::{error, info};
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -566,8 +566,7 @@ impl FileSharingManager {
         let file_id = share_code.clone();
 
         // Calculate chunk count
-        let chunk_count =
-            (size / CHUNK_SIZE as u64) as usize + if size % CHUNK_SIZE as u64 != 0 { 1 } else { 0 };
+        let chunk_count = size.div_ceil(CHUNK_SIZE as u64) as usize;
 
         // Create FileInfo
         let file_info = FileInfo {

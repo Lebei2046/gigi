@@ -39,8 +39,8 @@ fn group_and_sort_contacts(
 
 #[component]
 pub fn ContactList() -> Element {
-    let mut contacts = use_signal(|| Vec::<Contact>::new());
-    let mut search_term = use_signal(|| String::new());
+    let contacts = use_signal(Vec::<Contact>::new);
+    let mut search_term = use_signal(String::new);
 
     let filtered_groups = use_memo(move || group_and_sort_contacts(contacts(), search_term()));
 

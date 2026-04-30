@@ -1,15 +1,12 @@
 use chrono::Local;
 use dioxus::prelude::*;
 use futures_util::StreamExt;
-use gigi_p2p::PeerId;
-use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::Arc;
 use tokio_stream::wrappers::BroadcastStream;
 
 use crate::features::chat::chat_state::{
-    load_conversations, use_chat_room_state, use_chat_state, ChatRoomState, ChatState, Group,
-    Message, Peer, GLOBAL_CHAT_STATE,
+    load_conversations, use_chat_room_state, use_chat_state, ChatRoomState, ChatState, Message,
+    Peer, GLOBAL_CHAT_STATE,
 };
 use crate::services::auth_service::AuthService;
 use crate::services::event_bus::{AppEvent, EventBus};
@@ -26,7 +23,7 @@ pub fn use_chat_initialization() -> Signal<ChatState> {
     let chat_state = use_chat_state();
 
     use_effect(move || {
-        let mut chat_state_clone = chat_state.clone();
+        let mut chat_state_clone = chat_state;
         spawn(async move {
             let init_flag = CHAT_INIT_FLAG.lock().await;
             let already_initialized = *init_flag;
@@ -66,22 +63,14 @@ pub fn use_chat_initialization() -> Signal<ChatState> {
             }
 
             // Step 3: Update state with loaded data
-            let current_state = chat_state_clone.read();
-            let peers = current_state.peers.clone();
-            let group_share_notifications = current_state.group_share_notifications.clone();
-            let active_downloads = current_state.active_downloads.clone();
-            let loading = current_state.loading;
-            let error = current_state.error.clone();
-            drop(current_state);
-
             let new_state = ChatState {
-                peers,
+                peers: Vec::new(),
                 groups: groups.clone(),
                 conversations: conversations.clone(),
-                group_share_notifications,
-                active_downloads,
-                loading,
-                error,
+                group_share_notifications: Vec::new(),
+                active_downloads: Vec::new(),
+                loading: false,
+                error: None,
             };
             *chat_state_clone.write() = new_state.clone();
             *GLOBAL_CHAT_STATE.lock().await = new_state;
@@ -279,8 +268,8 @@ pub fn use_chat_room_initialization(
                 // Try to get from P2P service as fallback
                 else {
                     let chat_id_clone = chat_id.clone();
-                    let mut chat_room_state_clone = chat_room_state.clone();
-                    let mut history_loaded_clone = history_loaded.clone();
+                    let mut chat_room_state_clone = chat_room_state;
+                    let mut history_loaded_clone = history_loaded;
                     spawn(async move {
                         if let Ok(peers) = P2pService::list_peers().await {
                             for peer in &peers {
@@ -291,7 +280,7 @@ pub fn use_chat_room_initialization(
                                         peer_id: peer.peer_id,
                                         nickname: nickname.clone(),
                                         is_online: peer.connected,
-                                        capabilities: vec!["chat", "file_sharing"]
+                                        capabilities: ["chat", "file_sharing"]
                                             .iter()
                                             .map(|s| s.to_string())
                                             .collect(),
@@ -333,7 +322,6 @@ pub fn use_chat_room_initialization(
             // Join group if it's a group chat
             if is_group_chat && found_group_name.is_some() {
                 let group_name = found_group_name.clone().unwrap();
-                let mut chat_room_state_clone = chat_room_state.clone();
                 spawn(async move {
                     println!("Joining group when entering chat room: {}", group_name);
                     if let Err(err) = P2pService::join_group(&group_name).await {
@@ -350,8 +338,8 @@ pub fn use_chat_room_initialization(
             // Load message history if chat name is already available
             if let Some(chat_name_value) = chat_name {
                 let chat_id_clone = chat_id.clone();
-                let mut chat_room_state_clone = chat_room_state.clone();
-                let mut history_loaded_clone = history_loaded.clone();
+                let mut chat_room_state_clone = chat_room_state;
+                let mut history_loaded_clone = history_loaded;
                 let is_group_chat_clone = is_group_chat;
                 spawn(async move {
                     let stored_messages = if is_group_chat_clone {
@@ -388,7 +376,7 @@ async fn download_image_with_retry(
     sender: String,
     share_code: String,
     filename: String,
-    file_type: String,
+    _file_type: String,
     message_id: String,
 ) {
     let mut attempts = 0;
@@ -490,7 +478,7 @@ pub async fn retry_failed_image_download(
             }
         }
 
-        let chat_room_state_clone = chat_room_state.clone();
+        let chat_room_state_clone = chat_room_state;
         let message_id_clone = message_id.clone();
         spawn(async move {
             download_image_with_retry(
@@ -517,8 +505,8 @@ pub fn use_chat_event_listeners(
         // Subscribe to event bus
         if let Some(rx) = EventBus::subscribe() {
             let mut stream = BroadcastStream::new(rx);
-            let mut chat_state_clone = chat_state.clone();
-            let mut chat_room_state_clone = chat_room_state.clone();
+            let mut chat_state_clone = chat_state;
+            let mut chat_room_state_clone = chat_room_state;
 
             spawn(async move {
                 println!("Chat event listener started");
@@ -532,76 +520,61 @@ pub fn use_chat_event_listeners(
                                     peer_id, nickname, ..
                                 } => {
                                     println!("Peer discovered: {} ({})", nickname, peer_id);
-                                    let mut state = chat_state_clone.write();
-                                    println!("Current peers: {:?}", state.peers);
-                                    if let Some(peer) =
-                                        state.peers.iter_mut().find(|p| p.id == peer_id.to_string())
                                     {
-                                        // Peer is already in the list, set to online
-                                        peer.is_online = true;
-                                        println!(
-                                            "Updated peer status: {} is now online",
-                                            peer.nickname
-                                        );
-                                    } else {
-                                        // Peer is not in the list, add it
-                                        println!("Adding new peer: {} ({})", nickname, peer_id);
-                                        state.peers.push(Peer {
-                                            id: peer_id.to_string(),
-                                            peer_id,
-                                            nickname,
-                                            is_online: true,
-                                            capabilities: vec![
-                                                "chat".to_string(),
-                                                "file_sharing".to_string(),
-                                            ],
-                                        });
-                                        println!("Updated peers: {:?}", state.peers);
+                                        let mut state = chat_state_clone.write();
+                                        println!("Current peers: {:?}", state.peers);
+                                        if let Some(peer) = state
+                                            .peers
+                                            .iter_mut()
+                                            .find(|p| p.id == peer_id.to_string())
+                                        {
+                                            // Peer is already in the list, set to online
+                                            peer.is_online = true;
+                                            println!(
+                                                "Updated peer status: {} is now online",
+                                                peer.nickname
+                                            );
+                                        } else {
+                                            // Peer is not in the list, add it
+                                            println!("Adding new peer: {} ({})", nickname, peer_id);
+                                            state.peers.push(Peer {
+                                                id: peer_id.to_string(),
+                                                peer_id,
+                                                nickname,
+                                                is_online: true,
+                                                capabilities: vec![
+                                                    "chat".to_string(),
+                                                    "file_sharing".to_string(),
+                                                ],
+                                            });
+                                            println!("Updated peers: {:?}", state.peers);
+                                        }
                                     }
                                     // Update global state
-                                    GLOBAL_CHAT_STATE.lock().await.peers = state.peers.clone();
+                                    let peers_clone = chat_state_clone.read().peers.clone();
+                                    GLOBAL_CHAT_STATE.lock().await.peers = peers_clone;
                                 }
                                 gigi_p2p::P2pEvent::Connected { peer_id, nickname } => {
                                     println!("Peer connected: {}", peer_id);
-                                    let mut state = chat_state_clone.write();
                                     let peer_id_str = peer_id.to_string();
 
-                                    if let Some(peer) =
-                                        state.peers.iter_mut().find(|p| p.peer_id == peer_id)
                                     {
-                                        peer.is_online = true;
-                                        println!(
-                                            "Updated peer status: {} is now online",
-                                            peer.nickname
-                                        );
-                                    } else {
-                                        // Add the peer to the list if they're not already there
-                                        println!(
-                                            "Adding new peer from Connected event: {} ({})",
-                                            nickname, peer_id
-                                        );
-                                        state.peers.push(Peer {
-                                            id: peer_id_str.clone(),
-                                            peer_id,
-                                            nickname: nickname.clone(),
-                                            is_online: true,
-                                            capabilities: vec![
-                                                "chat".to_string(),
-                                                "file_sharing".to_string(),
-                                            ],
-                                        });
-                                        println!("Updated peers: {:?}", state.peers);
-                                    }
-                                    // Update global state - only peers changed
-                                    GLOBAL_CHAT_STATE.lock().await.peers = state.peers.clone();
-                                    drop(state);
-
-                                    // Update chat room state if this is the current peer
-                                    let mut chat_room = chat_room_state_clone.write();
-                                    if let Some(current_peer) = &chat_room.peer {
-                                        if current_peer.id == peer_id_str {
-                                            // Update the peer in chat room state with online status
-                                            chat_room.peer = Some(Peer {
+                                        let mut state = chat_state_clone.write();
+                                        if let Some(peer) =
+                                            state.peers.iter_mut().find(|p| p.peer_id == peer_id)
+                                        {
+                                            peer.is_online = true;
+                                            println!(
+                                                "Updated peer status: {} is now online",
+                                                peer.nickname
+                                            );
+                                        } else {
+                                            // Add the peer to the list if they're not already there
+                                            println!(
+                                                "Adding new peer from Connected event: {} ({})",
+                                                nickname, peer_id
+                                            );
+                                            state.peers.push(Peer {
                                                 id: peer_id_str.clone(),
                                                 peer_id,
                                                 nickname: nickname.clone(),
@@ -611,10 +584,34 @@ pub fn use_chat_event_listeners(
                                                     "file_sharing".to_string(),
                                                 ],
                                             });
-                                            println!(
-                                                "Updated chat room peer status: {} is now online",
-                                                nickname
-                                            );
+                                            println!("Updated peers: {:?}", state.peers);
+                                        }
+                                    }
+                                    // Update global state - only peers changed
+                                    let peers_clone = chat_state_clone.read().peers.clone();
+                                    GLOBAL_CHAT_STATE.lock().await.peers = peers_clone;
+
+                                    // Update chat room state if this is the current peer
+                                    {
+                                        let mut chat_room = chat_room_state_clone.write();
+                                        if let Some(current_peer) = &chat_room.peer {
+                                            if current_peer.id == peer_id_str {
+                                                // Update the peer in chat room state with online status
+                                                chat_room.peer = Some(Peer {
+                                                    id: peer_id_str.clone(),
+                                                    peer_id,
+                                                    nickname: nickname.clone(),
+                                                    is_online: true,
+                                                    capabilities: vec![
+                                                        "chat".to_string(),
+                                                        "file_sharing".to_string(),
+                                                    ],
+                                                });
+                                                println!(
+                                                    "Updated chat room peer status: {} is now online",
+                                                    nickname
+                                                );
+                                            }
                                         }
                                     }
 
@@ -638,41 +635,43 @@ pub fn use_chat_event_listeners(
                                 }
                                 gigi_p2p::P2pEvent::Disconnected { peer_id, .. } => {
                                     println!("Peer disconnected: {}", peer_id);
-                                    let mut state = chat_state_clone.write();
                                     let peer_id_str = peer_id.to_string();
 
-                                    if let Some(peer) =
-                                        state.peers.iter_mut().find(|p| p.peer_id == peer_id)
                                     {
-                                        peer.is_online = false;
-                                        println!(
-                                            "Updated peer status: {} is now offline",
-                                            peer.nickname
-                                        );
+                                        let mut state = chat_state_clone.write();
+                                        if let Some(peer) =
+                                            state.peers.iter_mut().find(|p| p.peer_id == peer_id)
+                                        {
+                                            peer.is_online = false;
+                                            println!(
+                                                "Updated peer status: {} is now offline",
+                                                peer.nickname
+                                            );
+                                        }
                                     }
                                     // Update global state - only peers changed
-                                    GLOBAL_CHAT_STATE.lock().await.peers = state.peers.clone();
-                                    drop(state);
+                                    let peers_clone = chat_state_clone.read().peers.clone();
+                                    GLOBAL_CHAT_STATE.lock().await.peers = peers_clone;
 
                                     // Update chat room state if this is the current peer
-                                    let mut chat_room = chat_room_state_clone.write();
-                                    if let Some(current_peer) = &chat_room.peer {
-                                        if current_peer.id == peer_id_str {
-                                            // Update the peer in chat room state with offline status
-                                            if let Some(peer) = chat_state_clone
-                                                .read()
-                                                .peers
-                                                .iter()
-                                                .find(|p| p.peer_id == peer_id)
-                                            {
-                                                chat_room.peer = Some(Peer {
-                                                    id: peer_id_str.clone(),
-                                                    peer_id,
-                                                    nickname: peer.nickname.clone(),
-                                                    is_online: false,
-                                                    capabilities: peer.capabilities.clone(),
-                                                });
-                                                println!("Updated chat room peer status: {} is now offline", peer.nickname);
+                                    {
+                                        let mut chat_room = chat_room_state_clone.write();
+                                        if let Some(current_peer) = &chat_room.peer {
+                                            if current_peer.id == peer_id_str {
+                                                // Update the peer in chat room state with offline status
+                                                let peers = chat_state_clone.read().peers.clone();
+                                                if let Some(peer) =
+                                                    peers.iter().find(|p| p.peer_id == peer_id)
+                                                {
+                                                    chat_room.peer = Some(Peer {
+                                                        id: peer_id_str.clone(),
+                                                        peer_id,
+                                                        nickname: peer.nickname.clone(),
+                                                        is_online: false,
+                                                        capabilities: peer.capabilities.clone(),
+                                                    });
+                                                    println!("Updated chat room peer status: {} is now offline", peer.nickname);
+                                                }
                                             }
                                         }
                                     }
@@ -774,25 +773,29 @@ pub fn use_chat_event_listeners(
                                         "File download started: {} from {}",
                                         filename, from_nickname
                                     );
-                                    let mut state = chat_state_clone.write();
-                                    state.active_downloads.push(
-                                        crate::features::chat::chat_state::ActiveDownload {
-                                            download_id,
-                                            filename,
-                                            share_code,
-                                            from_peer_id: from,
-                                            from_nickname,
-                                            downloaded_chunks: 0,
-                                            total_chunks: 0,
-                                            completed: false,
-                                            failed: false,
-                                            error_message: None,
-                                            final_path: None,
-                                        },
-                                    );
+                                    {
+                                        let mut state = chat_state_clone.write();
+                                        state.active_downloads.push(
+                                            crate::features::chat::chat_state::ActiveDownload {
+                                                download_id,
+                                                filename,
+                                                share_code,
+                                                from_peer_id: from,
+                                                from_nickname,
+                                                downloaded_chunks: 0,
+                                                total_chunks: 0,
+                                                completed: false,
+                                                failed: false,
+                                                error_message: None,
+                                                final_path: None,
+                                            },
+                                        );
+                                    }
                                     // Update global state - only active_downloads changed
+                                    let downloads_clone =
+                                        chat_state_clone.read().active_downloads.clone();
                                     GLOBAL_CHAT_STATE.lock().await.active_downloads =
-                                        state.active_downloads.clone();
+                                        downloads_clone;
                                     println!("Added active download");
                                 }
                                 gigi_p2p::P2pEvent::FileDownloadProgress {
@@ -805,19 +808,23 @@ pub fn use_chat_event_listeners(
                                         "File download progress: {} chunks of {}",
                                         downloaded_chunks, total_chunks
                                     );
-                                    let mut state = chat_state_clone.write();
-                                    if let Some(dl) = state
-                                        .active_downloads
-                                        .iter_mut()
-                                        .find(|d| d.download_id == download_id)
                                     {
-                                        dl.downloaded_chunks = downloaded_chunks;
-                                        dl.total_chunks = total_chunks;
-                                        println!("Updated download progress");
+                                        let mut state = chat_state_clone.write();
+                                        if let Some(dl) = state
+                                            .active_downloads
+                                            .iter_mut()
+                                            .find(|d| d.download_id == download_id)
+                                        {
+                                            dl.downloaded_chunks = downloaded_chunks;
+                                            dl.total_chunks = total_chunks;
+                                            println!("Updated download progress");
+                                        }
                                     }
                                     // Update global state - only active_downloads changed
+                                    let downloads_clone =
+                                        chat_state_clone.read().active_downloads.clone();
                                     GLOBAL_CHAT_STATE.lock().await.active_downloads =
-                                        state.active_downloads.clone();
+                                        downloads_clone;
                                 }
                                 gigi_p2p::P2pEvent::FileDownloadCompleted {
                                     download_id,
@@ -825,19 +832,23 @@ pub fn use_chat_event_listeners(
                                     ..
                                 } => {
                                     println!("File download completed: {}", download_id);
-                                    let mut state = chat_state_clone.write();
-                                    if let Some(dl) = state
-                                        .active_downloads
-                                        .iter_mut()
-                                        .find(|d| d.download_id == download_id)
                                     {
-                                        dl.completed = true;
-                                        dl.final_path = Some(path);
-                                        println!("Updated download status to completed");
+                                        let mut state = chat_state_clone.write();
+                                        if let Some(dl) = state
+                                            .active_downloads
+                                            .iter_mut()
+                                            .find(|d| d.download_id == download_id)
+                                        {
+                                            dl.completed = true;
+                                            dl.final_path = Some(path);
+                                            println!("Updated download status to completed");
+                                        }
                                     }
                                     // Update global state - only active_downloads changed
+                                    let downloads_clone =
+                                        chat_state_clone.read().active_downloads.clone();
                                     GLOBAL_CHAT_STATE.lock().await.active_downloads =
-                                        state.active_downloads.clone();
+                                        downloads_clone;
                                 }
                                 gigi_p2p::P2pEvent::FileDownloadFailed {
                                     download_id,
@@ -845,19 +856,23 @@ pub fn use_chat_event_listeners(
                                     ..
                                 } => {
                                     println!("File download failed: {} - {}", download_id, error);
-                                    let mut state = chat_state_clone.write();
-                                    if let Some(dl) = state
-                                        .active_downloads
-                                        .iter_mut()
-                                        .find(|d| d.download_id == download_id)
                                     {
-                                        dl.failed = true;
-                                        dl.error_message = Some(error);
-                                        println!("Updated download status to failed");
+                                        let mut state = chat_state_clone.write();
+                                        if let Some(dl) = state
+                                            .active_downloads
+                                            .iter_mut()
+                                            .find(|d| d.download_id == download_id)
+                                        {
+                                            dl.failed = true;
+                                            dl.error_message = Some(error);
+                                            println!("Updated download status to failed");
+                                        }
                                     }
                                     // Update global state - only active_downloads changed
+                                    let downloads_clone =
+                                        chat_state_clone.read().active_downloads.clone();
                                     GLOBAL_CHAT_STATE.lock().await.active_downloads =
-                                        state.active_downloads.clone();
+                                        downloads_clone;
                                 }
                                 _ => {
                                     println!("Other P2P event: {:?}", p2p_event);
@@ -877,7 +892,7 @@ pub fn use_chat_event_listeners(
                             if should_refresh {
                                 let chat_id_clone = chat_id.clone();
                                 let chat_name = chat_room_state_clone.read().chat_name.clone();
-                                let mut chat_room_state_refresh = chat_room_state_clone.clone();
+                                let mut chat_room_state_refresh = chat_room_state_clone;
                                 spawn(async move {
                                     if let Some(chat_name_value) = chat_name {
                                         let stored_messages = if is_group_chat {
@@ -952,12 +967,14 @@ pub fn use_chat_event_listeners(
                                 });
                             }
                             // Always refresh conversations list to show new messages and unread counts
-                            let mut chat_state_refresh = chat_state_clone.clone();
+                            let mut chat_state_refresh = chat_state_clone;
                             spawn(async move {
                                 let conversations = load_conversations().await;
                                 if !conversations.is_empty() {
-                                    let mut state = chat_state_refresh.write();
-                                    state.conversations = conversations.clone();
+                                    {
+                                        let mut state = chat_state_refresh.write();
+                                        state.conversations = conversations.clone();
+                                    }
                                     // Update global state - only conversations changed
                                     GLOBAL_CHAT_STATE.lock().await.conversations = conversations;
                                     println!("Refreshed conversations list");
@@ -1058,7 +1075,7 @@ pub fn use_chat_event_listeners(
                         AppEvent::FileDownloadFailed { download_id, error } => {
                             println!("File download failed: {} - {}", download_id, error);
                             // Update the message with the download failure
-                            let mut chat_room_state_ref = chat_room_state_clone.clone();
+                            let mut chat_room_state_ref = chat_room_state_clone;
                             let download_id_clone = download_id.clone();
 
                             {
@@ -1077,12 +1094,15 @@ pub fn use_chat_event_listeners(
                             }
 
                             spawn(async move {
-                                let chat_room = chat_room_state_ref.read();
-                                if let Some(message) = chat_room
-                                    .messages
-                                    .iter()
-                                    .find(|m| m.download_id == Some(download_id_clone.clone()))
-                                {
+                                let message_to_retry = {
+                                    let chat_room = chat_room_state_ref.read();
+                                    chat_room
+                                        .messages
+                                        .iter()
+                                        .find(|m| m.download_id == Some(download_id_clone.clone()))
+                                        .cloned()
+                                };
+                                if let Some(message) = message_to_retry {
                                     if message.message_type
                                         == crate::features::chat::chat_state::MessageType::Image
                                         && message.download_attempts < MAX_RETRY_ATTEMPTS
@@ -1178,7 +1198,7 @@ pub fn use_chat_event_listeners(
                                 }
 
                                 if is_image {
-                                    let chat_room_state_ref = chat_room_state_clone.clone();
+                                    let chat_room_state_ref = chat_room_state_clone;
                                     spawn(async move {
                                         download_image_with_retry(
                                             chat_room_state_ref,
@@ -1258,7 +1278,7 @@ pub fn use_chat_event_listeners(
                                 }
 
                                 if is_image {
-                                    let chat_room_state_ref = chat_room_state_clone.clone();
+                                    let chat_room_state_ref = chat_room_state_clone;
                                     spawn(async move {
                                         download_image_with_retry(
                                             chat_room_state_ref,
@@ -1281,6 +1301,7 @@ pub fn use_chat_event_listeners(
 }
 
 // Hook for message actions like sending, image selection, etc.
+#[allow(clippy::type_complexity)]
 pub fn use_message_actions(
     chat_room_state: Signal<ChatRoomState>,
 ) -> (
@@ -1291,11 +1312,11 @@ pub fn use_message_actions(
     impl Fn(String, String, Option<String>),
     impl Fn(String),
 ) {
-    let mut chat_room_state_clone = chat_room_state.clone();
+    let chat_room_state_clone = chat_room_state;
 
     let handle_send_message = move || {
         println!("handle_send_message called");
-        let mut chat_room_state = chat_room_state_clone.clone();
+        let mut chat_room_state = chat_room_state_clone;
         let message_content = chat_room_state.read().new_message.clone();
         println!("Message content: {}", message_content);
 
@@ -1350,7 +1371,7 @@ pub fn use_message_actions(
 
             // Send the message via P2P service
             let is_group_chat = chat_room_state.read().is_group_chat;
-            let chat_id = chat_room_state.read().chat_id.clone();
+            let _chat_id = chat_room_state.read().chat_id.clone();
 
             // Get necessary data before moving into async block
             let peer = chat_room_state.read().peer.clone();
@@ -1407,16 +1428,14 @@ pub fn use_message_actions(
                             message_content,
                         )
                         .await;
-                    } else {
-                        if let Some(peer) = peer {
-                            crate::services::p2p_service::P2pService::store_own_direct_message(
-                                local_nickname,
-                                chat_name,
-                                message_content,
-                                peer.id,
-                            )
-                            .await;
-                        }
+                    } else if let Some(peer) = peer {
+                        crate::services::p2p_service::P2pService::store_own_direct_message(
+                            local_nickname,
+                            chat_name,
+                            message_content,
+                            peer.id,
+                        )
+                        .await;
                     }
                 }
             });
@@ -1427,65 +1446,13 @@ pub fn use_message_actions(
 
     let handle_image_select = move || {
         println!("handle_image_select called");
-        let chat_room_state = chat_room_state_clone.clone();
-        let chat_name = chat_room_state.read().chat_name.clone();
-        let is_group_chat = chat_room_state.read().is_group_chat;
-
-        #[cfg(feature = "web")]
-        {
-            if let Some(window) = web_sys::window() {
-                if let Some(document) = window.document() {
-                    let input = document.create_element("input").unwrap();
-                    input.set_attribute("type", "file").unwrap();
-                    input.set_attribute("accept", "image/*").unwrap();
-
-                    let callback = Closure::wrap(Box::new(move |e: web_sys::Event| {
-                        let input = e
-                            .target()
-                            .unwrap()
-                            .dyn_into::<web_sys::HtmlInputElement>()
-                            .unwrap();
-                        if let Some(file_list) = input.files() {
-                            if file_list.length() > 0 {
-                                let file = file_list.get(0).unwrap();
-                                let filename = file.name();
-                                let file_size = file.size();
-                                let file_type = file.type_();
-
-                                let chat_room_state_clone = chat_room_state.clone();
-                                let chat_name_clone = chat_name.clone();
-                                let is_group_chat_clone = is_group_chat;
-
-                                wasm_bindgen_futures::spawn_local(async move {
-                                    let result =
-                                        gigi_file_sharing::browser::file_to_path_buf(&file).await;
-                                    if let Ok(file_path) = result {
-                                        handle_shared_file(
-                                            chat_room_state_clone,
-                                            chat_name_clone,
-                                            is_group_chat_clone,
-                                            &file_path,
-                                            &filename,
-                                            file_size,
-                                            &file_type,
-                                        )
-                                        .await;
-                                    }
-                                });
-                            }
-                        }
-                    }) as Box<dyn FnMut(_)>);
-
-                    input.set_onchange(Some(callback.as_ref().unchecked_ref()));
-                    callback.forget();
-
-                    input.click().unwrap();
-                }
-            }
-        }
 
         #[cfg(not(feature = "web"))]
         {
+            let chat_room_state = chat_room_state_clone;
+            let chat_name = chat_room_state.read().chat_name.clone();
+            let is_group_chat = chat_room_state.read().is_group_chat;
+
             if let Some(chat_name_val) = chat_name {
                 let paths = rfd::FileDialog::new()
                     .add_filter("Images", &["png", "jpg", "jpeg", "gif", "bmp", "webp"])
@@ -1517,64 +1484,13 @@ pub fn use_message_actions(
 
     let handle_file_select = move || {
         println!("handle_file_select called");
-        let chat_room_state = chat_room_state_clone.clone();
-        let chat_name = chat_room_state.read().chat_name.clone();
-        let is_group_chat = chat_room_state.read().is_group_chat;
-
-        #[cfg(feature = "web")]
-        {
-            if let Some(window) = web_sys::window() {
-                if let Some(document) = window.document() {
-                    let input = document.create_element("input").unwrap();
-                    input.set_attribute("type", "file").unwrap();
-
-                    let callback = Closure::wrap(Box::new(move |e: web_sys::Event| {
-                        let input = e
-                            .target()
-                            .unwrap()
-                            .dyn_into::<web_sys::HtmlInputElement>()
-                            .unwrap();
-                        if let Some(file_list) = input.files() {
-                            if file_list.length() > 0 {
-                                let file = file_list.get(0).unwrap();
-                                let filename = file.name();
-                                let file_size = file.size();
-                                let file_type = file.type_();
-
-                                let chat_room_state_clone = chat_room_state.clone();
-                                let chat_name_clone = chat_name.clone();
-                                let is_group_chat_clone = is_group_chat;
-
-                                wasm_bindgen_futures::spawn_local(async move {
-                                    let result =
-                                        gigi_file_sharing::browser::file_to_path_buf(&file).await;
-                                    if let Ok(file_path) = result {
-                                        handle_shared_file(
-                                            chat_room_state_clone,
-                                            chat_name_clone,
-                                            is_group_chat_clone,
-                                            &file_path,
-                                            &filename,
-                                            file_size,
-                                            &file_type,
-                                        )
-                                        .await;
-                                    }
-                                });
-                            }
-                        }
-                    }) as Box<dyn FnMut(_)>);
-
-                    input.set_onchange(Some(callback.as_ref().unchecked_ref()));
-                    callback.forget();
-
-                    input.click().unwrap();
-                }
-            }
-        }
 
         #[cfg(not(feature = "web"))]
         {
+            let chat_room_state = chat_room_state_clone;
+            let chat_name = chat_room_state.read().chat_name.clone();
+            let is_group_chat = chat_room_state.read().is_group_chat;
+
             if let Some(chat_name_val) = chat_name {
                 let paths = rfd::FileDialog::new().pick_file();
 
@@ -1603,12 +1519,12 @@ pub fn use_message_actions(
     };
 
     let handle_file_download_request =
-        move |share_code: String, filename: String, file_type: String| {
+        move |share_code: String, _filename: String, _file_type: String| {
             println!(
                 "handle_file_download_request called with share code: {}",
                 share_code
             );
-            let mut chat_room_state_clone = chat_room_state_clone.clone();
+            let mut chat_room_state_clone = chat_room_state_clone;
             let chat_name = chat_room_state_clone.read().chat_name.clone();
             let is_group_chat = chat_room_state_clone.read().is_group_chat;
 
@@ -1651,13 +1567,14 @@ pub fn use_message_actions(
             });
         };
 
-    let handle_share_file = move |peer_id: String, filename: String, file_path: Option<String>| {
-        println!("handle_share_file called for peer: {}", peer_id);
-    };
+    let handle_share_file =
+        move |peer_id: String, _filename: String, _file_path: Option<String>| {
+            println!("handle_share_file called for peer: {}", peer_id);
+        };
 
     let handle_delete_message = move |message_id: String| {
         println!("handle_delete_message called for message: {}", message_id);
-        let mut chat_room_state = chat_room_state_clone.clone();
+        let mut chat_room_state = chat_room_state_clone;
         chat_room_state
             .write()
             .messages
@@ -1674,6 +1591,7 @@ pub fn use_message_actions(
     )
 }
 
+#[allow(dead_code)]
 async fn handle_shared_file(
     mut chat_room_state: Signal<ChatRoomState>,
     chat_name: Option<String>,

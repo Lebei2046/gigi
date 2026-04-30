@@ -1,13 +1,13 @@
 /**
  * Gigi OpenClaw P2P Agent Test
- * 
+ *
  * This test verifies the functionality of the Gigi P2P plugin for OpenClaw.
  * It tests the following steps:
  * 1. Discovering the target OpenClaw node via P2P
  * 2. Joining the gigi-agents group
  * 3. Sending a message to the main agent
  * 4. Receiving a response from the main agent
- * 
+ *
  * The test sends the message "Who are you?" to the main agent and expects a response.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -90,7 +90,7 @@ describe('Gigi OpenClaw P2P Agent Test', () => {
 
     // Wait for the target node to be discovered
     let peerDiscovered = false;
-    
+
     // Check if target node is already discovered
     const peers = p2pClient.listPeers();
     for (const peer of peers) {
@@ -100,11 +100,11 @@ describe('Gigi OpenClaw P2P Agent Test', () => {
         break;
       }
     }
-    
+
     // If not discovered yet, wait for discovery
     if (!peerDiscovered) {
       logger.info('Waiting for peer discovery...');
-      
+
       // Create promise to wait for peer discovery
       const peerDiscoveredPromise = new Promise<void>((resolve) => {
         const unsubscribe = p2pClient.onEvent(async (event) => {
@@ -124,7 +124,7 @@ describe('Gigi OpenClaw P2P Agent Test', () => {
         })
       ]);
     }
-    
+
     // Wait for connection to be established
     await new Promise(resolve => setTimeout(resolve, 5000));
 

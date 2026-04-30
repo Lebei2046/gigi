@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("ℹ️  Listening for peers on local network...");
     println!("ℹ️  Adaptive probing will discover peers quickly (starting at 500ms)");
     println!("ℹ️  Press Ctrl+C to stop");
-    println!("");
+    println!();
 
     // Main event loop
     loop {
@@ -115,7 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("📍 Listening on: {}", address);
             }
             SwarmEvent::Behaviour(gigi_dns::GigiDnsEvent::Discovered(peer_info)) => {
-                println!("");
+                println!();
                 println!("🎉 Discovered new peer:");
                 println!("   👤 Nickname: {}", peer_info.nickname);
                 println!("   🔑 Peer ID: {}", peer_info.peer_id);
@@ -124,14 +124,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if !peer_info.metadata.is_empty() {
                     println!("   📋 Metadata: {:?}", peer_info.metadata);
                 }
-                println!("");
+                println!();
             }
             SwarmEvent::Behaviour(gigi_dns::GigiDnsEvent::Updated {
                 peer_id,
                 old_info,
                 new_info,
             }) => {
-                println!("");
+                println!();
                 println!("🔄 Peer updated: {}", peer_id);
                 println!("   Old nickname: {}", old_info.nickname);
                 println!("   New nickname: {}", new_info.nickname);
@@ -141,19 +141,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         old_info.multiaddr, new_info.multiaddr
                     );
                 }
-                println!("");
+                println!();
             }
             SwarmEvent::Behaviour(gigi_dns::GigiDnsEvent::Expired { peer_id, .. }) => {
-                println!("");
+                println!();
                 println!("⏰ Peer expired: {}", peer_id);
-                println!("");
+                println!();
             }
             SwarmEvent::Behaviour(gigi_dns::GigiDnsEvent::Offline {
                 peer_id, reason, ..
             }) => {
-                println!("");
+                println!();
                 println!("🔌 Peer offline: {} (reason: {:?})", peer_id, reason);
-                println!("");
+                println!();
             }
             event => {
                 gigi_logging::debug!("Unhandled event: {:?}", event);

@@ -58,7 +58,7 @@ Run the included chat example:
 # Terminal 1
 cargo run --package gigi-p2p --example chat -- --nickname Alice
 
-# Terminal 2  
+# Terminal 2
 cargo run --package gigi-p2p --example chat -- --nickname Bob
 ```
 

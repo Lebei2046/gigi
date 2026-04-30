@@ -12,7 +12,7 @@ use uuid::Uuid;
 #[tokio::test]
 async fn test_message_store_initialization() {
     let temp_file = NamedTempFile::new().unwrap();
-    let store = MessageStore::new(temp_file.path().to_path_buf())
+    let _store = MessageStore::new(temp_file.path().to_path_buf())
         .await
         .expect("Failed to create message store");
 }
@@ -171,9 +171,11 @@ async fn test_mark_read() {
 #[tokio::test]
 async fn test_retry_with_exponential_backoff() {
     let temp_file = NamedTempFile::new().unwrap();
-    let mut config = PersistenceConfig::default();
-    config.max_retry_attempts = 5; // Lower for faster testing
-    config.db_path = temp_file.path().to_path_buf();
+    let config = PersistenceConfig {
+        max_retry_attempts: 5, // Lower for faster testing
+        db_path: temp_file.path().to_path_buf(),
+        ..Default::default()
+    };
 
     let store = MessageStore::with_config(config)
         .await
@@ -395,9 +397,11 @@ async fn test_update_message_peer_id() {
 #[tokio::test]
 async fn test_cleanup_expired_messages() {
     let temp_file = NamedTempFile::new().unwrap();
-    let mut config = PersistenceConfig::default();
-    config.message_ttl_seconds = 1; // 1 second TTL for testing
-    config.db_path = temp_file.path().to_path_buf();
+    let config = PersistenceConfig {
+        message_ttl_seconds: 1, // 1 second TTL for testing
+        db_path: temp_file.path().to_path_buf(),
+        ..Default::default()
+    };
 
     let store = MessageStore::with_config(config)
         .await

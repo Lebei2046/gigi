@@ -560,10 +560,10 @@ impl<'a> FileSharingEventHandler<'a> {
         // Send download started event with correct filename and download_id
         self.client.send_event(P2pEvent::FileDownloadStarted {
             from: peer,
-            from_nickname: from_nickname,
+            from_nickname,
             filename: info.name.clone(),
             download_id: final_download_id.clone(),
-            share_code: share_code,
+            share_code,
         });
 
         // Start requesting initial chunks with optimized concurrency

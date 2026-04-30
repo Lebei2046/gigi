@@ -107,4 +107,3 @@ If `GIGI_DATA_DIR` is not set, the app will use the default platform-specific da
 ## Contributing
 
 Contributions to the Gigi Dioxus frontend are welcome! Please follow the project's coding conventions and submit pull requests for any improvements or bug fixes.
-

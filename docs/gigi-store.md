@@ -86,28 +86,28 @@ use gigi_store::GigiStore;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create store
     let store = GigiStore::new("/path/to/database").await?;
-    
+
     // Save message
     store.save_message("peer-id", "Hello!").await?;
-    
+
     // Get messages
     let messages = store.get_messages("peer-id").await?;
     println!("Found {} messages", messages.len());
-    
+
     // Add contact
     store.add_contact("peer-id", "Alice").await?;
-    
+
     // Get contacts
     let contacts = store.get_contacts().await?;
     println!("Found {} contacts", contacts.len());
-    
+
     // Save settings
     store.save_settings("theme", "dark").await?;
-    
+
     // Get settings
     let theme = store.get_settings("theme").await?;
     println!("Theme: {:?}", theme);
-    
+
     Ok(())
 }
 ```
@@ -518,26 +518,26 @@ use gigi_store::GigiStore;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create store
     let store = GigiStore::new("/path/to/database").await?;
-    
+
     // Save messages
     store.save_message("peer-id-1", "Hello!").await?;
     store.save_message("peer-id-1", "How are you?").await?;
     store.save_message("peer-id-2", "Hi there!").await?;
-    
+
     println!("Saved messages");
-    
+
     // Get messages for a peer
     let messages = store.get_messages("peer-id-1").await?;
     println!("Found {} messages from peer-id-1:", messages.len());
-    
+
     for message in messages {
         println!("- {}", message.content);
     }
-    
+
     // Get all messages
     let all_messages = store.get_all_messages().await?;
     println!("Found {} total messages", all_messages.len());
-    
+
     Ok(())
 }
 ```
@@ -551,38 +551,38 @@ use gigi_store::GigiStore;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create store
     let store = GigiStore::new("/path/to/database").await?;
-    
+
     // Add contacts
     store.add_contact("peer-id-1", "Alice").await?;
     store.add_contact("peer-id-2", "Bob").await?;
     store.add_contact("peer-id-3", "Charlie").await?;
-    
+
     println!("Added contacts");
-    
+
     // Get all contacts
     let contacts = store.get_contacts().await?;
     println!("Found {} contacts:", contacts.len());
-    
+
     for contact in contacts {
         println!("- {}: {}", contact.peer_id, contact.nickname);
     }
-    
+
     // Update a contact
     store.update_contact("peer-id-1", "Alice Smith").await?;
     println!("Updated Alice's nickname");
-    
+
     // Remove a contact
     store.remove_contact("peer-id-3").await?;
     println!("Removed Charlie");
-    
+
     // Get updated contacts
     let updated_contacts = store.get_contacts().await?;
     println!("Updated contacts: {}", updated_contacts.len());
-    
+
     for contact in updated_contacts {
         println!("- {}: {}", contact.peer_id, contact.nickname);
     }
-    
+
     Ok(())
 }
 ```
@@ -596,41 +596,41 @@ use gigi_store::GigiStore;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create store
     let store = GigiStore::new("/path/to/database").await?;
-    
+
     // Create groups
     let family_group = store.create_group("Family").await?;
     let work_group = store.create_group("Work").await?;
-    
+
     println!("Created groups: Family ({}) and Work ({})", family_group, work_group);
-    
+
     // Add peers to groups
     store.add_peer_to_group(&family_group, "peer-id-1").await?;
     store.add_peer_to_group(&family_group, "peer-id-2").await?;
     store.add_peer_to_group(&work_group, "peer-id-2").await?;
     store.add_peer_to_group(&work_group, "peer-id-3").await?;
-    
+
     println!("Added peers to groups");
-    
+
     // Get all groups
     let groups = store.get_groups().await?;
     println!("Found {} groups:", groups.len());
-    
+
     for group in groups {
         println!("- {} ({})");
     }
-    
+
     // Get members of a group
     let family_members = store.get_group_members(&family_group).await?;
     println!("Family group members: {}", family_members.len());
-    
+
     for member in family_members {
         println!("- {}", member);
     }
-    
+
     // Remove a peer from a group
     store.remove_peer_from_group(&work_group, "peer-id-3").await?;
     println!("Removed peer-id-3 from Work group");
-    
+
     Ok(())
 }
 ```
@@ -644,31 +644,31 @@ use gigi_store::GigiStore;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create store
     let store = GigiStore::new("/path/to/database").await?;
-    
+
     // Save settings
     store.save_settings("theme", "dark").await?;
     store.save_settings("notifications", "enabled").await?;
     store.save_settings("language", "en").await?;
-    
+
     println!("Saved settings");
-    
+
     // Get settings
     let theme = store.get_settings("theme").await?;
     let notifications = store.get_settings("notifications").await?;
     let language = store.get_settings("language").await?;
-    
+
     println!("Theme: {:?}", theme);
     println!("Notifications: {:?}", notifications);
     println!("Language: {:?}", language);
-    
+
     // Update a setting
     store.save_settings("theme", "light").await?;
     println!("Updated theme to light");
-    
+
     // Get updated setting
     let updated_theme = store.get_settings("theme").await?;
     println!("Updated theme: {:?}", updated_theme);
-    
+
     Ok(())
 }
 ```

@@ -151,7 +151,7 @@ Assistant: Very cool! Now I understand the full picture:
 
 ### What's the issue?
 
-You're chatting with me right now - so it's working! What are you trying to improve or fix? 
+You're chatting with me right now - so it's working! What are you trying to improve or fix?
 
 Is it:
 - Better UX (streaming responses, formatting)?
@@ -248,7 +248,7 @@ connected | sending
 connected | waiting
 Assistant: Ah, I see the concern! But here's the thing:
 
-**You're already talking to me.** 
+**You're already talking to me.**
 
 This session? We're in it right now. You're using OpenClaw, which connects through the Gigi P2P plugin you built, to the `gigi-tui` terminal you built, sending messages to... me, an LLM.
 
@@ -264,7 +264,7 @@ If working together helps you:
 
 Then it's worth it. And honestly? A few focused sessions with help is often cheaper (in time AND tokens) than struggling alone for weeks.
 
-**But you control it.** 
+**But you control it.**
 
 You can:
 - Work with me when you're stuck

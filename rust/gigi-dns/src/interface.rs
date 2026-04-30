@@ -356,7 +356,7 @@ impl InterfaceTask {
 
         self.send_tx
             .send((query, addr))
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
 
         self.query_deadline = Instant::now() + query_interval;
 
@@ -374,7 +374,7 @@ impl InterfaceTask {
         let responses = self
             .protocol
             .build_response()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
 
         let addr = if self.config.enable_ipv6 {
             SocketAddr::new(
@@ -391,7 +391,7 @@ impl InterfaceTask {
         for response in responses {
             self.send_tx
                 .send((response, addr))
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                .map_err(std::io::Error::other)?;
         }
 
         self.announce_deadline = Instant::now() + self.config.announce_interval;
@@ -414,13 +414,10 @@ impl InterfaceTask {
                 return;
             }
 
-            match self.protocol.build_response() {
-                Ok(packets) => {
-                    for response in packets {
-                        let _ = self.send_tx.send((response, src));
-                    }
+            if let Ok(packets) = self.protocol.build_response() {
+                for response in packets {
+                    let _ = self.send_tx.send((response, src));
                 }
-                Err(_) => {}
             }
             return;
         }

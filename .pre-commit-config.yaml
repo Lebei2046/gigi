@@ -1,0 +1,56 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: rust-fmt
+        name: Rust Formatting
+        entry: cargo fmt -- --check
+        language: system
+        files: \.rs$
+        pass_filenames: false
+
+      - id: rust-clippy
+        name: Rust Linting
+        entry: cargo clippy --all-targets --all-features -- -D warnings
+        language: system
+        files: \.rs$
+        pass_filenames: false
+
+      - id: typescript-lint
+        name: TypeScript Linting
+        entry: pnpm lint
+        language: system
+        files: \.(ts|tsx)$
+        pass_filenames: false
+
+      - id: typescript-format
+        name: TypeScript Formatting
+        entry: pnpm format-all
+        language: system
+        files: \.(ts|tsx)$
+        pass_filenames: false
+
+      - id: rust-unit-tests
+        name: Rust Unit Tests
+        entry: cargo test --lib --all --quiet
+        language: system
+        files: \.rs$
+        pass_filenames: false
+        verbose: true
+
+      - id: typescript-tests
+        name: TypeScript Tests
+        entry: pnpm test
+        language: system
+        files: \.(ts|tsx)$
+        pass_filenames: false
+        verbose: true

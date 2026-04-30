@@ -81,31 +81,31 @@ use gigi_auth::AuthManager;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create auth manager
     let mut auth_manager = AuthManager::new("/path/to/keystore").await?;
-    
+
     // Generate mnemonic
     let mnemonic = auth_manager.generate_mnemonic().await?;
     println!("Mnemonic: {}", mnemonic);
-    
+
     // Create account
     auth_manager.signup("password", mnemonic).await?;
     println!("Account created successfully");
-    
+
     // Login
     let account_info = auth_manager.login_with_password("password").await?;
     println!("Logged in as: {}", account_info.peer_id);
-    
+
     // Get account info
     let account_info = auth_manager.get_account_info().await?;
     println!("Account info: {:?}", account_info);
-    
+
     // Update password
     auth_manager.update_password("old_password", "new_password").await?;
     println!("Password updated successfully");
-    
+
     // Delete account
     auth_manager.delete_account("password").await?;
     println!("Account deleted successfully");
-    
+
     Ok(())
 }
 ```
@@ -441,35 +441,35 @@ use gigi_auth::AuthManager;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create auth manager
     let mut auth_manager = AuthManager::new("/path/to/keystore").await?;
-    
+
     // Generate mnemonic
     let mnemonic = auth_manager.generate_mnemonic().await?;
     println!("Mnemonic: {}", mnemonic);
-    
+
     // Create account
     auth_manager.signup("password123", mnemonic).await?;
     println!("Account created successfully");
-    
+
     // Login
     let account_info = auth_manager.login_with_password("password123").await?;
     println!("Logged in as: {}", account_info.peer_id);
-    
+
     // Get account info
     let account_info = auth_manager.get_account_info().await?;
     println!("Account info: {:?}", account_info);
-    
+
     // Update password
     auth_manager.update_password("password123", "newpassword456").await?;
     println!("Password updated successfully");
-    
+
     // Login with new password
     let account_info = auth_manager.login_with_password("newpassword456").await?;
     println!("Logged in with new password as: {}", account_info.peer_id);
-    
+
     // Delete account
     auth_manager.delete_account("newpassword456").await?;
     println!("Account deleted successfully");
-    
+
     Ok(())
 }
 ```
@@ -483,33 +483,33 @@ use gigi_auth::AuthManager;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create auth manager
     let mut auth_manager = AuthManager::new("/path/to/keystore").await?;
-    
+
     // Generate mnemonic
     let mnemonic = auth_manager.generate_mnemonic().await?;
     println!("Mnemonic: {}", mnemonic);
-    
+
     // Create account
     auth_manager.signup("password123", mnemonic.clone()).await?;
     println!("Account created successfully");
-    
+
     // Delete and recreate auth manager to simulate restart
     drop(auth_manager);
     let mut auth_manager = AuthManager::new("/path/to/keystore").await?;
-    
+
     // Try to login with wrong password
     match auth_manager.login_with_password("wrongpassword").await {
         Ok(_) => println!("Login with wrong password succeeded (should have failed)"),
         Err(e) => println!("Login with wrong password failed as expected: {:?}"),
     }
-    
+
     // Recover from mnemonic
     auth_manager.recover_from_mnemonic("newpassword456", mnemonic).await?;
     println!("Account recovered successfully");
-    
+
     // Login with new password
     let account_info = auth_manager.login_with_password("newpassword456").await?;
     println!("Logged in after recovery as: {}", account_info.peer_id);
-    
+
     Ok(())
 }
 ```
@@ -523,16 +523,16 @@ use gigi_auth::AuthManager;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create auth manager
     let mut auth_manager = AuthManager::new("/path/to/keystore").await?;
-    
+
     // Generate mnemonic
     let mnemonic = auth_manager.generate_mnemonic().await?;
-    
+
     // Create account
     auth_manager.signup("password123", mnemonic).await?;
-    
+
     // Login
     auth_manager.login_with_password("password123").await?;
-    
+
     // Save settings
     let settings = gigi_auth::Settings {
         nickname: "Alice".to_string(),
@@ -541,11 +541,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     auth_manager.save_settings(settings).await?;
     println!("Settings saved successfully");
-    
+
     // Get settings
     let settings = auth_manager.get_settings().await?;
     println!("Settings: {:?}", settings);
-    
+
     // Update settings
     let updated_settings = gigi_auth::Settings {
         nickname: "Alice Smith".to_string(),
@@ -554,11 +554,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     auth_manager.save_settings(updated_settings).await?;
     println!("Settings updated successfully");
-    
+
     // Get updated settings
     let updated_settings = auth_manager.get_settings().await?;
     println!("Updated settings: {:?}", updated_settings);
-    
+
     Ok(())
 }
 ```

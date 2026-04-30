@@ -18,10 +18,10 @@ Good point! Using different key types for different purposes is actually a commo
 
 ## Benefits of This Approach
 
-✅ **Separation of concerns**: EVM address separate from P2P identity  
-✅ **Better P2P performance**: Ed25519 has faster verification  
-✅ **Web3 compatibility**: Secp256k1 for EVM addresses  
-✅ **Flexibility**: Can have different identities for different purposes  
+✅ **Separation of concerns**: EVM address separate from P2P identity
+✅ **Better P2P performance**: Ed25519 has faster verification
+✅ **Web3 compatibility**: Secp256k1 for EVM addresses
+✅ **Flexibility**: Can have different identities for different purposes
 
 ## Changes Needed
 
@@ -62,9 +62,9 @@ I've updated your key derivation system to use **different key types for differe
 
 ### Benefits
 
-✅ **Separation of concerns**: EVM wallet separate from P2P identity  
-✅ **Better P2P performance**: Ed25519 has faster signature verification  
-✅ **Web3 compatibility**: Secp256k1 for EVM addresses  
+✅ **Separation of concerns**: EVM wallet separate from P2P identity
+✅ **Better P2P performance**: Ed25519 has faster signature verification
+✅ **Web3 compatibility**: Secp256k1 for EVM addresses
 ✅ **Consistency**: Peer ID and private key now use same Ed25519 keypair
 
 Now when you rebuild and test, both peer IDs (login and P2pClient) should match!

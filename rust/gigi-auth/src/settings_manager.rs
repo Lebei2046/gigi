@@ -300,7 +300,7 @@ impl SettingsManager {
     /// - group_id: Primary key (String)
     /// - name: Group display name (String)
     /// - created: Whether the user created this group (bool)
-    ///            true = created by user, false = joined via invitation
+    ///   true = created by user, false = joined via invitation
     /// - created_at: Timestamp in milliseconds (i64)
     ///
     /// This should be called during account creation to ensure the table exists.
@@ -409,7 +409,7 @@ impl SettingsManager {
     /// * `group_id` - The unique group identifier
     /// * `name` - The group display name
     /// * `created` - Whether the user created this group
-    ///               true = created by user, false = joined via invitation
+    ///   true = created by user, false = joined via invitation
     pub async fn upsert_group(
         &self,
         group_id: &str,

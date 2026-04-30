@@ -74,7 +74,7 @@ describe("createLogger", () => {
     };
 
     // Access the serializer from the pino call
-    const pinoCallArgs = (pino as jest.Mock).mock.calls[0][0];
+    const pinoCallArgs = (pino as vi.Mock).mock.calls[0][0];
     const peerIdSerializer = pinoCallArgs.serializers.peerId;
 
     expect(peerIdSerializer(mockPeerId)).toBe("12D3KooW...");
@@ -89,7 +89,7 @@ describe("createLogger", () => {
     };
 
     // Access the serializer from the pino call
-    const pinoCallArgs = (pino as jest.Mock).mock.calls[0][0];
+    const pinoCallArgs = (pino as vi.Mock).mock.calls[0][0];
     const multiaddrSerializer = pinoCallArgs.serializers.multiaddr;
 
     expect(multiaddrSerializer(mockMultiaddr)).toBe("/ip4/127.0.0.1/tcp/8080");

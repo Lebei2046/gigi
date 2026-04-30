@@ -9,8 +9,8 @@ pub fn MnemonicDisplay() -> Element {
     const STEP: usize = 1;
 
     let context = use_signup_context();
-    let state = context.state.read();
-    let dispatch = context.dispatch.clone();
+    let _state = context.state.read();
+    let dispatch = context.dispatch;
 
     let mut loading = use_signal(|| true);
     let mut mnemonic = use_signal::<Vec<String>>(|| vec![String::new(); 12]);

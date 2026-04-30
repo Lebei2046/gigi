@@ -33,22 +33,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         listen_addrs: vec!["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/ws/0"],
         ..Default::default()
     };
-    
+
     // Create P2P client
     let mut client = P2pClient::new("My Node", config).await?;
-    
+
     // Start the client
     client.start().await?;
-    
+
     // Get our peer ID
     let peer_id = client.get_peer_id();
     println!("Our peer ID: {}", peer_id);
-    
+
     // Send a direct message
     let recipient_peer_id = "QmRecipientPeerId";
     client.send_direct_message(recipient_peer_id, "Hello from Gigi P2P!").await?;
     println!("Message sent to {}", recipient_peer_id);
-    
+
     // Listen for incoming messages
     client.on_event(|event| {
         match event {
@@ -65,13 +65,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
     });
-    
+
     // Keep the client running
     tokio::signal::ctrl_c().await?;
-    
+
     // Stop the client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```
@@ -91,34 +91,34 @@ async function main() {
       enableMdns: true,
       listenAddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/ws/0']
     });
-    
+
     // Start the client
     await client.start();
-    
+
     // Get our peer ID
     const peerId = await client.getPeerId();
     console.log(`Our peer ID: ${peerId}`);
-    
+
     // Send a direct message
     const recipientPeerId = 'QmRecipientPeerId';
     await client.sendDirectMessage(recipientPeerId, 'Hello from Gigi P2P!');
     console.log(`Message sent to ${recipientPeerId}`);
-    
+
     // Listen for incoming messages
     client.on('message:direct', (message) => {
       console.log(`Received message from ${message.from} at ${message.timestamp}: ${message.content}`);
     });
-    
+
     // Listen for peer connections
     client.on('peer:connected', (peer) => {
       console.log(`Peer connected: ${peer.id} (${peer.nickname})`);
     });
-    
+
     // Listen for peer disconnections
     client.on('peer:disconnected', (peerId) => {
       console.log(`Peer disconnected: ${peerId}`);
     });
-    
+
     // Keep the client running
     await new Promise(() => {});
   } catch (error) {
@@ -148,22 +148,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         listen_addrs: vec!["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/ws/0"],
         ..Default::default()
     };
-    
+
     // Create P2P client
     let mut client = P2pClient::new("My Node", config).await?;
-    
+
     // Start the client
     client.start().await?;
-    
+
     // Join a group
     let group_name = "general";
     client.join_group(group_name).await?;
     println!("Joined group: {}", group_name);
-    
+
     // Send a group message
     client.send_group_message(group_name, "Hello everyone!").await?;
     println!("Message sent to group: {}", group_name);
-    
+
     // Listen for group messages
     client.on_event(|event| {
         match event {
@@ -173,17 +173,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
     });
-    
+
     // Keep the client running
     tokio::signal::ctrl_c().await?;
-    
+
     // Leave the group
     client.leave_group(group_name).await?;
     println!("Left group: {}", group_name);
-    
+
     // Stop the client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```
@@ -203,24 +203,24 @@ async function main() {
       enableMdns: true,
       listenAddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/ws/0']
     });
-    
+
     // Start the client
     await client.start();
-    
+
     // Join a group
     const groupName = 'general';
     await client.joinGroup(groupName);
     console.log(`Joined group: ${groupName}`);
-    
+
     // Send a group message
     await client.sendGroupMessage(groupName, 'Hello everyone!');
     console.log(`Message sent to group: ${groupName}`);
-    
+
     // Listen for group messages
     client.on('message:group', (message) => {
       console.log(`Received message in ${message.group} from ${message.from} at ${message.timestamp}: ${message.content}`);
     });
-    
+
     // Keep the client running
     await new Promise(() => {});
   } catch (error) {
@@ -250,23 +250,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         listen_addrs: vec!["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/ws/0"],
         ..Default::default()
     };
-    
+
     // Create P2P client
     let mut client = P2pClient::new("My Node", config).await?;
-    
+
     // Start the client
     client.start().await?;
-    
+
     // Share a file
     let file_path = "/path/to/file.txt";
     let file_id = client.share_file(file_path).await?;
     println!("File shared with ID: {}", file_id);
-    
+
     // Download a file
     let download_path = "/path/to/save/file.txt";
     client.download_file(&file_id, download_path).await?;
     println!("File downloaded to: {}", download_path);
-    
+
     // Listen for file events
     client.on_event(|event| {
         match event {
@@ -279,13 +279,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
     });
-    
+
     // Keep the client running
     tokio::signal::ctrl_c().await?;
-    
+
     // Stop the client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```
@@ -305,39 +305,39 @@ async function main() {
       enableMdns: true,
       listenAddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/ws/0']
     });
-    
+
     // Start the client
     await client.start();
-    
+
     // Share a file
     const filePath = '/path/to/file.txt';
     const fileId = await client.shareFile(filePath);
     console.log(`File shared with ID: ${fileId}`);
-    
+
     // Download a file
     const downloadPath = '/path/to/save/file.txt';
     await client.downloadFile(fileId, downloadPath);
     console.log(`File downloaded to: ${downloadPath}`);
-    
+
     // Listen for file events
     client.on('file:shared', (file) => {
       console.log(`File shared: ${file.name} (${file.size} bytes)`);
     });
-    
+
     client.on('file:downloaded', (file) => {
       console.log(`File downloaded: ${file.name} (${file.size} bytes) to ${file.path}`);
     });
-    
+
     // Listen for upload progress
     client.on('file:upload:progress', (progress) => {
       console.log(`Upload progress: ${Math.round(progress.percentage)}% (${progress.transferred}/${progress.total} bytes)`);
     });
-    
+
     // Listen for download progress
     client.on('file:download:progress', (progress) => {
       console.log(`Download progress: ${Math.round(progress.percentage)}% (${progress.transferred}/${progress.total} bytes)`);
     });
-    
+
     // Keep the client running
     await new Promise(() => {});
   } catch (error) {
@@ -358,26 +358,26 @@ use gigi_auth::AuthManager;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create auth manager
     let mut auth = AuthManager::new("/path/to/auth/data")?;
-    
+
     // Create an account
     let username = "alice";
     let password = "secure_password";
-    
+
     let account = auth.create_account(username, password)?;
     println!("Account created: {}", account.username);
-    
+
     // Login to the account
     let logged_in_account = auth.login(username, password)?;
     println!("Logged in as: {}", logged_in_account.username);
-    
+
     // Get mnemonic phrase for recovery
     let mnemonic = auth.get_mnemonic(username, password)?;
     println!("Mnemonic phrase: {}", mnemonic);
-    
+
     // Recover account from mnemonic
     let recovered_account = auth.recover_from_mnemonic(&mnemonic, "new_secure_password")?;
     println!("Account recovered: {}", recovered_account.username);
-    
+
     Ok(())
 }
 ```
@@ -402,43 +402,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         listen_addrs: vec!["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/ws/0"],
         ..Default::default()
     };
-    
+
     // Create P2P client
     let client = P2pClient::new("My Node", config).await?;
     client.start().await?;
-    
+
     // Create DNS client
     let mut dns_client = DnsClient::new(&client).await?;
-    
+
     // Get our peer ID
     let peer_id = client.get_peer_id();
-    
+
     // Register a name
     let name = "alice";
     dns_client.register_name(name, &peer_id).await?;
     println!("Registered name '{}' for peer ID '{}'", name, peer_id);
-    
+
     // Resolve a name
     let resolved_peer_id = dns_client.resolve_name(name).await?;
     match resolved_peer_id {
         Some(id) => println!("Resolved name '{}' to peer ID '{}'", name, id),
         None => println!("Name '{}' not found", name),
     }
-    
+
     // Get all registered names
     let registered_names = dns_client.get_registered_names().await?;
     println!("Registered names:");
     for (name, id) in registered_names {
         println!("- {}: {}", name, id);
     }
-    
+
     // Unregister a name
     dns_client.unregister_name(name).await?;
     println!("Unregistered name '{}'", name);
-    
+
     // Stop the client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```
@@ -809,34 +809,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         listen_addrs: vec!["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/ws/0"],
         ..Default::default()
     };
-    
+
     // Create P2P client
     let mut client = P2pClient::new("My Node", config).await?;
-    
+
     // Add custom protocol
     client.add_protocol("my-custom-protocol", |data| {
         // Handle custom protocol data
         println!("Received custom protocol data: {:?}", data);
-        
+
         // Return response
         Ok(vec![1, 2, 3, 4, 5])
     });
-    
+
     // Start the client
     client.start().await?;
-    
+
     // Send custom protocol data to a peer
     let peer_id = "QmPeerId";
     let data = vec![6, 7, 8, 9, 10];
     let response = client.send_protocol_message(peer_id, "my-custom-protocol", data).await?;
     println!("Received response: {:?}", response);
-    
+
     // Keep the client running
     tokio::signal::ctrl_c().await?;
-    
+
     // Stop the client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```
@@ -857,13 +857,13 @@ async function main() {
       enableMdns: true,
       listenAddrs: ['/ip4/0.0.0.0/tcp/0', '/ip4/0.0.0.0/ws/0']
     });
-    
+
     // Start the client
     await client.start();
-    
+
     // Generate encryption key
     const encryptionKey = crypto.randomBytes(32);
-    
+
     // Encrypt message
     function encryptMessage(message: string, key: Buffer): string {
       const iv = crypto.randomBytes(16);
@@ -872,7 +872,7 @@ async function main() {
       encrypted += cipher.final('base64');
       return `${iv.toString('base64')}:${encrypted}`;
     }
-    
+
     // Decrypt message
     function decryptMessage(encryptedMessage: string, key: Buffer): string {
       const [ivStr, encrypted] = encryptedMessage.split(':');
@@ -882,14 +882,14 @@ async function main() {
       decrypted += decipher.final('utf8');
       return decrypted;
     }
-    
+
     // Send encrypted message
     const recipientPeerId = 'QmRecipientPeerId';
     const message = 'Hello with end-to-end encryption!';
     const encryptedMessage = encryptMessage(message, encryptionKey);
     await client.sendDirectMessage(recipientPeerId, encryptedMessage);
     console.log('Encrypted message sent');
-    
+
     // Listen for encrypted messages
     client.on('message:direct', (msg) => {
       try {
@@ -899,7 +899,7 @@ async function main() {
         console.error('Error decrypting message:', error);
       }
     });
-    
+
     // Keep the client running
     await new Promise(() => {});
   } catch (error) {

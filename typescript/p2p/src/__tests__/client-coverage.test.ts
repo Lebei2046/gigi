@@ -82,8 +82,12 @@ describe('P2pClient Coverage Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateLibp2pInstance.mockResolvedValue({
-      libp2p: mockLibp2p,
-      gigiDns: mockGigiDns,
+      libp2p: mockLibp2p as unknown as Awaited<
+        ReturnType<typeof import('../libp2p-setup').createLibp2pInstance>
+      >['libp2p'],
+      gigiDns: mockGigiDns as unknown as Awaited<
+        ReturnType<typeof import('../libp2p-setup').createLibp2pInstance>
+      >['gigiDns'],
     });
     mockEventEmitter.emit = vi.fn().mockResolvedValue(undefined);
     client = new P2pClient(config);
@@ -135,15 +139,23 @@ describe('P2pClient Coverage Tests', () => {
     await client.start();
 
     // Simulate Gigi DNS events
-    const discoveredListener = mockGigiDns.on.mock.calls.find(
+    const discoveredCall = mockGigiDns.on.mock.calls.find(
       (call: any) => call[0] === 'Discovered'
-    )[1];
-    const offlineListener = mockGigiDns.on.mock.calls.find(
+    );
+    const offlineCall = mockGigiDns.on.mock.calls.find(
       (call: any) => call[0] === 'Offline'
-    )[1];
-    const errorListener = mockGigiDns.on.mock.calls.find(
+    );
+    const errorCall = mockGigiDns.on.mock.calls.find(
       (call: any) => call[0] === 'Error'
-    )[1];
+    );
+
+    expect(discoveredCall).toBeDefined();
+    expect(offlineCall).toBeDefined();
+    expect(errorCall).toBeDefined();
+
+    const discoveredListener = discoveredCall![1];
+    const offlineListener = offlineCall![1];
+    const errorListener = errorCall![1];
 
     // Trigger the listeners
     discoveredListener(mockDiscoveredEvent);
@@ -158,12 +170,18 @@ describe('P2pClient Coverage Tests', () => {
     await client.start();
 
     // Get the event listeners
-    const connectListener = mockLibp2p.addEventListener.mock.calls.find(
+    const connectCall = mockLibp2p.addEventListener.mock.calls.find(
       (call: any) => call[0] === 'peer:connect'
-    )[1];
-    const disconnectListener = mockLibp2p.addEventListener.mock.calls.find(
+    );
+    const disconnectCall = mockLibp2p.addEventListener.mock.calls.find(
       (call: any) => call[0] === 'peer:disconnect'
-    )[1];
+    );
+
+    expect(connectCall).toBeDefined();
+    expect(disconnectCall).toBeDefined();
+
+    const connectListener = connectCall![1];
+    const disconnectListener = disconnectCall![1];
 
     // Simulate events
     connectListener({
@@ -185,10 +203,13 @@ describe('P2pClient Coverage Tests', () => {
     await client.start();
 
     // Get the pubsub listener
-    const pubsubListener =
+    const pubsubCall =
       mockLibp2p.services.pubsub.addEventListener.mock.calls.find(
         (call: any) => call[0] === 'message'
-      )[1];
+      );
+
+    expect(pubsubCall).toBeDefined();
+    const pubsubListener = pubsubCall![1];
 
     // Simulate a structured message
     pubsubListener({
@@ -229,10 +250,12 @@ describe('P2pClient Coverage Tests', () => {
     await client.start();
 
     // Get the DHT listener
-    const dhtListener =
-      mockLibp2p.services.dht.addEventListener.mock.calls.find(
-        (call: any) => call[0] === 'peer'
-      )[1];
+    const dhtCall = mockLibp2p.services.dht.addEventListener.mock.calls.find(
+      (call: any) => call[0] === 'peer'
+    );
+
+    expect(dhtCall).toBeDefined();
+    const dhtListener = dhtCall![1];
 
     // Simulate DHT peer discovery
     dhtListener({
@@ -247,9 +270,12 @@ describe('P2pClient Coverage Tests', () => {
     await client.start();
 
     // Get the protocol handler
-    const protocolHandler = mockLibp2p.handle.mock.calls.find(
+    const protocolCall = mockLibp2p.handle.mock.calls.find(
       (call: any) => call[0] === '/gigi/direct/1.0.0'
-    )[1];
+    );
+
+    expect(protocolCall).toBeDefined();
+    const protocolHandler = protocolCall![1];
 
     // Simulate a direct message
     const mockStream = {

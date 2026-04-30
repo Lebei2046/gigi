@@ -46,7 +46,7 @@ Gigi TUI is a terminal-based P2P chat client for communicating with AI agents in
 
 ### Prerequisites
 
-- Node.js 18+  
+- Node.js 18+
 - pnpm package manager
 
 ### Installation Steps

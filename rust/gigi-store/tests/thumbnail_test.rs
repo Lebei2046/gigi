@@ -96,8 +96,8 @@ async fn test_thumbnail_different_sizes() {
         let thumb_path = thumbnail_dir.join(&thumb_filename);
         let thumb_img = image::open(&thumb_path).expect("Failed to open thumbnail");
 
-        assert!(thumb_img.width() <= width as u32);
-        assert!(thumb_img.height() <= height as u32);
+        assert!(thumb_img.width() <= width);
+        assert!(thumb_img.height() <= height);
     }
 }
 

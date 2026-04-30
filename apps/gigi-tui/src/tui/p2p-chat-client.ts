@@ -166,7 +166,7 @@ export class P2PChatClient {
           if (messageData.type === 'text' && messageData.text) {
             // Parse the message content
             const messageContent = JSON.parse(messageData.text);
-            
+
             // Check if it's a response message
             if (messageContent.type === "response" && messageContent.event === 'sessions.list' && messageContent.payload) {
               // Handle session list events
@@ -207,7 +207,7 @@ export class P2PChatClient {
   async start() {
     await this.client.start();
     logger.info('Gigi P2P client started');
-    
+
     // Join the gigi-agents group (as per test case)
     try {
       await this.client.joinGroup('gigi-agents');

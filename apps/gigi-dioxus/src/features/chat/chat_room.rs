@@ -57,20 +57,20 @@ pub fn ChatRoom(id: String) -> Element {
 
     // State for group share notification modal
     let mut show_group_share_modal = use_signal(|| false);
-    let mut group_id = use_signal(|| String::new());
-    let mut group_name = use_signal(|| String::new());
-    let mut sender_name = use_signal(|| String::new());
+    let mut group_id = use_signal(String::new);
+    let mut group_name = use_signal(String::new);
+    let mut sender_name = use_signal(String::new);
 
     // Set up event listeners for messages
     use_chat_event_listeners(chat_state, chat_room_state);
     let (
-        mut handle_send_message,
-        mut handle_image_select,
-        mut handle_file_select,
+        handle_send_message,
+        _handle_image_select,
+        handle_file_select,
         handle_file_download_request,
         _handle_share_file,
-        mut handle_delete_message,
-    ) = use_message_actions(chat_room_state.clone());
+        handle_delete_message,
+    ) = use_message_actions(chat_room_state);
 
     // Convert to EventHandler for Dioxus component
     let on_download_request = move |args: (String, String, String)| {
@@ -110,7 +110,7 @@ pub fn ChatRoom(id: String) -> Element {
 
             // Save the group to auth service for persistence across restarts
             // created=false because this is a joined group (via invitation), not created by the user
-            if let Ok(mut auth_service) = AuthService::new().await {
+            if let Ok(auth_service) = AuthService::new().await {
                 if let Err(err) = auth_service.upsert_group(&g_id, &g_name, false).await {
                     println!("Failed to upsert group: {:?}", err);
                 }
@@ -143,7 +143,7 @@ pub fn ChatRoom(id: String) -> Element {
     let handle_key_down = move |e: KeyboardEvent| {
         if e.key() == Key::Enter {
             e.prevent_default();
-            let mut send_msg = send_message_clone.borrow_mut();
+            let send_msg = send_message_clone.borrow_mut();
             send_msg();
         }
     };
@@ -152,7 +152,7 @@ pub fn ChatRoom(id: String) -> Element {
         navigator.push("/");
     };
 
-    let chat_room_state_clone = chat_room_state.clone();
+    let chat_room_state_clone = chat_room_state;
 
     use_effect(move || {
         let _ = chat_room_state_clone.read().messages.len();
@@ -177,7 +177,7 @@ pub fn ChatRoom(id: String) -> Element {
                     is_group_chat: chat_room_state.read().is_group_chat,
                     on_download_request,
                     on_delete: move |msg_id: String| {
-                        let mut delete_msg = delete_message.borrow_mut();
+                        let delete_msg = delete_message.borrow_mut();
                         delete_msg(msg_id);
                     },
                     on_group_share: handle_group_share,
@@ -201,7 +201,7 @@ pub fn ChatRoom(id: String) -> Element {
                         button {
                             class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
                             onclick: move |_| {
-                                let mut file_sel = file_select_clone2.borrow_mut();
+                                let file_sel = file_select_clone2.borrow_mut();
                                 file_sel();
                             },
                             svg {
@@ -220,7 +220,7 @@ pub fn ChatRoom(id: String) -> Element {
                         button {
                             class: "p-2 text-gray-600 hover:bg-gray-100 rounded-full",
                             onclick: move |_| {
-                                let mut file_sel = file_select_clone.borrow_mut();
+                                let file_sel = file_select_clone.borrow_mut();
                                 file_sel();
                             },
                             svg {
@@ -243,12 +243,12 @@ pub fn ChatRoom(id: String) -> Element {
                             oninput: move |e| {
                                 chat_room_state.write().new_message = e.value();
                             },
-                            onkeydown: move |e| handle_key_down(e),
+                            onkeydown: handle_key_down,
                         }
                         button {
                             class: if chat_room_state.read().new_message.is_empty() || chat_room_state.read().sending { "p-2 text-gray-400 cursor-not-allowed" } else { "p-2 text-blue-600 hover:bg-blue-100 rounded-full" },
                             onclick: move |_| {
-                                let mut send_msg = send_message.borrow_mut();
+                                let send_msg = send_message.borrow_mut();
                                 send_msg();
                             },
                             disabled: chat_room_state.read().new_message.is_empty() || chat_room_state.read().sending,

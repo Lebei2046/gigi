@@ -136,38 +136,38 @@ pub struct MessageStore {
 impl MessageStore {
     // 初始化数据库
     pub async fn new(db_path: PathBuf) -> Result<Self>;
-    
+
     // 存储消息
     pub async fn store_message(&mut self, msg: StoredMessage) -> Result<()>;
-    
+
     // 标记消息已投递
     pub async fn mark_delivered(&mut self, message_id: &str) -> Result<()>;
-    
+
     // 标记消息已读
     pub async fn mark_read(&mut self, message_id: &str) -> Result<()>;
-    
+
     // 获取对话历史
     pub async fn get_conversation(
-        &self, 
-        peer_nickname: &str, 
-        limit: usize, 
+        &self,
+        peer_nickname: &str,
+        limit: usize,
         offset: usize
     ) -> Result<Vec<StoredMessage>>;
-    
+
     // 获取群组消息
     pub async fn get_group_messages(
-        &self, 
-        group_name: &str, 
-        limit: usize, 
+        &self,
+        group_name: &str,
+        limit: usize,
         offset: usize
     ) -> Result<Vec<StoredMessage>>;
-    
+
     // 添加到离线队列
     pub async fn enqueue_offline(&mut self, item: OfflineQueueItem) -> Result<()>;
-    
+
     // 获取待投递消息
     pub async fn get_pending_messages(&self, nickname: &str) -> Result<Vec<StoredMessage>>;
-    
+
     // 清理过期消息
     pub async fn cleanup_expired(&mut self) -> Result<()>;
 }
@@ -184,22 +184,22 @@ pub struct SyncManager {
 
 impl SyncManager {
     pub fn new(message_store: MessageStore) -> Self;
-    
+
     // 检测到好友上线时触发
     pub async fn on_peer_online(&mut self, nickname: &str, peer_id: PeerId) -> Result<Vec<StoredMessage>>;
-    
+
     // 定期同步: 交换消息摘要
     pub async fn sync_with_peer(&mut self, nickname: &str, peer_id: PeerId) -> Result<SyncSummary>;
-    
+
     // 处理来自好友的同步请求
     pub async fn handle_sync_request(&mut self, summary: SyncSummary) -> Result<SyncSummary>;
-    
+
     // 推送离线消息
     pub async fn push_offline_messages(&mut self, nickname: &str, peer_id: PeerId) -> Result<usize>;
-    
+
     // 确认消息已接收
     pub async fn acknowledge_message(&mut self, message_id: &str) -> Result<()>;
-    
+
     // 定期清理任务
     pub async fn run_cleanup_task(&self);
 }
@@ -221,17 +221,17 @@ impl P2pClient {
         output_dir: PathBuf,
         db_path: PathBuf,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>)>;
-    
+
     // 发送消息(自动持久化)
     pub async fn send_message_persistent(
         &mut self,
         nickname: &str,
         message: String,
     ) -> Result<String>;
-    
+
     // 获取对话历史
     pub async fn get_history(&self, nickname: &str, limit: usize) -> Result<Vec<StoredMessage>>;
-    
+
     // 标记消息已读
     pub async fn mark_as_read(&mut self, message_id: &str) -> Result<()>;
 }
@@ -292,17 +292,17 @@ pub enum OfflineSyncMessage {
     RequestPending {
         since: u64, // 上次同步时间戳
     },
-    
+
     // 推送离线消息
     PushMessages {
         messages: Vec<StoredMessage>,
     },
-    
+
     // 确认收到消息
     AckMessages {
         message_ids: Vec<String>,
     },
-    
+
     // 同步摘要
     SyncSummary {
         summary: SyncSummary,
@@ -331,7 +331,7 @@ pub struct UnifiedBehaviour {
 ```rust
 pub enum P2pEvent {
     // ... 现有事件 ...
-    
+
     // 新增: 离线消息相关事件
     OfflineMessagesReceived {
         from: PeerId,
@@ -408,17 +408,17 @@ SyncManager::sync_with_peer()
 pub struct SyncConfig {
     // 同步间隔
     pub sync_interval: Duration,         // 默认30秒
-    
+
     // 离线消息过期时间
     pub offline_message_ttl: Duration,   // 默认7天
-    
+
     // 重试配置
     pub max_retry_count: u32,            // 默认10次
     pub retry_interval: Duration,        // 默认5分钟
-    
+
     // 批量推送配置
     pub max_batch_size: usize,           // 默认50条/批
-    
+
     // 清理任务间隔
     pub cleanup_interval: Duration,      // 默认1小时
 }

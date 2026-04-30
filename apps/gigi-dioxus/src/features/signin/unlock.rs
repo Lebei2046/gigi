@@ -7,7 +7,7 @@ use crate::services::p2p_service::P2pService;
 
 #[component]
 pub fn Unlock() -> Element {
-    let mut password = use_signal(|| String::new());
+    let mut password = use_signal(String::new);
     let mut is_loading = use_signal(|| false);
     let mut error = use_signal(|| Option::<String>::None);
     let navigator = use_navigator();

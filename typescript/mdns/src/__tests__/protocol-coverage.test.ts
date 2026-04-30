@@ -148,7 +148,9 @@ describe('GigiDnsProtocol Coverage Tests', () => {
     };
 
     // Mock peerIdFromString
-    mockPeerIdFromString.mockReturnValue({ toString: () => '12D3KooWOther' });
+    mockPeerIdFromString.mockReturnValue({
+      toString: () => '12D3KooWOther',
+    } as unknown as PeerId);
 
     // Test no nickname
     const result = (protocol as any).processDiscoveredPeer(record, 30);
@@ -167,7 +169,9 @@ describe('GigiDnsProtocol Coverage Tests', () => {
     };
 
     // Mock peerIdFromString
-    mockPeerIdFromString.mockReturnValue({ toString: () => '12D3KooWOther' });
+    mockPeerIdFromString.mockReturnValue({
+      toString: () => '12D3KooWOther',
+    } as unknown as PeerId);
 
     // Test nickname that looks like peer ID
     const result = (protocol as any).processDiscoveredPeer(record, 30);

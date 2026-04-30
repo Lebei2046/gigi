@@ -1,0 +1,21 @@
+repos:
+  - repo: local
+    hooks:
+      - id: rust-integration-tests
+        name: Rust Integration Tests
+        entry: cargo test --test '*' --all --quiet -- --test-threads=2
+        language: system
+        pass_filenames: false
+        verbose: true
+
+      - id: security-audit
+        name: Security Audit
+        entry: cargo audit
+        language: system
+        pass_filenames: false
+
+      - id: rust-build
+        name: Rust Release Build
+        entry: cargo build --release --all
+        language: system
+        pass_filenames: false

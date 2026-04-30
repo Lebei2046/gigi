@@ -34,7 +34,7 @@ UnifiedBehaviour {
 }
 ```
 
-**Benefits:** 
+**Benefits:**
 - ✅ Nicknames discovered immediately via mDNS (no extra protocol needed)
 - ✅ Capabilities/metadata included automatically
 - ✅ Simpler codebase (remove nickname exchange protocol)
@@ -100,7 +100,7 @@ match behaviour_event {
             nickname: info.nickname,
         });
     }
-    
+
     // Other events remain unchanged
     UnifiedEvent::DirectMessage(event) => { /* ... */ }
     UnifiedEvent::Gossipsub(event) => { /* ... */ }
@@ -135,7 +135,7 @@ pub fn new(keypair: Keypair, nickname: String, download_dir: PathBuf) -> Result<
         gossipsub: create_gossipsub_behaviour(keypair, gossipsub_config)?,
         file_sharing: request_response::cbor::Behaviour::new(...),
     };
-    
+
     // Rest of initialization...
 }
 ```

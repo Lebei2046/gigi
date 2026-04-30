@@ -9,7 +9,7 @@ use std::sync::Once;
 
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, registry::Registry};
+use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt};
 
 /// Log output destination
 #[derive(Debug, Clone, PartialEq)]

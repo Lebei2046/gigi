@@ -21,7 +21,7 @@ This document clarifies the flow of image messaging implementation and how it di
 ```typescript
 // User selects image
 const filePath = await MessagingClient.openFileDialog()
-  
+
 // Backend processes image
 const response = await MessagingClient.sendImageMessageWithPath(nickname, filePath)
 // Returns: "messageId|base64ImageData"
@@ -55,7 +55,7 @@ const response = await MessagingClient.sendGroupImageMessageWithPath(groupId, fi
 MessagingEvents.on('image-message-received', (messageData) => {
   // messageData contains:
   // - from_peer_id
-  // - from_nickname  
+  // - from_nickname
   // - share_code (file download code)
   // - filename
   // - file_size
@@ -72,7 +72,7 @@ const imageMessage: Message = {
   id: generateMessageId(),
   from_peer_id: messageData.from_peer_id,
   from_nickname: messageData.from_nickname,
-  content: messageData.download_error 
+  content: messageData.download_error
     ? `❌ Image: ${messageData.filename} (Download failed)`
     : `⬇️ Image: ${messageData.filename} (Downloading...)`,
   timestamp: messageData.timestamp,
@@ -332,7 +332,7 @@ DirectMessage::FileShare { share_code, filename, file_size, file_type } => {
         file_size,
         file_type,
     });
-    
+
     // Frontend decides handling based on file_type:
     // - image/*: Image messaging flow (base64 preview + download)
     // - others: Traditional file sharing flow (manual download)
@@ -440,7 +440,7 @@ DirectMessage::FileShare { share_code, filename, file_size, file_type } => {
 // Frontend receives event and decides based on MIME type
 function handleFileShareMessage(event) {
     const { share_code, filename, file_type } = event;
-    
+
     if (file_type.startsWith('image/')) {
         // Image messaging flow: Base64 preview + background download
         handleImageMessage(event);

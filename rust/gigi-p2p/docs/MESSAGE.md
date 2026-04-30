@@ -30,7 +30,7 @@ enum DirectMessage {
         data: Vec<u8>,                 // Raw image bytes (Base64 in frontend)
     },
     ShareGroup {
-        group_id: String,              // Unique group identifier  
+        group_id: String,              // Unique group identifier
         group_name: String,            // Human-readable group name
         inviter_nickname: String,      // Nickname of person inviting
     },
@@ -376,7 +376,7 @@ fn create_share_code(file_info: &FileInfo) -> String {
 pub async fn send_file_message(&mut self, peer_id: PeerId, file_id: &str) -> Result<()> {
     let file_info = self.shared_files.get(file_id).ok_or("File not found")?;
     let share_code = create_share_code(&file_info.info);
-    
+
     self.swarm.behaviour_mut().direct_msg.send_request(
         &peer_id,
         DirectMessage::FileShare {
@@ -387,7 +387,7 @@ pub async fn send_file_message(&mut self, peer_id: PeerId, file_id: &str) -> Res
                 .first_or_octet_stream().to_string(),
         },
     ).await?;
-    
+
     Ok(())
 }
 ```
@@ -399,7 +399,7 @@ pub async fn send_group_file(&mut self, group_name: &str, file_id: &str) -> Resu
     let group = self.groups.get(group_name).ok_or("Group not found")?;
     let file_info = self.shared_files.get(file_id).ok_or("File not found")?;
     let share_code = create_share_code(&file_info.info);
-    
+
     let message = GroupMessage {
         sender_nickname: self.local_nickname.clone(),
         content: format!("Shared file: {}", file_info.info.name),
@@ -411,10 +411,10 @@ pub async fn send_group_file(&mut self, group_name: &str, file_id: &str) -> Resu
         file_type: Some(mime_guess::from_path(&file_info.info.name)
             .first_or_octet_stream().to_string()),
     };
-    
+
     let data = serde_json::to_vec(&message)?;
     self.swarm.behaviour_mut().gossipsub.publish(group.topic.clone(), data)?;
-    
+
     Ok(())
 }
 ```
@@ -426,7 +426,7 @@ pub async fn send_group_file(&mut self, group_name: &str, file_id: &str) -> Resu
 // NEW: Handle file share messages
 if (message.has_file_share) {
   return (
-    <FileShareMessage 
+    <FileShareMessage
       shareCode={message.share_code}
       filename={message.filename}
       fileSize={message.file_size}
@@ -516,7 +516,7 @@ DirectMessage::Image {
     data: Vec<u8>,  // ❌ Sends raw image data directly
 }
 
-// PROBLEM: Group image messages embed raw data  
+// PROBLEM: Group image messages embed raw data
 struct GroupMessage {
     data: Option<Vec<u8>>,  // ❌ Broadcasts raw image data
 }
@@ -556,7 +556,7 @@ struct GroupMessage {
     content: String,
     timestamp: u64,
     is_image: bool,           // ❌ Remove this
-    filename: Option<String>,  // ❌ Remove this  
+    filename: Option<String>,  // ❌ Remove this
     data: Option<Vec<u8>>,     // ❌ Remove this (raw image data)
 }
 
@@ -580,7 +580,7 @@ You're correct - the `FileTransferRequest` and `FileTransferResponse` enums don'
 // ✅ NO CHANGES NEEDED - Already working
 enum FileTransferRequest {
     GetFileInfo(String),      // ✅ Works
-    GetChunk(String, usize),   // ✅ Works  
+    GetChunk(String, usize),   // ✅ Works
     ListFiles,               // ✅ Works
     // Don't need RequestByShareCode - already handled by GetFileInfo
 }
@@ -596,10 +596,10 @@ The existing system can resolve share codes through the current `GetFileInfo` re
 pub async fn send_image_message(&mut self, peer_id: PeerId, image_path: &str) -> Result<()> {
     // 1. Add image to existing file sharing system
     let file_id = self.share_file(image_path).await?;
-    
+
     // 2. Get the existing share code
     let shared_file = self.shared_files.get(&file_id).unwrap();
-    
+
     // 3. Send share code instead of raw data
     self.swarm.behaviour_mut().direct_msg.send_request(
         &peer_id,
@@ -610,7 +610,7 @@ pub async fn send_image_message(&mut self, peer_id: PeerId, image_path: &str) ->
             file_type: "image/jpeg".to_string(), // or detect from file
         },
     ).await?;
-    
+
     Ok(())
 }
 ```
@@ -649,7 +649,7 @@ const handleFileShareMessage = async (shareCode: string) => {
 You're absolutely right - **no redesign needed**! The solution is much simpler:
 
 1. **Keep existing file sharing system** ✅
-2. **Replace direct image messages** with file share codes ✅  
+2. **Replace direct image messages** with file share codes ✅
 3. **Update group messages** to use share codes instead of embedded data ✅
 4. **Reuse existing FileTransfer APIs** ✅
 

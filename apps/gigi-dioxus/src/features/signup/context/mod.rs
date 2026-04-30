@@ -132,6 +132,7 @@ pub struct SignupContext {
     pub state: Signal<SignupState>,
     pub dispatch: Callback<SignupAction>,
     pub save_account_info: Callback<()>,
+    #[allow(dead_code)]
     pub save_group_info: Callback<()>,
 }
 
@@ -141,11 +142,11 @@ pub fn use_signup_context() -> SignupContext {
 
 #[component]
 pub fn SignupProvider(children: Element) -> Element {
-    let mut state = use_signal(|| SignupState::default());
+    let mut state = use_signal(SignupState::default);
 
     let dispatch = use_callback(move |action: SignupAction| {
         let mut state_write = state.write();
-        *state_write = signup_reducer(&*state_write, action);
+        *state_write = signup_reducer(&state_write, action);
     });
 
     let save_account_info = use_callback(move |_| {
@@ -159,7 +160,7 @@ pub fn SignupProvider(children: Element) -> Element {
         } else {
             None
         };
-        let dispatch_clone = dispatch.clone();
+        let dispatch_clone = dispatch;
 
         spawn(async move {
             match crate::services::auth_service::AuthService::new().await {

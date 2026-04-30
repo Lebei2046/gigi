@@ -476,11 +476,11 @@ pub const BOOTSTRAP_NODES: &[&str] = &[
     // Primary bootstrap nodes
     "/dns4/bootstrap1.gigi.network/tcp/4001/p2p/12D3KooWABC...",
     "/dns4/bootstrap2.gigi.network/tcp/4002/p2p/12D3KooWDEF...",
-    
+
     // Fallback IPs
     "/ip4/203.0.113.10/tcp/4001/p2p/12D3KooWABC...",
     "/ip4/203.0.113.11/tcp/4002/p2p/12D3KooWDEF...",
-    
+
     // Relay node
     "/dns4/relay.gigi.network/tcp/4003/p2p/12D3KooWGHI...",
     "/ip4/203.0.113.12/tcp/4003/p2p/12D3KooWGHI...",
@@ -492,7 +492,7 @@ pub struct MobileP2PConfig;
 impl MobileP2PConfig {
     pub fn create_swarm(keypair: &identity::Keypair) -> anyhow::Result<Swarm<MobileBehaviour>> {
         let local_peer_id = PeerId::from(keypair.public());
-        
+
         // Transport with relay support
         let transport = OrTransport::new(
             libp2p::quic::tokio::Transport::new(libp2p::quic::Config::default()),
@@ -508,7 +508,7 @@ impl MobileP2PConfig {
         // Behaviours
         let kad_config = kad::Config::default()
             .set_mode(Some(kad::Mode::Client)); // Mobile is client mode
-            
+
         let kademlia = kad::Behaviour::with_config(
             local_peer_id,
             kad::store::MemoryStore::new(local_peer_id),

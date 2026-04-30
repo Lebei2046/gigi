@@ -2,6 +2,7 @@
 //
 // Tests for Gigi DNS types
 
+#![allow(clippy::field_reassign_with_default)]
 use gigi_dns::types::*;
 use libp2p::{Multiaddr, PeerId};
 use std::time::{Duration, Instant};

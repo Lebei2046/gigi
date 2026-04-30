@@ -182,7 +182,7 @@ pub fn init_logging() {
 /// gigi_p2p::init_logging_with_level(Level::DEBUG);
 /// ```
 pub fn init_logging_with_level(level: tracing::Level) {
-    use gigi_logging::{init_logging_with_config, LogConfig, LogOutput};
+    use gigi_logging::{init_logging_with_config, LogConfig};
 
     let config = LogConfig {
         level,

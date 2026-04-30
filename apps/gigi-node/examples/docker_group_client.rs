@@ -335,7 +335,7 @@ async fn main() -> Result<()> {
 
 fn parse_peer_addr(s: &str) -> Option<(PeerId, libp2p::Multiaddr)> {
     let addr: libp2p::Multiaddr = s.parse().ok()?;
-    let mut iter = addr.iter();
+    let iter = addr.iter();
     let mut last_protocol = None;
     let mut addr_parts = Vec::new();
 

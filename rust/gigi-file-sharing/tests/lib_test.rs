@@ -289,5 +289,4 @@ async fn test_chunk_reader_setter() {
     manager.set_chunk_reader(reader);
 
     // Cannot directly test reader usage without URI, but should not panic
-    assert!(true);
 }

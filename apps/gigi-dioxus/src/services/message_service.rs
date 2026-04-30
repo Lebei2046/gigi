@@ -2,14 +2,17 @@ use crate::features::chat::chat_state::Message;
 use crate::services::persistence_service::PersistenceService;
 
 // Message service for handling message persistence and history loading
+#[allow(dead_code)]
 pub struct MessageService;
 
 impl MessageService {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }
 
     // Load message history for a chat
+    #[allow(dead_code)]
     pub async fn load_message_history(
         &self,
         peer_nickname: &str,
@@ -33,6 +36,7 @@ impl MessageService {
     }
 
     // Save a message to persistence (new signature with full params)
+    #[allow(dead_code)]
     pub async fn save_message_full(
         &self,
         message: &Message,
@@ -57,12 +61,14 @@ impl MessageService {
     }
 
     // Save a message to persistence (backward compatible wrapper)
+    #[allow(dead_code)]
     pub async fn save_message(&self, message: &Message, chat_id: &str) -> Result<(), String> {
         self.save_message_full(message, chat_id, "You", "", true)
             .await
     }
 
     // Mark messages as read
+    #[allow(dead_code)]
     pub async fn mark_messages_as_read(&self, chat_id: &str) -> Result<(), String> {
         // In a real app, this would mark messages as read in the backend
         println!("Marking messages as read for chat: {}", chat_id);
@@ -70,6 +76,7 @@ impl MessageService {
     }
 
     // Clear messages for a chat
+    #[allow(dead_code)]
     pub async fn clear_messages(&self, chat_id: &str) -> Result<(), String> {
         // In a real app, this would clear messages in the backend
         println!("Clearing messages for chat: {}", chat_id);

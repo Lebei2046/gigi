@@ -2,6 +2,7 @@
 //
 // Tests for Gigi DNS protocol
 
+#![allow(clippy::field_reassign_with_default)]
 use gigi_dns::protocol::GigiDnsProtocol;
 use gigi_dns::types::*;
 use libp2p::{Multiaddr, PeerId};
@@ -248,10 +249,9 @@ fn test_transaction_id_wraparound() {
     }
 
     let query = protocol.build_query();
-    let tid = ((query[0] as u16) << 8) | (query[1] as u16);
+    let _tid = ((query[0] as u16) << 8) | (query[1] as u16);
 
-    // Should be a valid u16 (0-65535) - u16 already enforces this
-    assert!(tid <= u16::MAX);
+    // TID is automatically within valid u16 range (0-65535)
 }
 
 #[test]

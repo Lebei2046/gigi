@@ -1373,7 +1373,7 @@ impl P2pClient {
         let message_store = self
             .message_store
             .as_ref()
-            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+            .ok_or(P2pError::PersistenceNotEnabled)?;
 
         // We don't require the peer to be online to view history
         // Just check if there are any messages in the database
@@ -1399,7 +1399,7 @@ impl P2pClient {
         let message_store = self
             .message_store
             .as_ref()
-            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+            .ok_or(P2pError::PersistenceNotEnabled)?;
 
         message_store
             .mark_read(message_id)
@@ -1423,7 +1423,7 @@ impl P2pClient {
         let message_store = self
             .message_store
             .as_ref()
-            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+            .ok_or(P2pError::PersistenceNotEnabled)?;
 
         message_store
             .mark_conversation_read(nickname)
@@ -1447,7 +1447,7 @@ impl P2pClient {
         let message_store = self
             .message_store
             .as_ref()
-            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+            .ok_or(P2pError::PersistenceNotEnabled)?;
 
         message_store
             .mark_delivered(message_id)
@@ -1471,7 +1471,7 @@ impl P2pClient {
         let message_store = self
             .message_store
             .as_ref()
-            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+            .ok_or(P2pError::PersistenceNotEnabled)?;
 
         message_store
             .store_message(msg)
@@ -1496,7 +1496,7 @@ impl P2pClient {
         let sync_manager = self
             .sync_manager
             .as_ref()
-            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+            .ok_or(P2pError::PersistenceNotEnabled)?;
 
         sync_manager
             .get_unread_count(peer_nickname)
@@ -1521,7 +1521,7 @@ impl P2pClient {
         let message_store = self
             .message_store
             .as_ref()
-            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+            .ok_or(P2pError::PersistenceNotEnabled)?;
 
         // Get the peer_id for this nickname
         let peer_id = self
@@ -1581,7 +1581,7 @@ impl P2pClient {
         let message_store = self
             .message_store
             .as_ref()
-            .ok_or_else(|| P2pError::PersistenceNotEnabled)?;
+            .ok_or(P2pError::PersistenceNotEnabled)?;
 
         message_store
             .clear_conversation(nickname)

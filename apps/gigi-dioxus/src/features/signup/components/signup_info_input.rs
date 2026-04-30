@@ -12,7 +12,7 @@ pub fn SignupInfoInput() -> Element {
     // Track local state for inputs
     let mut name = use_signal(|| context.state.read().name.clone());
     let mut password = use_signal(|| context.state.read().password.clone());
-    let mut confirm_password = use_signal(|| String::new());
+    let mut confirm_password = use_signal(String::new);
     let mut create_group = use_signal(|| context.state.read().create_group);
     let mut group_name = use_signal(|| context.state.read().group_name.clone());
 

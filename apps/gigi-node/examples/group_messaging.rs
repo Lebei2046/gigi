@@ -286,19 +286,17 @@ async fn run_alice(
             if results.lock().unwrap().alice_got_reply {
                 break;
             }
-            match swarm.select_next_some().await {
-                SwarmEvent::Behaviour(NodeBehaviourEvent::Gossipsub(
-                    gossipsub::Event::Message { message, .. },
-                )) => {
-                    let text = String::from_utf8_lossy(&message.data).to_string();
-                    info!("[alice] ← received on {}: \"{text}\"", message.topic);
-                    if text == BOB_REPLY {
-                        info!("[alice] ✓ got Bob's reply");
-                        results.lock().unwrap().alice_got_reply = true;
-                        break;
-                    }
+            if let SwarmEvent::Behaviour(NodeBehaviourEvent::Gossipsub(
+                gossipsub::Event::Message { message, .. },
+            )) = swarm.select_next_some().await
+            {
+                let text = String::from_utf8_lossy(&message.data).to_string();
+                info!("[alice] ← received on {}: \"{text}\"", message.topic);
+                if text == BOB_REPLY {
+                    info!("[alice] ✓ got Bob's reply");
+                    results.lock().unwrap().alice_got_reply = true;
+                    break;
                 }
-                _ => {}
             }
         }
     })

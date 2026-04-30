@@ -207,6 +207,7 @@ pub struct GigiPeerInfo {
 ///
 /// These events inform the application about peer lifecycle changes.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum GigiDnsEvent {
     /// A new peer was discovered
     Discovered(GigiPeerInfo),

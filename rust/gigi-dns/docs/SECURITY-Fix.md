@@ -37,7 +37,7 @@ Today, we conducted a comprehensive design review and bug fixing session for the
 
 ### 6. Insufficient Error Handling ✅
 - **Files**: `protocol.rs:18, 177-223`
-- **Fix**: 
+- **Fix**:
   - Added error rate limiting (max 10 errors per minute)
   - Silently drop packets when limit exceeded
 - **Impact**: Prevents malicious packet flooding from overwhelming logs
@@ -68,7 +68,7 @@ Today, we conducted a comprehensive design review and bug fixing session for the
 
 ### 10. Memory Efficiency ✅
 - **Files**: `interface.rs:93-123`
-- **Fix**: 
+- **Fix**:
   - Initial buffer changed from 4KB to 4KB (DNS packet size)
   - Maximum buffer limit of 64KB
   - Added dynamic growth mechanism
@@ -123,8 +123,8 @@ append_u8(&mut packet, txt_value.len() as u8);  // ❌ Overflows/truncates >255
 - Reassembles complete TXT data
 
 ### Impact
-✅ Correctly supports TXT records of any length  
-✅ Compliant with DNS RFC 1035 specification  
+✅ Correctly supports TXT records of any length
+✅ Compliant with DNS RFC 1035 specification
 ✅ Complete transmission and reception of all fields
 
 ---

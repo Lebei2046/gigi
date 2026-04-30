@@ -41,10 +41,12 @@ pub fn initialize() {
     init_logging_with_config(config);
 }
 
+#[allow(dead_code)]
 pub fn info<T: AsRef<str>>(message: T) {
     gigi_logging::info!("{}", message.as_ref());
 }
 
+#[allow(dead_code)]
 pub fn warn<T: AsRef<str>>(message: T) {
     gigi_logging::warn!("{}", message.as_ref());
 }
@@ -53,6 +55,7 @@ pub fn error<T: AsRef<str>>(message: T) {
     gigi_logging::error!("{}", message.as_ref());
 }
 
+#[allow(dead_code)]
 pub fn debug<T: AsRef<str>>(message: T) {
     gigi_logging::debug!("{}", message.as_ref());
 }

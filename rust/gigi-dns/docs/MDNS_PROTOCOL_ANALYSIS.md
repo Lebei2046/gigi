@@ -59,7 +59,7 @@ pub(crate) struct InterfaceState<U, T> {
 pub const IPV4_MDNS_MULTICAST_ADDRESS: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 251);
 
 // IPv6 multicast address
-pub const IPV6_MDNS_MULTICAST_ADDRESS: Ipv6Addr = 
+pub const IPV6_MDNS_MULTICAST_ADDRESS: Ipv6Addr =
     Ipv6Addr::new(0xFF02, 0, 0, 0, 0, 0, 0, 0xFB);
 ```
 
@@ -107,23 +107,23 @@ Every 5 minutes → Send Query → Wait for Responses → Add to Discovered List
 ```rust
 pub(crate) fn build_query() -> MdnsPacket {
     let mut out = Vec::with_capacity(33);
-    
+
     // Transaction ID (random)
     append_u16(&mut out, rand::random());
-    
+
     // Flags (standard query)
     append_u16(&mut out, 0x0);
-    
+
     // Number of questions
     append_u16(&mut out, 0x1);
-    
+
     // Questions section
     append_qname(&mut out, SERVICE_NAME);
-    
+
     // Type PTR, Class IN
     append_u16(&mut out, 0x0c);  // Type PTR
     append_u16(&mut out, 0x01);  // Class IN
-    
+
     out
 }
 ```
@@ -196,7 +196,7 @@ pub struct Config {
 pub enum Event {
     /// Discovered nodes through mDNS
     Discovered(Vec<(PeerId, Multiaddr)>),
-    
+
     /// Expired nodes (TTL passed)
     Expired(Vec<(PeerId, Multiaddr)>),
 }
@@ -209,7 +209,7 @@ pub enum Event {
 query_response_sender.send((peer_id, multiaddr, expiration));
 
 // 2. Main poll loop receives it
-while let Some((peer, addr, expiration)) = 
+while let Some((peer, addr, expiration)) =
     query_response_receiver.poll_next(cx)
 {
     discovered_nodes.push((peer, addr.clone(), expiration));
@@ -333,11 +333,11 @@ fn encode_peer_info(
 ```rust
 fn decode_peer_info(data: &[u8]) -> Result<(PeerId, Multiaddr), ()> {
     let text = str::from_utf8(data)?;
-    
+
     // Parse "peer_id=<peer_id> addr=<multiaddr>"
     let peer_id = extract_peer_id(text)?;
     let multiaddr = extract_multiaddr(text)?;
-    
+
     Ok((peer_id, multiaddr))
 }
 ```
@@ -389,7 +389,7 @@ pub trait Provider: 'static {
     type TaskHandle: Abort;             // Task control
 
     fn new_watcher() -> Result<Self::Watcher, io::Error>;
-    fn spawn(task: impl Future<Output = ()> + Send + 'static) 
+    fn spawn(task: impl Future<Output = ()> + Send + 'static)
         -> Self::TaskHandle;
 }
 ```
@@ -408,7 +408,7 @@ pub mod tokio {
             IfWatcher::new()
         }
 
-        fn spawn(task: impl Future<Output = ()> + Send + 'static) 
+        fn spawn(task: impl Future<Output = ()> + Send + 'static)
             -> Self::TaskHandle {
             tokio::spawn(task)
         }
@@ -591,20 +591,20 @@ tracing::error!("if watch returned an error: {}", err);
 
 ### Strengths
 
-✅ **Zero Configuration**: Works out of the box  
-✅ **Local Network**: Optimized for LAN discovery  
-✅ **RFC Compliant**: Follows RFC 6762 standard  
-✅ **Efficient**: Minimal network traffic  
-✅ **Async-First**: Designed for tokio/async-std  
-✅ **Multi-Interface**: Supports multiple network interfaces  
+✅ **Zero Configuration**: Works out of the box
+✅ **Local Network**: Optimized for LAN discovery
+✅ **RFC Compliant**: Follows RFC 6762 standard
+✅ **Efficient**: Minimal network traffic
+✅ **Async-First**: Designed for tokio/async-std
+✅ **Multi-Interface**: Supports multiple network interfaces
 
 ### Weaknesses
 
-❌ **Local Only**: Cannot discover across networks  
-❌ **No Encryption**: Unencrypted peer discovery  
-❌ **Multicast Required**: Doesn't work on all networks  
-❌ **No Auth**: Anyone can discover/be discovered  
-❌ **Limited Data**: Only PeerId + Multiaddr  
+❌ **Local Only**: Cannot discover across networks
+❌ **No Encryption**: Unencrypted peer discovery
+❌ **Multicast Required**: Doesn't work on all networks
+❌ **No Auth**: Anyone can discover/be discovered
+❌ **Limited Data**: Only PeerId + Multiaddr
 
 ### Best For
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::Path;
 use uuid::Uuid;
 
 /// Generate thumbnail from image file
@@ -23,8 +23,8 @@ use uuid::Uuid;
 /// - A unique filename is generated using UUID v4
 /// - Thumbnail dimensions will not exceed `max_size` but may be smaller to maintain aspect ratio
 pub async fn generate_thumbnail(
-    file_path: &PathBuf,
-    thumbnail_dir: &PathBuf,
+    file_path: &Path,
+    thumbnail_dir: &Path,
     max_size: (u32, u32), // (width, height)
     _quality: u8,         // 1-100 (reserved for future use when quality parameter is supported)
 ) -> Result<String> {
@@ -33,7 +33,7 @@ pub async fn generate_thumbnail(
     // Load image (blocking operation, so we spawn a blocking task)
     // This prevents blocking the async runtime
     let img = task::spawn_blocking({
-        let file_path = file_path.clone();
+        let file_path = file_path.to_path_buf();
         move || image::open(&file_path).map_err(|e| anyhow::anyhow!("Failed to open image: {}", e))
     })
     .await
@@ -87,21 +87,28 @@ pub async fn generate_thumbnail(
 /// # Notes
 /// - Check is case-insensitive
 /// - Only checks file extension, does not validate file contents
-pub fn is_image_file(file_path: &PathBuf) -> bool {
-    if let Some(ext) = file_path.extension() {
-        match ext.to_str().map(|s| s.to_lowercase()).as_deref() {
-            Some("jpg") | Some("jpeg") | Some("png") | Some("gif") | Some("webp") | Some("bmp")
-            | Some("tiff") | Some("ico") => true,
-            _ => false,
-        }
-    } else {
-        false
-    }
+pub fn is_image_file(file_path: &Path) -> bool {
+    matches!(
+        file_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_lowercase())
+            .as_deref(),
+        Some("jpg")
+            | Some("jpeg")
+            | Some("png")
+            | Some("gif")
+            | Some("webp")
+            | Some("bmp")
+            | Some("tiff")
+            | Some("ico")
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[tokio::test]

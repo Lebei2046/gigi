@@ -26,9 +26,9 @@ pub fn MessageList(
             for message in messages_clone {
                 MessageBubble {
                     message: message.clone(),
-                    on_delete: on_delete.clone(),
-                    on_download_request: Some(on_download_request.clone()),
-                    on_group_share: on_group_share.clone(),
+                    on_delete: on_delete,
+                    on_download_request: Some(on_download_request),
+                    on_group_share: on_group_share,
                 }
             }
         }

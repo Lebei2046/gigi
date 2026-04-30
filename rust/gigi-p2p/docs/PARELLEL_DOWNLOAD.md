@@ -1,4 +1,4 @@
-Great! I'm glad the parallel downloading is working correctly now for both different files and the same file. 
+Great! I'm glad the parallel downloading is working correctly now for both different files and the same file.
 
 To summarize what we fixed:
 

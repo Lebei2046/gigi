@@ -40,7 +40,7 @@ warn!("Peer {} already connected, skipping", peer_id);
 // INFO: High-level operations users care about
 info!("File '{}' shared with code: {}", filename, share_code);
 
-// DEBUG: Detailed flow information  
+// DEBUG: Detailed flow information
 debug!("Processing swarm event: {:?}", event);
 
 // TRACE: Very detailed execution flow
@@ -117,17 +117,17 @@ RUST_LOG=debug,gigi_p2p=trace
 ### 1. API Documentation
 ```rust
 /// Share a file with other peers
-/// 
+///
 /// # Logging
 /// - INFO: Logs successful file sharing with share code
 /// - ERROR: Logs file access or hashing failures
 /// - DEBUG: Logs internal processing steps when enabled
-/// 
+///
 /// # Example
 /// ```rust
 /// // Enable logging
 /// gigi_p2p::init_tracing();
-/// 
+///
 /// let share_code = client.share_file(Path::new("document.pdf")).await?;
 /// ```
 #[instrument(skip(self))]
@@ -169,7 +169,7 @@ fn process_large_data(&self, large_data: &[u8]) {
 // ✅ Good: Use Display for user-facing logs
 info!("File '{}' shared", filename);
 
-// ❌ Avoid: Debug for user-facing logs  
+// ❌ Avoid: Debug for user-facing logs
 info!("File '{:?}' shared", filename);
 ```
 
@@ -198,7 +198,7 @@ info!(target: "gigi_p2p::file_transfer", "File operation completed");
 async fn download_file(&mut self, share_code: &str) -> Result<String, P2pError> {
     let _span = info_span!("file_download", share_code = share_code);
     let _enter = _span.enter();
-    
+
     info!("Starting file download");
     // Download implementation
     info!("File download completed");

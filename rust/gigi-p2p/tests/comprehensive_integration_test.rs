@@ -4,20 +4,20 @@
 
 use gigi_p2p::P2pClient;
 use libp2p::identity::Keypair;
-use std::path::PathBuf;
+use std::path::Path;
 use tempfile::TempDir;
 use tokio::time::{timeout, Duration};
 
 /// Helper function to create a test P2P client
 fn create_test_client(
     nickname: &str,
-    temp_dir: &PathBuf,
+    temp_dir: &Path,
 ) -> (
     P2pClient,
     futures::channel::mpsc::UnboundedReceiver<gigi_p2p::P2pEvent>,
 ) {
     let keypair = Keypair::generate_ed25519();
-    P2pClient::new(keypair, nickname.to_string(), temp_dir.clone())
+    P2pClient::new(keypair, nickname.to_string(), temp_dir.to_path_buf())
         .expect("Failed to create client")
 }
 

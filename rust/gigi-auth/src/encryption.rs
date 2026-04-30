@@ -201,7 +201,7 @@ pub fn encrypt_mnemonic(
 
     // Encode as hex for storage
     let encrypted_mnemonic = hex::encode(&ciphertext);
-    let nonce_hex = hex::encode(&nonce);
+    let nonce_hex = hex::encode(nonce);
 
     Ok(EncryptedAccountData {
         encrypted_mnemonic,
@@ -366,7 +366,7 @@ mod tests {
     fn test_serialization() {
         let data = EncryptedAccountData {
             encrypted_mnemonic: "encrypted_data".to_string(),
-            nonce: hex::encode(&[0u8; 12]),
+            nonce: hex::encode([0u8; 12]),
             peer_id: "12D3KooWBdWJvz4KwB6v4sF8s8uBx8Q".to_string(),
             group_id: "12D3KooWBdWJvz4KwB6v4sF8s8uBx8Q".to_string(),
             address: "0x742d35Cc6634C0530bbE07Ffd5B6c4F4d0885E".to_string(),

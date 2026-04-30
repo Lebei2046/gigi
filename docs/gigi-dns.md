@@ -81,23 +81,23 @@ use gigi_dns::GigiDns;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create DNS instance
     let dns = GigiDns::new().await?;
-    
+
     // Register a name
     dns.register("alice", "QmAlicePeerId").await?;
     println!("Registered 'alice' to QmAlicePeerId");
-    
+
     // Resolve a name
     let peer_id = dns.resolve("alice").await?;
     println!("Resolved 'alice' to: {}", peer_id);
-    
+
     // List registered names
     let names = dns.list_names().await?;
     println!("Registered names: {:?}", names);
-    
+
     // Unregister a name
     dns.unregister("alice").await?;
     println!("Unregistered 'alice'");
-    
+
     Ok(())
 }
 ```
@@ -428,34 +428,34 @@ use gigi_dns::GigiDns;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create DNS instance
     let dns = GigiDns::new().await?;
-    
+
     // Register names
     dns.register("alice", "QmAlicePeerId").await?;
     dns.register("bob", "QmBobPeerId").await?;
-    
+
     println!("Registered names: alice, bob");
-    
+
     // Resolve names
     let alice_id = dns.resolve("alice").await?;
     let bob_id = dns.resolve("bob").await?;
-    
+
     println!("Resolved alice to: {}", alice_id);
     println!("Resolved bob to: {}", bob_id);
-    
+
     // List registered names
     let names = dns.list_names().await?;
     println!("All registered names: {:?}", names);
-    
+
     // Unregister a name
     dns.unregister("alice").await?;
     println!("Unregistered alice");
-    
+
     // Try to resolve the unregistered name
     match dns.resolve("alice").await {
         Ok(peer_id) => println!("Resolved alice to: {}", peer_id),
         Err(e) => println!("Failed to resolve alice: {:?}", e),
     }
-    
+
     Ok(())
 }
 ```
@@ -469,29 +469,29 @@ use gigi_dns::GigiDns;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create DNS instance
     let dns = GigiDns::new().await?;
-    
+
     // Register names in different namespaces
     dns.register_in_namespace("alice", "QmAlicePeerId", "users").await?;
     dns.register_in_namespace("bob", "QmBobPeerId", "users").await?;
     dns.register_in_namespace("chat", "QmChatServicePeerId", "services").await?;
     dns.register_in_namespace("file", "QmFileServicePeerId", "services").await?;
-    
+
     println!("Registered names in namespaces");
-    
+
     // Resolve names from specific namespaces
     let alice_id = dns.resolve_from_namespace("alice", "users").await?;
     let chat_id = dns.resolve_from_namespace("chat", "services").await?;
-    
+
     println!("Resolved alice (users) to: {}", alice_id);
     println!("Resolved chat (services) to: {}", chat_id);
-    
+
     // List names in each namespace
     let user_names = dns.list_names_in_namespace("users").await?;
     let service_names = dns.list_names_in_namespace("services").await?;
-    
+
     println!("User names: {:?}", user_names);
     println!("Service names: {:?}", service_names);
-    
+
     Ok(())
 }
 ```
@@ -505,20 +505,20 @@ use gigi_dns::GigiDns;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create DNS instance
     let dns = GigiDns::new().await?;
-    
+
     // Register services
     dns.register_service("chat", "QmChatServicePeerId", "tcp", 5001).await?;
     dns.register_service("file", "QmFileServicePeerId", "tcp", 5002).await?;
-    
+
     println!("Registered services: chat, file");
-    
+
     // Resolve services
     let chat_service = dns.resolve_service("chat").await?;
     let file_service = dns.resolve_service("file").await?;
-    
+
     println!("Chat service: {}:{}:{}", chat_service.peer_id, chat_service.protocol, chat_service.port);
     println!("File service: {}:{}:{}", file_service.peer_id, file_service.protocol, file_service.port);
-    
+
     Ok(())
 }
 ```

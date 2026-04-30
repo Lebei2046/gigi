@@ -101,6 +101,7 @@ impl AuthService {
             .map_err(|e| anyhow::anyhow!("Failed to delete account: {:?}", e))
     }
 
+    #[allow(dead_code)]
     pub async fn verify_password(&self, password: &str) -> anyhow::Result<bool> {
         self.auth_manager
             .verify_password(password)
@@ -115,6 +116,7 @@ impl AuthService {
             .map_err(|e| anyhow::anyhow!("Failed to get groups: {:?}", e))
     }
 
+    #[allow(dead_code)]
     pub async fn get_joined_groups(&self) -> anyhow::Result<Vec<GroupInfo>> {
         self.auth_manager
             .get_joined_groups()
@@ -122,6 +124,7 @@ impl AuthService {
             .map_err(|e| anyhow::anyhow!("Failed to get joined groups: {:?}", e))
     }
 
+    #[allow(dead_code)]
     pub async fn update_group_created_status(
         &self,
         group_id: &str,

@@ -95,31 +95,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         enable_mdns: true,
         listen_addrs: vec!["/ip4/0.0.0.0/tcp/0"],
     };
-    
+
     // Create client
     let mut client = P2pClient::new("My Node", config).await?;
-    
+
     // Start client
     client.start().await?;
     println!("Started with peer ID: {}", client.peer_id());
-    
+
     // Send direct message
     client.send_direct_message("peer-id", "Hello!").await?;
-    
+
     // Join group
     client.join_group("general").await?;
-    
+
     // Send group message
     client.send_group_message("general", "Hello everyone!").await?;
-    
+
     // Share file
     let share_code = client.share_file("/path/to/file.txt").await?;
     println!("File shared with code: {}", share_code);
-    
+
     // Download file
     let download_id = client.download_file("peer-id", &share_code).await?;
     println!("Download started with ID: {}", download_id);
-    
+
     // Listen for events
     client.on_event(|event| {
         match event {
@@ -132,10 +132,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
     });
-    
+
     // Stop client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```
@@ -576,16 +576,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         bootstrap_nodes: vec!["/ip4/127.0.0.1/tcp/4001/p2p/QmBootstrapPeer"],
         ..Default::default()
     };
-    
+
     // Create and start client
     let mut client = P2pClient::new("Alice", config).await?;
     client.start().await?;
-    
+
     println!("Alice started with peer ID: {}", client.peer_id());
-    
+
     // Send message to Bob
     client.send_direct_message("bob-peer-id", "Hello Bob!").await?;
-    
+
     // Listen for messages
     client.on_event(|event| {
         match event {
@@ -595,13 +595,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
     });
-    
+
     // Keep the program running
     tokio::signal::ctrl_c().await?;
-    
+
     // Stop client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```
@@ -619,18 +619,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         bootstrap_nodes: vec!["/ip4/127.0.0.1/tcp/4001/p2p/QmBootstrapPeer"],
         ..Default::default()
     };
-    
+
     // Create and start client
     let mut client = P2pClient::new("Alice", config).await?;
     client.start().await?;
-    
+
     // Join general group
     client.join_group("general").await?;
     println!("Alice joined general group");
-    
+
     // Send group message
     client.send_group_message("general", "Hello everyone!").await?;
-    
+
     // Listen for group messages
     client.on_event(|event| {
         match event {
@@ -640,13 +640,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
     });
-    
+
     // Keep the program running
     tokio::signal::ctrl_c().await?;
-    
+
     // Stop client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```
@@ -664,15 +664,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         bootstrap_nodes: vec!["/ip4/127.0.0.1/tcp/4001/p2p/QmBootstrapPeer"],
         ..Default::default()
     };
-    
+
     // Create and start client
     let mut client = P2pClient::new("Alice", config).await?;
     client.start().await?;
-    
+
     // Share a file
     let share_code = client.share_file("/path/to/document.pdf").await?;
     println!("File shared with code: {}", share_code);
-    
+
     // Listen for download events
     client.on_event(|event| {
         match event {
@@ -685,17 +685,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
     });
-    
+
     // Download a file from Bob
     let download_id = client.download_file("bob-peer-id", "share-code-from-bob").await?;
     println!("Download started with ID: {}", download_id);
-    
+
     // Keep the program running
     tokio::signal::ctrl_c().await?;
-    
+
     // Stop client
     client.stop().await?;
-    
+
     Ok(())
 }
 ```

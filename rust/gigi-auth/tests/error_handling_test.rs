@@ -37,7 +37,7 @@ async fn test_invalid_mnemonic() {
     // Invalid mnemonic (not a valid BIP-39 phrase)
     let invalid_mnemonic = "this is not a valid mnemonic phrase";
     let result = auth
-        .create_account(invalid_mnemonic, TEST_PASSWORD, None)
+        .create_account(invalid_mnemonic, TEST_PASSWORD, None, None)
         .await;
 
     assert!(result.is_err());
@@ -56,7 +56,7 @@ async fn test_invalid_checksum_mnemonic() {
     let invalid_checksum =
         "abandon amount liar amount expire adjust cage candy arch gather drum buyer abandon";
     let result = auth
-        .create_account(invalid_checksum, TEST_PASSWORD, None)
+        .create_account(invalid_checksum, TEST_PASSWORD, None, None)
         .await;
 
     // Should fail due to invalid checksum
@@ -72,7 +72,7 @@ async fn test_wrong_checksum_mnemonic() {
     let wrong_checksum =
         "abandon amount liar amount expire adjust cage candy arch gather drum advice";
     let result = auth
-        .create_account(wrong_checksum, TEST_PASSWORD, None)
+        .create_account(wrong_checksum, TEST_PASSWORD, None, None)
         .await;
 
     // The checksum might be valid for this phrase, but it's a different mnemonic
@@ -107,7 +107,7 @@ async fn test_password_case_sensitivity() {
     let auth = AuthManager::new(db);
 
     // Create account with lowercase password
-    auth.create_account(TEST_MNEMONIC, "password", None)
+    auth.create_account(TEST_MNEMONIC, "password", None, None)
         .await
         .unwrap();
 
@@ -130,7 +130,7 @@ async fn test_empty_password() {
     let auth = AuthManager::new(db);
 
     // Create account with empty password (should work technically)
-    let result = auth.create_account(TEST_MNEMONIC, "", None).await;
+    let result = auth.create_account(TEST_MNEMONIC, "", None, None).await;
     assert!(result.is_ok());
 
     // Should be able to login with empty password
@@ -145,7 +145,7 @@ async fn test_empty_name() {
 
     // Create account with empty name (Some("")) should be stored as is
     let result = auth
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("".to_string()))
+        .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("".to_string()), None)
         .await;
     assert!(result.is_ok());
 
@@ -161,7 +161,7 @@ async fn test_very_long_password() {
     // Create account with very long password
     let long_password = "a".repeat(1000);
     let result = auth
-        .create_account(TEST_MNEMONIC, &long_password, None)
+        .create_account(TEST_MNEMONIC, &long_password, None, None)
         .await;
     assert!(result.is_ok());
 
@@ -243,12 +243,22 @@ async fn test_concurrent_account_creation() {
     // Try to create accounts concurrently
     let handle1 = tokio::spawn(async move {
         auth1
-            .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("User1".to_string()))
+            .create_account(
+                TEST_MNEMONIC,
+                TEST_PASSWORD,
+                Some("User1".to_string()),
+                None,
+            )
             .await
     });
     let handle2 = tokio::spawn(async move {
         auth2
-            .create_account(TEST_MNEMONIC, TEST_PASSWORD, Some("User2".to_string()))
+            .create_account(
+                TEST_MNEMONIC,
+                TEST_PASSWORD,
+                Some("User2".to_string()),
+                None,
+            )
             .await
     });
 
@@ -272,7 +282,7 @@ async fn test_concurrent_login_attempts() {
 
     // Create account
     auth1
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+        .create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
 
@@ -296,7 +306,7 @@ async fn test_concurrent_password_changes() {
 
     // Create account
     auth1
-        .create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+        .create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
 
@@ -353,7 +363,7 @@ async fn test_delete_account_does_not_affect_other_settings() {
     let auth = AuthManager::new(db);
 
     // Create account and other settings
-    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None)
+    auth.create_account(TEST_MNEMONIC, TEST_PASSWORD, None, None)
         .await
         .unwrap();
     settings_manager

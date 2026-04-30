@@ -85,24 +85,24 @@ use gigi_file_sharing::FileSharingManager;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create file sharing manager
     let mut file_sharing = FileSharingManager::new("/path/to/downloads").await?;
-    
+
     // Share a file
     let share_code = file_sharing.share("/path/to/file.txt").await?;
     println!("File shared with code: {}", share_code);
-    
+
     // Download a file
     let download_id = file_sharing.download("peer-id", &share_code).await?;
     println!("Download started with ID: {}", download_id);
-    
+
     // Track download progress
     file_sharing.on_progress(|download_id, progress| {
         println!("Download {} progress: {}%", download_id, progress * 100.0);
     });
-    
+
     // Wait for download to complete
     let file_path = file_sharing.wait_for_download(&download_id).await?;
     println!("Download completed: {:?}", file_path);
-    
+
     Ok(())
 }
 ```
@@ -168,7 +168,7 @@ println!("Active downloads: {}", downloads.len());
 
 for download in downloads {
     println!("- {}: {}% ({} of {})
-", 
+",
         download.id,
         download.progress * 100.0,
         download.downloaded_bytes,
@@ -432,24 +432,24 @@ use gigi_file_sharing::FileSharingManager;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create file sharing manager
     let mut file_sharing = FileSharingManager::new("/path/to/downloads").await?;
-    
+
     // Share a file
     let share_code = file_sharing.share("/path/to/document.pdf").await?;
     println!("File shared with code: {}", share_code);
-    
+
     // Download the file (from another peer)
     let download_id = file_sharing.download("peer-id", &share_code).await?;
     println!("Download started with ID: {}", download_id);
-    
+
     // Track progress
     file_sharing.on_progress(|download_id, progress| {
         println!("Download {} progress: {}%", download_id, progress * 100.0);
     });
-    
+
     // Wait for download to complete
     let file_path = file_sharing.wait_for_download(&download_id).await?;
     println!("Download completed: {:?}", file_path);
-    
+
     Ok(())
 }
 ```
@@ -463,24 +463,24 @@ use gigi_file_sharing::FileSharingManager;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create file sharing manager
     let mut file_sharing = FileSharingManager::new("/path/to/downloads").await?;
-    
+
     // Download from multiple peers
     let download_id = file_sharing.download_from_multiple(
         vec!["peer-id-1", "peer-id-2", "peer-id-3"],
         "share-code"
     ).await?;
-    
+
     println!("Multi-peer download started with ID: {}", download_id);
-    
+
     // Track progress
     file_sharing.on_progress(|download_id, progress| {
         println!("Download {} progress: {}%", download_id, progress * 100.0);
     });
-    
+
     // Wait for download to complete
     let file_path = file_sharing.wait_for_download(&download_id).await?;
     println!("Multi-peer download completed: {:?}", file_path);
-    
+
     Ok(())
 }
 ```
@@ -494,10 +494,10 @@ use gigi_file_sharing::FileSharingManager;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create file sharing manager
     let mut file_sharing = FileSharingManager::new("/path/to/downloads").await?;
-    
+
     // Start multiple downloads
     let download_ids = vec![];
-    
+
     for i in 1..=3 {
         let download_id = file_sharing.download(
             format!("peer-id-{}", i),
@@ -506,24 +506,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         download_ids.push(download_id);
         println!("Started download: {}", download_id);
     }
-    
+
     // List active downloads
     let downloads = file_sharing.list_active_downloads().await?;
     println!("Active downloads: {}", downloads.len());
-    
+
     // Cancel one download
     if !download_ids.is_empty() {
         let download_id_to_cancel = download_ids[0].clone();
         file_sharing.cancel_download(&download_id_to_cancel).await?;
         println!("Cancelled download: {}", download_id_to_cancel);
     }
-    
+
     // Wait for remaining downloads to complete
     for download_id in download_ids.iter().skip(1) {
         let file_path = file_sharing.wait_for_download(download_id).await?;
         println!("Download completed: {:?}", file_path);
     }
-    
+
     Ok(())
 }
 ```

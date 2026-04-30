@@ -2,6 +2,7 @@
 //
 // Integration tests for Gigi DNS
 
+#![allow(clippy::field_reassign_with_default)]
 use gigi_dns::protocol::GigiDnsProtocol;
 use gigi_dns::types::*;
 use libp2p::{Multiaddr, PeerId};
@@ -201,7 +202,7 @@ fn test_ttl_based_expiration() {
         let expires_in = info.expires_at.duration_since(now).as_secs();
 
         // Should expire approximately in 1 hour
-        assert!(expires_in >= 3590 && expires_in <= 3610);
+        assert!((3590..=3610).contains(&expires_in));
     } else {
         panic!("Expected Discovered event");
     }

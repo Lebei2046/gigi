@@ -38,7 +38,7 @@ use crate::events::StoredMessage;
 use crate::PersistenceConfig;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use gigi_logging::{debug, error, info, instrument};
+use gigi_logging::{debug, error, info};
 use sea_orm::prelude::Expr;
 use sea_orm::*;
 use sea_orm_migration::MigratorTrait;
@@ -729,9 +729,7 @@ impl MessageStore {
             .await
             .context("Failed to fetch message")?;
 
-        Ok(result
-            .map(|m| self.model_to_stored_message(m))
-            .transpose()?)
+        result.map(|m| self.model_to_stored_message(m)).transpose()
     }
 
     /// Convert Sea-ORM model to StoredMessage
@@ -872,90 +870,85 @@ impl MessageStore {
         // 2. Delete thumbnail files for both incoming and outgoing images
         for msg in &image_messages {
             // Parse content from JSON
-            if let Ok(content) =
-                serde_json::from_str::<crate::events::MessageContent>(&msg.content_json)
+            if let Ok(
+                crate::events::MessageContent::FileShare {
+                    share_code,
+                    file_type,
+                    ..
+                }
+                | crate::events::MessageContent::FileShareWithThumbnail {
+                    share_code,
+                    file_type,
+                    ..
+                },
+            ) = serde_json::from_str::<crate::events::MessageContent>(&msg.content_json)
             {
-                match content {
-                    crate::events::MessageContent::FileShare {
-                        share_code,
-                        file_type,
-                        ..
-                    }
-                    | crate::events::MessageContent::FileShareWithThumbnail {
-                        share_code,
-                        file_type,
-                        ..
-                    } => {
-                        // Only process images
-                        if file_type.starts_with("image/") {
-                            // Check if message is incoming or outgoing
-                            if let Ok(direction) = serde_json::from_str::<
-                                crate::events::MessageDirection,
-                            >(&msg.direction)
+                // Only process images
+                if file_type.starts_with("image/") {
+                    // Check if message is incoming or outgoing
+                    if let Ok(direction) =
+                        serde_json::from_str::<crate::events::MessageDirection>(&msg.direction)
+                    {
+                        if matches!(direction, crate::events::MessageDirection::Received) {
+                            // INCOMING messages: Get thumbnail path from file_sharing_store
+                            if let Ok(Some(thumbnail_path)) =
+                                file_sharing_store.get_thumbnail_path(&share_code).await
                             {
-                                if matches!(direction, crate::events::MessageDirection::Received) {
-                                    // INCOMING messages: Get thumbnail path from file_sharing_store
-                                    if let Ok(Some(thumbnail_path)) =
-                                        file_sharing_store.get_thumbnail_path(&share_code).await
-                                    {
-                                        // Delete the thumbnail file
-                                        let thumbnail_file = PathBuf::from(&thumbnail_path);
-                                        if thumbnail_file.exists() {
-                                            if let Err(e) = fs::remove_file(&thumbnail_file) {
-                                                error!(
-                                                    "Failed to delete thumbnail file {}: {}",
-                                                    thumbnail_path, e
-                                                );
-                                            } else {
-                                                info!(
-                                                    "Deleted thumbnail file for incoming image: {}",
-                                                    thumbnail_path
-                                                );
-                                            }
-                                        }
+                                // Delete the thumbnail file
+                                let thumbnail_file = PathBuf::from(&thumbnail_path);
+                                if thumbnail_file.exists() {
+                                    if let Err(e) = fs::remove_file(&thumbnail_file) {
+                                        error!(
+                                            "Failed to delete thumbnail file {}: {}",
+                                            thumbnail_path, e
+                                        );
+                                    } else {
+                                        info!(
+                                            "Deleted thumbnail file for incoming image: {}",
+                                            thumbnail_path
+                                        );
                                     }
-                                } else {
-                                    // OUTGOING messages: Get file path from file_sharing_store,
-                                    // then get thumbnail path from thumbnail_store
-                                    if let Ok(Some(shared_file)) =
-                                        file_sharing_store.get_shared_file(&share_code).await
-                                    {
-                                        let file_path = shared_file.file_path;
-                                        // Look up thumbnail path from thumbnail_store
-                                        if let Ok(Some(thumbnail_path)) =
-                                            thumbnail_store.get_thumbnail(&file_path).await
-                                        {
-                                            // Delete the thumbnail file
-                                            let thumbnail_file = PathBuf::from(&thumbnail_path);
-                                            if thumbnail_file.exists() {
-                                                if let Err(e) = fs::remove_file(&thumbnail_file) {
-                                                    error!(
+                                }
+                            }
+                        } else {
+                            // OUTGOING messages: Get file path from file_sharing_store,
+                            // then get thumbnail path from thumbnail_store
+                            if let Ok(Some(shared_file)) =
+                                file_sharing_store.get_shared_file(&share_code).await
+                            {
+                                let file_path = shared_file.file_path;
+                                // Look up thumbnail path from thumbnail_store
+                                if let Ok(Some(thumbnail_path)) =
+                                    thumbnail_store.get_thumbnail(&file_path).await
+                                {
+                                    // Delete the thumbnail file
+                                    let thumbnail_file = PathBuf::from(&thumbnail_path);
+                                    if thumbnail_file.exists() {
+                                        if let Err(e) = fs::remove_file(&thumbnail_file) {
+                                            error!(
                                                         "Failed to delete thumbnail file for outgoing image {}: {}",
                                                         thumbnail_path, e
                                                     );
-                                                } else {
-                                                    info!(
-                                                        "Deleted thumbnail file for outgoing image: {}",
-                                                        thumbnail_path
-                                                    );
-                                                }
-                                            }
-                                            // Delete the thumbnail mapping from thumbnail_store
-                                            if let Err(e) =
-                                                thumbnail_store.delete_thumbnail(&file_path).await
-                                            {
-                                                error!(
-                                                    "Failed to delete thumbnail mapping for {}: {}",
-                                                    file_path, e
-                                                );
-                                            }
+                                        } else {
+                                            info!(
+                                                "Deleted thumbnail file for outgoing image: {}",
+                                                thumbnail_path
+                                            );
                                         }
+                                    }
+                                    // Delete the thumbnail mapping from thumbnail_store
+                                    if let Err(e) =
+                                        thumbnail_store.delete_thumbnail(&file_path).await
+                                    {
+                                        error!(
+                                            "Failed to delete thumbnail mapping for {}: {}",
+                                            file_path, e
+                                        );
                                     }
                                 }
                             }
                         }
                     }
-                    _ => {}
                 }
             }
         }

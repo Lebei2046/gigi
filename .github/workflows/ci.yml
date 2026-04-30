@@ -12,7 +12,6 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Code quality and formatting checks
   formatting:
     name: Check Formatting
     runs-on: ubuntu-latest
@@ -27,7 +26,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt -- --check
 
-  # Linting with Clippy
   lint:
     name: Lint with Clippy
     runs-on: ubuntu-latest
@@ -39,33 +37,18 @@ jobs:
         with:
           components: clippy
 
-      - name: Run Clippy (gigi-p2p)
-        run: cargo clippy -p gigi-p2p -- -D warnings
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run Clippy (gigi-auth)
-        run: cargo clippy -p gigi-auth -- -D warnings
+      - name: Run Clippy (all packages)
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Run Clippy (gigi-dns)
-        run: cargo clippy -p gigi-dns -- -D warnings
-
-      - name: Run Clippy (gigi-file-sharing)
-        run: cargo clippy -p gigi-file-sharing -- -D warnings
-
-      - name: Run Clippy (gigi-store)
-        run: cargo clippy -p gigi-store -- -D warnings
-
-      - name: Run Clippy (gigi-dioxus)
-        run: cargo clippy -p gigi-dioxus -- -D warnings
-
-  # Unit tests for all packages
   test-unit:
     name: Unit Tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        rust: [stable]
-
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -73,43 +56,29 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run unit tests (gigi-p2p)
-        run: cargo test -p gigi-p2p --lib --no-fail-fast
+      - name: Run unit tests
+        run: cargo test --lib --all --no-fail-fast
 
-      - name: Run unit tests (gigi-auth)
-        run: cargo test -p gigi-auth --lib --no-fail-fast
-
-      - name: Run unit tests (gigi-dns)
-        run: cargo test -p gigi-dns --lib --no-fail-fast
-
-      - name: Run unit tests (gigi-file-sharing)
-        run: cargo test -p gigi-file-sharing --lib --no-fail-fast
-
-      - name: Run unit tests (gigi-store)
-        run: cargo test -p gigi-store --lib --no-fail-fast
-
-  # Integration tests
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -117,33 +86,20 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-integ-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-integ-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run integration tests (gigi-p2p)
-        run: cargo test -p gigi-p2p --test '*_test' --no-fail-fast -- --test-threads=2
+      - name: Run integration tests
+        run: cargo test --test '*' --all --no-fail-fast -- --test-threads=2
 
-      - name: Run integration tests (gigi-auth)
-        run: cargo test -p gigi-auth --test '*_test' --no-fail-fast -- --test-threads=2
-
-      - name: Run integration tests (gigi-dns)
-        run: cargo test -p gigi-dns --test '*_test' --no-fail-fast -- --test-threads=2
-
-      - name: Run integration tests (gigi-file-sharing)
-        run: cargo test -p gigi-file-sharing --test '*_test' --no-fail-fast -- --test-threads=2
-
-      - name: Run integration tests (gigi-store)
-        run: cargo test -p gigi-store --test '*_test' --no-fail-fast -- --test-threads=2
-
-  # Security audit
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -153,59 +109,35 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
+      - name: Run cargo audit
+        uses: rustsec/audit-check@v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update advisory database
-        run: cargo audit update-advisories || echo "Failed to update advisory database, continuing..."
-
-      - name: Run security audit
-        run: cargo audit || echo "Security audit warnings found, check results"
-
-  # Build verification
   build:
     name: Build All Targets
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
         with:
-          targets: ${{ matrix.target }}
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-release-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build gigi-p2p
-        run: cargo build -p gigi-p2p --release --target ${{ matrix.target }}
+      - name: Build all packages
+        run: cargo build --release --all
 
-      - name: Build gigi-auth
-        run: cargo build -p gigi-auth --release --target ${{ matrix.target }}
-
-      - name: Build gigi-dns
-        run: cargo build -p gigi-dns --release --target ${{ matrix.target }}
-
-      - name: Build gigi-file-sharing
-        run: cargo build -p gigi-file-sharing --release --target ${{ matrix.target }}
-
-      - name: Build gigi-store
-        run: cargo build -p gigi-store --release --target ${{ matrix.target }}
-
-      - name: Build gigi-dioxus
-        run: cargo build -p gigi-dioxus --release --target ${{ matrix.target }}
-
-  # Documentation generation
   docs:
     name: Generate Documentation
     runs-on: ubuntu-latest
@@ -215,35 +147,36 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Generate documentation
         run: cargo doc --all --no-deps --document-private-items
 
-  # TypeScript tests
   test-typescript:
     name: TypeScript Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
-      
-      - name: Install dependencies for p2p package
-        run: cd typescript/p2p && pnpm install
-      
-      - name: Run TypeScript tests for p2p
-        run: cd typescript/p2p && pnpm test --run
-      
-      - name: Install dependencies for amp package
-        run: cd typescript/amp && pnpm install
-      
-      - name: Run TypeScript tests for amp
-        run: cd typescript/amp && pnpm test --run
 
-  # Summary job
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install all dependencies at root level
+        run: pnpm install --frozen-lockfile
+
+      - name: Run TypeScript tests
+        run: pnpm test
+
   summary:
     name: CI/CD Summary
     runs-on: ubuntu-latest
@@ -263,3 +196,7 @@ jobs:
           echo "Build: ${{ needs.build.result }}"
           echo "Docs: ${{ needs.docs.result }}"
           echo "TypeScript Tests: ${{ needs.test-typescript.result }}"
+
+      - name: Fail if any job failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

@@ -60,7 +60,7 @@ When the recipient reconnects, the system automatically delivers pending message
 // hooks.rs:495-510
 gigi_p2p::P2pEvent::Connected { peer_id, nickname } => {
     // ... peer status updates ...
-    
+
     spawn(async move {
         if let Err(e) = P2pService::deliver_pending_messages(&nickname_clone).await {
             println!("Failed to deliver pending messages to {}: {:?}", nickname_clone, e);

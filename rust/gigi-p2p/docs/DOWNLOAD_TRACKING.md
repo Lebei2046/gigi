@@ -43,7 +43,7 @@ All download events now include:
 FileDownloadProgress {
     download_id: String,     // ⬅️ UNIQUE PER DOWNLOAD INSTANCE
     filename: String,        // ⬅️ NEW
-    share_code: String,      // ⬅️ NEW  
+    share_code: String,      // ⬅️ NEW
     from_nickname: String,   // ⬅️ NEW
     downloaded_chunks: usize,
     total_chunks: usize,
@@ -93,7 +93,7 @@ pub struct ActiveDownload {
 // In gigi-dioxus state management
 class DownloadState {
   final Map<String, ActiveDownload> activeDownloads = {};
-  
+
   void handleEvent(P2pEvent event) {
     switch (event.type) {
       case 'FileDownloadStarted':
@@ -105,7 +105,7 @@ class DownloadState {
         if (download != null) {
           download.downloadedChunks = event.downloadedChunks;
           download.totalChunks = event.totalChunks;
-          
+
           // Update UI with progress percentage
           final progress = (event.downloadedChunks / event.totalChunks) * 100;
           updateDownloadProgress(event.downloadId, progress);
@@ -117,7 +117,7 @@ class DownloadState {
         if (download != null) {
           download.completed = true;
           download.finalPath = event.path;
-          
+
           // If it's an image, display it immediately
           if (isImageFile(event.filename)) {
             showDownloadedImage(event.filename, event.path);
@@ -130,7 +130,7 @@ class DownloadState {
         if (download != null) {
           download.failed = true;
           download.errorMessage = event.error;
-          
+
           showDownloadError(event.filename, event.error, () {
             // Retry download
             client.download_file(event.fromNickname, event.shareCode);
@@ -171,17 +171,17 @@ void cleanupDownloads() {
 #### Download Progress Indicator
 ```dart
 Widget DownloadProgressCard(ActiveDownload download) {
-  final progress = download.totalChunks > 0 
-      ? (download.downloadedChunks / download.totalChunks) * 100 
+  final progress = download.totalChunks > 0
+      ? (download.downloadedChunks / download.totalChunks) * 100
       : 0.0;
-      
+
   return Card(
     child: Column(
       children: [
         Text(download.filename),
         LinearProgressIndicator(value: progress / 100),
         Text('${progress.toStringAsFixed(1)}%'),
-        if (download.completed) 
+        if (download.completed)
           Icon(Icons.check_circle, color: Colors.green)
         else if (download.failed)
           Icon(Icons.error, color: Colors.red)
@@ -209,7 +209,7 @@ Widget DownloadedImage(String filename, String filePath) {
 1. **User Action**: Tap "Download" in chat
 2. **Download Started**: `FileDownloadStarted` event → Show progress card
 3. **Progress Updates**: `FileDownloadProgress` events → Update progress bar
-4. **Download Completed**: `FileDownloadCompleted` event → 
+4. **Download Completed**: `FileDownloadCompleted` event →
    - Mark as completed ✅
    - If image: Display immediately in chat
    - If file: Show file icon with open option
@@ -217,7 +217,7 @@ Widget DownloadedImage(String filename, String filePath) {
 
 ### Error Handling:
 
-1. **Download Failed**: `FileDownloadFailed` event → 
+1. **Download Failed**: `FileDownloadFailed` event →
    - Show error message
    - Display retry button
    - Keep in history for reference
@@ -250,7 +250,7 @@ For `gigi-dioxus`:
 Users will now see:
 - ⬇️ "Downloading image.jpg from Alice..."
 - 📊 "45% complete" with progress bar
-- ✅ "Download complete - Click to view" 
+- ✅ "Download complete - Click to view"
 - 🖼️ Image displayed directly in chat
 - 🔄 "Retry" button if download fails
 

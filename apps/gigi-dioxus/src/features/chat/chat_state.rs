@@ -1,11 +1,10 @@
-use crate::services::auth_service::AuthService;
 use crate::services::p2p_service::P2pService;
 use crate::services::persistence_service::PersistenceService;
 use chrono::Local;
 use dioxus::prelude::*;
 use dirs;
 use gigi_p2p::PeerId;
-use gigi_store::{Conversation as StoreConversation, StoredMessage};
+use gigi_store::StoredMessage;
 
 // Types for chat data
 #[derive(Debug, Clone, PartialEq)]
@@ -78,7 +77,7 @@ pub struct ActiveDownload {
 }
 
 // Chat state
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ChatState {
     pub peers: Vec<Peer>,
     pub groups: Vec<Group>,
@@ -132,21 +131,6 @@ pub enum MessageType {
     Text,
     Image,
     File,
-}
-
-// Initial state
-impl Default for ChatState {
-    fn default() -> Self {
-        Self {
-            peers: vec![],
-            groups: vec![],
-            conversations: vec![],
-            group_share_notifications: vec![],
-            active_downloads: vec![],
-            loading: false,
-            error: None,
-        }
-    }
 }
 
 impl Default for ChatRoomState {
@@ -323,11 +307,13 @@ use tokio::sync::Mutex;
 
 pub static GLOBAL_CHAT_STATE: Lazy<Arc<Mutex<ChatState>>> =
     Lazy::new(|| Arc::new(Mutex::new(ChatState::default())));
+#[allow(dead_code)]
 static CHAT_INITIALIZED: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
 
+#[allow(dead_code)]
 pub async fn is_chat_initialized() -> bool {
     let state = GLOBAL_CHAT_STATE.lock().await;
-    state.peers.len() > 0 || state.groups.len() > 0 || state.conversations.len() > 0
+    !state.peers.is_empty() || !state.groups.is_empty() || !state.conversations.is_empty()
 }
 
 pub fn use_chat_state() -> Signal<ChatState> {
@@ -339,30 +325,35 @@ pub fn use_chat_room_state() -> Signal<ChatRoomState> {
 }
 
 // Helper functions for chat operations
+#[allow(dead_code)]
 pub async fn send_message(to_nickname: &str, message: &str) {
     if let Err(err) = P2pService::send_message(to_nickname, message).await {
         println!("Failed to send message: {:?}", err);
     }
 }
 
+#[allow(dead_code)]
 pub async fn send_group_message(group_name: &str, message: &str) {
     if let Err(err) = P2pService::send_group_message(group_name, message).await {
         println!("Failed to send group message: {:?}", err);
     }
 }
 
+#[allow(dead_code)]
 pub async fn join_group(group_name: &str) {
     if let Err(err) = P2pService::join_group(group_name).await {
         println!("Failed to join group: {:?}", err);
     }
 }
 
+#[allow(dead_code)]
 pub async fn leave_group(group_name: &str) {
     if let Err(err) = P2pService::leave_group(group_name).await {
         println!("Failed to leave group: {:?}", err);
     }
 }
 
+#[allow(dead_code)]
 pub async fn list_peers() -> Vec<Peer> {
     match P2pService::list_peers().await {
         Ok(peers) => {
@@ -386,6 +377,7 @@ pub async fn list_peers() -> Vec<Peer> {
 }
 
 // Delete a message by ID
+#[allow(dead_code)]
 pub fn delete_message(messages: &mut Vec<Message>, message_id: &str) {
     if let Some(index) = messages.iter().position(|msg| msg.id == message_id) {
         messages.remove(index);

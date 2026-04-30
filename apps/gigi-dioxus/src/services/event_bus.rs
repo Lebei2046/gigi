@@ -8,6 +8,7 @@ use tokio::sync::broadcast;
 pub enum AppEvent {
     P2P(P2pEvent),
     MessageSaved(String),
+    #[allow(dead_code)]
     ContactUpdated,
     GroupUpdated,
     FileDownloadProgress {
@@ -23,15 +24,18 @@ pub enum AppEvent {
         error: String,
     },
     FileShareReceived {
+        #[allow(dead_code)]
         from_peer_id: String,
         from_nickname: String,
         share_code: String,
         filename: String,
         file_size: u64,
         file_type: String,
+        #[allow(dead_code)]
         conv_id: String,
     },
     GroupFileShareReceived {
+        #[allow(dead_code)]
         from_peer_id: String,
         from_nickname: String,
         share_code: String,

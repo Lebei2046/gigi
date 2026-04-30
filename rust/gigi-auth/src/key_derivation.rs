@@ -132,7 +132,7 @@ pub fn derive_peer_id(mnemonic: &str) -> Result<String> {
     let keypair = KeyPair::from_seed(ed25519_compact::Seed::from_slice(&seed_array)?);
 
     // Convert to libp2p Keypair format
-    let mut keypair_array: [u8; 64] = (*keypair).into();
+    let mut keypair_array: [u8; 64] = *keypair;
     let libp2p_keypair = identity::ed25519::Keypair::try_from_bytes(&mut keypair_array)
         .context("Failed to convert to libp2p keypair")?;
 
@@ -208,7 +208,7 @@ pub fn derive_group_id(mnemonic: &str) -> Result<String> {
     let keypair = KeyPair::from_seed(ed25519_compact::Seed::from_slice(&seed_array)?);
 
     // Convert to libp2p Keypair format
-    let mut keypair_array: [u8; 64] = (*keypair).into();
+    let mut keypair_array: [u8; 64] = *keypair;
     let libp2p_keypair = identity::ed25519::Keypair::try_from_bytes(&mut keypair_array)
         .context("Failed to convert to libp2p keypair")?;
 

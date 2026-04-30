@@ -16,7 +16,7 @@
 use crate::interface::{handle_if_event, InterfaceEvent, InterfaceTask};
 use crate::types::*;
 use futures::stream::StreamExt;
-use gigi_logging::{instrument, warn};
+use gigi_logging::warn;
 use if_watch::tokio::IfWatcher;
 use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
@@ -291,12 +291,13 @@ impl NetworkBehaviour for GigiDnsBehaviour {
         let libp2p_addrs: Vec<Multiaddr> = addrs.iter().cloned().collect();
 
         if !libp2p_addrs.is_empty() {
-            for (_, tx) in &self.address_update_txs {
+            for tx in self.address_update_txs.values() {
                 let _ = tx.send(libp2p_addrs.clone());
             }
         }
     }
 
+    #[allow(clippy::never_loop)]
     fn poll(
         &mut self,
         cx: &mut Context<'_>,
@@ -321,7 +322,7 @@ impl NetworkBehaviour for GigiDnsBehaviour {
             while let Poll::Ready(Some(event)) = self.interface_rx.poll_recv(cx) {
                 let should_emit = match &event {
                     InterfaceEvent::PeerDiscovered(GigiDnsEvent::Discovered(peer_info)) => {
-                        let peer_id = peer_info.peer_id.clone();
+                        let peer_id = peer_info.peer_id;
                         // Check if this is a new peer or an update
                         if let Some(old_info) = self.discovered_peers.get(&peer_id) {
                             // Only compare meaningful fields - ignore timestamps and metadata changes
@@ -373,7 +374,7 @@ impl NetworkBehaviour for GigiDnsBehaviour {
                     }
                     InterfaceEvent::PeerExpired(GigiDnsEvent::Expired { peer_id, info: _ }) => {
                         self.discovered_peers.remove(peer_id);
-                        self.last_updated.remove(&peer_id);
+                        self.last_updated.remove(peer_id);
                         true
                     }
                     _ => true,

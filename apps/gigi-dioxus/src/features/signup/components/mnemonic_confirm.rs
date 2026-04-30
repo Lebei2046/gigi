@@ -15,7 +15,7 @@ pub fn MnemonicConfirm() -> Element {
     let random_indices = vec![2, 5, 9];
 
     // Track user inputs
-    let mut user_inputs = use_signal(|| std::collections::HashMap::<usize, String>::new());
+    let mut user_inputs = use_signal(std::collections::HashMap::<usize, String>::new);
 
     // Check if all inputs are correct
     let random_indices_clone = random_indices.clone();
@@ -97,12 +97,11 @@ pub fn MnemonicConfirm() -> Element {
                                 } else {
                                     word
                                 };
-                                let mut class = "flex items-center space-x-2 rounded-lg px-3 py-2 border transition-colors duration-200";
-                                if is_input {
-                                    class = "{class} bg-white border-gray-300";
+                                let class = if is_input {
+                                    "flex items-center space-x-2 rounded-lg px-3 py-2 border transition-colors duration-200 bg-white border-gray-300"
                                 } else {
-                                    class = "{class} bg-gray-50 border-gray-200";
-                                }
+                                    "flex items-center space-x-2 rounded-lg px-3 py-2 border transition-colors duration-200 bg-gray-50 border-gray-200"
+                                };
                                 rsx! {
                                     div { key: "{index}", class,
                                         span { class: "text-sm font-medium text-gray-500 min-w-[20px]", "{index + 1}." }

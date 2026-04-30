@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { PeerId } from '@libp2p/interface';
 import { GigiDnsBehaviour, GigiDnsCommand } from '../behaviour';
-import { defaultGigiDnsConfig, GigiDnsEvent } from '../types';
+import { defaultGigiDnsConfig, GigiDnsEvent, OfflineReason } from '../types';
 import { multiaddr } from '@multiformats/multiaddr';
 
 // Mock dgram module
@@ -135,16 +135,20 @@ describe('GigiDnsBehaviour Coverage Tests', () => {
       toBytes: () => new Uint8Array([4, 5, 6]),
     } as unknown as PeerId;
 
+    const now = new Date();
+    const peerInfo = {
+      peerId: mockPeerId,
+      nickname: 'TestPeer',
+      multiaddr: multiaddr('/ip4/127.0.0.1/tcp/1234'),
+      capabilities: [],
+      metadata: {},
+      discoveredAt: now,
+      expiresAt: new Date(Date.now() + 60000),
+    };
+
     const discoveredEvent: GigiDnsEvent = {
       type: 'Discovered',
-      peerInfo: {
-        peerId: mockPeerId,
-        nickname: 'TestPeer',
-        multiaddr: multiaddr('/ip4/127.0.0.1/tcp/1234'),
-        capabilities: [],
-        metadata: {},
-        expiresAt: new Date(Date.now() + 60000),
-      },
+      peerInfo,
     };
 
     (behaviour as any).processEvent(discoveredEvent);
@@ -153,9 +157,9 @@ describe('GigiDnsBehaviour Coverage Tests', () => {
     const updatedEvent: GigiDnsEvent = {
       type: 'Updated',
       peerId: mockPeerId,
-      oldInfo: discoveredEvent.peerInfo,
+      oldInfo: peerInfo,
       newInfo: {
-        ...discoveredEvent.peerInfo,
+        ...peerInfo,
         nickname: 'UpdatedPeer',
       },
     };
@@ -166,7 +170,7 @@ describe('GigiDnsBehaviour Coverage Tests', () => {
     const expiredEvent: GigiDnsEvent = {
       type: 'Expired',
       peerId: mockPeerId,
-      info: discoveredEvent.peerInfo,
+      info: peerInfo,
     };
 
     (behaviour as any).processEvent(expiredEvent);
@@ -175,7 +179,8 @@ describe('GigiDnsBehaviour Coverage Tests', () => {
     const offlineEvent: GigiDnsEvent = {
       type: 'Offline',
       peerId: mockPeerId,
-      peerInfo: discoveredEvent.peerInfo,
+      info: peerInfo,
+      reason: OfflineReason.TtlExpired,
     };
 
     (behaviour as any).processEvent(offlineEvent);
@@ -284,6 +289,7 @@ describe('GigiDnsBehaviour Coverage Tests', () => {
         multiaddr: multiaddr('/ip4/127.0.0.1/tcp/1234'),
         capabilities: [],
         metadata: {},
+        discoveredAt: new Date(),
         expiresAt: new Date(Date.now() + 60000),
       },
     };
