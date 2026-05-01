@@ -24,10 +24,10 @@
     "format-all": "prettier --write \"src/**/*.{ts,tsx,json,css,md}\" \"*.json\" \"*.md\" \"docs/**/*.md\" && eslint \"src/**/*.{ts,tsx}\" --ext ts,tsx --fix"
   },
   "dependencies": {
-    "@gigi/amp": "file:../../typescript/amp",
-    "@gigi/logging": "file:../../typescript/logging",
-    "@gigi/p2p": "file:../../typescript/p2p",
-    "@gigi/request-response": "file:../../typescript/request-response",
+    "@gigi/amp": "workspace:^1.0.0",
+    "@gigi/logging": "workspace:^1.0.0",
+    "@gigi/p2p": "workspace:^1.0.0",
+    "@gigi/request-response": "workspace:^1.0.0",
     "@sinclair/typebox": "^0.34.0"
   },
   "peerDependencies": {
