@@ -10,9 +10,9 @@ describe('P2pClient (Real Implementation)', () => {
     config: {
       bootstrapNodes: [],
       enableKademlia: false,
-      enableRelay: true,
+      enableRelay: false,
       enableMdns: false,
-      listenAddrs: ['/ip4/127.0.0.1/tcp/0'],
+      listenAddrs: ['/ip4/127.0.0.1/tcp/15000'],
     },
   };
 

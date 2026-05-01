@@ -15,9 +15,9 @@ describe('Group Chat Functionality (Real Implementation)', () => {
       config: {
         bootstrapNodes: [],
         enableKademlia: false,
-        enableRelay: true,
+        enableRelay: false,
         enableMdns: false,
-        listenAddrs: ['/ip4/127.0.0.1/tcp/0'],
+        listenAddrs: ['/ip4/127.0.0.1/tcp/15001'],
       },
     });
 
@@ -26,9 +26,9 @@ describe('Group Chat Functionality (Real Implementation)', () => {
       config: {
         bootstrapNodes: [],
         enableKademlia: false,
-        enableRelay: true,
+        enableRelay: false,
         enableMdns: false,
-        listenAddrs: ['/ip4/127.0.0.1/tcp/0'],
+        listenAddrs: ['/ip4/127.0.0.1/tcp/15002'],
       },
     });
 
@@ -37,9 +37,9 @@ describe('Group Chat Functionality (Real Implementation)', () => {
       config: {
         bootstrapNodes: [],
         enableKademlia: false,
-        enableRelay: true,
+        enableRelay: false,
         enableMdns: false,
-        listenAddrs: ['/ip4/127.0.0.1/tcp/0'],
+        listenAddrs: ['/ip4/127.0.0.1/tcp/15003'],
       },
     });
 
@@ -148,9 +148,9 @@ describe('Group Chat Functionality (Real Implementation)', () => {
       config: {
         bootstrapNodes: [],
         enableKademlia: false,
-        enableRelay: true,
+        enableRelay: false,
         enableMdns: false,
-        listenAddrs: ['/ip4/127.0.0.1/tcp/0'],
+        listenAddrs: ['/ip4/127.0.0.1/tcp/15004'],
       },
     });
 

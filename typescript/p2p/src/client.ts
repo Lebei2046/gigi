@@ -347,6 +347,11 @@ export class P2pClient {
         this.peerManager.cleanup();
       }, 60000); // Clean up every minute
     } catch (error) {
+      logger.error({
+        message: 'Failed to start P2P client',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw P2pError.networkError('Failed to start P2P client', error as Error);
     }
   }
