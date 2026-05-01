@@ -222,8 +222,11 @@ jobs:
       - name: Install all dependencies at root level
         run: pnpm install --frozen-lockfile
 
-      - name: Build all TypeScript packages
-        run: pnpm -r build
+      - name: Build TypeScript packages
+        run: pnpm --filter "@gigi/*" build
+
+      - name: Build App packages
+        run: pnpm --filter "./apps/*" build
 
       - name: Run TypeScript tests
         run: pnpm test

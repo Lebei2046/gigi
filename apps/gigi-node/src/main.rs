@@ -211,10 +211,8 @@ impl GigiNode {
             },
             kad::Event::RoutingUpdated {
                 peer, is_new_peer, ..
-            } => {
-                if is_new_peer {
-                    info!("New peer added to routing table: {}", peer);
-                }
+            } if is_new_peer => {
+                info!("New peer added to routing table: {}", peer);
             }
             kad::Event::UnroutablePeer { peer, .. } => {
                 warn!("Peer {} is unroutable", peer);
