@@ -295,8 +295,7 @@ pub fn use_chat_room_initialization(
                                         PersistenceService::load_messages(&nickname, 50, 0).await
                                     {
                                         let mut sorted_messages = stored_messages;
-                                        sorted_messages
-                                            .sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+                                        sorted_messages.sort_by_key(|a| a.timestamp);
                                         let messages: Vec<Message> =
                                             sorted_messages.iter().map(|m| m.into()).collect();
                                         chat_room_state_clone.write().messages = messages;
