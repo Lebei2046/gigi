@@ -261,7 +261,7 @@ impl DownloadManager {
             .collect();
 
         // Sort by started time (most recent first)
-        downloads.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        downloads.sort_by_key(|b| std::cmp::Reverse(b.started_at));
         downloads.truncate(limit);
         downloads
     }

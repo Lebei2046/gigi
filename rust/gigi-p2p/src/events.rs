@@ -197,7 +197,7 @@ pub struct GroupMessage {
 }
 
 /// Active download tracking for mobile UI applications
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ActiveDownload {
     pub download_id: String,
     pub filename: String,
