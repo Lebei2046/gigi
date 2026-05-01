@@ -1,17 +1,32 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { P2pClient } from '@gigi/p2p';
+import { writeFile, unlink } from 'fs/promises';
+import { join } from 'path';
 
 describe('File Sharing Integration Tests', () => {
   let alice: P2pClient;
   let bob: P2pClient;
+  let testFilePath: string;
+
+  beforeEach(async () => {
+    testFilePath = join('/tmp', `test-file-${Date.now()}.txt`);
+    await writeFile(
+      testFilePath,
+      'This is a test file for sharing between peers. ' + Date.now()
+    );
+  });
 
   afterEach(async () => {
-    // Stop both clients
     try {
       if (alice) await alice.stop();
       if (bob) await bob.stop();
     } catch {
       // Ignore errors when stopping clients
+    }
+    try {
+      await unlink(testFilePath);
+    } catch {
+      // Ignore cleanup errors
     }
   });
 
@@ -45,7 +60,7 @@ describe('File Sharing Integration Tests', () => {
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Alice shares a file
-    const shareCode = await alice.shareFile('/home/lebei/crdt.pdf');
+    const shareCode = await alice.shareFile(testFilePath);
     expect(shareCode).toBeTruthy();
 
     // Wait for file to be fully shared
@@ -62,9 +77,9 @@ describe('File Sharing Integration Tests', () => {
     await alice.sendGroupMessage('chat', {
       type: 'fileShare',
       shareCode,
-      filename: 'crdt.pdf',
+      filename: 'test-file.txt',
       fileSize: 342201,
-      fileType: 'application/pdf',
+      fileType: 'text/plain',
     });
 
     // Wait for message to be received
