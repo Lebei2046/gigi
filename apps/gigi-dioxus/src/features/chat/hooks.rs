@@ -350,7 +350,7 @@ pub fn use_chat_room_initialization(
                     if let Ok(stored_messages) = stored_messages {
                         // Sort messages by timestamp (oldest first)
                         let mut sorted_messages = stored_messages;
-                        sorted_messages.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+                        sorted_messages.sort_by_key(|a| a.timestamp);
 
                         let messages: Vec<Message> =
                             sorted_messages.iter().map(|m| m.into()).collect();
@@ -913,8 +913,7 @@ pub fn use_chat_event_listeners(
                                         if let Ok(stored_messages) = stored_messages {
                                             // Sort messages by timestamp (oldest first)
                                             let mut sorted_messages = stored_messages;
-                                            sorted_messages
-                                                .sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+                                            sorted_messages.sort_by_key(|a| a.timestamp);
 
                                             // Get current messages before replacing
                                             let current_messages =
